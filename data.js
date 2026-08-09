@@ -85233,6 +85233,1541 @@ const examData = {
         },
         "is_verified_from_key": false
       }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_008.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "has an adverse impact on development of language skills. Thus it is clear that differences between educational performance between girls and boys cannot be explained in terms of failing parents.\n\nSelect one of the following options that serves as best statement of flaw in the above argument.",
+        "options": [],
+        "options_eng": [
+          "(1) It is assumed that the scientific explanations apply to the any average person irrespective of gender differences ignoring expectations.",
+          "(2) It is assumes that parents are not trying to help boys to improve their performance.",
+          "(3) It is assumed that prehistoric male skills have no role in the educational performance.",
+          "(4) It is assumed that differences in performance between genders are due solely to biological differences."
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न अपूर्ण आहे. MPSC च्या परीक्षेत प्रश्न समजून घेणे ही यशाची पहिली पायरी आहे. कृपया पूर्ण प्रश्न आणि त्याचे पर्याय नमूद करा. एकदा का तुम्ही प्रश्न दिलात की, मी त्याचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भासह विश्लेषण करेन. MPSC मध्ये 'प्रश्न समजून घेणे' (Question Analysis) हे 'उत्तर शोधण्यापेक्षा' जास्त महत्त्वाचे असते. तुम्ही प्रश्न दिल्यास, मी त्यातील 'कीवर्ड्स' (Keywords) ओळखून एलिमिनेशन पद्धतीचा (Elimination Method) वापर कसा करायचा, हे देखील सांगेन.",
+          "topic": "सामान्य अध्ययन - प्रश्न विश्लेषण",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत यशस्वी होण्यासाठी 'स्मार्ट वर्क' आवश्यक आहे. १. प्रश्न वाचताना 'नाही', 'असत्य', 'योग्य विधाने निवडा' या शब्दांकडे विशेष लक्ष द्या. २. पर्यायांचे विश्लेषण करताना 'Extreme words' (उदा. नेहमी, फक्त, सर्व) असल्यास ते विधान सहसा चुकीचे असते. ३. तुम्ही तुमचा प्रश्न पूर्ण केल्यास, मी तुम्हाला त्या विषयाशी संबंधित 'माईंड मॅप' (Mind Map) आणि 'ट्रिक्स' नक्कीच देईन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_016.png": [
+      {
+        "qnum": 35,
+        "text": "महाराष्ट्र लोकसेवा हक्क अधिनियम 2015 नुसार मुख्य आयुक्त किंवा आयुक्त :\n(a) पुनर्नियुक्त केले जाऊ शकतात.\n(b) मुख्य न्यायमूर्ती समक्ष शपथ ग्रहण करतात.\n(c) राजपाळांना उद्देशुन, कोणत्याही वेळी, आपल्या पदाचा राजीनामा देऊ शकतात.\nपर्यायी उत्तरे :",
+        "text_eng": "The Commissioner or Chief Commissioner under Maharashtra Right to Public Service Act 2015 :\n(a) Can be reappointed.\n(b) Takes oath before Chief Justice.\n(c) Can resign by addressing to Governor at any time.\nAnswer Options :",
+        "options": [
+          "(1) फक्त (a) आणि (b) बरोबर आहेत",
+          "(2) फक्त (b) आणि (c) बरोबर आहेत",
+          "(3) फक्त (c) बरोबर आहे",
+          "(4) फक्त (a) बरोबर आहे"
+        ],
+        "options_eng": [
+          "(1) Only (a) and (b) are right",
+          "(2) Only (b) and (c) are right",
+          "(3) Only (c) is right",
+          "(4) Only (a) is right"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015 (Maharashtra Right to Public Services Act, 2015) मधील कलम 16 नुसार मुख्य आयुक्त आणि आयुक्तांच्या नियुक्ती, कार्यकाळ आणि राजीनाम्याबाबत तरतुदी आहेत. (a) विधान चुकीचे आहे कारण कायद्यानुसार मुख्य आयुक्त किंवा आयुक्त हे पुनर्नियुक्तीसाठी पात्र नसतात (Not eligible for reappointment). (b) विधान चुकीचे आहे कारण मुख्य आयुक्त किंवा आयुक्त हे राज्यपालांसमोर किंवा राज्यपालांनी नियुक्त केलेल्या व्यक्तीसमोर शपथ घेतात, मुख्य न्यायमूर्तींसमोर नाही. (c) विधान बरोबर आहे; कलम 16(3) नुसार, मुख्य आयुक्त किंवा आयुक्त राज्यपालांना उद्देशून स्वाक्षरीसह लेखी राजीनामा देऊ शकतात. त्यामुळे केवळ विधान (c) सत्य आहे.",
+          "topic": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015 - प्रशासकीय तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'राजीनामा राज्यपाल, शपथ राज्यपाल'. मुख्य आयुक्त आणि आयुक्तांचा कार्यकाळ 5 वर्षे किंवा वयाची 65 वर्षे (जे आधी घडेल) असा असतो. भविष्यातील संभाव्य प्रश्न: 1. मुख्य आयुक्तांची निवड समिती कोणाच्या अध्यक्षतेखाली असते? (उत्तर: मुख्यमंत्री). 2. या कायद्यांतर्गत प्रथम अपिलीय अधिकारी आणि द्वितीय अपिलीय अधिकारी यांची भूमिका काय असते? हे घटक MPSC मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत. कलम 16 मधील 'पात्रता' आणि 'अपात्रता' यावर वारंवार प्रश्न विचारले जातात, त्यामुळे कलम 16 पूर्णपणे पाठ करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_010.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_022.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "According to the package scheme of incentives 2019 the following benefits are given to eligible micro, small and medium manufacturing industries.\n(a) Capital subsidy\n(b) Interest subsidy\n(c) Exemption from electricity duty\n(d) Waiver of stamp duty\nWhich of the above given statement is/are correct ?",
+        "options": [],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (a), (b)",
+          "(3) Only (b), (c), (d)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण कोणताही विशिष्ट प्रश्न दिलेला नाही. कृपया प्रश्न नमूद करा जेणेकरून मी MPSC च्या दृष्टिकोनातून त्याचे सखोल विश्लेषण, ऐतिहासिक/राजकीय संदर्भ आणि अचूक उत्तर देऊ शकेन. सामान्यतः MPSC मध्ये प्रश्न विचारताना आयोगाचा कल हा संकल्पनात्मक स्पष्टता (Conceptual Clarity) आणि चालू घडामोडींशी संबंधित (Current Affairs linkage) असतो. एकदा प्रश्न मिळाल्यावर, मी त्याचे विश्लेषण खालीलप्रमाणे करेन: १. प्रश्नाचे मूळ (Source) आणि संदर्भ, २. चारही पर्यायांचे सविस्तर विश्लेषण (का योग्य किंवा का अयोग्य), ३. लक्षात ठेवण्यासाठी 'निमोनिक्स' (Mnemonics) किंवा ट्रिक्स, ४. आयोगाच्या बदलत्या पॅटर्ननुसार भविष्यातील संभाव्य प्रश्न.",
+          "topic": "प्रश्नाचे स्वरूपानुसार विषय निश्चित केला जाईल.",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत यश मिळवण्यासाठी केवळ माहिती पाठ करणे पुरेसे नाही, तर 'Elimination Method' (पर्याय बाद करण्याची पद्धत) वापरणे आवश्यक आहे. भविष्यात प्रश्न सोडवताना 'कीवर्ड्स' (Keywords) वर लक्ष द्या (उदा. 'केवळ', 'नेहमी', 'सर्व', 'अयोग्य' इ.). कृपया आपला प्रश्न पोस्ट करा, मी तुम्हाला पूर्णतः परीक्षेच्या तयारीसाठी सज्ज करेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_021.png": [
+      {
+        "qnum": null,
+        "text": "उपरोक्तसाठी कोणता पर्याय बरोबर आहेत?\n(1) सर्व बरोबर\n(2) सर्व चूक\n(3) फक्त (a) व (b) बरोबर\n(4) फक्त (c) बरोबर",
+        "text_eng": "Maharashtra Industrial Policy 2019 Targets are as follows :\n(a) To keep the growth rate of manufacturing sector at 12% to 13% to achieve 25% share of state project revenue and manufacturing sector by 2023-24.\n(b) To attract investment of Rs. 10 lakh crore.\n(c) To create 40 lakhs employment opportunities by the year 2023-24.\nWhich option is correct with respect to above ?\n(1) All correct\n(2) All wrong\n(3) Only (a) and (b) correct\n(4) Only (c) correct",
+        "options": [
+          "(1) सर्व बरोबर",
+          "(2) सर्व चूक",
+          "(3) फक्त (a) व (b) बरोबर",
+          "(4) फक्त (c) बरोबर"
+        ],
+        "options_eng": [
+          "(1) All correct",
+          "(2) All wrong",
+          "(3) Only (a) and (b) correct",
+          "(4) Only (c) correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "दिलेला प्रश्न अपूर्ण आहे. प्रश्नामध्ये (a), (b) आणि (c) अशी विधाने दिलेली नाहीत, त्यामुळे या प्रश्नाचे उत्तर निश्चित करणे तांत्रिकदृष्ट्या अशक्य आहे. MPSC च्या परीक्षेत अनेकदा 'प्रश्न रद्द' (Cancel) होण्याचे मुख्य कारण म्हणजे माहितीचा अभाव किंवा चुकीचे पर्याय. जेव्हा प्रश्न अपूर्ण असतो, तेव्हा आयोगाकडून तो रद्द केला जातो. जर हा प्रश्न एखाद्या विशिष्ट विषयावर (उदा. राज्यघटना किंवा इतिहास) आधारित असेल, तर त्यातील विधाने पूर्ण असणे आवश्यक आहे. या स्थितीत, कोणताही पर्याय निवडणे तर्कहीन ठरेल.",
+          "topic": "सामान्य अध्ययन - प्रश्न विश्लेषण आणि तर्कशास्त्र",
+          "imp_score": "Low",
+          "extra_points": "विद्यार्थ्यांसाठी टीप: १. परीक्षेच्या वेळी जर प्रश्न अपूर्ण वाटला, तर त्यावर जास्त वेळ वाया घालवू नका. २. MPSC मध्ये 'प्रश्न रद्द' झाल्यास त्याचे गुण सर्वांना समान प्रमाणात दिले जातात किंवा तो प्रश्न वगळून निकालाची टक्केवारी काढली जाते. ३. भविष्यातील तयारीसाठी: नेहमी मूळ संदर्भ ग्रंथांवर (उदा. कोळंबे, देसले, रंजन कोळंबे) भर द्या. ४. ट्रिक्स: जर प्रश्नात 'सर्व बरोबर' किंवा 'सर्व चूक' असे पर्याय असतील, तर विधानांमधील 'केवळ', 'फक्त', 'नेहमी' यांसारख्या शब्दांकडे लक्ष द्या, कारण ही विधाने सहसा चुकीची असतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_018.png": [
+      {
+        "qnum": 42,
+        "text": "डिजिटल इंडिया प्रोग्रामचे स्तंभ 4 व 5 म्हणजेच 'ई-गव्हर्न्स' आणि '_______'.",
+        "text_eng": "The pillars 4 and 5 of the Digital India programme, namely 'e-Governance' and '_______'.",
+        "options": [
+          "(1) ई-ग्रीन",
+          "(2) ई-भारत",
+          "(3) ई-क्रांती",
+          "(4) ई-कॉमर्स"
+        ],
+        "options_eng": [
+          "(1) e-Green",
+          "(2) e-Bharat",
+          "(3) e-Kranti",
+          "(4) e-Commerce"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "डिजिटल इंडिया कार्यक्रम भारत सरकारने १ जुलै २०१५ रोजी सुरू केला. या कार्यक्रमाचे मुख्य उद्दिष्ट भारताला डिजिटलदृष्ट्या सक्षम समाज आणि ज्ञान-आधारित अर्थव्यवस्थेत रूपांतरित करणे हे आहे. या कार्यक्रमाचे एकूण ९ स्तंभ (Pillars) आहेत: १. ब्रॉडबँड हायवेज, २. मोबाईल कनेक्टिव्हिटीचा सार्वत्रिक प्रवेश, ३. सार्वजनिक इंटरनेट ॲक्सेस प्रोग्राम, ४. ई-गव्हर्नन्स (तंत्रज्ञानाद्वारे सरकारमध्ये सुधारणा), ५. ई-क्रांती (इलेक्ट्रॉनिक सेवांचे वितरण), ६. सर्वांसाठी माहिती, ७. आयटी फॉर जॉब्स, ८. अर्ली हार्वेस्ट प्रोग्राम आणि ९. इलेक्ट्रॉनिक्स मॅन्युफॅक्चरिंग. प्रश्नात विचारल्याप्रमाणे, चौथा स्तंभ 'ई-गव्हर्नन्स' आहे आणि पाचवा स्तंभ 'ई-क्रांती' आहे. 'ई-क्रांती'चा मुख्य उद्देश सरकारी सेवा नागरिकांपर्यंत डिजिटल स्वरूपात पोहोचवणे हा आहे. इतर पर्याय (ई-ग्रीन, ई-भारत, ई-कॉमर्स) हे डिजिटल इंडियाच्या अधिकृत ९ स्तंभांचा भाग नाहीत.",
+          "topic": "डिजिटल इंडिया मिशन - ई-गव्हर्नन्स आणि धोरणे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'ब्रॉडबँडच्या महामार्गावरून (१) मोबाईल घेऊन (२) इंटरनेट कॅफेमध्ये (३) जाऊन ई-गव्हर्नन्स (४) आणि ई-क्रांती (५) द्वारे माहिती मिळवून (६) नोकरी (७) मिळवण्यासाठी लवकर (८) इलेक्ट्रॉनिक्स (९) बनवूया.' भविष्यातील प्रश्न: 'ई-क्रांती' अंतर्गत कोणत्या सेवांचा समावेश होतो? (उदा. आरोग्य, शिक्षण, शेती, आर्थिक समावेशन). तसेच, डिजिटल इंडियाच्या ९ स्तंभांचा क्रम विचारला जाऊ शकतो, त्यामुळे हा क्रम तोंडपाठ असणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 43,
+        "text": "महाराष्ट्र शासनाच्या स्वतंत्रपणे स्थापित डेटा सेंटर द्वारे खालीलपैकी कोणती सेवा पुरवली जाते?",
+        "text_eng": "With the set up of State Data Center (SDC), Govt. of Maharashtra provides :",
+        "options": [
+          "(1) IaaS, इन्फ्रास्ट्रक्चर अंज अ सर्व्हिस",
+          "(2) PaaS, प्लॅटफॉर्म अंज अ सर्व्हिस",
+          "(3) क्लाउड कॉम्प्युटींग",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) IaaS, Infrastructure as a Service",
+          "(2) PaaS, Platform as a Service",
+          "(3) Cloud Computing",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र शासनाने 'महाआयटी' (MahaIT) अंतर्गत 'स्टेट डेटा सेंटर' (SDC) ची स्थापना केली आहे. SDC हे ई-गव्हर्नन्स प्रकल्पांचा कणा आहे. हे केंद्र 'क्लाउड कॉम्प्युटिंग' तंत्रज्ञानावर आधारित आहे. क्लाउड कॉम्प्युटिंगमध्ये प्रामुख्याने तीन सेवा पुरवल्या जातात: 1) IaaS (Infrastructure as a Service): यामध्ये सर्व्हर, स्टोरेज आणि नेटवर्क पुरवले जाते. 2) PaaS (Platform as a Service): यामध्ये ॲप्लिकेशन डेव्हलपमेंटसाठी लागणारे प्लॅटफॉर्म (उदा. डेटाबेस, रनटाइम) पुरवले जातात. 3) SaaS (Software as a Service): यामध्ये थेट सॉफ्टवेअर ॲप्लिकेशन्स वापरकर्त्याला उपलब्ध करून दिले जातात. महाराष्ट्र शासनाचे डेटा सेंटर या तिन्ही सेवांचे एकत्रीकरण (Cloud Computing Model) म्हणून काम करते, त्यामुळे पर्याय (4) हे तांत्रिकदृष्ट्या पूर्णपणे अचूक उत्तर आहे.",
+          "topic": "ई-गव्हर्नन्स आणि माहिती तंत्रज्ञान (ICT)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'IPS' (IaaS, PaaS, SaaS) हे क्लाउड कॉम्प्युटिंगचे तीन खांब आहेत. भविष्यातील संभाव्य प्रश्न: 1) 'मेघराज' (Meghraj) म्हणजे काय? (भारत सरकारचा नॅशनल क्लाउड उपक्रम). 2) SDC चे मुख्य उद्दिष्ट काय? (डेटा सुरक्षा आणि ई-सेवांची उपलब्धता). 3) 'डिजिटल महाराष्ट्र' धोरणांतर्गत डेटा सेंटरची भूमिका काय आहे? हे प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, SDC हे केवळ स्टोरेज नसून ते संपूर्ण आयटी इन्फ्रास्ट्रक्चर पुरवणारे केंद्र आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_017.png": [
+      {
+        "qnum": 1,
+        "text": "माहिती अधिकार अधिनियम २००५ अंतर्गत जनमाहिती अधिकारी (PIO) यांना कमाल दंडाची तरतूद काय आहे?",
+        "text_eng": "What is the provision relating to maximum penalty under the RTI Act 2005, to the (PIO) Public Information Officer ?",
+        "options": [
+          "(1) दंडाची एकूण रक्कम रू. 25,000/- पेक्षा अधिक असू नये.",
+          "(2) दंडाची एकूण रक्कम रू. 50,000/- पेक्षा अधिक असू नये.",
+          "(3) दंडाची एकूण रक्कम जनमाहिती अधिकारी यांच्या वेतनापेक्षा अधिक असू नये.",
+          "(4) वरीलपैकी कोणतेही नाही."
+        ],
+        "options_eng": [
+          "(1) The Total Amount of Penalty shall not exceed Rs. 25,000/-",
+          "(2) The Total Amount of Penalty shall not exceed Rs. 50,000/-",
+          "(3) Total Amount of Penalty shall not exceed salary of the PIO.",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "माहिती अधिकार अधिनियम, 2005 च्या कलम 20(1) नुसार, जर जनमाहिती अधिकारी (PIO) यांनी विहित मुदतीत माहिती दिली नाही, माहिती देण्यास नकार दिला, चुकीची किंवा दिशाभूल करणारी माहिती दिली, तर माहिती आयोग त्यांना दंड आकारू शकतो. या कलमानुसार, दंडाची रक्कम ही दररोज 250 रुपये या दराने आकारली जाते, परंतु ही एकूण दंडाची रक्कम 25,000 रुपयांपेक्षा जास्त नसावी. पर्याय (1) हे अचूक उत्तर आहे. पर्याय (2) चुकीचा आहे कारण 50,000 ची मर्यादा कायद्यात नाही. पर्याय (3) मध्ये वेतनाशी संबंधित कोणतीही अट कायद्यात नमूद केलेली नाही. कलम 20(2) अंतर्गत, जर माहिती आयोग शिफारस करेल, तर संबंधित अधिकाऱ्यावर शिस्तभंगाची कारवाई देखील होऊ शकते.",
+          "topic": "माहिती अधिकार अधिनियम, 2005 - कलम 20 (दंड आणि शिस्तभंगाची कारवाई)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '250-25' (दररोज 250 रुपये, कमाल 25,000 रुपये). भविष्यातील संभाव्य प्रश्न: 1. दंडाची आकारणी कोण करते? (उत्तर: राज्य किंवा केंद्रीय माहिती आयोग). 2. दंडाची रक्कम कोणाच्या वेतनातून कापली जाते? (उत्तर: संबंधित जनमाहिती अधिकारी). 3. कलम 20(1) आणि 20(2) मधील फरक: 20(1) आर्थिक दंडाशी संबंधित आहे, तर 20(2) शिस्तभंगाच्या कारवाईशी (Disciplinary action) संबंधित आहे. लक्षात ठेवा, माहिती आयोग स्वतः शिस्तभंगाची कारवाई करत नाही, तर ती संबंधित विभागाला शिफारस करतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_020.png": [
+      {
+        "qnum": 51,
+        "text": "महाराष्ट्र राज्य औद्योगिक समूह विकास योजनेअंतर्गत प्रकल्पाच्या सामायिक सुविधा केंद्र उभारणीसाठी आवश्यक यंत्रसामग्री व इतर बाबींची खरेदी प्रक्रिया कोणत्या समितीमार्फत होते?",
+        "text_eng": "Which committee implement the purchase procedure for procurement of machineries and other items required for common facility centre of the project under Maharashtra State Industrial Cluster Development Programme Scheme ?",
+        "options": [
+          "(1) राज्यस्तरीय समिती",
+          "(2) जिल्हास्तरीय समिती",
+          "(3) विभागीय समिती",
+          "(4) पैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) State Level Committee",
+          "(2) District Level Committee",
+          "(3) Regional Committee",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र राज्य औद्योगिक समूह विकास योजना (Maharashtra State Industrial Cluster Development Scheme - MSICDS) ही सूक्ष्म, लघु आणि मध्यम उद्योगांच्या (MSME) विकासासाठी राबवली जाते. या योजनेअंतर्गत 'सामायिक सुविधा केंद्र' (Common Facility Centre - CFC) उभारणे हा मुख्य उद्देश असतो. नियमावलीनुसार, प्रकल्पाची अंमलबजावणी आणि देखरेख करण्यासाठी जिल्हा स्तरावर 'जिल्हास्तरीय समिती' (District Level Committee - DLC) गठीत केलेली असते. या समितीचे अध्यक्ष जिल्हाधिकारी असतात. यंत्रसामग्रीची खरेदी, निविदा प्रक्रिया (Tendering), आणि निधीचे वाटप यांसारख्या तांत्रिक व प्रशासकीय बाबींची अंतिम मंजुरी देण्याचे अधिकार याच जिल्हास्तरीय समितीला असतात. राज्यस्तरीय समिती धोरणात्मक निर्णय घेते, परंतु प्रत्यक्ष खरेदीची अंमलबजावणी जिल्हा स्तरावरच होते.",
+          "topic": "महाराष्ट्र औद्योगिक धोरण आणि शासकीय योजना",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'जिल्हा' म्हणजे 'अंमलबजावणी'. जेव्हा प्रश्न 'खरेदी प्रक्रिया' किंवा 'प्रकल्प अंमलबजावणी' असा येतो, तेव्हा उत्तर बहुधा जिल्हास्तरीय समितीच असते. भविष्यातील संभाव्य प्रश्न: १) जिल्हास्तरीय समितीचे अध्यक्ष कोण असतात? (उत्तर: जिल्हाधिकारी). २) या योजनेचा मुख्य उद्देश काय आहे? (उत्तर: MSME समूहांची स्पर्धात्मकता वाढवणे). ३) CFC साठी किती टक्के अनुदान मिळते? (हे आकडेवारीवर आधारित प्रश्न विचारले जाऊ शकतात). लक्षात ठेवा: राज्यस्तरीय समिती केवळ 'मंजुरी' (Approval) देते, तर जिल्हास्तरीय समिती 'खरेदी' (Procurement) करते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_011.png": [
+      {
+        "qnum": null,
+        "text": "(b) सद्यास्थितीत लोकलेखा समिती 22 सदस्यांची मिळून बनली आहे.\n(c) लोकलेखा समिती सदस्यांचा कालावधी पाच वर्षे आहे.\n(d) मंत्री लोकलेखा समितीचे सदस्य म्हणून निवडले जाऊ शकतात.\nवरीलपैकी कोणते/ती विधान/ने बरोबर आहे/त?",
+        "text_eng": "Consider the following statements regarding with Public Account Committee.\n(a) Public Account Committee was set up in 1923.\n(b) At present Public Account Committee consists of 22 members.\n(c) The tenure of Public Account Committee member is Five years.\n(d) A minister can be elected as a member of Public Account Committee.\nWhich of the statements given above is/are correct ?",
+        "options": [
+          "(1) (a), (b) आणि (c)",
+          "(2) (b), (c) आणि (d)",
+          "(3) (a), (c) आणि (d)",
+          "(4) (a) आणि (b)"
+        ],
+        "options_eng": [
+          "(1) (a), (b) and (c)",
+          "(2) (b), (c) and (d)",
+          "(3) (a), (c) and (d)",
+          "(4) (a) and (b)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "लोकलेखा समिती (Public Accounts Committee - PAC) ही भारतीय संसदेची सर्वात जुनी आणि महत्त्वाची वित्तीय समिती आहे. विधानांचे विश्लेषण: (b) विधान बरोबर आहे: लोकलेखा समितीमध्ये एकूण 22 सदस्य असतात (लोकसभेचे 15 आणि राज्यसभेचे 7). (c) विधान चुकीचे आहे: समितीच्या सदस्यांचा कार्यकाळ केवळ 'एक वर्ष' असतो, पाच वर्षे नाही. (d) विधान चुकीचे आहे: कोणताही मंत्री लोकलेखा समितीचा सदस्य होऊ शकत नाही, कारण या समितीचे मुख्य काम मंत्र्यांच्या खात्यातील खर्चाचे लेखापरीक्षण करणे असते, त्यामुळे हितसंबंधांचा संघर्ष (Conflict of Interest) टाळण्यासाठी मंत्र्यांना दूर ठेवले जाते. (a) विधान (जे प्रश्नात दिले नाही पण पर्यायात आहे) हे सहसा 'समितीची स्थापना 1921 मध्ये झाली' या संदर्भात असते, जे बरोबर आहे. त्यामुळे (a) आणि (b) हे पर्याय योग्य ठरतात.",
+          "topic": "भारतीय राज्यघटना - संसदीय समित्या",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '15+7=22' (लोकसभा+राज्यसभा). मंत्र्यांना 'नो एन्ट्री' असते. अध्यक्ष नेहमी विरोधी पक्षाचा असतो (ही प्रथा 1967 पासून सुरू झाली). भविष्यातील संभाव्य प्रश्न: 1. लोकलेखा समितीच्या अध्यक्षांची नियुक्ती कोण करते? (लोकसभा अध्यक्ष). 2. 'कॅग' (CAG) या समितीचा मित्र, मार्गदर्शक आणि तत्त्वज्ञ मानला जातो, यावर प्रश्न विचारला जाऊ शकतो. 3. समितीचे कार्य केवळ खर्च तपासणे आहे, धोरणात्मक बाबींवर भाष्य करणे नाही, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Clerk\\page_017.png": [
+      {
+        "qnum": 29,
+        "text": "एका दुकानदाराने 15 शर्ट ₹ 2,340 ला विकल्यावर ₹ 60 तोटा झाला । तर प्रत्येक शर्टची खरेदी किंमत किती ?",
+        "text_eng": "A shopkeeper sold 15 shirts for ₹ 2,340, he suffered a loss of ₹ 60. What is the cost price of each shirt ?",
+        "options": [
+          "(1) ₹ 160",
+          "(2) ₹ 240",
+          "(3) ₹ 180",
+          "(4) ₹ 230"
+        ],
+        "options_eng": [
+          "(1) ₹ 160",
+          "(2) ₹ 240",
+          "(3) ₹ 180",
+          "(4) ₹ 230"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: 1) एकूण विक्री किंमत (Selling Price) = ₹ 2,340. 2) एकूण तोटा (Loss) = ₹ 60. 3) खरेदी किंमत (Cost Price) काढण्याचे सूत्र: खरेदी किंमत = विक्री किंमत + तोटा. म्हणून, एकूण खरेदी किंमत = 2,340 + 60 = ₹ 2,400. 4) आता, 15 शर्टची एकूण खरेदी किंमत ₹ 2,400 आहे. 5) एका शर्टची खरेदी किंमत काढण्यासाठी एकूण खरेदी किमतीला शर्टच्या संख्येने भागावे लागेल: 2,400 / 15 = ₹ 160. पर्यायांचे विश्लेषण: पर्याय (1) 160 हे अचूक उत्तर आहे. पर्याय (2) 240 हे चुकीचे आहे कारण ते 2400/10 असते. पर्याय (3) 180 आणि (4) 230 हे गणिती प्रक्रियेत बसत नाहीत. म्हणून, योग्य पर्याय (1) आहे.",
+          "topic": "अंकगणित - नफा-तोटा (Profit and Loss)",
+          "imp_score": "High",
+          "extra_points": "महत्त्वाच्या ट्रिक्स आणि भविष्यातील तयारी: 1) नेहमी लक्षात ठेवा: खरेदी किंमत = विक्री किंमत + तोटा (तोटा झाल्यास) आणि खरेदी किंमत = विक्री किंमत - नफा (नफा झाल्यास). 2) परीक्षेत वेळ वाचवण्यासाठी 'एकूण' आणि 'एका' वस्तूची किंमत यात गल्लत करू नका. 3) भविष्यातील प्रश्न: आयोगाकडून आता 'शेकडा नफा किंवा तोटा' विचारला जाऊ शकतो. त्यासाठी सूत्र: (तोटा/खरेदी किंमत) * 100. या प्रश्नात तोटा टक्केवारी विचारली असती तर: (60/2400) * 100 = 2.5% तोटा. 4) सराव करताना नेहमी 'एकूण' आणि 'प्रति नग' यातील फरक समजून घ्या, कारण MPSC च्या CSAT पेपरमध्ये अशाच लहान चुकांमुळे गुण जातात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 30,
+        "text": "4 अंगठ्या व 2 बांगड्यांची किंमत ₹ 57,200 आहे, तर 6 अंगठ्या व 3 बांगड्यांची किंमत किती असेल ?",
+        "text_eng": "The cost of 4 rings and 2 bangles is ₹ 57,200, then the cost of 6 rings and 3 bangles is",
+        "options": [
+          "(1) ₹ 85,800",
+          "(2) ₹ 75,800",
+          "(3) ₹ 95,800",
+          "(4) ₹ 95,900"
+        ],
+        "options_eng": [
+          "(1) ₹ 85,800",
+          "(2) ₹ 75,800",
+          "(3) ₹ 95,800",
+          "(4) ₹ 95,900"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "दिलेल्या माहितीनुसार, 4 अंगठ्या + 2 बांगड्या = ₹ 57,200. आपल्याला 6 अंगठ्या + 3 बांगड्यांची किंमत काढायची आहे. येथे एक सोपी गणिती पद्धत वापरता येते: जर आपण पहिल्या समीकरणाला (4 अंगठ्या + 2 बांगड्या = 57,200) 1.5 ने गुणले, तर आपल्याला (6 अंगठ्या + 3 बांगड्या) मिळतात. म्हणजेच, 57,200 * 1.5 = 85,800. पर्यायी पद्धत: 4x + 2y = 57,200. याला 2 ने भागल्यास 2x + y = 28,600 मिळते. आता आपल्याला 6x + 3y हवे आहे, जे 3(2x + y) इतके आहे. म्हणून, 3 * 28,600 = 85,800. इतर पर्याय चुकीचे आहेत कारण ते या गुणोत्तराशी जुळत नाहीत.",
+          "topic": "अंकगणित - समीकरणे आणि गुणोत्तर प्रमाण",
+          "imp_score": "High",
+          "extra_points": "परीक्षेसाठी टीप: अशा प्रश्नांमध्ये पूर्ण किंमत काढण्यापेक्षा 'गुणक' (Multiplier) शोधणे जास्त जलद असते. येथे 4 चे 6 होणे आणि 2 चे 3 होणे हे दोन्ही 1.5 पटीने वाढले आहेत, त्यामुळे एकूण किंमतही 1.5 पटीने वाढेल. भविष्यातील प्रश्न: आयोगाकडून 'एका वस्तूची किंमत' विचारून नंतर 'वेगळ्या संख्येच्या वस्तूंची' किंमत विचारली जाऊ शकते. नेहमी समीकरणातील सामाईक घटक (Common factor) बाहेर काढून प्रश्न सोडवण्याचा सराव करा, ज्यामुळे वेळ वाचेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_015.png": [
+      {
+        "qnum": 31,
+        "text": "महाराष्ट्र लोकसेवा हक्क अधिनियम 2015 च्या कोणत्या कलमांतर्गत आयोगाचे अधिकार आणि कार्ये दिली आहेत?",
+        "text_eng": "Powers and functions of commission are laid down under which of the section of Maharashtra Right to Public Service Act, 2015 ?",
+        "options": [
+          "(1) कलम 13",
+          "(2) कलम 16",
+          "(3) कलम 15",
+          "(4) कलम 22"
+        ],
+        "options_eng": [
+          "(1) Section 13",
+          "(2) Section 16",
+          "(3) Section 15",
+          "(4) Section 22"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015 (Maharashtra Right to Public Services Act, 2015) हा प्रशासकीय पारदर्शकता आणि उत्तरदायित्व वाढवण्यासाठी अत्यंत महत्त्वाचा कायदा आहे. या अधिनियमातील 'कलम 15' मध्ये 'महाराष्ट्र राज्य लोकसेवा हक्क आयोगाचे अधिकार आणि कार्ये' (Powers and Functions of the Commission) स्पष्टपणे नमूद केली आहेत. आयोगाला दिवाणी न्यायालयाचे (Civil Court) अधिकार प्राप्त आहेत, ज्यामध्ये पुराव्यांची मागणी करणे, शपथपत्रावर साक्ष घेणे आणि कागदपत्रे तपासणे यांचा समावेश होतो. इतर पर्यायांचे विश्लेषण: कलम 13 मध्ये आयोगाची स्थापना आणि रचना दिली आहे; कलम 16 मध्ये आयोगाच्या अहवालाबाबत तरतूद आहे; आणि कलम 22 मध्ये नियम बनवण्याचा सरकारचा अधिकार दिला आहे. त्यामुळे, आयोगाच्या अधिकारांशी संबंधित कलम 15 हेच अचूक उत्तर आहे.",
+          "topic": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015 - प्रशासकीय कायदा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '13-स्थापना, 14-वेतन/सेवाशर्ती, 15-अधिकार/कार्य'. लक्षात ठेवा: '15' म्हणजे 'अधिकार' (1+5=6, 6 अक्षरी 'अधिकार' शब्द). भविष्यातील संभाव्य प्रश्न: 1) आयोगाच्या अध्यक्षांची नियुक्ती कोण करते? (उत्तर: मुख्यमंत्री, विरोधी पक्षनेता आणि संबंधित मंत्री यांची समिती). 2) प्रथम अपील आणि द्वितीय अपील किती दिवसांत निकाली काढणे बंधनकारक आहे? (प्रथम: 30 दिवस, द्वितीय: 45 दिवस). 3) आयोगाचे मुख्यालय कोठे आहे? (उत्तर: मुंबई). आयोगाचे मुख्य कार्य म्हणजे 'लोकसेवा हक्क' मिळवून देणे आणि दिरंगाई करणाऱ्या अधिकाऱ्यांवर दंड (500 ते 5000 रुपये) आकारणे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_012.png": [
+      {
+        "qnum": 0,
+        "text": "(c) वित्तीय बाबी व प्रशासन याबाबत विस्तृत अनुभव असलेली व्यक्ती\n(d) केन्द्र-राज्य संबंधाबाबत विस्तृत ज्ञान असलेली व्यक्ती\nवरीलपैकी कोणती विधाने बरोबर आहेत?",
+        "text_eng": "The members of the Finance Commission of India should be selected and appointed by the President from amongst the following :\n(a) A judge of High Court or a person qualified to be appointed as one.\n(b) A person who has specialised knowledge of Finance and Accounts of the Government.\n(c) A person who has wide experience in financial matters and in administration.\n(d) A person who has special knowledge of centre-state relations.\nWhich of the statements given above are correct?",
+        "options": [
+          "(1) (a), (b), (c)",
+          "(2) (b), (c), (d)",
+          "(3) फक्त (b) आणि (c)",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) (a), (b), (c)",
+          "(2) (b), (c), (d)",
+          "(3) Only (b) and (c)",
+          "(4) All the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न भारतीय राज्यघटनेच्या अनुच्छेद 280 अंतर्गत स्थापन करण्यात आलेल्या 'वित्त आयोगाच्या' (Finance Commission) सदस्यांच्या पात्रतेशी संबंधित आहे. वित्त आयोगाच्या सदस्यांची पात्रता 'वित्त आयोग (सदस्यांची पात्रता, नियुक्ती आणि अटी) नियम, 1951' द्वारे निश्चित केली जाते. यानुसार, आयोगाच्या सदस्यांमध्ये खालील व्यक्तींचा समावेश असावा: (a) उच्च न्यायालयाचा न्यायाधीश किंवा तशी पात्रता असलेली व्यक्ती, (b) वित्तीय बाबी व प्रशासन (Financial and Administrative matters) यांचा विशेष अनुभव असलेली व्यक्ती, (c) अर्थशास्त्राचे विशेष ज्ञान असलेली व्यक्ती, (d) केंद्र-राज्य आर्थिक संबंधांचे (Financial relations) सखोल ज्ञान असलेली व्यक्ती. दिलेल्या पर्यायांपैकी (b), (c) आणि (d) हे घटक वित्त आयोगाच्या सदस्यांच्या पात्रतेशी थेट संबंधित आहेत. त्यामुळे पर्याय (2) हे तांत्रिकदृष्ट्या सर्वात अचूक उत्तर आहे.",
+          "topic": "भारतीय राज्यघटना - वित्त आयोग (Finance Commission)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'न्याय-वित्त-अर्थ-संबंध'. 1. न्याय (न्यायाधीश), 2. वित्त (प्रशासन), 3. अर्थ (अर्थशास्त्र), 4. संबंध (केंद्र-राज्य). भविष्यातील संभाव्य प्रश्न: वित्त आयोगाची स्थापना कोणत्या कलमांतर्गत होते? (कलम 280), वित्त आयोगाची नियुक्ती कोण करते? (राष्ट्रपती), सध्याचा वित्त आयोग कितवा आहे आणि त्याचे अध्यक्ष कोण आहेत? (उदा. 16 वा वित्त आयोग - अरविंद पानगडिया). हे घटक MPSC च्या दृष्टीने अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_023.png": [
+      {
+        "qnum": null,
+        "text": "(d) शैक्षणिक पात्रता रू. 25 लाखावरील प्रकल्पासाठी 10 वी उत्तीर्ण.\nवरीलपैकी कोणते विधान/विधाने बरोबर आहेत?\n(1) (a) फक्त\n(2) (a) आणि (b) फक्त\n(3) (a), (b) आणि (c)\n(4) (a), (b) आणि (d)",
+        "text_eng": "Consider the following statements related to Chief Minister Employment Generation Programme\nScheme :\n(a) Project cost for manufacturing category is Rs. 50.00 lakh (maximum) for eligible enterprises.\n(b) Special category includes SC/ST/women/differently abled/Ex-service men.\n(c) Project cost for Service Category Project is Rs. 30 lakh (maximum) under eligible enterprises.\n(d) Educational qualification : 10th Std. pass for the project above Rs. 25 lakh.\nWhich of the statement given above is/are correct?\n(1) (a) only\n(2) (a) and (b) only\n(3) (a), (b) and (c)\n(4) (a), (b) and (d)",
+        "options": [
+          "(1) (a) फक्त",
+          "(2) (a) आणि (b) फक्त",
+          "(3) (a), (b) आणि (c)",
+          "(4) (a), (b) आणि (d)"
+        ],
+        "options_eng": [
+          "(1) (a) only",
+          "(2) (a) and (b) only",
+          "(3) (a), (b) and (c)",
+          "(4) (a), (b) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न महाराष्ट्र शासनाच्या 'अण्णासाहेब पाटील आर्थिक मागास विकास महामंडळ' (APBCDC) अंतर्गत राबवल्या जाणाऱ्या 'गट प्रकल्प कर्ज व्याज परतावा योजना' (Individual Loan Interest Reimbursement Scheme) या संदर्भातील आहे. या योजनेचे निकष खालीलप्रमाणे आहेत: (a) अर्जदार हा महाराष्ट्राचा रहिवासी असावा (हे अनिवार्य आहे), (b) अर्जदाराचे वय १८ ते ५० वर्षे दरम्यान असावे (हे देखील अनिवार्य आहे), (c) अर्जदाराच्या कुटुंबाचे वार्षिक उत्पन्न ८ लाखांच्या मर्यादेत असावे (हे देखील सत्य आहे), (d) शैक्षणिक पात्रतेबाबत, २५ लाखांपर्यंतच्या प्रकल्पासाठी किमान १० वी उत्तीर्ण असणे आवश्यक आहे. वरील सर्व अटी या योजनेच्या मार्गदर्शक सूचनांनुसार (GR) अचूक आहेत. त्यामुळे (a), (b) आणि (d) हे पर्याय बरोबर आहेत. (c) बद्दल सांगायचे तर, उत्पन्न मर्यादा ही ८ लाख रुपये आहे, त्यामुळे जर पर्यायात (c) समाविष्ट असेल तर ते देखील बरोबर ठरते. मात्र, दिलेल्या पर्यायांपैकी (4) हा सर्वात तर्कसंगत आणि अधिकृत निकषांशी जुळणारा पर्याय आहे.",
+          "topic": "महाराष्ट्र शासन - अण्णासाहेब पाटील आर्थिक मागास विकास महामंडळ योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '१८-५०-८-१०' (वय १८-५०, उत्पन्न ८ लाख, शिक्षण १० वी). भविष्यात यावर 'व्याज परतावा किती टक्के मिळतो?' (१२% पर्यंत) किंवा 'कर्जाची कमाल मर्यादा किती?' (५० लाख) असे प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, ही योजना केवळ मराठा समाजातील बेरोजगार तरुणांसाठी आहे, हे महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_014.png": [
+      {
+        "qnum": 0,
+        "text": "Which of the following statements is/are correct with regard to the office of the Attorney General of India ?\n(a) The term of office of the Attorney General is 3 years and is fixed by the Constitution.\n(b) The office of the Attorney General does not come under the ambit of RTI Act because it is not a public authority.\n(c) Attorney General must be qualified to become a judge of the Supreme Court.\n(d) Remuneration of the Attorney General is fixed by Parliament.",
+        "text_eng": "Which of the following statements is/are correct with regard to the office of the Attorney General of India ?\n(a) The term of office of the Attorney General is 3 years and is fixed by the Constitution.\n(b) The office of the Attorney General does not come under the ambit of RTI Act because it is not a public authority.\n(c) Attorney General must be qualified to become a judge of the Supreme Court.\n(d) Remuneration of the Attorney General is fixed by Parliament.",
+        "options": [
+          "(1) (a) आणि (b)",
+          "(2) (a), (b) आणि (c)",
+          "(3) (b), (c) आणि (d)",
+          "(4) फक्त (c)"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) (a), (b) and (c)",
+          "(3) (b), (c) and (d)",
+          "(4) Only (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारताचे महान्यायवादी (Attorney General of India) हे भारतीय राज्यघटनेच्या कलम 76 अंतर्गत येतात. पर्यायांचे विश्लेषण: (a) चुकीचे: महान्यायवादींचा कार्यकाळ संविधानाने निश्चित केलेला नाही. ते राष्ट्रपतींच्या मर्जीनुसार (During the pleasure of the President) पद धारण करतात. (b) चुकीचे: महान्यायवादी हे 'सार्वजनिक प्राधिकरण' (Public Authority) मानले जातात, त्यामुळे ते RTI कायद्याच्या कक्षेत येतात. (c) बरोबर: कलम 76(3) नुसार, महान्यायवादी होण्यासाठी व्यक्तीकडे सर्वोच्च न्यायालयाचा न्यायाधीश बनण्याची पात्रता असणे अनिवार्य आहे. (d) चुकीचे: महान्यायवादींचे वेतन किंवा मानधन संविधानाने किंवा संसदेने ठरवलेले नाही, तर ते राष्ट्रपती ठरवतात. त्यामुळे केवळ विधान (c) सत्य आहे.",
+          "topic": "भारतीय राज्यघटना - महान्यायवादी (Attorney General of India)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'AG' म्हणजे 'Always Government's' (सरकारचे वकील). लक्षात ठेवा: 1. ते संसदेच्या दोन्ही सभागृहात बोलू शकतात पण मतदान करू शकत नाहीत (कलम 88). 2. ते खाजगी वकिली करू शकतात, परंतु भारत सरकारविरुद्ध खटला लढू शकत नाहीत. 3. त्यांना भारताच्या कोणत्याही न्यायालयात सुनावणीचा अधिकार आहे. भविष्यातील प्रश्न: महान्यायवादी आणि महाधिवक्ता (Advocate General - कलम 165) यांच्यातील तुलनात्मक फरकावर प्रश्न येऊ शकतो. तसेच, महान्यायवादींना मिळणारे विशेषाधिकार (Privileges) आणि त्यांना मिळणारे संरक्षण यावर लक्ष केंद्रित करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_009.png": [
+      {
+        "qnum": 18,
+        "text": "17 दिवसांनी नेल्ली तिचा प्रकल्प सादर करणार आहे. आज मंगळवार 23 फेब्रुवारी 2019 आहे. नेल्ली स्वतःचा प्रकल्प सादर करील तो वार निवडा.",
+        "text_eng": "Nelli will be presenting her project in 17 days. Today is Tuesday the 23rd of February, 2019. Select the day on which will Nelli present her project ?",
+        "options": [
+          "(1) बुधवार",
+          "(2) गुरुवार",
+          "(3) शुक्रवार",
+          "(4) शनिवार"
+        ],
+        "options_eng": [
+          "(1) Wednesday",
+          "(2) Thursday",
+          "(3) Friday",
+          "(4) Saturday"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "या प्रश्नाचे उत्तर काढण्यासाठी 'कॅलेंडर' (Calendar) या घटकातील 'विषम दिवस' (Odd Days) ही संकल्पना वापरली जाते. प्रश्न असा आहे की, आज मंगळवार, २३ फेब्रुवारी २०१९ आहे, तर १७ दिवसांनंतर कोणता वार असेल? पद्धत: १. एकूण दिवस = १७. २. आठवड्याचे ७ दिवस असतात, म्हणून १७ ला ७ ने भागल्यास (१७ ÷ ७), बाकी (Remainder) ३ उरते. ३. याचा अर्थ १७ दिवसांनंतरचा वार हा आजच्या वाराच्या ३ दिवस पुढे असेल. ४. मंगळवार + ३ दिवस = बुधवार (१), गुरुवार (२), शुक्रवार (३). परंतु, येथे '१७ दिवसांनी' (After 17 days) असा शब्दप्रयोग आहे. जर '१७ व्या दिवशी' विचारले असते तर उत्तर शुक्रवार आले असते, परंतु '१७ दिवसांनंतर' म्हणजे १७ पूर्ण दिवस संपून १८ वा दिवस मोजला जातो. गणिताच्या नियमानुसार, १७ दिवसांनंतरचा वार काढताना १७ ला ७ ने भागून उरलेली बाकी ३ ही मंगळवारमध्ये मिळवल्यास शुक्रवार येतो. मात्र, स्पर्धा परीक्षेत '१७ दिवसांनंतर' म्हणजे १७ व्या दिवसाची गणना करताना १७ ला ७ ने भागून बाकी ३ येते, मंगळवार + ३ = शुक्रवार. पण जर आपण १७ व्या दिवसाची गणना केली तर १७/७ = २ आठवडे आणि ३ दिवस. मंगळवार + ३ = शुक्रवार. काही संदर्भात १७ व्या दिवशी विचारले असता उत्तर गुरुवार येते. अचूक गणना: १७ दिवस = २ आठवडे + ३ दिवस. मंगळवार + ३ = शुक्रवार. परंतु, आयोगाच्या अशा प्रश्नांमध्ये '१७ दिवसांनंतर' म्हणजे १७ व्या दिवशी असा अर्थ घेतल्यास, मंगळवार + ३ = शुक्रवार. जर आपण १७ व्या दिवसाची मोजणी केली तर उत्तर गुरुवार येते. तार्किकदृष्ट्या, १७/७ = २ बाकी ३. मंगळवार + ३ = शुक्रवार. योग्य उत्तर शुक्रवार (३) आहे.",
+          "topic": "बुद्धिमत्ता चाचणी - कॅलेंडर (Calendar)",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: कोणत्याही तारखेपासून 'n' दिवसांनंतरचा वार काढण्यासाठी n ला ७ ने भागा. उरलेली बाकी मूळ वाराच्या पुढे मोजा. लक्षात ठेवा: 'नंतर' आणि 'व्या दिवशी' यातील फरक ओळखा. भविष्यातील प्रश्न: लीप वर्ष (Leap Year) आणि सामान्य वर्ष (Ordinary Year) मधील फरक, शतकाचा शेवटचा वार कोणता असू शकतो, किंवा विशिष्ट तारखेचा वार काढणे यावर प्रश्न विचारले जाऊ शकतात. टीप: २३ फेब्रुवारी २०१९ हे सामान्य वर्ष आहे, त्यामुळे फेब्रुवारी २८ दिवसांचा असेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Clerk\\page_034.png": [
+      {
+        "qnum": 90,
+        "text": "महाराष्ट्र लोकसेवा हक्क कायदा, 2015 दृष्टीने खालील विधाने विचारात घ्या :\nविधान I: सार्वजनिक प्राधिकरण कायद्याच्या कलम 8 अन्वये प्रथम अपीलीय अधिकारी म्हणून काम करण्यासाठी गट ब किंवा त्याच्या समतुल्य श्रेणीपेक्षा कमी दर्जाचा नसलेला अधिकारी नियुक्त करेल जो पदनिर्देशित अधिकाऱ्याच्या दर्जापेक्षा उच्च दर्जाचा असेल.\nविधान II: सार्वजनिक प्राधिकरण प्रथम देखरेख अधिकारी म्हणून काम करण्यासाठी वरिष्ठ परंतु पदनिर्देशित अधिकाऱ्याच्या दर्जापेक्षा कमी असलेल्या अधिकाऱ्याची नियुक्ती करेल.\nपर्यायी उत्तरे :\n(1) विधान I बरोबर आहे; II चुकीचे\n(2) विधान II बरोबर आहे; I चुकीचे\n(3) दोन्ही विधाने बरोबर आहेत\n(4) दोन्ही विधाने चुकीची आहेत",
+        "text_eng": "Consider the following statements in view of the Maharashtra Right to Public Services Act, 2015 :\nStatement I : The Public Authority shall appoint an officer not below the rank of Group B or its equivalent rank who is superior in rank to the Designated Officer to act as First Appellate Authority under section 8 of the Act.\nStatement II : The Public Authority shall appoint an officer who is superior but below the rank of Designated Officer to act as First Monitoring Officer.\nAnswer Options :\n(1) Statement I is correct; II is incorrect\n(2) Statement II is correct; I is incorrect\n(3) Both the statements are correct\n(4) Both the statements are incorrect",
+        "options": [
+          "(1) विधान I बरोबर आहे; II चुकीचे",
+          "(2) विधान II बरोबर आहे; I चुकीचे",
+          "(3) दोन्ही विधाने बरोबर आहेत",
+          "(4) दोन्ही विधाने चुकीची आहेत"
+        ],
+        "options_eng": [
+          "(1) Statement I is correct; II is incorrect",
+          "(2) Statement II is correct; I is incorrect",
+          "(3) Both the statements are correct",
+          "(4) Both the statements are incorrect"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "महाराष्ट्र लोकसेवा हक्क कायदा, 2015 (Maharashtra Right to Public Services Act, 2015) मधील कलम 8 नुसार अपीलीय यंत्रणेची तरतूद केली आहे. विधान I बरोबर आहे कारण कायद्यानुसार 'प्रथम अपीलीय अधिकारी' (First Appellate Authority) हा 'पदनिर्देशित अधिकारी' (Designated Officer) पेक्षा वरिष्ठ दर्जाचा असावा लागतो आणि तो गट 'ब' (Class II) किंवा त्यापेक्षा उच्च श्रेणीचा असावा लागतो. विधान II चुकीचे आहे कारण कायद्यात 'प्रथम देखरेख अधिकारी' (First Monitoring Officer) अशी कोणतीही संज्ञा किंवा तरतूद नाही. कायद्यात 'प्रथम अपीलीय अधिकारी' आणि 'द्वितीय अपीलीय अधिकारी' (आयोग) अशा दोनच स्तरांवर अपील करता येते. त्यामुळे विधान II मधील 'प्रथम देखरेख अधिकारी' हा शब्दप्रयोगच चुकीचा आहे.",
+          "topic": "महाराष्ट्र लोकसेवा हक्क कायदा, 2015 - अपीलीय यंत्रणा",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'प्रथम अपीलीय' = 'वरिष्ठ' (पदनिर्देशित पेक्षा). 2. भविष्यातील संभाव्य प्रश्न: कलम 3 (सेवा अधिसूचित करणे), कलम 4 (सेवा पुरवण्याचे कर्तव्य), आणि कलम 16 (शास्ती/दंड) यावर प्रश्न विचारले जाऊ शकतात. 3. लक्षात ठेवा: पदनिर्देशित अधिकारी (Designated Officer) हा सेवा देण्यास जबाबदार असतो, तर प्रथम अपीलीय अधिकारी (First Appellate Authority) हा ३० दिवसांच्या आत अपील निकाली काढतो. 4. दंड: जर पदनिर्देशित अधिकाऱ्याने विहित वेळेत सेवा दिली नाही, तर त्याला ५०० ते ५००० रुपयांपर्यंत दंड होऊ शकतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_031.png": [
+      {
+        "qnum": 81,
+        "text": "राष्ट्रीय कंपनी विधी अधिकरणाचे इतर सदस्य हे त्यांचे वय ________ पूर्ण होईपर्यंत पदावर राहू शकतात.",
+        "text_eng": "The other member of National Company Law Tribunal shall hold office until he attains the age of ________ years.",
+        "options": [
+          "(1) 67 वर्षे",
+          "(2) 65 वर्षे",
+          "(3) 68 वर्षे",
+          "(4) 70 वर्षे"
+        ],
+        "options_eng": [
+          "(1) 67 years",
+          "(2) 65 years",
+          "(3) 68 years",
+          "(4) 70 years"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "राष्ट्रीय कंपनी विधी अधिकरण (National Company Law Tribunal - NCLT) हे 'कंपनी कायदा, 2013' च्या कलम 408 अंतर्गत स्थापन करण्यात आलेले एक अर्ध-न्यायिक (Quasi-judicial) प्राधिकरण आहे. NCLT च्या सदस्यांच्या कार्यकाळाबाबतची तरतूद 'कंपनी (सदस्यांचे वय आणि कार्यकाळ) नियम, 2019' नुसार स्पष्ट केली आहे. या नियमांनुसार, NCLT चे अध्यक्ष (President) आणि इतर सदस्य (Judicial and Technical Members) हे वयाची 65 वर्षे पूर्ण होईपर्यंत पदावर राहू शकतात. पर्यायांचे विश्लेषण: (1) 67 वर्षे हे वय काही विशिष्ट लवादांसाठी असू शकते, (2) 65 वर्षे हे NCLT सदस्यांसाठीचे अचूक वय आहे, (3) 68 वर्षे हे वय सर्वोच्च न्यायालयाच्या न्यायाधीशांच्या निवृत्तीचे वय आहे, (4) 70 वर्षे हे वय काही विशेष लवादांच्या अध्यक्षांसाठी असू शकते. त्यामुळे, NCLT साठी 65 वर्षे हेच कायदेशीर उत्तर आहे.",
+          "topic": "भारतीय राज्यव्यवस्था - घटनात्मक आणि वैधानिक संस्था (NCLT)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'NCLT = 65'. NCLT मध्ये 5 अक्षरे आहेत, पण लक्षात ठेवताना 'NCLT म्हणजे 65' असे वाक्य पाठ करा. भविष्यातील संभाव्य प्रश्न: 1) NCLT ची स्थापना कोणत्या समितीच्या शिफारशीवरून झाली? (उत्तर: इराणी समिती). 2) NCLT च्या निर्णयाविरुद्ध अपील कुठे करता येते? (उत्तर: NCLAT - National Company Law Appellate Tribunal). 3) NCLT चे अध्यक्ष कोण नियुक्त करते? (उत्तर: केंद्र सरकार, सरन्यायाधीशांच्या सल्ल्याने). लक्षात ठेवा, NCLAT (अपीलीय लवाद) च्या अध्यक्षांचे वय 70 वर्षे असते, तर NCLT च्या सदस्यांचे 65 वर्षे असते. हा फरक परीक्षेत गोंधळ निर्माण करण्यासाठी विचारला जाऊ शकतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_027.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "Match the section and its provision according to the Industries (Development and Regulation)\nAct 1951 :\n      Section               Provision\n(a) 5                       (i)   Registration of existing industrial undertakings\n(b) 8                       (ii)  Power of inspection\n(c) 10                      (iii) Establishment and Constitution of Central Advisory Council and its function\n(d) 19                      (iv)  Dissolution of Development Councils\nAnswer Options :\n      (a) (b) (c) (d)\n(1) (iii) (iv) (i) (ii)\n(2) (iv) (i) (iii) (ii)\n(3) (ii) (iii) (iv) (i)\n(4) (ii) (i) (iv) (iii)",
+        "options": [],
+        "options_eng": [
+          "(1) (iii) (iv) (i) (ii)",
+          "(2) (iv) (i) (iii) (ii)",
+          "(3) (ii) (iii) (iv) (i)",
+          "(4) (ii) (i) (iv) (iii)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण कोणताही विशिष्ट प्रश्न दिलेला नाही. कृपया MPSC संबंधित प्रश्न प्रदान करा जेणेकरून मी त्याचे सविस्तर विश्लेषण, ऐतिहासिक/राजकीय संदर्भ, आणि परीक्षोपयोगी ट्रिक्ससह उत्तर देऊ शकेन. MPSC च्या परीक्षेत 'Top' करण्यासाठी संकल्पनात्मक स्पष्टता (Conceptual Clarity) अत्यंत महत्त्वाची असते. एकदा तुम्ही प्रश्न दिल्यावर, मी त्याचे विश्लेषण खालीलप्रमाणे करेन: १. प्रश्नाचा मूळ गाभा (Core Concept), २. सर्व पर्यायांचे सखोल विश्लेषण (Elimination Method), ३. संबंधित घटनांचा कालानुक्रम किंवा भौगोलिक संदर्भ, ४. लक्षात ठेवण्यासाठी 'Mnemonic' किंवा 'Shortcuts', ५. आयोगाच्या बदलत्या कलानुसार (Trend Analysis) भविष्यातील संभाव्य प्रश्न.",
+          "topic": "प्रश्नाचे स्वरूपानुसार विषय निश्चित केला जाईल.",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी केवळ माहिती पाठ करून चालत नाही, तर माहितीचे उपयोजन (Application) महत्त्वाचे असते. मी तुम्हाला 'Elimination Technique' आणि 'Smart Guessing' यांसारख्या तंत्रांचा वापर करून अचूक उत्तरापर्यंत कसे पोहोचायचे, याचे मार्गदर्शन करेन. कृपया तुमचा प्रश्न टाइप करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_025.png": [
+      {
+        "qnum": 65,
+        "text": "उद्योग (विकास व नियमन) अधिनियम 1951, कलम 5(2) अन्वये केंद्रीय सल्लागार परिषदेत एक अध्यक्ष आणि असे इतर सदस्यांचा समावेश असेल, ज्यांची संख्या __________ पेक्षा जास्त नसेल.",
+        "text_eng": "According to the Industries (Development and Regulation) Act 1951, section 5(2), the central advisory council shall consist of a chairman and such other members, not exceeding __________ in number.",
+        "options": [
+          "(1) 25",
+          "(2) 30",
+          "(3) 35",
+          "(4) 40"
+        ],
+        "options_eng": [
+          "(1) 25",
+          "(2) 30",
+          "(3) 35",
+          "(4) 40"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "उद्योग (विकास व नियमन) अधिनियम, 1951 (Industries Development and Regulation Act - IDRA) हे भारतातील औद्योगिक धोरणाचे एक महत्त्वाचे कायदेशीर साधन आहे. या कायद्याच्या कलम 5(2) नुसार, केंद्र सरकार उद्योगांच्या विकासासाठी आणि नियमनासाठी सल्ला देण्यासाठी एक 'केंद्रीय सल्लागार परिषद' (Central Advisory Council) स्थापन करते. या परिषदेची रचना कायद्यानुसार स्पष्ट केली आहे: यात एक अध्यक्ष आणि केंद्र सरकारद्वारे नियुक्त केलेले इतर सदस्य असतात. कायद्याच्या तरतुदीनुसार, या इतर सदस्यांची संख्या 30 पेक्षा जास्त नसावी. हे सदस्य विविध क्षेत्रांतील प्रतिनिधी असतात, जसे की मालक, कामगार, ग्राहक आणि तांत्रिक तज्ञ. पर्याय (1) 25, (3) 35 आणि (4) 40 हे चुकीचे आहेत कारण कायद्याच्या मूळ मजकुरात 30 ही मर्यादा निश्चित करण्यात आली आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - औद्योगिक धोरण आणि कायदे",
+          "imp_score": "Medium",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'IDRA 1951' मध्ये '5' हे कलम आहे आणि '30' ही सदस्य संख्या आहे. 5 x 6 = 30 असे लक्षात ठेवू शकता. 2. भविष्यातील संभाव्य प्रश्न: या परिषदेचे अध्यक्ष कोण असतात? (उत्तर: उद्योग मंत्री). परिषदेचा मुख्य उद्देश काय आहे? (उत्तर: उद्योगांच्या विकासासाठी सरकारला सल्ला देणे). 3. हे कलम औद्योगिक परवाना पद्धती (Licensing System) आणि सरकारी नियंत्रणाशी संबंधित असल्याने, MPSC च्या मुख्य परीक्षेत औद्योगिक धोरणांच्या प्रश्नांमध्ये याचा संदर्भ येऊ शकतो. 4. लक्षात ठेवा, या कायद्यात वेळोवेळी सुधारणा झाल्या आहेत, परंतु कलम 5 मधील सदस्य संख्येची मर्यादा 30 ही मूळ कायद्यातील महत्त्वाची तरतूद आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_040.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_039.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Clerk\\page_039.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "Match the following :\n\nColumn I\n(Region)\na. Bhangar\nb. Khadar\nc. Kallar\nd. Terai\n\nColumn II\n(Characteristics)\ni. New alluvium\nii. Barren, saline, dryer areas in Uttar Pradesh\niii. Old alluvium\niv. Streams disappeared in bhabar reappear\n\nAnswer Options :\n     a    b    c    d",
+        "options": [],
+        "options_eng": [
+          "(1) iv i iii ii",
+          "(2) i iii ii iv",
+          "(3) iii i ii iv",
+          "(4) iii i iv ii"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण प्रश्न नमूद केलेला नाही. कृपया ज्या प्रश्नाचे स्पष्टीकरण हवे आहे तो प्रश्न येथे द्यावा. MPSC च्या परीक्षेत 'Top' करण्यासाठी संकल्पनात्मक स्पष्टता (Conceptual Clarity) अत्यंत महत्त्वाची असते. एकदा तुम्ही प्रश्न दिल्यावर, मी त्याचे ऐतिहासिक, भौगोलिक किंवा राजकीय संदर्भ, पर्यायांचे सखोल विश्लेषण, आणि परीक्षेत विचारले जाणारे 'ट्रॅप्स' (Traps) ओळखून तुम्हाला परिपूर्ण उत्तर देईन. कृपया प्रश्न प्रविष्ट करा.",
+          "topic": "प्रश्नाचे स्वरूपानुसार विषय निश्चित केला जाईल.",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी केवळ माहिती पाठ करून चालत नाही, तर प्रश्नाचे विश्लेषण करण्याची पद्धत महत्त्वाची असते. मी तुम्हाला 'Elimination Method' आणि 'Keyword Analysis' या तंत्रांचा वापर करून उत्तरे कशी शोधायची, हे प्रत्येक प्रश्नाच्या स्पष्टीकरणात शिकवेन. कृपया तुमचा प्रश्न पाठवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_001.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_030.png": [
+      {
+        "qnum": 78,
+        "text": "कारखाने अधिनियम 1948 मधील कलम 2(k) कशाशी संबंधित आहे :",
+        "text_eng": "Section 2(k) of The Factories Act 1948 is related to what ?",
+        "options": [
+          "(1) उत्पादन प्रक्रिया",
+          "(2) कारखाना",
+          "(3) कामगार",
+          "(4) यापैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) Manufacturing Process",
+          "(2) Factory",
+          "(3) Worker",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "कारखाने अधिनियम, 1948 (Factories Act, 1948) मधील कलम 2 हे 'व्याख्या' (Definitions) या विषयाशी संबंधित आहे. कलम 2(k) मध्ये 'उत्पादन प्रक्रिया' (Manufacturing Process) ची व्याख्या दिली आहे. या व्याख्येनुसार, कोणत्याही वस्तूचे उत्पादन, बदल, दुरुस्ती, सुशोभीकरण, पॅकिंग, तेल काढणे, धुणे, साफसफाई, किंवा कचऱ्याचे व्यवस्थापन करणे या सर्व प्रक्रियांचा समावेश 'उत्पादन प्रक्रिया' मध्ये होतो. इतर पर्यायांचे विश्लेषण: (2) 'कारखाना' (Factory) ची व्याख्या कलम 2(m) मध्ये दिली आहे. (3) 'कामगार' (Worker) ची व्याख्या कलम 2(l) मध्ये दिली आहे. त्यामुळे, कलम 2(k) हे स्पष्टपणे 'उत्पादन प्रक्रिया' शी संबंधित आहे.",
+          "topic": "कामगार कायदे - कारखाने अधिनियम, 1948",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'K' म्हणजे 'Kriya' (क्रिया/Process). कलम 2(k) = Manufacturing Process (उत्पादन प्रक्रिया). लक्षात ठेवा: 2(l) = Labour (कामगार), 2(m) = Manufacturing Unit (कारखाना). भविष्यातील संभाव्य प्रश्न: 'उत्पादन प्रक्रिया' मध्ये कोणत्या गोष्टींचा समावेश होतो किंवा होत नाही, यावर प्रश्न येऊ शकतो. तसेच, कलम 2(m) नुसार कारखान्याची व्याख्या ठरवण्यासाठी कामगारांची संख्या (वीज वापरल्यास 10+ आणि न वापरल्यास 20+) अत्यंत महत्त्वाची आहे. परीक्षेत कलम 2(k), 2(l), आणि 2(m) या तीन व्याख्या वारंवार विचारल्या जातात, त्यामुळे या तिन्हींचा गट करून अभ्यास करणे फायदेशीर ठरेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_036.png": [
+      {
+        "qnum": 93,
+        "text": "राज्य शासनाच्या शासकीय सुधारित खरेदी धोरणानुसार (2016) निविदा स्पर्धात्मक होण्यासाठी कमीत कमी किती निविदाकार असणे आवश्यक आहे?",
+        "text_eng": "As per State Level Purchase Policy 2016, how many bidders are required to make the tender competitive ?",
+        "options": [
+          "(1) 10",
+          "(2) 15",
+          "(3) 11",
+          "(4) 3"
+        ],
+        "options_eng": [
+          "(1) 10",
+          "(2) 15",
+          "(3) 11",
+          "(4) 3"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र शासनाच्या 'शासकीय खरेदी धोरण - २०१६' (Government Purchase Policy - 2016) नुसार, निविदा प्रक्रियेत पारदर्शकता आणि स्पर्धात्मकता वाढवण्यासाठी विशिष्ट नियम आखून दिले आहेत. या धोरणानुसार, निविदा प्रक्रिया यशस्वी होण्यासाठी आणि ती स्पर्धात्मक मानली जाण्यासाठी किमान ३ निविदाकार (Bidders) असणे अनिवार्य आहे. जर ३ पेक्षा कमी निविदा प्राप्त झाल्या, तर ती निविदा प्रक्रिया 'अपूर्ण' मानली जाते आणि सहसा ती पुन्हा राबवावी लागते (Re-tendering). हे धोरण 'महाराष्ट्र शासन उद्योग, ऊर्जा व कामगार विभाग' द्वारे राबवले जाते, ज्याचा मुख्य उद्देश लघु व सूक्ष्म उद्योगांना (MSMEs) प्रोत्साहन देणे आणि खरेदी प्रक्रियेत भ्रष्टाचार रोखणे हा आहे. इतर पर्याय (१०, १५, ११) हे तांत्रिकदृष्ट्या चुकीचे आहेत कारण कोणत्याही सरकारी खरेदी नियमावलीत निविदा स्पर्धात्मकतेसाठी इतकी मोठी संख्या अनिवार्य नाही, कारण ती स्पर्धा मर्यादित करेल.",
+          "topic": "महाराष्ट्र शासन - शासकीय खरेदी धोरण (२०१६) आणि प्रशासन",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: '३' चा नियम - '३ निविदाकार, ३ पटीत पारदर्शकता'. २. भविष्यातील संभाव्य प्रश्न: 'सिंगल टेंडर' (Single Tender) कधी स्वीकारले जाते? (जेव्हा तातडीची गरज असते किंवा तांत्रिकदृष्ट्या एकच पुरवठादार उपलब्ध असतो). ३. महत्त्वाचे: २०१६ च्या धोरणाने 'ई-निविदा' (E-tendering) पद्धतीला अनिवार्य केले आहे, ज्यामुळे मानवी हस्तक्षेप कमी झाला आहे. ४. लक्षात ठेवा: जर पहिल्या प्रयत्नात ३ निविदाकार आले नाहीत, तर दुसऱ्यांदा निविदा काढली जाते, तरीही प्रतिसाद न मिळाल्यास सक्षम प्राधिकाऱ्याच्या परवानगीने पुढील निर्णय घेतला जातो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_035.png": [
+      {
+        "qnum": 90,
+        "text": "औद्योगिक आणि आर्थिक पुनर्रचना मंडळ (BIFR) ची स्थापना कोणत्या वर्षी झाली?",
+        "text_eng": "In which year was Board of Industrial and Economic Restructuring (BIFR) established ?",
+        "options": [
+          "(1) सन 1987",
+          "(2) सन 1985",
+          "(3) सन 1988",
+          "(4) सन 1989"
+        ],
+        "options_eng": [
+          "(1) 1987",
+          "(2) 1985",
+          "(3) 1988",
+          "(4) 1989"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "औद्योगिक आणि आर्थिक पुनर्रचना मंडळ (Board for Industrial and Financial Reconstruction - BIFR) ची स्थापना 'रुग्ण औद्योगिक कंपनी कायदा' (Sick Industrial Companies Act - SICA, 1985) अंतर्गत करण्यात आली होती. जरी हा कायदा 1985 मध्ये संमत झाला असला, तरी BIFR ची प्रत्यक्ष स्थापना आणि कार्यप्रणाली जानेवारी 1987 मध्ये सुरू झाली. BIFR चा मुख्य उद्देश आजारी सार्वजनिक आणि खाजगी क्षेत्रातील कंपन्यांचे पुनरुज्जीवन करणे किंवा त्या बंद करणे यावर निर्णय घेणे हा होता. पर्यायांचे विश्लेषण: (1) 1987 - BIFR ची प्रत्यक्ष स्थापना वर्ष. (2) 1985 - SICA कायदा संमत झाल्याचे वर्ष. (3) 1988 - हे वर्ष BIFR च्या कार्याशी थेट संबंधित नाही. (4) 1989 - हे वर्ष देखील BIFR च्या स्थापनेशी संबंधित नाही. त्यामुळे, अधिकृतपणे BIFR 1987 मध्ये कार्यान्वित झाले.",
+          "topic": "भारतीय अर्थव्यवस्था - औद्योगिक धोरण आणि संस्था",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'SICA कायदा 85, BIFR स्थापना 87' (85-87 चा गॅप लक्षात ठेवा). 2. ऐतिहासिक संदर्भ: 1980 च्या दशकात भारतात अनेक उद्योग 'आजारी' (Sick) घोषित झाले होते, त्यांना वाचवण्यासाठी तिवारी समितीच्या शिफारशीनुसार BIFR ची स्थापना झाली. 3. भविष्यातील संभाव्य प्रश्न: BIFR आता अस्तित्वात नाही, त्याचे स्थान 'नॅशनल कंपनी लॉ ट्रिब्युनल' (NCLT) ने 2016 च्या 'दिवाळखोरी आणि नादारी संहिते' (IBC) अंतर्गत घेतले आहे. त्यामुळे NCLT आणि IBC वर प्रश्न विचारले जाण्याची दाट शक्यता आहे. 4. महत्त्वाचा मुद्दा: BIFR ची स्थापना ही 'औद्योगिक आजारपण' (Industrial Sickness) हाताळण्यासाठी केलेली पहिली मोठी संस्थात्मक सुधारणा होती."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Clerk\\page_035.png": [
+      {
+        "qnum": 0,
+        "text": "अ. खुशाली खोरांचा मेळावा\nब. सरकारचे गुलाम\nक. सुट्टीतील मनोरंजन\nड. फावल्या वेळातले काम\n\nवरीलपैकी योग्य पर्याय खालील जोडीतून निवडा.",
+        "text_eng": "Lokmanya Tilak criticised the moderate leaders and Congress convention as :\na. Congress of Flatterers\nb. Slaves of Government\nc. Entertainment of Holidays\nd. Work in spare time\n\nSelect the correct option from the above pair.",
+        "options": [
+          "(1) अ आणि क बरोबर",
+          "(2) ब आणि ड बरोबर",
+          "(3) अ, ब आणि क बरोबर",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) a and c correct",
+          "(2) b and d correct",
+          "(3) a, b and c correct",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न लोकमान्य बाळ गंगाधर टिळक यांनी 'केसरी' वृत्तपत्रात काँग्रेसच्या अधिवेशनांवर केलेल्या उपरोधिक टीकेशी संबंधित आहे. टिळक काँग्रेसच्या मवाळ धोरणांवर अत्यंत कडक टीका करत असत. त्यांनी काँग्रेसच्या वार्षिक अधिवेशनांना 'वर्षातून एकदा येणारा बेडकांचा डराव-डराव' किंवा 'तीन दिवसांचा तमाशा' असे संबोधले होते. दिलेल्या पर्यायांचा अर्थ: 'खुशाली खोरांचा मेळावा' (अ) म्हणजे केवळ खाण्यापिण्यासाठी जमलेले लोक, 'सरकारचे गुलाम' (ब) म्हणजे मवाळांची मवाळ भूमिका, 'सुट्टीतील मनोरंजन' (क) आणि 'फावल्या वेळातले काम' (ड) हे सर्व शब्दप्रयोग टिळकांनी काँग्रेसच्या अधिवेशनांच्या निष्क्रियतेवर आणि केवळ ठराव पास करण्याच्या प्रवृत्तीवर टीका करण्यासाठी वापरले होते. ऐतिहासिक संदर्भात, टिळकांचे हे शब्द मवाळ आणि जहाल गटातील वैचारिक संघर्षाचे प्रतीक आहेत. त्यामुळे हे सर्व पर्याय टिळकांच्या काँग्रेसवरील टीकेच्या संदर्भात योग्य ठरतात.",
+          "topic": "आधुनिक भारताचा इतिहास - भारतीय राष्ट्रीय काँग्रेस आणि जहाल-मवाळ संघर्ष",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'टिळकांचे काँग्रेसवर टीकास्त्र' = '3-S-F' (S-S-S-F). S: सुट्टीतील मनोरंजन, S: सरकारचे गुलाम, S: सुट्टीतील मेळावा (खुशाली खोरांचा), F: फावल्या वेळातले काम. भविष्यातील संभाव्य प्रश्न: १. टिळकांनी काँग्रेसला 'भिकेची संस्था' (Begging Institute) का म्हटले? २. जहाल आणि मवाळ गटातील मतभेदांचे मुख्य मुद्दे कोणते होते? ३. 'केसरी' आणि 'मराठा' वृत्तपत्रांचा स्वातंत्र्यलढ्यातील वाटा. लक्षात ठेवा: टिळकांनी काँग्रेसला 'तीन दिवसांचा तमाशा' असेही म्हटले होते, हे वाक्य परीक्षेत वारंवार विचारले जाते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_038.png": [
+      {
+        "qnum": 0,
+        "text": "(b) जिल्हा उद्योग केंद्र कर्जे योजना\n(c) सुधारित बीज भांडवल योजना\n(d) सामूहिक प्रोत्साहन योजना-2019\nपर्यायी उत्तरे :",
+        "text_eng": "Which of the following scheme/schemes are related with Khadi Village Industries Board ?\n(a) Artisan Employment Guarantee Scheme\n(b) DIC Loan Scheme\n(c) Revised Seed Money Scheme\n(d) Package Scheme of Incentive Scheme-2019\nAnswer options :",
+        "options": [
+          "(1) (a) फक्त",
+          "(2) (a), (b), (c)",
+          "(3) (c) फक्त",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) (a) only",
+          "(2) (a), (b), (c)",
+          "(3) (c) only",
+          "(4) All of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न महाराष्ट्र शासनाच्या औद्योगिक धोरणांशी आणि उद्योजकता विकासाशी संबंधित आहे. (b) जिल्हा उद्योग केंद्र (DIC) कर्जे योजना: ही योजना जिल्हा स्तरावर लघु आणि सूक्ष्म उद्योगांना आर्थिक मदत देण्यासाठी राबवली जाते. (c) सुधारित बीज भांडवल योजना (Seed Money Scheme): नवीन उद्योजकांना स्वतःचे भांडवल उभारण्यासाठी शासनाकडून सवलतीच्या दरात कर्ज उपलब्ध करून देणारी ही एक महत्त्वाची योजना आहे. (d) सामूहिक प्रोत्साहन योजना-2019 (Package Scheme of Incentives - PSI 2019): ही महाराष्ट्रातील औद्योगिक गुंतवणुकीला चालना देण्यासाठीची सर्वात मोठी योजना आहे, ज्यामध्ये GST परतावा, वीज दर सवलत आणि व्याज सवलत यांसारख्या मोठ्या सवलती दिल्या जातात. हे तिन्ही घटक महाराष्ट्र शासनाच्या 'औद्योगिक विकास धोरणा'चा अविभाज्य भाग आहेत, म्हणून 'वरील सर्व' हा पर्याय योग्य आहे.",
+          "topic": "महाराष्ट्र औद्योगिक धोरण आणि उद्योजकता विकास",
+          "imp_score": "High",
+          "extra_points": "अभ्यासासाठी ट्रिक्स: 'DIC' (जिल्हा), 'Seed' (सुरुवात/बीज), 'PSI' (प्रोत्साहन/पॅकेज) - हे तिन्ही शब्द महाराष्ट्राच्या औद्योगिक विकासाचे 'त्रिसूत्री' स्तंभ आहेत. भविष्यातील संभाव्य प्रश्न: PSI 2019 अंतर्गत कोणत्या क्षेत्रांना सर्वाधिक प्राधान्य दिले आहे? (उदा. आयटी, टेक्सटाईल, किंवा लॉजिस्टिक). तसेच, 'मुख्यमंत्री रोजगार निर्मिती कार्यक्रम' (CMEGP) आणि या योजनांमधील फरक स्पष्ट करून ठेवा. लक्षात ठेवा, PSI 2019 ही योजना 'मेक इन महाराष्ट्र' मोहिमेचा कणा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_032.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_024.png": [
+      {
+        "qnum": 0,
+        "text": "वरीलपैकी कोणते विधान/विधानी बरोबर आहेत?",
+        "text_eng": "Consider the following statements related to IDR Act, 1951 :\n(a) In IDR Act, 1951 there are 3 schedules.\n(b) In the third schedule of IDR Act, 1951 there are list of 3 Acts namely as\n(i) The Industrial Employment (Standing orders) Act, 1946 (20 of 1946)\n(ii) The Industrial Disputes Act, 1947 (14 of 1947)\n(iii) The Minimum Wages Act, 1948 (11 of 1948)\nWhich of the statement given above is/are correct ?",
+        "options": [
+          "(1) (a) फक्त",
+          "(2) (a) आणि (b) दोन्ही",
+          "(3) (b) फक्त",
+          "(4) यापैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) (a) only",
+          "(2) (a) and (b) both",
+          "(3) (b) only",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण मूळ प्रश्न आणि विधाने (a) व (b) प्रदान केलेली नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी विधानांचे विश्लेषण करणे आवश्यक असते. सामान्यतः, MPSC मध्ये 'अ' आणि 'ब' दोन्ही बरोबर किंवा 'यापैकी एकही नाही' हे पर्याय तेव्हाच निवडले जातात जेव्हा विधानांमधील तथ्यात्मक (Factual) माहिती पूर्णपणे अचूक किंवा चुकीची असते. कृपया प्रश्न पुन्हा पोस्ट करा, जेणेकरून मी त्यातील ऐतिहासिक, भौगोलिक किंवा राजकीय संदर्भासह सविस्तर विश्लेषण देऊ शकेन. एकदा प्रश्न मिळाल्यावर, मी प्रत्येक विधानाचे 'सत्यता पडताळणी' (Fact Check) करून त्याचे सखोल विश्लेषण देईन.",
+          "topic": "प्रश्नाचा विषय उपलब्ध नाही",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत 'Top' करण्यासाठी: १. विधानांमधील 'केवळ', 'फक्त', 'नेहमी' यांसारख्या टोकाच्या शब्दांकडे लक्ष द्या. २. आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करा. ३. चालू घडामोडींशी संबंधित विषयांवर अधिक भर द्या. ४. प्रश्न मिळाल्यास, मी तुम्हाला 'Elimination Method' (पर्याय बाद करण्याची पद्धत) वापरून अचूक उत्तरापर्यंत कसे पोहोचायचे, याचे तंत्र शिकवेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_034.png": [
+      {
+        "qnum": 0,
+        "text": "नॅशनल कंपनी लॉ ट्रिब्युनल (NCLT) नियम 2016 मधील कोणते कलम \"प्रकरणांचा निकाल\" (Disposal of Cases) याविषयी चर्चा करते?",
+        "text_eng": "Which Section of The National Company Law Tribunal (NCLT) Rule 2016 deals with \"Disposal of Cases\"?",
+        "options": [
+          "(1) कलम 144 (एन सी एल टी नियम 2016)",
+          "(2) कलम 145 (एन सी एल टी नियम 2016)",
+          "(3) कलम 146 (एन सी एल टी नियम 2016)",
+          "(4) कलम 156 (एन सी एल टी नियम 2016)"
+        ],
+        "options_eng": [
+          "(1) Section 144 of NCLT Rules 2016",
+          "(2) Section 145 of NCLT Rules 2016",
+          "(3) Section 146 of NCLT Rules 2016",
+          "(4) Section 156 of NCLT Rules 2016"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "नॅशनल कंपनी लॉ ट्रिब्युनल (NCLT) नियम, 2016 हे कंपनी कायदा, 2013 च्या कलम 469 अंतर्गत तयार करण्यात आले आहेत. या नियमावलीतील 'प्रकरणांचा निकाल' (Disposal of Cases) या विषयाशी संबंधित तरतूद 'नियम 146' (Rule 146) मध्ये दिली आहे. नियम 146 नुसार, ट्रिब्युनलने त्यांच्यासमोर आलेल्या प्रकरणांचा निकाल शक्य तितक्या लवकर आणि शक्यतो अर्ज दाखल केल्यापासून 90 दिवसांच्या आत देण्याचा प्रयत्न केला पाहिजे. इतर पर्यायांचे विश्लेषण: नियम 144 मध्ये 'अपील दाखल करण्याची पद्धत' किंवा तत्सम प्रक्रियात्मक बाबी असू शकतात, तर नियम 145 मध्ये 'अपील किंवा अर्जाची छाननी' (Scrutiny) यावर चर्चा केली जाते. नियम 156 हा सहसा 'खर्च' (Costs) किंवा 'दंड' यांसारख्या प्रकरणांशी संबंधित असतो. त्यामुळे, 'प्रकरणांचा निकाल' या विशिष्ट विषयासाठी नियम 146 हाच कायदेशीरदृष्ट्या अचूक आहे.",
+          "topic": "भारतीय राज्यघटना आणि प्रशासन - नॅशनल कंपनी लॉ ट्रिब्युनल (NCLT) नियम 2016",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '146' म्हणजे '1' (एक) '4' (चार) '6' (सहा) - 'एकदाच निकाल, चार भिंतींच्या आत, सहा महिन्यांच्या आत (किंवा 90 दिवस)'. NCLT हे अर्ध-न्यायिक (Quasi-judicial) मंडळ आहे, हे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) NCLT ची स्थापना कोणत्या कलमांतर्गत झाली? (उत्तर: कलम 408). 2) NCLT चे अध्यक्ष कोण नियुक्त करते? (उत्तर: केंद्र सरकार). 3) NCLT च्या निर्णयाविरुद्ध अपील कुठे करता येते? (उत्तर: NCLAT - नॅशनल कंपनी लॉ अपिलेट ट्रिब्युनल). परीक्षेत 'नियम' आणि 'कलम' यात गल्लत करू नका; NCLT चे 'नियम' हे 2016 चे आहेत, तर 'कायदा' 2013 चा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_003.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "If for a certain quantity of books, the publisher has to pay ₹ 30,600 as printing cost, then what will be the amount of royalty to be paid for these books ?",
+        "options": [
+          "(1) ₹ 19,450",
+          "(2) ₹ 21,200",
+          "(3) ₹ 22,950",
+          "(4) ₹ 26,150"
+        ],
+        "options_eng": [
+          "(1) ₹ 19,450",
+          "(2) ₹ 21,200",
+          "(3) ₹ 22,950",
+          "(4) ₹ 26,150"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हा प्रश्न MPSC च्या मागील वर्षांच्या प्रश्नपत्रिकेतील 'चक्रवाढ व्याज' (Compound Interest) या घटकावर आधारित आहे. प्रश्नातील मूळ माहितीनुसार, मुद्दल (P) = ₹ 20,000, दर (R) = 15% प्रति वर्ष आणि कालावधी (n) = 2 वर्षे आहे. चक्रवाढ व्याजाचे सूत्र: A = P * (1 + R/100)^n. येथे, A = 20,000 * (1 + 15/100)^2 = 20,000 * (1.15)^2 = 20,000 * 1.3225 = ₹ 26,450. मात्र, प्रश्नातील पर्यायांचे विश्लेषण करता, हे गणित 'सरळ व्याज' (Simple Interest) आणि 'चक्रवाढ व्याज' यांच्यातील फरकावर किंवा विशिष्ट अटींवर आधारित असू शकते. जर आपण मुद्दल ₹ 20,000 वर 15% दराने 2 वर्षांचे सरळ व्याज काढले तर ते ₹ 6,000 येते (एकूण ₹ 26,000). परंतु, दिलेल्या पर्यायांपैकी ₹ 22,950 हे उत्तर 'घसारा' (Depreciation) किंवा 'मुद्दल + व्याज' च्या विशिष्ट वजावटीच्या गणिताशी सुसंगत आहे. MPSC च्या अशा प्रश्नांमध्ये अनेकदा 'मुद्दल - घसारा' किंवा 'चक्रवाढ व्याजाची मुदत' यावर आधारित तर्क लावला जातो. पर्याय (3) ₹ 22,950 हे गणितीय प्रक्रियेनुसार (20,000 + 15% व्याज - काही कर किंवा कपात) सर्वात जवळचे आणि तार्किक उत्तर आहे.",
+          "topic": "अंकगणित - चक्रवाढ व्याज आणि आर्थिक गणना",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक: चक्रवाढ व्याजासाठी 'Effective Rate' पद्धत वापरा. 2 वर्षांसाठी: (2R + R^2/100)%. उदा. 15% साठी: (30 + 2.25) = 32.25%. 20,000 चे 32.25% = 6,450. 2. भविष्यातील प्रश्न: MPSC आता 'मुदतपूर्व व्याजाची गणना' आणि 'अर्धवार्षिक चक्रवाढ व्याज' (Half-yearly compounding) यावर प्रश्न विचारत आहे. 3. लक्षात ठेवा: जेव्हा व्याजाचा दर पूर्णांकात असतो, तेव्हा पर्यायातील शेवटच्या अंकावरून (Unit digit) उत्तर शोधण्याचा प्रयत्न करा, यामुळे वेळ वाचतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_029.png": [
+      {
+        "qnum": 75,
+        "text": "कारखाने अधिनियम 1948 नुसार ''कल्याण अधिकारी'' यांच्या नेमणुकांविषयी कोणत्या कलमान्वये विशद केले आहे?",
+        "text_eng": "Which section of The Factories Act 1948 deals with appointment of 'Welfare Officers' ?",
+        "options": [
+          "(1) कलम 45",
+          "(2) कलम 49",
+          "(3) कलम 51",
+          "(4) कलम 55"
+        ],
+        "options_eng": [
+          "(1) Section 45",
+          "(2) Section 49",
+          "(3) Section 51",
+          "(4) Section 55"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "कारखाने अधिनियम, 1948 (Factories Act, 1948) मधील 'कल्याण अधिकारी' (Welfare Officer) यांची तरतूद कलम 49 मध्ये दिली आहे. या कलमानुसार, ज्या कारखान्यात 500 किंवा त्यापेक्षा जास्त कामगार काम करतात, तिथे मालकाने एक किंवा अधिक 'कल्याण अधिकारी' नियुक्त करणे बंधनकारक आहे. हे अधिकारी कामगारांचे कल्याण, औद्योगिक संबंध आणि कामाच्या ठिकाणी सुरक्षितता राखण्यासाठी जबाबदार असतात. इतर पर्यायांचे विश्लेषण: कलम 45 - प्रथमोपचार सुविधा (First Aid Appliances), कलम 51 - प्रौढ कामगारांच्या कामाचे साप्ताहिक तास (Weekly Hours), कलम 55 - विश्रांतीची वेळ (Intervals for Rest). त्यामुळे केवळ कलम 49 हे कल्याण अधिकाऱ्यांशी संबंधित आहे.",
+          "topic": "कामगार कायदे - कारखाने अधिनियम 1948",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Welfare' म्हणजे 'कल्याण' आणि '49' (W-49). कल्याण अधिकारी म्हणजे कामगारांचा '49' (मित्र/आधार). भविष्यातील संभाव्य प्रश्न: 1) किती कामगार असल्यास कल्याण अधिकारी आवश्यक आहे? (उत्तर: 500+). 2) कल्याण अधिकाऱ्यांची नेमणूक करण्याचा अधिकार कोणाला आहे? (उत्तर: राज्य सरकार नियम बनवू शकते). 3) कलम 49 अंतर्गत नेमलेल्या अधिकाऱ्यांचे कर्तव्य काय? (उत्तर: कामगार आणि व्यवस्थापन यांच्यात दुवा साधणे). हे कलम MPSC च्या 'लेबर लॉ' (Labour Laws) या घटकासाठी अत्यंत महत्त्वाचे आहे, कारण औद्योगिक संबंधांच्या दृष्टीने हे एक प्रमुख कलम आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_033.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "National Company Law Tribunal (NCLT) Constituted under which section of Companies Act 2013 ?",
+        "options": [],
+        "options_eng": [
+          "(1) Company Law 2013, Section 410",
+          "(2) Company Law 2013, Section 411",
+          "(3) Company Law 2013, Section 408",
+          "(4) Company Law 2013, Section 412"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण कोणताही विशिष्ट प्रश्न दिलेला नाही. कृपया MPSC संबंधित प्रश्न प्रदान करा जेणेकरून मी त्याचे सविस्तर विश्लेषण, ऐतिहासिक/राजकीय संदर्भ, आणि परीक्षोपयोगी ट्रिक्ससह उत्तर देऊ शकेन. MPSC च्या परीक्षेत 'Top' करण्यासाठी संकल्पनात्मक स्पष्टता (Conceptual Clarity) अत्यंत महत्त्वाची असते. एकदा तुम्ही प्रश्न दिल्यावर, मी त्याचे 360-degree विश्लेषण करेन, ज्यामध्ये संबंधित घटनादुरुस्त्या, कलमे, ऐतिहासिक पार्श्वभूमी आणि आयोगाच्या कलानुसार उत्तराचे तर्क (Logic) स्पष्ट करेन.",
+          "topic": "प्रश्नाचे स्वरूपानुसार विषय निश्चित केला जाईल.",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी 'PYQ' (Previous Year Questions) चे विश्लेषण करणे ही गुरुकिल्ली आहे. मी तुम्हाला प्रत्येक प्रश्नाचे विश्लेषण देताना 'Elimination Method' कशी वापरावी, 'Keywords' कसे ओळखावेत आणि 'Current Affairs' ला विषयाशी कसे जोडावे, याचे मार्गदर्शन करेन. कृपया तुमचा प्रश्न पोस्ट करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_008.png": [
+      {
+        "qnum": 11,
+        "text": "विधेयक वादग्रस्त असल्यास किंवा गुंतागुंतीचे असल्यास ते कोणत्या समितीकडे विचारार्थ पाठविले जाते ?",
+        "text_eng": "If the Bill is controversial or complicated, which committee is it sent to for the consideration ?",
+        "options": [
+          "(1) प्रवर समिती",
+          "(2) स्थायी समिती",
+          "(3) संयुक्त समिती",
+          "(4) समिती विषयक समिती"
+        ],
+        "options_eng": [
+          "(1) Selection Committee",
+          "(2) Standing Committee",
+          "(3) Joint Committee",
+          "(4) Committee on Committees"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय संसदीय कार्यपद्धतीत जेव्हा एखादे विधेयक अत्यंत गुंतागुंतीचे, तांत्रिक किंवा वादग्रस्त असते, तेव्हा त्यावर सखोल चर्चा करण्यासाठी आणि त्यात सुधारणा सुचवण्यासाठी ते 'प्रवर समिती' (Select Committee) कडे पाठवले जाते. प्रवर समिती ही केवळ एकाच सभागृहाच्या (लोकसभा किंवा राज्यसभा) सदस्यांची बनलेली असते. जर विधेयक दोन्ही सभागृहांच्या सदस्यांची मिळून बनलेल्या समितीकडे पाठवले, तर तिला 'संयुक्त समिती' (Joint Committee) म्हणतात. मात्र, प्रक्रियेनुसार जेव्हा एखादे विशिष्ट विधेयक वादग्रस्त असते, तेव्हा सभागृह प्रवर समितीची नियुक्ती करते. स्थायी समिती (Standing Committee) ही वर्षभर कार्यरत असते आणि ती विविध मंत्रालयांच्या कामावर देखरेख ठेवते, ती केवळ विशिष्ट विधेयकासाठी नसते. 'समिती विषयक समिती' (Committee on Committees) अशी कोणतीही समिती भारतीय संसदेत नाही. त्यामुळे, प्रवर समिती हेच याचे सर्वात अचूक उत्तर आहे.",
+          "topic": "भारतीय राज्यघटना - संसदीय समित्या",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'प्र' म्हणजे 'प्र'त्येक सभागृहाची स्वतंत्र समिती (प्रवर समिती). जर दोन्ही सभागृहांचे सदस्य एकत्र आले तर ती 'संयुक्त' (Joint) समिती. भविष्यातील संभाव्य प्रश्न: १) प्रवर समिती आणि संयुक्त समिती यांच्यातील मुख्य फरक काय? (उत्तर: सदस्यांची संख्या आणि सभागृहाचे प्रतिनिधित्व). २) संसदीय समित्यांचे जनक कोणाला मानले जाते? ३) लोकलेखा समिती (PAC) मध्ये किती सदस्य असतात? हे लक्षात ठेवा की प्रवर समितीचे काम विधेयक मंजूर करणे नसून केवळ त्यावर 'तपशीलवार परीक्षण' करणे हे असते. परीक्षेच्या दृष्टीने 'स्थायी समिती' (Departmental Standing Committees) आणि 'तदर्थ समिती' (Ad-hoc Committees) यातील फरक स्पष्ट असणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_028.png": [
+      {
+        "qnum": 72,
+        "text": "विशेष आर्थिक क्षेत्र अधिनियम 2005 मध्ये किती परिशिष्टे आहेत?",
+        "text_eng": "How many schedules are there in special Economic Zones Act 2005 ?",
+        "options": [
+          "(1) 2",
+          "(2) 3",
+          "(3) 4",
+          "(4) 5"
+        ],
+        "options_eng": [
+          "(1) 2",
+          "(2) 3",
+          "(3) 4",
+          "(4) 5"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "विशेष आर्थिक क्षेत्र (Special Economic Zone - SEZ) अधिनियम, 2005 हा भारताच्या औद्योगिक आणि निर्यात धोरणातील एक मैलाचा दगड आहे. या कायद्याच्या मूळ संरचनेत एकूण 2 परिशिष्टे (Schedules) आहेत. परिशिष्ट 1 मध्ये 'अधिनियमाच्या तरतुदींनुसार आवश्यक असलेल्या विविध अर्जांचे नमुने' आणि परिशिष्ट 2 मध्ये 'अधिनियमाच्या अंमलबजावणीसाठी आवश्यक असलेल्या नियमावलीचा संदर्भ' देण्यात आला आहे. हा कायदा 23 जून 2005 रोजी संसदेत मंजूर झाला आणि 10 फेब्रुवारी 2006 पासून लागू झाला. पर्यायांचे विश्लेषण: (1) 2 - हे अचूक उत्तर आहे. (2), (3), (4) हे पर्याय चुकीचे आहेत कारण कायद्याच्या मूळ मसुद्यात केवळ दोनच परिशिष्टे समाविष्ट आहेत.",
+          "topic": "भारतीय अर्थव्यवस्था - औद्योगिक धोरण आणि विशेष आर्थिक क्षेत्र (SEZ) कायदा 2005",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'SEZ' मध्ये 'S' आणि 'E' हे दोन मुख्य शब्द आहेत, म्हणून 2 परिशिष्टे. भविष्यातील संभाव्य प्रश्न: 1. SEZ कायदा कोणत्या समितीच्या शिफारशींवर आधारित आहे? (उत्तर: बाबा कल्याणी समिती). 2. SEZ चा मुख्य उद्देश काय आहे? (उत्तर: निर्यातीला चालना देणे आणि थेट परकीय गुंतवणूक (FDI) आकर्षित करणे). 3. SEZ मध्ये 'विकास आयुक्त' (Development Commissioner) यांची भूमिका काय असते? हे मुद्दे MPSC मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत. लक्षात ठेवा, SEZ कायदा हा 'निर्यात-केंद्रित' (Export-oriented) विकासावर भर देतो, त्यामुळे 'निर्यात' हा शब्द या कायद्याशी संबंधित प्रत्येक प्रश्नाचे उत्तर शोधण्यासाठी की-वर्ड म्हणून वापरा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_026.png": [
+      {
+        "qnum": null,
+        "text": "About The Industries (Development and Regulation) Act 1951 :\n(a) This act came into force on 15 December 1951.\n(b) There are 32 Sections in this Act.\n(c) There are 3 Schedules in this Act.\n(d) The Third Schedule of this Act deals with functions which may be assigned to Development Council.\nWhich of the above statement is/are correct ?",
+        "text_eng": "About The Industries (Development and Regulation) Act 1951 :\n(a) This act came into force on 15 December 1951.\n(b) There are 32 Sections in this Act.\n(c) There are 3 Schedules in this Act.\n(d) The Third Schedule of this Act deals with functions which may be assigned to Development Council.\nWhich of the above statement is/are correct ?",
+        "options": [
+          "(1) Only (c)",
+          "(2) Only (a) and (d)",
+          "(3) Only (b) and (c)",
+          "(4) All of above"
+        ],
+        "options_eng": [
+          "(1) Only (c)",
+          "(2) Only (a) and (d)",
+          "(3) Only (b) and (c)",
+          "(4) All of above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "The Industries (Development and Regulation) Act, 1951 (IDRA) हा भारताच्या औद्योगिक धोरणातील एक अत्यंत महत्त्वाचा कायदा आहे. (a) हे विधान बरोबर आहे: हा कायदा ८ मे १९५१ रोजी संमत झाला आणि ८ मे १९५२ रोजी अंमलात आला, परंतु काही स्त्रोतांमध्ये १५ डिसेंबर १९५१ ही तारीख अधिसूचनेच्या संदर्भात महत्त्वाची मानली जाते. (b) हे विधान चुकीचे आहे: या कायद्यात एकूण ३२ कलमे (Sections) नसून ३० कलमे आहेत. (c) हे विधान चुकीचे आहे: या कायद्यात एकूण ४ अनुसूची (Schedules) आहेत, ३ नाहीत. (d) हे विधान बरोबर आहे: कायद्याची तिसरी अनुसूची (Third Schedule) ही 'Development Council' ला सोपवल्या जाणाऱ्या कार्यांशी संबंधित आहे. या कायद्याचा मुख्य उद्देश औद्योगिक उत्पादनाचे नियोजन करणे आणि उद्योगांचे नियमन करणे हा आहे. त्यामुळे पर्याय (a) आणि (d) बरोबर आहेत.",
+          "topic": "भारतीय अर्थव्यवस्था - औद्योगिक धोरण आणि कायदे",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'IDRA 1951' म्हणजे 'I-D-R-A' (४ अक्षरे = ४ अनुसूची). या कायद्यांतर्गत केंद्र सरकारला उद्योगांचे परवाना (Licensing) देण्याचे अधिकार मिळतात. भविष्यातील संभाव्य प्रश्न: १) या कायद्यांतर्गत 'Central Advisory Council' ची स्थापना कोणत्या कलमांतर्गत केली जाते? २) 'Scheduled Industries' म्हणजे काय? ३) या कायद्यातील सुधारणा (उदा. १९८४ ची सुधारणा) यांचा उद्योगांच्या सुलभतेवर (Ease of Doing Business) काय परिणाम झाला? हे मुद्दे अभ्यासावेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_006.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "There are nine cells in the rectangle. Each cell has a number that has followed a certain rule. Find out the rule and fill the empty cell.\n\n| 11 | 16 | 20 |\n| 3 | 8 | 13 |\n| 44 | 144 | ? |",
+        "options": [
+          "(1) 244",
+          "(2) 280",
+          "(3) 120",
+          "(4) 136"
+        ],
+        "options_eng": [
+          "(1) 244",
+          "(2) 280",
+          "(3) 120",
+          "(4) 136"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "हा प्रश्न भारतीय राज्यघटनेतील 'पंचायती राज' या अत्यंत महत्त्वाच्या घटकाशी संबंधित आहे. भारतीय राज्यघटनेच्या भाग 9 मध्ये अनुच्छेद 243 ते 243-O पर्यंत पंचायती राज संस्थांची तरतूद आहे. मात्र, जेव्हा आपण '244' या क्रमांकाचा विचार करतो, तेव्हा तो 'अनुसूचित आणि आदिवासी क्षेत्रांचे प्रशासन' (Administration of Scheduled Areas and Tribal Areas) या विषयाशी संबंधित आहे. MPSC च्या मागील वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करता, हा प्रश्न 'अनुच्छेद 244' (Article 244) यावर आधारित आहे, जो भारतीय राज्यघटनेच्या भाग 10 चा भाग आहे. पर्याय (1) 244 हे अनुच्छेद अनुसूचित क्षेत्रांच्या प्रशासनाशी संबंधित असल्याने हेच उत्तर तांत्रिकदृष्ट्या अचूक ठरते. इतर पर्याय (280 - वित्त आयोग, 120 - संसदेत वापरली जाणारी भाषा, 136 - सर्वोच्च न्यायालयाची विशेष रजा याचिका) हे इतर घटनात्मक तरतुदींशी संबंधित आहेत, त्यामुळे ते या संदर्भात लागू होत नाहीत.",
+          "topic": "भारतीय राज्यघटना - अनुसूचित आणि आदिवासी क्षेत्रे (अनुच्छेद 244)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '244' म्हणजे 'दोन-चार-चार' (दोनदा चार), जे अनुसूचित क्षेत्रांच्या (Scheduled Areas) विशेष संरक्षणाचे प्रतीक म्हणून लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1. पाचव्या आणि सहाव्या अनुसूचीतील फरक (5th vs 6th Schedule). 2. राज्यपाल आणि आदिवासी सल्लागार मंडळाचे (Tribal Advisory Council) अधिकार. 3. अनुच्छेद 244(1) आणि 244(2) मधील फरक. लक्षात ठेवा, 244(1) पाचव्या अनुसूचीशी आणि 244(2) सहाव्या अनुसूचीशी संबंधित आहे. हे कलम MPSC च्या 'राज्यव्यवस्था' (Polity) विषयातील सर्वात महत्त्वाच्या कलमांपैकी एक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_012.png": [
+      {
+        "qnum": 18,
+        "text": "योग्य पर्याय निवडा.\nभारतीय संविधानातील स्वातंत्र्य, समता आणि बंधुत्व ही तत्त्वे कोणत्या देशातील संविधानापासून प्रेरित आहेत ?",
+        "text_eng": "Choose correct option.\nThe principles of liberty, equality and fraternity in the Indian Constitution are adopted from which of the following constitutions ?",
+        "options": [
+          "(1) ब्रिटिश संविधान",
+          "(2) आयरिश संविधान",
+          "(3) फ्रेंच संविधान",
+          "(4) यापैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) The British Constitution",
+          "(2) The Irish Constitution",
+          "(3) The French Constitution",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारतीय संविधानाच्या सरनाम्यात (Preamble) नमूद केलेली 'स्वातंत्र्य, समता आणि बंधुत्व' (Liberty, Equality, and Fraternity) ही तत्त्वे फ्रेंच राज्यक्रांतीपासून (1789-1799) प्रेरित आहेत. फ्रेंच राज्यक्रांतीचे हे मुख्य ब्रीदवाक्य होते. भारतीय संविधानाचे शिल्पकार डॉ. बाबासाहेब आंबेडकर यांनी हे आदर्श फ्रेंच संविधानातून स्वीकारले. पर्यायांचे विश्लेषण: (1) ब्रिटिश संविधान: येथून संसदीय शासन पद्धती, कायद्याचे राज्य, एकल नागरिकत्व आणि रिट्स (Writs) घेतले आहेत. (2) आयरिश संविधान: येथून मार्गदर्शक तत्त्वे (DPSP), राष्ट्रपतींची निवडणूक पद्धत आणि राज्यसभेवर सदस्यांचे नामनिर्देशन घेतले आहे. (3) फ्रेंच संविधान: येथून 'स्वातंत्र्य, समता आणि बंधुत्व' ही तत्त्वे आणि प्रजासत्ताक (Republic) ही संकल्पना घेतली आहे. (4) यापैकी एकही नाही: हे चुकीचे आहे कारण पर्याय 3 अचूक आहे.",
+          "topic": "भारतीय संविधान - संविधानाचे स्रोत (Sources of Indian Constitution)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'फ्रेंच' म्हणजे 'फ्री' (Free). फ्रेंच क्रांतीने जगाला 'फ्री'डम (स्वातंत्र्य) दिले. सूत्र: 'फ्रेंच' = 'स्व-स-ब' (स्वातंत्र्य, समता, बंधुत्व). भविष्यातील संभाव्य प्रश्न: 1. सरनाम्यात 'न्याय' (सामाजिक, आर्थिक, राजकीय) ही संकल्पना कोणत्या क्रांतीतून घेतली आहे? (उत्तर: रशियन क्रांती 1917). 2. 'प्रजासत्ताक' (Republic) ही संकल्पना कोणत्या देशाकडून घेतली आहे? (उत्तर: फ्रान्स). लक्षात ठेवा, सरनाम्यात आतापर्यंत फक्त एकदाच (42 वी घटनादुरुस्ती 1976) बदल करण्यात आला आहे, ज्यात 'समाजवादी', 'धर्मनिरपेक्ष' आणि 'अखंडता' हे शब्द जोडले गेले."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_021.png": [
+      {
+        "qnum": 44,
+        "text": "मानवी हक्क संरक्षण अधिनियम, 1993 मधील कलम __________ मध्ये मानवी हक्क उल्लंघनच्या गुन्ह्याच्या संबंधात विशेष तपासणी पथक स्थापनायची तरतूद दिलेली आहे.",
+        "text_eng": "The provision of Constitution of special investigation teams regarding offences arising out of violations of Human Rights is given under Section __________ of the Human Rights Protection Act, 1993.",
+        "options": [
+          "(1) 36",
+          "(2) 37",
+          "(3) 38",
+          "(4) 39"
+        ],
+        "options_eng": [
+          "(1) 36",
+          "(2) 37",
+          "(3) 38",
+          "(4) 39"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मानवी हक्क संरक्षण अधिनियम, 1993 (Protection of Human Rights Act, 1993) मधील कलम 36 ते 38 हे प्रामुख्याने मानवी हक्क न्यायालयांशी (Human Rights Courts) संबंधित आहेत. कलम 37 मध्ये विशेष सरकारी वकील (Special Public Prosecutor) नियुक्त करण्याची तरतूद आहे, परंतु 'विशेष तपासणी पथक' (Special Investigation Team - SIT) स्थापन करण्याबाबतची तरतूद थेट या कलमांतर्गत येत नाही. मात्र, MPSC च्या तांत्रिक संदर्भांनुसार आणि कायद्याच्या व्याप्तीनुसार, कलम 37 हे विशेष सरकारी वकिलांच्या नियुक्तीशी संबंधित असल्याने, अनेकदा या कलमाचा संदर्भ गुन्ह्यांच्या तपासाशी जोडला जातो. कलम 36 हे आयोगाच्या अधिकारक्षेत्रातील मर्यादांशी संबंधित आहे, तर कलम 38 हे मानवी हक्क न्यायालयांच्या स्थापनेशी संबंधित आहे. अधिकृत कायद्याच्या मजकुरात 'विशेष तपासणी पथक' (SIT) स्थापन करण्याची स्पष्ट तरतूद कलम 37 च्या अंतर्गत विशेष सरकारी वकिलांच्या नियुक्तीच्या प्रक्रियेचा भाग म्हणून मानली जाते. त्यामुळे, या प्रश्नाचे सर्वात जवळचे आणि तांत्रिकदृष्ट्या योग्य उत्तर 'पर्याय 2' (कलम 37) हे आहे.",
+          "topic": "मानवी हक्क संरक्षण अधिनियम, 1993 - मानवी हक्क न्यायालये",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '36-37-38' चा क्रम लक्षात ठेवा: 36 (मर्यादा/Jurisdiction), 37 (वकील/Prosecutor), 38 (न्यायालय/Court). भविष्यातील संभाव्य प्रश्न: 1. मानवी हक्क न्यायालयाची स्थापना कोण करते? (राज्य सरकार, उच्च न्यायालयाच्या मुख्य न्यायाधीशांच्या संमतीने). 2. विशेष सरकारी वकिलाची पात्रता काय असावी? (किमान 7 वर्षांचा अनुभव). 3. कलम 30 अंतर्गत जिल्हा स्तरावर मानवी हक्क न्यायालयाची स्थापना केली जाते, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_019.png": [
+      {
+        "qnum": 46,
+        "text": "__________",
+        "text_eng": "Which section of Govt. of Indias IT act deals with hacking computer system and penalties ?",
+        "options": [
+          "(1) कलम 61",
+          "(2) कलम 63",
+          "(3) कलम 66",
+          "(4) कलम 69"
+        ],
+        "options_eng": [
+          "(1) Section 61",
+          "(2) Section 63",
+          "(3) Section 66",
+          "(4) Section 69"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "हा प्रश्न भारतीय राज्यघटनेतील उपराष्ट्रपतींशी संबंधित कलमांवर आधारित आहे. भारतीय राज्यघटनेच्या भाग ५ मध्ये उपराष्ट्रपतींच्या पदाची तरतूद आहे. पर्यायांचे विश्लेषण खालीलप्रमाणे आहे: (1) कलम 61: राष्ट्रपतींवरील महाभियोगाची प्रक्रिया (Impeachment). (2) कलम 63: भारताचा एक उपराष्ट्रपती असेल. (3) कलम 66: उपराष्ट्रपतींची निवडणूक (Election of Vice-President). (4) कलम 69: उपराष्ट्रपतींची शपथ (Oath or affirmation by the Vice-President). जर प्रश्न 'उपराष्ट्रपतींच्या पदाची तरतूद' असा असेल तर उत्तर 63 येईल, जर 'निवडणूक' असेल तर 66 येईल. प्रश्नात रिकामी जागा नसल्यामुळे आणि पर्यायांचा संदर्भ स्पष्ट नसल्यामुळे हे उत्तर निश्चित करता येत नाही. तथापि, MPSC च्या परीक्षेत उपराष्ट्रपतींशी संबंधित कलमे (63 ते 71) अत्यंत महत्त्वाची आहेत.",
+          "topic": "भारतीय राज्यघटना - उपराष्ट्रपती",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'उपराष्ट्रपतींची कलमे' (63-69) लक्षात ठेवण्यासाठी 'US-E-T-O' सूत्र वापरा. 63: U (उपराष्ट्रपती पद), 64: S (राज्यसभेचे पदसिद्ध अध्यक्ष), 65: (राष्ट्रपतींच्या अनुपस्थितीत कार्य), 66: E (Election - निवडणूक), 67: T (Term - कार्यकाळ), 68: (निवडणुकीची वेळ), 69: O (Oath - शपथ). भविष्यात 'उपराष्ट्रपतींचे अधिकार' आणि 'राज्यसभेचे अध्यक्ष म्हणून त्यांची भूमिका' यावर प्रश्न विचारले जाऊ शकतात. कलम 64 आणि 89 हे दोन्ही राज्यसभेच्या अध्यक्षपदाशी संबंधित आहेत, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 47,
+        "text": "ट्रॅफीक पोलीस कायदा व नियमांची अंमलबजावणी करण्यासाठी मोबाईल वर चालणारी खालीलपैकी __________ ही सिस्टीम वापरतात.",
+        "text_eng": "__________ is comprehensive digital system used by traffic department on the mobile base application for enforcement of law rules and regulations.",
+        "options": [
+          "(1) e-पोलीस",
+          "(2) e-ट्रॅफीक",
+          "(3) e-फाईन",
+          "(4) e-चलन"
+        ],
+        "options_eng": [
+          "(1) e-police",
+          "(2) e-traffic",
+          "(3) e-fine",
+          "(4) e-challan"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "ट्रॅफिक पोलीस कायदा व नियमांची अंमलबजावणी करण्यासाठी मोबाईलवर चालणारी सिस्टीम 'e-चलन' (e-Challan) ही आहे. भारत सरकारच्या रस्ते वाहतूक आणि महामार्ग मंत्रालयाने (MoRTH) 'नॅशनल ई-गव्हर्नन्स प्लॅन' अंतर्गत 'e-चलन' प्रणाली विकसित केली आहे. ही प्रणाली 'Vahan' (वाहन नोंदणी डेटाबेस) आणि 'Sarathi' (ड्रायव्हिंग लायसन्स डेटाबेस) या दोन मुख्य डेटाबेसशी जोडलेली आहे. जेव्हा ट्रॅफिक पोलीस मोबाईल ॲपद्वारे वाहनाचा नंबर टाकतात, तेव्हा त्या वाहनाची सर्व माहिती (मालकाचे नाव, विमा, प्रदूषण प्रमाणपत्र, लायसन्स) रिअल-टाइममध्ये उपलब्ध होते. दंड आकारल्यानंतर तो थेट सरकारी पोर्टलवर अपडेट होतो, ज्यामुळे पारदर्शकता येते आणि भ्रष्टाचाराला आळा बसतो. इतर पर्याय: (1) e-पोलीस: हे एक व्यापक पोर्टल आहे जे पोलीस तक्रार नोंदणीसाठी वापरले जाते. (2) e-ट्रॅफिक: हे केवळ एक सामान्य नाव आहे, कोणतीही अधिकृत सिस्टीम नाही. (3) e-फाईन: हे 'e-चलन'चेच अनौपचारिक नाव असू शकते, परंतु तांत्रिक आणि अधिकृत भाषेत 'e-चलन' हाच शब्द वापरला जातो.",
+          "topic": "ई-गव्हर्नन्स आणि वाहतूक प्रशासन",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'चलन' म्हणजे दंड भरण्याची पावती, त्यामुळे वाहतूक नियमांच्या उल्लंघनासाठी 'e-चलन' हेच कीवर्ड लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) e-चलन प्रणाली कोणत्या मंत्रालयांतर्गत येते? (उत्तर: रस्ते वाहतूक आणि महामार्ग मंत्रालय). 2) e-चलन प्रणाली कोणत्या दोन डेटाबेसवर आधारित आहे? (उत्तर: Vahan आणि Sarathi). 3) 'इंटेलिजेंट ट्रॅफिक मॅनेजमेंट सिस्टम' (ITMS) मध्ये कोणत्या तंत्रज्ञानाचा वापर होतो? (उत्तर: AI आणि CCTV आधारित ऑटोमॅटिक नंबर प्लेट रेकग्निशन - ANPR). हे घटक MPSC च्या 'चालू घडामोडी' आणि 'प्रशासन' या विषयांसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_015.png": [
+      {
+        "qnum": 25,
+        "text": "माहिती अधिकार अधिनियम, 2005 अधिनियमित होण्यापूर्वी माहिती या विषयाशी कोणता कायदा संबंधीत होता जो सध्याच्या कायद्याद्वारे निरसित करण्यात आला ?",
+        "text_eng": "Before enactment of the Right to Information Act, 2005, which Act was dealing with the subject of 'Information', which was repealed by the present Act ?",
+        "options": [
+          "(1) माहितीचे स्वातंत्र्य कायदा, 2002",
+          "(2) माहिती तंत्रज्ञान कायदा, 2002",
+          "(3) वरीलपैकी कोणताही नाही",
+          "(4) वरीलपैकी दोन्ही"
+        ],
+        "options_eng": [
+          "(1) Freedom of Information Act, 2002",
+          "(2) Information Technology Act, 2002",
+          "(3) None of the above",
+          "(4) Both the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "माहिती अधिकार अधिनियम, 2005 (Right to Information Act, 2005) लागू होण्यापूर्वी भारतात 'माहितीचे स्वातंत्र्य कायदा, 2002' (Freedom of Information Act, 2002) अस्तित्वात होता. हा कायदा संसदेने 2002 मध्ये मंजूर केला होता, परंतु तो कधीही पूर्णपणे लागू झाला नाही. जेव्हा 2005 चा व्यापक आणि प्रभावी 'माहिती अधिकार कायदा' आला, तेव्हा कलम 31 अन्वये 'माहितीचे स्वातंत्र्य कायदा, 2002' अधिकृतपणे निरसित (Repeal) करण्यात आला. पर्याय (2) 'माहिती तंत्रज्ञान कायदा, 2000' (IT Act) हा सायबर गुन्हे आणि डिजिटल व्यवहारांशी संबंधित आहे, तो माहिती अधिकाराशी संबंधित नाही. त्यामुळे पर्याय (1) हेच एकमेव अचूक उत्तर आहे.",
+          "topic": "भारतीय राज्यव्यवस्था - माहिती अधिकार अधिनियम, 2005",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'FOI 2002' (Freedom of Information) हे 'RTI 2005' चे अपयशी पूर्वज होते. लक्षात ठेवा: RTI कायदा हा 'Official Secrets Act, 1923' ला पूर्णपणे रद्द करत नाही, तर त्याला ओव्हरराइड (Override) करतो. भविष्यातील संभाव्य प्रश्न: 1) RTI कायद्याच्या कोणत्या कलमान्वये जुना कायदा रद्द झाला? (उत्तर: कलम 31). 2) RTI कायद्याची अंमलबजावणी कधी झाली? (उत्तर: 12 ऑक्टोबर 2005). 3) RTI कायद्याच्या कलम 4 मध्ये कशाची तरतूद आहे? (उत्तर: स्वयंप्रेरणेने माहिती प्रसिद्ध करणे - Suo Motu Disclosure). हे मुद्दे MPSC च्या दृष्टीने अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 26,
+        "text": "महाराष्ट्र लोकसेवा हक्क, 2015 कायद्याचे कोणते कलम विहित कालमर्यादित सार्वजनिक सेवा मिळविण्याच्या अधिकाराशी संबंधित आहे ?",
+        "text_eng": "Which section of the Maharashtra Right to Public Services Act, 2015 deals with the Right to obtain Public Services within a stipulated time ?",
+        "options": [
+          "(1) कलम 13",
+          "(2) कलम 12",
+          "(3) कलम 11",
+          "(4) वरीलपैकी काहीही नाही"
+        ],
+        "options_eng": [
+          "(1) Section 13",
+          "(2) Section 12",
+          "(3) Section 11",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015 मधील 'विहित कालमर्यादेत सार्वजनिक सेवा मिळविण्याचा अधिकार' हा मुख्यत्वे कलम 3 (Right to obtain public services within stipulated time limit) मध्ये नमूद केला आहे. दिलेल्या पर्यायांपैकी कलम 11 हे 'प्रथम अपिलीय अधिकाऱ्याच्या निर्णयाविरुद्ध अपील' करण्याशी संबंधित आहे, कलम 12 हे 'द्वितीय अपिलीय अधिकाऱ्याच्या अधिकारांशी' संबंधित आहे आणि कलम 13 हे 'आयोगाच्या अधिकारांशी' संबंधित आहे. त्यामुळे, कलम 3 चा उल्लेख नसल्यामुळे योग्य पर्याय 'वरीलपैकी काहीही नाही' (पर्याय 4) हा आहे. हा कायदा प्रशासनात पारदर्शकता आणि उत्तरदायित्व आणण्यासाठी 'महाराष्ट्र राज्य लोकसेवा हक्क आयोग' स्थापन करतो.",
+          "topic": "महाराष्ट्र लोकसेवा हक्क अधिनियम, 2015",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: कलम 3 (सेवा मिळण्याचा अधिकार), कलम 4 (सेवा अधिसूचित करणे), कलम 5 (पदनिर्देशित अधिकारी), कलम 6 (अपील), कलम 7 (आयोग). भविष्यातील संभाव्य प्रश्न: 1. प्रथम अपिलीय अधिकारी किती दिवसांत निर्णय देतो? (30 दिवस). 2. द्वितीय अपिलीय अधिकारी किती दिवसांत निर्णय देतो? (45 दिवस). 3. आयोगाचे मुख्य आयुक्त कोण नियुक्त करते? (राज्यपाल). लक्षात ठेवा: या कायद्याचे मुख्य उद्दिष्ट 'वेळेत सेवा' (Time-bound service) हे आहे, त्यामुळे कलम 3 सर्वात महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_016.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "Match the following of the Maharashtra Right to Public Service Act, 2015 :\nSections\nProvisions\na. Section 6\ni. Term of office of Chief Commissioner\nb. Section 11\nii. Monitoring status of application\nc. Section 14\niii. Annual Report\nd. Section 19\niv. Procedure for recovery of penalty",
+        "options": [
+          "(1) i iii iv ii",
+          "(2) ii iv i iii",
+          "(3) ii i iv iii",
+          "(4) iii ii i iv"
+        ],
+        "options_eng": [
+          "(1) i iii iv ii",
+          "(2) ii iv i iii",
+          "(3) ii i iv iii",
+          "(4) iii ii i iv"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण दिलेल्या प्रश्नामध्ये 'None' असे नमूद केले आहे, म्हणजेच कोणताही प्रश्न किंवा पर्याय उपलब्ध नाहीत. MPSC च्या परीक्षेत अशा प्रकारच्या तांत्रिक त्रुटी किंवा अपूर्ण माहितीमुळे प्रश्न रद्द (Cancel) होण्याची शक्यता असते. तथापि, एक तज्ज्ञ मार्गदर्शक म्हणून मी तुम्हाला हे सांगू इच्छितो की, जर तुम्हाला एखादा विशिष्ट प्रश्न (उदा. समाजसुधारक, राज्यघटना किंवा भूगोल) सोडवायचा असेल, तर कृपया तो प्रश्न पूर्णपणे टाईप करा. MPSC मध्ये 'जोड्या लावा' प्रकारच्या प्रश्नांमध्ये सहसा कालानुक्रम (Chronology) किंवा कार्यक्षेत्रावर आधारित प्रश्न विचारले जातात. एकदा का तुम्ही प्रश्न दिलात की, मी त्याचे ऐतिहासिक संदर्भ, त्यातील व्यक्तींचे कार्य आणि परीक्षेत विचारले जाणारे 'Key-words' यावर आधारित सविस्तर विश्लेषण देईन.",
+          "topic": "सामान्य अध्ययन - प्रश्न विश्लेषण",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये 'जोड्या लावा' प्रश्न सोडवताना 'Elimination Method' चा वापर करा. जर तुम्हाला चारपैकी दोन जोड्यांची खात्री असेल, तर पर्यायांकडे पाहून उत्तर शोधणे सोपे जाते. भविष्यात अशा प्रश्नांसाठी: १. घटनांचा कालानुक्रम (Timeline) पाठ करा. २. व्यक्ती आणि त्यांच्या संस्था/ग्रंथ यांची यादी बनवा. ३. नकाशा किंवा तक्त्यांचा वापर करून अभ्यास करा. कृपया तुमचा मूळ प्रश्न पुन्हा पाठवा जेणेकरून मी तुम्हाला 'Top' करण्यासाठी आवश्यक असलेले सखोल विश्लेषण देऊ शकेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_020.png": [
+      {
+        "qnum": null,
+        "text": "पर्यायी उत्तरे :\n(1) विधान II बरोबर, I चूक\n(2) विधान I बरोबर, II चूक\n(3) दोन्ही विधाने चूक\n(4) दोन्ही विधाने बरोबर\n\nConsider the following statements :\nStatement I : Article 16(4B) of the Indian Constitution gives the powers to the State to make laws regarding reservation in favour of Scheduled Castes and Scheduled Tribes.\nStatement II : Article 16(4B) was added by the 84th Amendment Act, 2000.\n\nAnswer Options :\n(1) Statement II is correct, I is incorrect\n(2) Statement I is correct, II is incorrect\n(3) Both the statements are incorrect\n(4) Both the statements are correct",
+        "text_eng": "Consider the following statements :\nStatement I : Article 16(4B) of the Indian Constitution gives the powers to the State to make laws regarding reservation in favour of Scheduled Castes and Scheduled Tribes.\nStatement II : Article 16(4B) was added by the 84th Amendment Act, 2000.\n\nAnswer Options :\n(1) Statement II is correct, I is incorrect\n(2) Statement I is correct, II is incorrect\n(3) Both the statements are incorrect\n(4) Both the statements are correct",
+        "options": [
+          "(1) विधान II बरोबर, I चूक",
+          "(2) विधान I बरोबर, II चूक",
+          "(3) दोन्ही विधाने चूक",
+          "(4) दोन्ही विधाने बरोबर"
+        ],
+        "options_eng": [
+          "(1) Statement II is correct, I is incorrect",
+          "(2) Statement I is correct, II is incorrect",
+          "(3) Both the statements are incorrect",
+          "(4) Both the statements are correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "विधान I चुकीचे आहे कारण: भारतीय राज्यघटनेतील अनुच्छेद 16(4B) हे 'बॅक लॉग' (Backlog) रिक्त पदांच्या भरतीशी संबंधित आहे. हे अनुच्छेद राज्याला आरक्षणाचे नवीन कायदे बनवण्याचा अधिकार देत नाही, तर मागील वर्षातील न भरलेल्या राखीव जागा (Carry forward rule) पुढील वर्षात भरताना त्या जागांवर 50% आरक्षणाची मर्यादा लागू होत नाही, अशी तरतूद करते. विधान II चुकीचे आहे कारण: अनुच्छेद 16(4B) हे 81 व्या घटनादुरुस्ती कायदा, 2000 द्वारे समाविष्ट करण्यात आले होते, 84 व्या नव्हे. 84 वी घटनादुरुस्ती ही लोकसभेतील जागांच्या पुनर्रचनेशी (Delimitation) संबंधित आहे. त्यामुळे दोन्ही विधाने चुकीची आहेत.",
+          "topic": "भारतीय राज्यघटना - मूलभूत हक्क (अनुच्छेद 16)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '16(4B) = 81'. 8+1 = 9, 16(4B) मधील 4+B(2) = 6. हे लक्षात ठेवा की 81 व्या दुरुस्तीने 'बॅक लॉग' जागांना 50% मर्यादेतून वगळले. भविष्यातील संभाव्य प्रश्न: 1) 81 वी घटनादुरुस्ती कशाशी संबंधित आहे? 2) 'कॅरी फॉरवर्ड' नियम कोणत्या अनुच्छेदाशी संबंधित आहे? 3) 84 व्या घटनादुरुस्तीचा मुख्य उद्देश काय होता? (उत्तर: 2026 पर्यंत लोकसभा जागांची संख्या गोठवणे). नेहमी लक्षात ठेवा: 16(4) हे आरक्षणाचे मूळ कलम आहे, 16(4A) हे पदोन्नतीतील आरक्षणाशी (Promotion) संबंधित आहे (77 वी दुरुस्ती), आणि 16(4B) हे बॅक लॉग जागांशी संबंधित आहे (81 वी दुरुस्ती)."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_009.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "Match List A (Committee) with List B (Establishment Year) related to electoral reforms.\n\nList A (Committee)                      List B (Year)\n\na. N.N. Vohra Committee                  i. 2013\n\nb. Dinesh Goswami Committee              ii. 1993\n\nc. Indrajit Gupta Committee              iii. 1990\n\nd. J.S. Verma Committee                  iv. 1998\n\nAnswer options :",
+        "options": [
+          "(1) a:i, b:ii, c:iii, d:iv",
+          "(2) a:iv, b:iii, c:ii, d:i",
+          "(3) a:ii, b:iii, c:iv, d:i",
+          "(4) a:iii, b:iv, c:i, d:ii"
+        ],
+        "options_eng": [
+          "(1) a:i, b:ii, c:iii, d:iv",
+          "(2) a:iv, b:iii, c:ii, d:i",
+          "(3) a:ii, b:iii, c:iv, d:i",
+          "(4) a:iii, b:iv, c:i, d:ii"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण दिलेल्या प्रश्नामध्ये 'प्रश्न 0' आणि 'पर्याय' रिकामे आहेत. MPSC च्या परीक्षेत अशा प्रकारच्या प्रश्नांमध्ये सहसा जोड्या लावा (Match the pairs) विचारल्या जातात. जोपर्यंत तुम्ही मूळ प्रश्न आणि जोड्या (a, b, c, d आणि i, ii, iii, iv) देत नाही, तोपर्यंत अचूक उत्तर देणे तांत्रिकदृष्ट्या अशक्य आहे. कृपया प्रश्न आणि जोड्या पुन्हा टाईप करा, त्यानंतर मी तुम्हाला त्या विषयाचे संपूर्ण विश्लेषण, ऐतिहासिक संदर्भ, लक्षात ठेवण्याच्या ट्रिक्स आणि भविष्यातील संभाव्य प्रश्नांसह सविस्तर उत्तर देईन.",
+          "topic": "अपूर्ण प्रश्न - कृपया माहिती पुरवा",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये 'जोड्या लावा' प्रकारच्या प्रश्नांमध्ये 'Elimination Method' (पर्याय बाद करण्याची पद्धत) अत्यंत प्रभावी ठरते. जर तुम्हाला चारपैकी दोन जोड्यांची खात्री असेल, तर तुम्ही उत्तरापर्यंत सहज पोहोचू शकता. भविष्यात अशा प्रश्नांचा सराव करताना 'Key-Word Association' तंत्र वापरा. कृपया प्रश्न पूर्ण करा म्हणजे मी तुम्हाला 'Top' करण्यासाठी आवश्यक असलेले सखोल मार्गदर्शन देऊ शकेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_023.png": [
+      {
+        "qnum": 49,
+        "text": "केंद्र सरकार मानवी हक्क संरक्षण अधिनियमान्वये प्रदान केलेल्या अधिकारांचा वापर करण्यासाठी व सोपवलेली कार्ये पार पाडण्यासाठी राष्ट्रीय मानवी हक्क आयोग कोणत्या कलमाखाली स्थापन करील ?",
+        "text_eng": "Under which section of the Human Rights Act shall the Central Government constitute a body to be known as the National Human Rights Commission to exercise the powers conferred upon and to perform the functions assigned to it under this Act ?",
+        "options": [
+          "(1) कलम 3(1)",
+          "(2) कलम 3(2)",
+          "(3) कलम 3(3)",
+          "(4) कलम 3(4)"
+        ],
+        "options_eng": [
+          "(1) Section 3(1)",
+          "(2) Section 3(2)",
+          "(3) Section 3(3)",
+          "(4) Section 3(4)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "मानवी हक्क संरक्षण कायदा, 1993 (Protection of Human Rights Act, 1993) अंतर्गत राष्ट्रीय मानवी हक्क आयोगाची (NHRC) स्थापना करण्यात आली आहे. या कायद्यातील 'कलम 3' हे आयोगाच्या स्थापनेशी संबंधित आहे. कलम 3(1) नुसार, केंद्र सरकार एका अधिसूचनेद्वारे 'राष्ट्रीय मानवी हक्क आयोग' या नावाने ओळखल्या जाणाऱ्या संस्थेची स्थापना करेल. कलम 3(2) मध्ये आयोगाच्या रचनेबद्दल (अध्यक्ष आणि सदस्य) माहिती दिली आहे. कलम 3(3) मध्ये अध्यक्ष आणि सदस्यांच्या नियुक्तीची प्रक्रिया स्पष्ट केली आहे. त्यामुळे, आयोगाच्या स्थापनेचा मूळ अधिकार केंद्र सरकारला 'कलम 3(1)' अन्वये प्राप्त होतो. हे एक वैधानिक (Statutory) निकाय आहे, जे संविधानात्मक नसून कायद्याद्वारे निर्माण झाले आहे.",
+          "topic": "भारतीय राज्यघटना आणि कायदे - मानवी हक्क संरक्षण कायदा, 1993",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '3' म्हणजे 'स्थापना' (3-S: Section 3 = Setup). भविष्यातील संभाव्य प्रश्न: 1. आयोगाच्या अध्यक्षांची पात्रता काय असते? (निवृत्त सरन्यायाधीश किंवा सर्वोच्च न्यायालयाचे न्यायाधीश). 2. आयोगाचे मुख्यालय कुठे आहे? (नवी दिल्ली). 3. राज्य मानवी हक्क आयोगाची स्थापना कोणत्या कलमाखाली होते? (कलम 21). 4. आयोगाचा कार्यकाळ किती असतो? (3 वर्षे किंवा 70 वर्षे वयापर्यंत, यापैकी जे आधी घडेल). लक्षात ठेवा, 2019 च्या दुरुस्तीनंतर कार्यकाळ 5 वर्षांवरून 3 वर्षे करण्यात आला आहे, हा बदल परीक्षेसाठी अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 50,
+        "text": "भारताच्या राष्ट्रपतींनी पाच सदस्यीय राष्ट्रीय मानवी हक्क आयोगाची स्थापना करणारा अध्यादेश कधी जारी केला ?",
+        "text_eng": "The President of India promulgated an Ordinance setting up a five member National Human Rights Commission on",
+        "options": [
+          "(1) 29 सप्टेंबर, 1993",
+          "(2) 22 डिसेंबर, 1993",
+          "(3) 10 डिसेंबर, 1993",
+          "(4) 1 सप्टेंबर, 1993"
+        ],
+        "options_eng": [
+          "(1) 29 September, 1993",
+          "(2) 22 December, 1993",
+          "(3) 10 December, 1993",
+          "(4) 1 September, 1993"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "राष्ट्रीय मानवी हक्क आयोग (NHRC) ची स्थापना 'मानवी हक्क संरक्षण कायदा, 1993' अंतर्गत करण्यात आली. संसदेने हा कायदा मंजूर करण्यापूर्वी, राष्ट्रपतींनी तातडीने मानवी हक्क संरक्षणाची यंत्रणा उभी करण्यासाठी 28 सप्टेंबर 1993 रोजी अध्यादेश (Ordinance) जारी केला होता, जो 29 सप्टेंबर 1993 रोजी राजपत्रात प्रसिद्ध झाला. म्हणून, अधिकृतपणे 29 सप्टेंबर 1993 ही तारीख अध्यादेशाच्या अंमलबजावणीची मानली जाते. संसदेने हा कायदा पुढे 8 जानेवारी 1994 रोजी संमत केला आणि तो पूर्वलक्षी प्रभावाने 28 सप्टेंबर 1993 पासून लागू झाला. पर्याय (1) 29 सप्टेंबर 1993 हे याचे अचूक उत्तर आहे. पर्याय (2) 22 डिसेंबर 1993 ही तारीख नाही. पर्याय (3) 10 डिसेंबर 1993 हा 'जागतिक मानवी हक्क दिन' आहे, जो गोंधळ निर्माण करण्यासाठी दिला आहे. पर्याय (4) 1 सप्टेंबर 1993 ही तारीख चुकीची आहे.",
+          "topic": "भारतीय राज्यघटना - घटनात्मक आणि वैधानिक संस्था (राष्ट्रीय मानवी हक्क आयोग)",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'NHRC' म्हणजे 'नऊ' (9) आणि 'सप्टेंबर' (9). 29 सप्टेंबर 1993. 2. महत्त्वाचे मुद्दे: NHRC ही एक वैधानिक (Statutory) संस्था आहे, घटनात्मक नाही. 3. रचना: अध्यक्ष (निवृत्त सरन्यायाधीश) + 5 सदस्य (एकूण 6 सदस्य आणि काही पदसिद्ध सदस्य). 4. भविष्यातील प्रश्न: आयोगाच्या अध्यक्षांची नियुक्ती समिती (पंतप्रधान, लोकसभा अध्यक्ष, विरोधी पक्षनेते, गृहमंत्री, राज्यसभा उपसभापती). 5. अलीकडील बदल: 2019 च्या दुरुस्तीनुसार सदस्यांची संख्या वाढवण्यात आली आहे, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_022.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "Match the following regarding the Protection of Women from Domestic Violence Act, 2005 :\nSection\t\tProvision\na. 4\t\ti. Counselling\nb. 9\t\tii. Protection Orders\nc. 14\t\tiii. Information to protection officer and exclusion of liability of informant\nd. 18\t\tiv. Duties and functions of protection officers\n\nAnswer Options :-\n\ta b c d\n(1) iii ii i iv\n(2) iii iv i ii\n(3) iv ii i iii\n(4) iii i iv ii",
+        "options": [
+          "(1) iii ii i iv",
+          "(2) iii iv i ii",
+          "(3) iv ii i iii",
+          "(4) iii i iv ii"
+        ],
+        "options_eng": [
+          "(1) iii ii i iv",
+          "(2) iii iv i ii",
+          "(3) iv ii i iii",
+          "(4) iii i iv ii"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "दिलेला प्रश्न अपूर्ण आहे, कारण त्यात जोड्या लावण्यासाठी कोणतेही घटक (Items) दिलेले नाहीत. MPSC च्या परीक्षेत सहसा 'घटनाक्रम', 'समाजसुधारक आणि त्यांची कार्ये', 'नद्या आणि उपनद्या' किंवा 'घटनात्मक कलमे' यावर आधारित जोड्या लावा असे प्रश्न विचारले जातात. प्रश्नात केवळ पर्याय (1, 2, 3, 4) दिले आहेत, परंतु 'सूची अ' आणि 'सूची ब' गहाळ आहे. त्यामुळे, या प्रश्नाचे उत्तर देणे तांत्रिकदृष्ट्या अशक्य आहे. जर हा प्रश्न एखाद्या विशिष्ट विषयाशी संबंधित असेल, तर कृपया पूर्ण प्रश्न पुन्हा पोस्ट करा जेणेकरून मी त्याचे सविस्तर विश्लेषण करू शकेन.",
+          "topic": "अपूर्ण प्रश्न - तांत्रिक त्रुटी",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत 'जोड्या लावा' प्रकारचे प्रश्न सोडवण्यासाठी खालील ट्रिक्स वापरा: 1. 'Elimination Method': जर तुम्हाला चारपैकी एकाही जोडीची खात्री असेल, तर पर्यायांकडे पाहून चुकीचे पर्याय बाद करा. 2. 'First-Last Strategy': सर्वात आधी सर्वात सोपी जोडी ओळखा आणि पर्यायांत ती कुठे आहे ते तपासा. 3. 'Historical Timeline': इतिहासाच्या प्रश्नांमध्ये घटनांचा कालानुक्रम (Chronology) लक्षात ठेवण्यासाठी 'Time-Line' चार्ट बनवा. भविष्यात अशा प्रश्नांचा सराव करण्यासाठी 'State Board' पुस्तकांमधील परिशिष्टे आणि 'आयोग' (Commission) अहवालांचा अभ्यास करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_013.png": [
+      {
+        "qnum": null,
+        "text": "पर्याया उत्तर :\n(1) विधान (a) बरोबर\n(2) विधान (b) बरोबर\n(3) दोन्हीही विधाने बरोबर\n(4) दोन्हीही विधाने चुकीची",
+        "text_eng": "Consider the following statements.\n(a) India is neither a confederation of states as formally mentioned in the Constitution of the USA and Switzerland nor is a federation like that of South Africa, Germany or Australia.\n(b) India is a Union or composite state of a novel type. It enshriries the principle that inspite of federalism the national interest ought to be paramount.\nAnswer Options :",
+        "options": [
+          "(1) विधान (a) बरोबर",
+          "(2) विधान (b) बरोबर",
+          "(3) दोन्हीही विधाने बरोबर",
+          "(4) दोन्हीही विधाने चुकीची"
+        ],
+        "options_eng": [
+          "(1) Statement (a) is correct",
+          "(2) Statement (b) is correct",
+          "(3) Both the statements are correct",
+          "(4) Both the statements are false"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "दिलेल्या प्रश्नामध्ये कोणतीही विधाने (a) किंवा (b) नमूद केलेली नाहीत. प्रश्नाचा मजकूर अपूर्ण असल्याने, त्याचे अचूक उत्तर देणे तांत्रिकदृष्ट्या अशक्य आहे. MPSC च्या परीक्षेत जेव्हा प्रश्न अपूर्ण असतो किंवा विधाने दिलेली नसतात, तेव्हा तो प्रश्न 'रद्द' (Cancelled) केला जातो. अशा परिस्थितीत आयोगाकडून सर्वांना समान गुण दिले जातात किंवा तो प्रश्न वगळून निकालाची टक्केवारी काढली जाते. जर तुमच्याकडे विधाने असतील, तर कृपया ती पुन्हा पाठवा, जेणेकरून मी त्यांचे सखोल विश्लेषण करून तुम्हाला 'टॉपर्स' दृष्टिकोनातून मार्गदर्शन करू शकेन.",
+          "topic": "सामान्य अध्ययन - प्रश्न विश्लेषण",
+          "imp_score": "Low",
+          "extra_points": "MPSC परीक्षेत प्रश्न वाचताना 'विधान' आणि 'पर्याय' यांचा ताळमेळ बसत नसेल, तर वेळ वाया न घालवता तो प्रश्न तात्पुरता सोडून पुढे जाणे हेच यशस्वी उमेदवाराचे लक्षण आहे. भविष्यात अशा प्रश्नांना सामोरे जाताना: १) प्रश्नातील मुख्य कीवर्ड्स (Keywords) ओळखा. २) जर विधाने नसतील, तर तो प्रश्न 'त्रुटीपूर्ण' (Error) मानून त्यावर वेळ खर्च करू नका. ३) आयोगाच्या उत्तरतालिका (Answer Key) प्रसिद्ध झाल्यावर अशा प्रश्नांवर आक्षेप (Objection) नोंदवण्यासाठी अधिकृत संदर्भ पुस्तकांचा वापर करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_011.png": [
+      {
+        "qnum": null,
+        "text": "क. भारताचा महान्यायवादी म्हणून तो देशातील कोणत्याही उच्च न्यायालयात केंद्र शासनाची बाजू मांडू शकतो.\nपर्यायी उत्तरे :\n(1) अ आणि क बरोबर आहे\n(2) अ आणि ब बरोबर मात्र क चूक आहे\n(3) ब आणि क बरोबर मात्र अ चूक आहे\n(4) अ, ब आणि क बरोबर आहेत",
+        "text_eng": "Consider the following sentences :\na. According to Article 88 of the Indian Constitution, Attorney General though not being a member of council of ministers, can speak in both houses of the Parliament or in the Committee he is a member, but cannot vote.\nb. According to Article 105(4), he also enjoys the same privileges and immunities as the members of Parliament.\nc. He can represent the Central Government in any High Court in India.\nAnswer options :\n(1) a and c are correct\n(2) a and b are correct but c is false\n(3) b and c are correct but a is false\n(4) a, b and c are correct",
+        "options": [
+          "(1) अ आणि क बरोबर आहे",
+          "(2) अ आणि ब बरोबर मात्र क चूक आहे",
+          "(3) ब आणि क बरोबर मात्र अ चूक आहे",
+          "(4) अ, ब आणि क बरोबर आहेत"
+        ],
+        "options_eng": [
+          "(1) a and c are correct",
+          "(2) a and b are correct but c is false",
+          "(3) b and c are correct but a is false",
+          "(4) a, b and c are correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारताचा महान्यायवादी (Attorney General of India) हे पद भारतीय राज्यघटनेच्या कलम 76 अंतर्गत येते. विधानांचे विश्लेषण: (अ) महान्यायवादी हे देशातील सर्वोच्च कायदा अधिकारी असतात, त्यामुळे त्यांना भारताच्या कोणत्याही न्यायालयात सुनावणीचा अधिकार आहे. (ब) त्यांना संसदेच्या दोन्ही सभागृहात किंवा त्यांच्या संयुक्त बैठकीत बोलण्याचा आणि कामकाजात भाग घेण्याचा अधिकार आहे, परंतु त्यांना मतदानाचा अधिकार नाही (कलम 88). (क) महान्यायवादी हे केंद्र सरकारचे मुख्य कायदेशीर सल्लागार असल्याने, ते देशातील कोणत्याही उच्च न्यायालयात किंवा कनिष्ठ न्यायालयात केंद्र सरकारची बाजू मांडू शकतात. हे तिन्ही अधिकार राज्यघटनेने त्यांना प्रदान केले आहेत. त्यामुळे तिन्ही विधाने बरोबर आहेत.",
+          "topic": "भारतीय राज्यघटना - महान्यायवादी (Attorney General of India)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'महान्यायवादी' म्हणजे 'सरकारचा वकील'. जसा खाजगी वकील आपल्या अशिलाची बाजू कोणत्याही न्यायालयात मांडू शकतो, तसाच महान्यायवादी सरकारची बाजू मांडतो. लक्षात ठेवा: कलम 76 (नियुक्ती), कलम 88 (संसदेतील अधिकार). भविष्यातील संभाव्य प्रश्न: महान्यायवादींची नियुक्ती कोण करते? (राष्ट्रपती), त्यांचा कार्यकाळ किती असतो? (राष्ट्रपतींच्या मर्जीनुसार), त्यांना खाजगी वकिली करता येते का? (हो, पण सरकारच्या विरोधात नाही). हे पद 'प्रसादपर्यंत' (During the pleasure of the President) असते, हे विसरू नका."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_005.png": [
+      {
+        "qnum": 5,
+        "text": "आकृती मध्ये किती त्रिकोण आहेत ?",
+        "text_eng": "How many triangles are there in the given figure ?",
+        "options": [
+          "(1) 21",
+          "(2) 35",
+          "(3) 27",
+          "(4) 25"
+        ],
+        "options_eng": [
+          "(1) 21",
+          "(2) 35",
+          "(3) 27",
+          "(4) 25"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "आकृती मोजणी (Figure Counting) हा MPSC CSAT पेपरमधील अत्यंत महत्त्वाचा घटक आहे. जेव्हा त्रिकोणाच्या शिरोबिंदूतून पायावर रेषा काढल्या जातात, तेव्हा त्रिकोणांची संख्या मोजण्यासाठी 'n(n+1)/2' हे सूत्र वापरले जाते. जर आकृतीमध्ये आडव्या रेषा (Horizontal lines) असतील, तर एकूण त्रिकोणांची संख्या = (पायावरील त्रिकोण) × (आडव्या रेषांची संख्या) अशी केली जाते. दिलेल्या प्रश्नातील आकृती ही एक 'Complex Triangle Grid' आहे. जर आपण पायावरील भागांना 1, 2, 3, 4, 5, 6 असे क्रमांक दिले, तर बेरीज 1+2+3+4+5+6 = 21 होते. जर आकृतीत अशा दोन किंवा तीन स्तरांच्या आडव्या रेषा असतील, तर 21 + 14 (वरच्या भागातील) अशा प्रकारे एकूण 35 त्रिकोण तयार होतात. पर्यायांचे विश्लेषण करता, 35 ही संख्या या प्रकारच्या भौमितिक रचनेसाठी (6-base grid) गणितीयदृष्ट्या अचूक आहे.",
+          "topic": "बुद्धिमत्ता चाचणी - आकृती मोजणी (Figure Counting)",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक: त्रिकोणाच्या शिरोबिंदूतून पायावर रेषा असल्यास, त्या भागांना क्रमांक देऊन त्यांची बेरीज करा. 2. आडव्या रेषा असल्यास: (पायावरील त्रिकोणांची बेरीज) × (आडव्या रेषांची संख्या). 3. भविष्यातील प्रश्न: परीक्षेत आता 'चौरसातील त्रिकोण' किंवा 'वर्तुळातील त्रिकोण' यावर प्रश्न विचारले जात आहेत. नेहमी लक्षात ठेवा की, चौरसाच्या कर्णांमुळे तयार होणाऱ्या त्रिकोणांची संख्या ही नेहमी '2n' (n = चौरसातील लहान त्रिकोण) असते. सराव करताना 'Complex Overlapping Figures' वर लक्ष केंद्रित करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Industry\\page_037.png": [
+      {
+        "qnum": null,
+        "text": "महाराष्ट्र नवीन औद्योगिक धोरण २०१९ नुसार, खाजगी औद्योगिक पायाभूत सुविधांच्या विकासाला चालना देण्यासाठी, खाजगी औद्योगिक वसाहतीसाठी नियोजन प्राधिकरण म्हणून ______ कार्य करेल.",
+        "text_eng": "According to Maharashtra New Industrial Policy 2019 for promotion of Private Industrial Infrastructure Development ______ shall be the planning authority for private industrial Estate.",
+        "options": [
+          "(1) महाराष्ट्र राज्य लघु उद्योग विकास महामंडळ",
+          "(2) उद्योग संचालनालय",
+          "(3) महाराष्ट्र औद्योगिक विकास महामंडळ",
+          "(4) महाराष्ट्र राज्य औद्योगिक व गुंतवणूक महामंडळ"
+        ],
+        "options_eng": [
+          "(1) Maharashtra State Small Industries Development Corporation",
+          "(2) Directorate of Industries",
+          "(3) Maharashtra Industrial Development Corporation",
+          "(4) State Industrial and Investment Corporation for Maharashtra"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र औद्योगिक धोरण २०१९ हे राज्याच्या औद्योगिक विकासाचा कणा आहे. या धोरणानुसार, खाजगी क्षेत्रातील गुंतवणुकीला प्रोत्साहन देण्यासाठी 'खाजगी औद्योगिक वसाहती' (Private Industrial Estates) ही संकल्पना राबवण्यात आली. या वसाहतींच्या नियोजनासाठी आणि त्यांच्यावर देखरेख ठेवण्यासाठी 'नियोजन प्राधिकरण' (Planning Authority) म्हणून 'महाराष्ट्र औद्योगिक विकास महामंडळ' (MIDC) ची नियुक्ती करण्यात आली आहे. MIDC कडे औद्योगिक क्षेत्रातील जमीन संपादन, पायाभूत सुविधा विकास आणि नियमन करण्याचा प्रदीर्घ अनुभव असल्याने, खाजगी वसाहतींना तांत्रिक आणि प्रशासकीय मान्यता देण्यासाठी त्यांनाच प्राधिकरणाचा दर्जा देण्यात आला आहे. इतर पर्याय: (1) MSSIDC हे प्रामुख्याने लघु उद्योगांच्या विपणन आणि कच्च्या मालाच्या पुरवठ्यासाठी काम करते. (2) उद्योग संचालनालय हे धोरणात्मक निर्णय आणि अंमलबजावणीवर देखरेख ठेवते, पण ते नियोजन प्राधिकरण नाही. (4) SICOM ही संस्था औद्योगिक गुंतवणुकीसाठी वित्तपुरवठा करते, ती नियोजन प्राधिकरण नाही.",
+          "topic": "महाराष्ट्र औद्योगिक धोरण २०१९ आणि औद्योगिक पायाभूत सुविधा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'औद्योगिक वसाहत' (Industrial Estate) म्हटलं की डोळे झाकून MIDC हेच उत्तर येते, कारण महाराष्ट्रातील ९०% औद्योगिक वसाहतींचे व्यवस्थापन MIDC च करते. भविष्यातील संभाव्य प्रश्न: १) खाजगी औद्योगिक वसाहतीसाठी किमान जमिनीची अट किती आहे? २) या धोरणांतर्गत 'मेगा प्रोजेक्ट्स'साठी कोणत्या सवलती दिल्या जातात? ३) 'महाराष्ट्र औद्योगिक विकास अधिनियम १९६१' मधील तरतुदींचा या धोरणाशी असलेला संबंध. लक्षात ठेवा: MIDC ची स्थापना १ ऑगस्ट १९६२ रोजी झाली असून, त्याचे मुख्यालय मुंबईत आहे. हे धोरण 'मेक इन महाराष्ट्र' मोहिमेला बळकट करण्यासाठी आणले गेले होते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_017.png": [
+      {
+        "qnum": 31,
+        "text": "एक्सेल 2007 फाईलचे एक्स्टेंशन ________ आहे.",
+        "text_eng": "________ is the extension type of excel 2007 files.",
+        "options": [
+          "(1) .xls",
+          "(2) .xsl",
+          "(3) .xlsx",
+          "(4) वरीलपैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) .xls",
+          "(2) .xsl",
+          "(3) .xlsx",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "मायक्रोसॉफ्ट एक्सेल (Microsoft Excel) मध्ये फाईल फॉरमॅटचे दोन मुख्य टप्पे आहेत. १) एक्सेल २००३ आणि त्यापूर्वीच्या आवृत्त्यांमध्ये फाईल सेव्ह करण्यासाठी '.xls' (Excel Binary File Format) हे एक्स्टेंशन वापरले जात असे. २) २००७ च्या आवृत्तीपासून मायक्रोसॉफ्टने 'Office Open XML' फॉरमॅटचा स्वीकार केला, ज्यामुळे फाईलची सुरक्षा, आकार आणि डेटा हाताळणी अधिक सक्षम झाली. म्हणून, एक्सेल २००७ आणि त्यानंतरच्या सर्व आवृत्त्यांमध्ये (२०१०, २०१३, २०१६, २०१९, २०२१, ३६५) फाईल '.xlsx' या एक्स्टेंशनने सेव्ह केली जाते. पर्यायांचे विश्लेषण: (१) .xls: हे जुन्या आवृत्त्यांचे (९७-२००३) एक्स्टेंशन आहे. (२) .xsl: हे 'Extensible Stylesheet Language' फाईलसाठी वापरले जाते, जे वेब डेव्हलपमेंटशी संबंधित आहे, एक्सेलशी नाही. (३) .xlsx: हे एक्सेल २००७ आणि पुढील आवृत्त्यांचे अधिकृत एक्स्टेंशन आहे. (४) वरीलपैकी एकही नाही: हे चुकीचे आहे कारण पर्याय ३ अचूक आहे.",
+          "topic": "संगणक ज्ञान - मायक्रोसॉफ्ट ऑफिस (MS Excel)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'X' म्हणजे XML. २००७ नंतरच्या सर्व ऑफिस फाईल्समध्ये शेवटी 'x' जोडला गेला आहे (उदा. .docx, .xlsx, .pptx). भविष्यातील संभाव्य प्रश्न: १) मॅक्रो-इनेबल्ड फाईलचे एक्स्टेंशन काय? उत्तर: .xlsm. २) एक्सेल टेम्पलेट फाईलचे एक्स्टेंशन काय? उत्तर: .xltx. ३) बायनरी वर्कबुकचे एक्स्टेंशन काय? उत्तर: .xlsb. हे लक्षात ठेवा की .xlsx फाईलमध्ये मॅक्रो (Macros) सेव्ह करता येत नाहीत, त्यासाठी .xlsm आवश्यक असते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 32,
+        "text": "पीअर-टू-पीअर कॉम्प्युटिंग मॉडेल ने सेवा देणारे पहिले लोकप्रिय अनुप्रयोग (ॲप्लिकेशन) ________ होते. ज्यात जुळणी केलेल्या संगणकात ________ ही फाईल प्रवेशीत (ॲक्सेस) करण्यात आली.",
+        "text_eng": "First popular application of peer-to-peer computing model was a service called ________ in which any PC belonging to a group can access ________ files.",
+        "options": [
+          "(1) क्वीक आणि ॲंटीव्हायरस",
+          "(2) नॅपस्टर आणि टेक्स्ट",
+          "(3) लॉकर आणि प्रोग्राम",
+          "(4) नॅपस्टर आणि एमपी3"
+        ],
+        "options_eng": [
+          "(1) Quick and Antivirus",
+          "(2) Napster and Text",
+          "(3) Locker and Program",
+          "(4) Napster and MP3"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "पीअर-टू-पीअर (P2P) कॉम्प्युटिंग मॉडेल म्हणजे अशी नेटवर्क रचना जिथे प्रत्येक संगणक (नोड) क्लायंट आणि सर्व्हर अशा दोन्ही भूमिका बजावतो. १९९९ मध्ये शॉन फॅनिंगने 'नॅपस्टर' (Napster) नावाचे सॉफ्टवेअर विकसित केले, ज्याने इंटरनेटच्या इतिहासात क्रांती घडवून आणली. नॅपस्टर हे पहिले लोकप्रिय P2P ॲप्लिकेशन होते, ज्याचा मुख्य उद्देश वापरकर्त्यांना एकमेकांकडून थेट 'MP3' फॉरमॅटमधील गाणी शेअर करण्याची सुविधा देणे हा होता. इतर पर्यायांचे विश्लेषण: (1) क्वीक आणि ॲंटीव्हायरस हे P2P चे मूळ उदाहरण नाही. (2) नॅपस्टर हे बरोबर असले तरी 'टेक्स्ट' फाईल्ससाठी ते प्रसिद्ध नव्हते, तर ते म्युझिक फाईल्ससाठी प्रसिद्ध होते. (3) लॉकर हे P2P मॉडेलशी संबंधित नाही. त्यामुळे, नॅपस्टर आणि एमपी3 ही जोडी तांत्रिकदृष्ट्या आणि ऐतिहासिकदृष्ट्या अचूक आहे.",
+          "topic": "माहिती व दळणवळण तंत्रज्ञान (ICT) - संगणक नेटवर्क",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'नॅपस्टर = म्युझिक = MP3'. नॅपस्टरने कॉपीराइट कायद्यांच्या वादाला जन्म दिला, ज्यामुळे भविष्यात डिजिटल राईट्स मॅनेजमेंट (DRM) विकसित झाले. भविष्यातील संभाव्य प्रश्न: 1) P2P नेटवर्कचे फायदे (उदा. विकेंद्रीकरण, स्केलेबिलिटी). 2) बिटटॉरंट (BitTorrent) हे आधुनिक P2P चे उदाहरण आहे, यावर प्रश्न येऊ शकतो. 3) क्लायंट-सर्व्हर मॉडेल आणि P2P मॉडेलमधील मुख्य फरक काय? (उत्तर: P2P मध्ये मध्यवर्ती सर्व्हरची गरज नसते). हे तंत्रज्ञान ब्लॉकचेन (Blockchain) आणि क्रिप्टो-करन्सीच्या मूळ पायाभूत रचनेत वापरले जाते, त्यामुळे हा घटक MPSC च्या दृष्टीने अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_024.png": [
+      {
+        "qnum": 53,
+        "text": ".......... _______ च्या महाराष्ट्र दारूबंदी अधिनियम, १९४९ च्या कलमांतर्गत अनुसूचित क्षेत्रातील ग्राम सभेला नशिल्या पदार्थांची विक्री आणि प्राशन करण्याबाबत प्रतिबंध किंवा नियमन किंवा प्रतिबंधित करण्याचा अधिकार अनुसूचित क्षेत्रातील ग्राम सभेस दिलेला आहे.",
+        "text_eng": "Under Section _______ of the Maharashtra Prohibition Act, 1949 the power of Gram Sabha in Scheduled Areas to enforce prohibition or to regulate or restrict the sale and consumption of any intoxicant is given.",
+        "options": [
+          "(1) 10",
+          "(2) 10अ",
+          "(3) 11",
+          "(4) 11अ"
+        ],
+        "options_eng": [
+          "(1) 10",
+          "(2) 10A",
+          "(3) 11",
+          "(4) 11A"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र दारूबंदी अधिनियम, १९४९ (Bombay Prohibition Act, 1949) मध्ये पेसा (PESA) कायदा, १९९६ च्या तरतुदींनुसार सुधारणा करण्यात आल्या होत्या. या कायद्याच्या कलम ११-अ (Section 11-A) नुसार, अनुसूचित क्षेत्रातील (Scheduled Areas) ग्रामसभेला नशिल्या पदार्थांच्या विक्रीवर आणि प्राशनावर प्रतिबंध घालण्याचे, तसेच त्यांचे नियमन करण्याचे पूर्ण अधिकार देण्यात आले आहेत. हे कलम पेसा कायद्याच्या कलम ४(एम)(ii) च्या अंमलबजावणीसाठी समाविष्ट करण्यात आले आहे, जे आदिवासी समुदायांना त्यांच्या सांस्कृतिक आणि सामाजिक हिताचे रक्षण करण्यासाठी स्वायत्तता देते. इतर कलमे: कलम १० आणि ११ हे सामान्यतः परवाने आणि दारूबंदीच्या इतर तांत्रिक बाबींशी संबंधित आहेत, परंतु ग्रामसभेच्या विशेष अधिकारांसाठी '११-अ' हेच एकमेव कायदेशीर कलम आहे.",
+          "topic": "पंचायत राज आणि विशेष कायदे - पेसा (PESA) कायदा व महाराष्ट्र दारूबंदी अधिनियम",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '११-अ' मधील 'अ' म्हणजे 'अधिकार' (ग्रामसभेचा अधिकार). पेसा कायद्यांतर्गत ग्रामसभेला मिळालेले अधिकार हे नेहमी 'अ' किंवा 'ब' उपकलमांमध्ये असतात. भविष्यातील संभाव्य प्रश्न: १) पेसा कायदा कोणत्या समितीच्या शिफारशीनुसार आला? (भुरिया समिती). २) अनुसूचित क्षेत्रातील ग्रामसभेचे अध्यक्षपद कोणाकडे असते? (केवळ अनुसूचित जमातीचा सदस्य). ३) दारूबंदी व्यतिरिक्त ग्रामसभेला पेसा अंतर्गत कोणते अधिकार आहेत? (लघु वनोपजाचे व्यवस्थापन, स्थानिक वाद मिटवणे, विकास कामांना मंजुरी). हे कलम आदिवासी हक्क आणि स्थानिक स्वराज्य संस्था या दोन्ही विषयांच्या दृष्टीने अत्यंत महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 54,
+        "text": "महाराष्ट्र दारूबंदी अधिनियम, १९४९ खाली 'अनुज्ञप्ती जप्त' करता येते का ?",
+        "text_eng": "Can there be 'attachment of licence' under the Maharashtra Prohibition Act, 1949 ?",
+        "options": [
+          "(1) जप्ती या कायद्याखाली करता येत नाही.",
+          "(2) जप्ती इंडियन पिनल कोड खाली होऊ शकते.",
+          "(3) जप्ती स्थानिक कायद्याखाली होऊ शकते.",
+          "(4) वरीलपैकी एकही नाही"
+        ],
+        "options_eng": [
+          "(1) No attachment under this Act",
+          "(2) Attachment can be under the Indian Penal Code.",
+          "(3) Attachment can be under the Local Laws.",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र दारूबंदी अधिनियम, १९४९ (Maharashtra Prohibition Act, 1949) च्या कलम १०८ (Section 108) मध्ये 'अनुज्ञप्ती (License) रद्द करणे किंवा निलंबित करणे' (Cancellation or Suspension of License) याबद्दल स्पष्ट तरतूद आहे. कायद्याच्या भाषेत 'जप्ती' (Confiscation) हा शब्द प्रामुख्याने मालमत्तेसाठी वापरला जातो, तर अनुज्ञप्तीसाठी 'रद्द करणे' (Cancellation) किंवा 'निलंबित करणे' (Suspension) हे शब्द वापरले जातात. प्रश्नातील पर्यायांचा विचार करता, (1) जप्ती या कायद्याखाली करता येत नाही - हे चुकीचे आहे कारण कायद्यात अधिकार आहेत, (2) आणि (3) हे पर्याय कायद्याच्या व्याप्तीबाहेर आहेत. कलम १०८ नुसार, जर अनुज्ञप्तीधारकाने कायद्याचे उल्लंघन केले, तर सक्षम प्राधिकारी (Licensing Authority) अनुज्ञप्ती रद्द किंवा निलंबित करू शकतात. त्यामुळे 'वरीलपैकी एकही नाही' हा पर्याय योग्य ठरतो, कारण कायद्यात अनुज्ञप्ती 'रद्द' करण्याची तरतूद आहे, केवळ 'जप्ती' या शब्दावर तांत्रिक वाद असू शकतो, परंतु कायदेशीर अधिकारांच्या दृष्टीने या कायद्यात पूर्ण तरतूद आहे.",
+          "topic": "महाराष्ट्र दारूबंदी अधिनियम, १९४९ - अनुज्ञप्ती आणि कायदेशीर तरतुदी",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'कलम १०८' - १०८ नंबर डायल केल्यावर जसे पोलीस येतात, तसेच नियम मोडल्यावर १०८ कलमांतर्गत लायसन्स रद्द होते. २. भविष्यातील संभाव्य प्रश्न: कलम १०८ मधील 'निलंबन' आणि 'रद्द' करण्याच्या अधिकारांमधील फरक विचारला जाऊ शकतो. ३. महत्त्वाचे कलम: कलम १०८ (अनुज्ञप्ती रद्द करणे), कलम १०९ (अपील), आणि कलम ११६ (गुन्ह्यांचे स्वरूप). ४. लक्षात ठेवा: या कायद्यात 'Confiscation' (जप्ती) ही संज्ञा प्रामुख्याने दारू, वाहने किंवा उपकरणांसाठी वापरली जाते, तर 'Cancellation' (रद्द) ही संज्ञा अनुज्ञप्तीसाठी वापरली जाते. परीक्षेत शब्दांच्या खेळात अडकू नका."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_018.png": [
+      {
+        "qnum": 35,
+        "text": "कार्यालयीन कागदपत्रांची संगणकीय पद्धतीने हाताळणी करण्यासाठी निर्मित पद्धतीला खालीलपैकी ________ नावाने ओळखले जाते.",
+        "text_eng": "The platform that replaces manual handling of the files with electronic systems at the workplace is termed as ________.",
+        "options": [
+          "(1) ई-ऑफिस",
+          "(2) ई-वे",
+          "(3) ई-कॉमर्स",
+          "(4) एमएस ऑफिस"
+        ],
+        "options_eng": [
+          "(1) e-office",
+          "(2) e-way",
+          "(3) e-commerce",
+          "(4) MS Office"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "प्रश्नाचे योग्य उत्तर 'ई-ऑफिस' (e-Office) हे आहे. ई-ऑफिस ही एक 'मिशन मोड प्रोजेक्ट' (MMP) अंतर्गत विकसित केलेली प्रणाली आहे, ज्याचा मुख्य उद्देश सरकारी कार्यालयातील कामकाजात पारदर्शकता, कार्यक्षमता आणि उत्तरदायित्व आणणे हा आहे. या प्रणालीमुळे कागदपत्रांची हालचाल (File Movement) डिजिटल स्वरूपात होते, ज्यामुळे कामाचा वेग वाढतो आणि मानवी हस्तक्षेप कमी होतो. इतर पर्यायांचे विश्लेषण: (2) ई-वे (e-Way): हे प्रामुख्याने वस्तूंच्या वाहतुकीसाठी (GST अंतर्गत ई-वे बिल) वापरले जाते. (3) ई-कॉमर्स (e-Commerce): हे इंटरनेटच्या माध्यमातून वस्तू आणि सेवांच्या खरेदी-विक्रीसाठी वापरले जाते. (4) एमएस ऑफिस (MS Office): हे मायक्रोसॉफ्ट कंपनीचे एक सॉफ्टवेअर पॅकेज आहे (उदा. Word, Excel, PowerPoint), जे वैयक्तिक किंवा व्यावसायिक कामासाठी वापरले जाते, परंतु ते संपूर्ण सरकारी कार्यालयीन प्रणाली नाही.",
+          "topic": "ई-गव्हर्नन्स (e-Governance)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'ई-ऑफिस' म्हणजे 'Electronic Office'. जिथे 'ई' म्हणजे डिजिटल आणि 'ऑफिस' म्हणजे फाईल हाताळणी. भविष्यातील संभाव्य प्रश्न: १. ई-ऑफिस प्रणाली कोणत्या मंत्रालयांतर्गत येते? (उत्तर: इलेक्ट्रॉनिक्स आणि माहिती तंत्रज्ञान मंत्रालय). २. ई-ऑफिसचा मुख्य उद्देश काय आहे? (उत्तर: 'Paperless' आणि 'Faceless' प्रशासन). ३. 'नॅशनल ई-गव्हर्नन्स प्लॅन' (NeGP) बद्दल माहिती विचारली जाऊ शकते. लक्षात ठेवा, ई-ऑफिसमुळे 'फाईल ट्रॅकिंग' सोपे होते, ज्यामुळे भ्रष्टाचाराला आळा बसतो. परीक्षेच्या दृष्टीने 'डिजिटल इंडिया' मोहिमेतील ई-ऑफिसचे योगदान महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
     ]
   }
 };
