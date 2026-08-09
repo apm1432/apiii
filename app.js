@@ -9,6 +9,17 @@ const state = {
 
 let groupedData = {};
 
+function getSortedFolders() {
+    return Object.keys(groupedData).sort((a, b) => {
+        const yearA = a.match(/\d{4}/) ? parseInt(a.match(/\d{4}/)[0]) : 0;
+        const yearB = b.match(/\d{4}/) ? parseInt(b.match(/\d{4}/)[0]) : 0;
+        if (yearA !== yearB) {
+            return yearA - yearB; // ascending year order
+        }
+        return a.localeCompare(b); // alphabetical fallback
+    });
+}
+
 // Progress stored as { examFolder: { qnum: { selected: "1", isCorrect: true } } }
 
 function init() {
@@ -50,7 +61,7 @@ function init() {
     };
 
     // Select first exam by default
-    const folders = Object.keys(groupedData);
+    const folders = getSortedFolders();
     if (folders.length > 0) {
         selectExam(folders[0]);
     }
@@ -111,8 +122,9 @@ function renderSidebar() {
     container.innerHTML = '';
     
     const mapping = examData.mapping || {};
+    const sortedFolders = getSortedFolders();
     
-    for (const folder in groupedData) {
+    for (const folder of sortedFolders) {
         let fSolved = 0;
         let fCorrect = 0;
         let fTotal = groupedData[folder].length;
