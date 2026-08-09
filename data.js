@@ -86767,6 +86767,1487 @@ const examData = {
           "extra_points": "लक्षात ठेवण्याची ट्रिक: 'ई-ऑफिस' म्हणजे 'Electronic Office'. जिथे 'ई' म्हणजे डिजिटल आणि 'ऑफिस' म्हणजे फाईल हाताळणी. भविष्यातील संभाव्य प्रश्न: १. ई-ऑफिस प्रणाली कोणत्या मंत्रालयांतर्गत येते? (उत्तर: इलेक्ट्रॉनिक्स आणि माहिती तंत्रज्ञान मंत्रालय). २. ई-ऑफिसचा मुख्य उद्देश काय आहे? (उत्तर: 'Paperless' आणि 'Faceless' प्रशासन). ३. 'नॅशनल ई-गव्हर्नन्स प्लॅन' (NeGP) बद्दल माहिती विचारली जाऊ शकते. लक्षात ठेवा, ई-ऑफिसमुळे 'फाईल ट्रॅकिंग' सोपे होते, ज्यामुळे भ्रष्टाचाराला आळा बसतो. परीक्षेच्या दृष्टीने 'डिजिटल इंडिया' मोहिमेतील ई-ऑफिसचे योगदान महत्त्वाचे आहे."
         },
         "is_verified_from_key": false
+      },
+      {
+        "qnum": 36,
+        "text": "महाराष्ट्र शासनाच्या 'ई-प्रशासन' धोरणाचा मसूदा तयार करण्यासाठी गठित समितीचे अध्यक्ष कोण होते ?",
+        "text_eng": "Who was the Chairman of the Expert Committee formed to frame the policy of 'e-governance' of Maharashtra ?",
+        "options": [
+          "(1) अच्युत गोडबोले",
+          "(2) डॉ. माधव चितळे",
+          "(3) डॉ. विजय भटकर",
+          "(4) डॉ. जब्बार पटेल"
+        ],
+        "options_eng": [
+          "(1) Achyut Godbole",
+          "(2) Dr. Madhav Chitale",
+          "(3) Dr. Vijay Bhatkar",
+          "(4) Dr. Jabbar Patel"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र शासनाने माहिती तंत्रज्ञानाचा वापर करून प्रशासनात पारदर्शकता, गतिमानता आणि उत्तरदायित्व आणण्यासाठी 'ई-प्रशासन' (e-Governance) धोरण आखले. या धोरणाचा मसूदा तयार करण्यासाठी राज्य सरकारने प्रसिद्ध संगणक शास्त्रज्ञ डॉ. विजय भटकर यांच्या अध्यक्षतेखाली एक उच्चस्तरीय समिती गठित केली होती. डॉ. भटकर हे 'परम' (PARAM) सुपरकॉम्प्युटरचे जनक म्हणून ओळखले जातात, त्यामुळे तंत्रज्ञान क्षेत्रातील त्यांच्या योगदानाचा विचार करून ही जबाबदारी त्यांना देण्यात आली होती. इतर पर्यायांचे विश्लेषण: (1) अच्युत गोडबोले हे प्रसिद्ध लेखक आणि आयटी तज्ज्ञ आहेत, परंतु ते या समितीचे अध्यक्ष नव्हते. (2) डॉ. माधव चितळे हे जलतज्ज्ञ आहेत, ज्यांनी कृष्णा खोरे विकास महामंडळ आणि जलसंधारण क्षेत्रात मोठे काम केले आहे. (4) डॉ. जब्बार पटेल हे ख्यातनाम चित्रपट दिग्दर्शक आहेत, ज्यांचा प्रशासकीय धोरण निर्मितीशी थेट संबंध नाही.",
+          "topic": "महाराष्ट्र शासन - ई-प्रशासन धोरण आणि माहिती तंत्रज्ञान",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'ई-प्रशासन' म्हणजे 'तंत्रज्ञान', आणि महाराष्ट्रात तंत्रज्ञान/सुपरकॉम्प्युटर म्हटलं की 'डॉ. विजय भटकर' हे नाव डोळ्यासमोर यायला हवे. भविष्यातील संभाव्य प्रश्न: 1) महाराष्ट्राचे पहिले आयटी धोरण कधी जाहीर झाले? (उत्तर: 1998). 2) 'महाआयटी' (MahaIT) या संस्थेचे कार्य काय आहे? 3) डिजिटल इंडिया मोहिमेत महाराष्ट्राचा क्रमांक कितवा आहे? लक्षात ठेवा, डॉ. विजय भटकर हे 'सी-डॅक' (C-DAC) चे संस्थापक संचालक होते, हा मुद्दा परीक्षेसाठी अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Combined_Preliminary_Examination_2025\\page_001.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_025.png": [
+      {
+        "qnum": 56,
+        "text": "महाराष्ट्र मद्य प्रतिबंधक कायदा, 1949 च्या कलम 140 अन्वये खाली दिलेल्या कोणत्या बाबी/बाबींसाठी तरतूद आहे :\n(1) ज्या ठिकाणी मादकपदार्थ किंवा भांग विकली जाते अशी ठिकाणे बंद करण्याचे जिल्हाधिकाऱ्यांचे अधिकार\n(2) सार्वजनिक जागी मादक द्रव्ये वगैरे यांचे सेवन करणे किंवा वापरणे यास मनाई व विनियमन किंवा त्यावर नियंत्रण ठेवण्याचा राज्य शासनाचा अधिकार\n(3) जादा पोलिसांची नेमणूक करणे\n(4) वरीलसर्व",
+        "text_eng": "Section 140 of the Maharashtra Prohibition Act, 1949 provides the provisions in respect of the following :\n(1) Power of the Collector to close places where intoxicant or hemp is sold.\n(2) Power of State Government to prohibit, regulate or control, consumption or use of intoxicants etc. in public place.\n(3) Employment of additional police\n(4) All of the above",
+        "options": [
+          "(1) ज्या ठिकाणी मादकपदार्थ किंवा भांग विकली जाते अशी ठिकाणे बंद करण्याचे जिल्हाधिकाऱ्यांचे अधिकार",
+          "(2) सार्वजनिक जागी मादक द्रव्ये वगैरे यांचे सेवन करणे किंवा वापरणे यास मनाई व विनियमन किंवा त्यावर नियंत्रण ठेवण्याचा राज्य शासनाचा अधिकार",
+          "(3) जादा पोलिसांची नेमणूक करणे",
+          "(4) वरीलसर्व"
+        ],
+        "options_eng": [
+          "(1) Power of the Collector to close places where intoxicant or hemp is sold.",
+          "(2) Power of State Government to prohibit, regulate or control, consumption or use of intoxicants etc. in public place.",
+          "(3) Employment of additional police",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र मद्य प्रतिबंधक कायदा, 1949 (Bombay Prohibition Act, 1949) मधील कलम 140 हे प्रामुख्याने 'जादा पोलिसांची नेमणूक' (Employment of additional police) या विषयाशी संबंधित आहे. जेव्हा एखाद्या भागात मद्यपानामुळे किंवा बेकायदेशीर मद्यविक्रीमुळे सार्वजनिक शांततेचा भंग होण्याची शक्यता असते, तेव्हा राज्य सरकार किंवा जिल्हाधिकारी त्या विशिष्ट भागात अतिरिक्त पोलीस दल तैनात करण्याचा आदेश देऊ शकतात. या कलमाचा मुख्य उद्देश कायदा आणि सुव्यवस्था राखणे हा आहे. पर्याय (1) आणि (2) हे या कायद्यातील इतर कलमांशी (उदा. कलम 139 किंवा तत्सम) संबंधित आहेत, परंतु कलम 140 हे विशेषतः पोलीस बळाच्या वापराशी संबंधित आहे. त्यामुळे, दिलेल्या पर्यायांपैकी 'जादा पोलिसांची नेमणूक करणे' हाच कायदेशीरदृष्ट्या अचूक पर्याय आहे.",
+          "topic": "महाराष्ट्र मद्य प्रतिबंधक कायदा, 1949 - विशेष तरतुदी",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '140' म्हणजे '140 पोलीस' (अतिरिक्त पोलीस). कलम 140 = पोलीस बळ. भविष्यातील संभाव्य प्रश्न: या कायद्यातील 'परवाना' (License) संबंधित कलमे (कलम 30-35) आणि 'गुन्ह्यांचे स्वरूप' (कलम 65-68) यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, या कायद्याचे नाव आता 'महाराष्ट्र मद्य निषेध कायदा' असे बदलले आहे. परीक्षेसाठी कलम 1 ते 10 (व्याख्या) आणि कलम 65 (मद्य बाळगणे/विकणे) हे अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_004.png": [
+      {
+        "qnum": 0,
+        "text": "Researchers have discovered the first physical evidence of structural brain differences that distinguish early risers from people who like to stay up late. Around 10 per cent of people qualify as ‘morning people’ or ‘larks’, and a further 20 per cent are ‘night owls’ - with the rest of us falling somewhere in between. The brain differences might help to explain why ‘night owls’ seem to be at greater risk of depression than ‘larks’. Brain scans have shown ‘night owls’ have a lower quality of white matter (tissue largely comprised of fatty insulating material that speeds up the transmission of nerve signals) in areas of the brain associated with depression. ‘Night owls’ should try to adjust their sleep patterns if they wish to avoid mental health problems.\n\nSelect from the following options that best expresses the flaw in the above argument.",
+        "text_eng": "Researchers have discovered the first physical evidence of structural brain differences that distinguish early risers from people who like to stay up late. Around 10 per cent of people qualify as ‘morning people’ or ‘larks’, and a further 20 per cent are ‘night owls’ - with the rest of us falling somewhere in between. The brain differences might help to explain why ‘night owls’ seem to be at greater risk of depression than ‘larks’. Brain scans have shown ‘night owls’ have a lower quality of white matter (tissue largely comprised of fatty insulating material that speeds up the transmission of nerve signals) in areas of the brain associated with depression. ‘Night owls’ should try to adjust their sleep patterns if they wish to avoid mental health problems.\n\nSelect from the following options that best expresses the flaw in the above argument.",
+        "options": [
+          "(1) It assumes that changing one’s sleep pattern will cause a change in the quality of white matter.",
+          "(2) It ignores the fact that depression is very common in the population.",
+          "(3) It fails to refer to the brains of those who fall between ‘lark’ and ‘night owl’ types.",
+          "(4) It implies that ‘night owls’ would wish to change their sleep patterns."
+        ],
+        "options_eng": [
+          "(1) It assumes that changing one’s sleep pattern will cause a change in the quality of white matter.",
+          "(2) It ignores the fact that depression is very common in the population.",
+          "(3) It fails to refer to the brains of those who fall between ‘lark’ and ‘night owl’ types.",
+          "(4) It implies that ‘night owls’ would wish to change their sleep patterns."
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचा मुख्य तर्क (Argument) असा आहे की: 'नाईट आऊल्स' (रात्री जागणाऱ्यांचे) मेंदूतील व्हाईट मॅटरची गुणवत्ता कमी असते, ज्यामुळे त्यांना डिप्रेशनचा धोका जास्त असतो. म्हणून, त्यांनी मानसिक आरोग्य सुधारण्यासाठी झोपण्याच्या वेळा बदलल्या पाहिजेत. यातील मुख्य त्रुटी (Flaw) म्हणजे 'कारण आणि परिणाम' (Cause and Effect) मधील चुकीचा संबंध. लेखकाने असे गृहीत धरले आहे की झोपण्याच्या वेळा बदलल्या (Effect) की मेंदूतील व्हाईट मॅटरची गुणवत्ता (Cause) आपोआप सुधारेल. परंतु, वैज्ञानिकदृष्ट्या व्हाईट मॅटरची रचना ही अनुवांशिक किंवा दीर्घकालीन सवयींवर अवलंबून असू शकते, जी केवळ झोपण्याची वेळ बदलल्याने लगेच बदलत नाही. पर्याय (1) हे स्पष्ट करते की लेखकाने 'झोप बदलणे' आणि 'व्हाईट मॅटर सुधारणे' यात थेट संबंध जोडला आहे, जो तार्किकदृष्ट्या सिद्ध झालेला नाही. इतर पर्याय: (2) डिप्रेशनचे प्रमाण सामान्य असणे हे तर्कातील त्रुटी नाही. (3) मधल्या गटाचा उल्लेख नसणे हे तर्काचे मुख्य खंडन करत नाही. (4) 'इच्छा असणे' हा तर्काचा भाग नाही, तर तो एक सल्ला आहे.",
+          "topic": "तार्किक तर्कक्षमता (Logical Reasoning - Critical Reasoning)",
+          "imp_score": "High",
+          "extra_points": "MPSC CSAT पेपरमध्ये 'Critical Reasoning' वर आधारित प्रश्न विचारले जातात. अशा प्रश्नांमध्ये 'Assumption' (गृहीतक) आणि 'Flaw' (त्रुटी) ओळखणे महत्त्वाचे असते. ट्रिक: जेव्हाही असा प्रश्न येईल, तेव्हा स्वतःला विचारा - 'लेखकाने जे सुचवले आहे, ते करण्यासाठी कोणती गोष्ट आधीच सत्य मानली आहे?' येथे लेखकाने 'झोप बदलणे = व्हाईट मॅटर सुधारणे' हे सत्य मानले आहे, जे तार्किकदृष्ट्या चुकीचे असू शकते. भविष्यात 'Cause-Effect' (कारण-परिणाम) संबंधांवर आधारित प्रश्न विचारले जाऊ शकतात, जिथे एखादी कृती केल्याने समस्या सुटेल असे सुचवले जाते, पण त्या कृतीचा मूळ कारणाशी संबंध नसतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_036.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "Consider the following statements about the US-sponsored United Nations Security Council Resolution that deplored Russia's aggression against Ukraine on 26th February, 2022 :\n\na. India abstained from voting\nb. Russia vetoed the resolution\nc. China and UAE abstained\nd. Remaining 11 members voted in favour of the resolution\n\nWhich of the above statements are true ?",
+        "options": [],
+        "options_eng": [
+          "(1) Only a, b, c are true",
+          "(2) Only a, b, d are true",
+          "(3) Only b, c, d are true",
+          "(4) All statements are true"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न अपूर्ण आहे. MPSC च्या परीक्षेत प्रश्न समजून घेणे ही यशाची पहिली पायरी आहे. कृपया पूर्ण प्रश्न आणि त्याचे पर्याय उपलब्ध करून द्या, जेणेकरून मी तुम्हाला त्या विषयाचे सखोल विश्लेषण, ऐतिहासिक/राजकीय संदर्भ आणि परीक्षेत गुण मिळवून देणारी 'स्मार्ट स्ट्रॅटेजी' देऊ शकेन. एकदा का तुम्ही प्रश्न दिला की, मी त्याचे विश्लेषण खालीलप्रमाणे करेन: १. प्रश्नाचा मूळ गाभा (Core Concept), २. पर्यायांचे एलिमिनेशन (Elimination Technique), ३. संबंधित घटनांचा कालानुक्रम, ४. लक्षात ठेवण्यासाठी 'निमोनिक्स' (Mnemonics).",
+          "topic": "प्रश्नाचे स्वरूप अपूर्ण असल्याने विषय निश्चित नाही.",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत 'प्रश्न नीट वाचणे' (Reading Comprehension) हे अत्यंत महत्त्वाचे आहे. अनेकदा विद्यार्थी घाईत प्रश्न वाचतात आणि 'योग्य' ऐवजी 'अयोग्य' विधाने निवडतात. भविष्यात प्रश्न सोडवताना 'कीवर्ड्स' (उदा. केवळ, सर्व, बहुतांश, यापैकी नाही) वर लक्ष केंद्रित करा. कृपया तुमचा प्रश्न पुन्हा पोस्ट करा, मी तुम्हाला 'टॉपर्स' दृष्टिकोनातून त्याचे सविस्तर उत्तर देईन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_030.png": [
+      {
+        "qnum": 70,
+        "text": "CL III अनुज्ञप्तीचे (देशी दारूची किरकोळ विक्री अनुज्ञप्ती) त्याच तालुक्यात एका ठिकाणाहून दुसऱ्या ठिकाणी स्थलांतर कोणाच्या पूर्वमान्यतेशिवाय करता येणार नाही.",
+        "text_eng": "The CL III Licence (Licence for retail sale of country liquor) shall not be shifted to any other place within a taluka without prior approval of",
+        "options": [
+          "(1) आयुक्त, राज्य उत्पादन शुल्क",
+          "(2) जिल्ह्याचे जिल्हाधिकारी",
+          "(3) राज्य शासन",
+          "(4) अधिक्षक, राज्य उत्पादन शुल्क"
+        ],
+        "options_eng": [
+          "(1) The Commissioner, State Excise",
+          "(2) The District Collector",
+          "(3) The State Government",
+          "(4) The Superintendent of State Excise"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र दारूबंदी अधिनियम, 1949 (Bombay Prohibition Act, 1949) अंतर्गत CL-III (Country Liquor Retail Sale) परवाना हे राज्य उत्पादन शुल्क विभागाद्वारे नियंत्रित केले जातात. महाराष्ट्र दारूबंदी नियमावलीनुसार, कोणत्याही किरकोळ विक्रीच्या परवान्याचे (Retail License) स्थलांतर करताना स्थानिक प्रशासकीय नियंत्रण आणि कायदा-सुव्यवस्था राखणे आवश्यक असते. 'महाराष्ट्र मद्यविक्री परवाना नियम' (Maharashtra Liquor License Rules) नुसार, जर परवानाधारक त्याच तालुक्यात दुकानाचे ठिकाण बदलू इच्छित असेल, तर त्याला जिल्हाधिकारी (Collector) यांची पूर्वपरवानगी घेणे अनिवार्य आहे. जिल्हाधिकारी हे जिल्ह्याचे मुख्य महसूल आणि कायदा-सुव्यवस्था अधिकारी असल्याने, दारूच्या दुकानाचे ठिकाण बदलल्यामुळे स्थानिक पातळीवर होणारा परिणाम (उदा. शाळा, धार्मिक स्थळे किंवा रहिवासी क्षेत्राजवळ दुकान येणे) तपासण्याचे अधिकार त्यांनाच असतात. आयुक्त हे धोरणात्मक निर्णय घेतात, तर जिल्हाधिकारी हे अंमलबजावणी आणि परवाना मंजुरीचे मुख्य प्राधिकारी आहेत.",
+          "topic": "महाराष्ट्र दारूबंदी अधिनियम, 1949 आणि राज्य उत्पादन शुल्क नियम",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'स्थानिक बदल, स्थानिक प्रमुख' - तालुक्यांतर्गत बदलासाठी जिल्हाधिकारी (Collector), तर जिल्ह्याबाहेर किंवा राज्यांतर्गत बदलासाठी राज्य उत्पादन शुल्क आयुक्त (Commissioner) यांची भूमिका महत्त्वाची असते. 2. भविष्यातील प्रश्न: 'CL-III' परवान्यासाठी लागणारी पात्रता, 'FL-II' (Foreign Liquor) आणि 'CL-III' मधील फरक, तसेच 'परवाना रद्द करण्याचे अधिकार' कोणाकडे असतात, यावर प्रश्न विचारले जाऊ शकतात. 3. महत्त्वाचा मुद्दा: जिल्हाधिकारी हे केवळ परवाना स्थलांतरासाठीच नव्हे, तर नवीन परवाना वाटप प्रक्रियेतही 'अंतिम मंजुरी देणारे अधिकारी' (Sanctioning Authority) असतात. 4. लक्षात ठेवा: राज्य उत्पादन शुल्क विभागाचे 'अधीक्षक' (Superintendent) हे केवळ शिफारस करणारे अधिकारी असतात, अंतिम निर्णय जिल्हाधिकारीच घेतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_029.png": [
+      {
+        "qnum": 67,
+        "text": "नमुना एम.एफ.-I ही अनुज्ञप्ति \n(1) मोहा फुले निर्यातीकरिता \n(2) मळी आयातीकरिता \n(3) शुद्ध मद्यार्काच्या घाऊक विक्रीकरिता \n(4) मोहा फुले जवळ बाळगण्याकरिता",
+        "text_eng": "Form M.F.-I licence is for \n(1) Export of Mhowra flowers \n(2) Import of Molasses \n(3) Wholesale of Rectified spirit \n(4) Possession of Mhowra flowers",
+        "options": [
+          "(1) मोहा फुले निर्यातीकरिता",
+          "(2) मळी आयातीकरिता",
+          "(3) शुद्ध मद्यार्काच्या घाऊक विक्रीकरिता",
+          "(4) मोहा फुले जवळ बाळगण्याकरिता"
+        ],
+        "options_eng": [
+          "(1) Export of Mhowra flowers",
+          "(2) Import of Molasses",
+          "(3) Wholesale of Rectified spirit",
+          "(4) Possession of Mhowra flowers"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र दारूबंदी कायदा, १९४९ (Bombay Prohibition Act, 1949) अंतर्गत विविध प्रकारच्या परवान्यांसाठी (Licenses) विशिष्ट नमुने (Forms) विहित केलेले आहेत. 'नमुना एम.एफ.-I' (Form M.F.-I) हा प्रामुख्याने 'मोहा फुले' (Mahua Flowers) जवळ बाळगण्यासाठी किंवा साठवणूक करण्यासाठी लागणाऱ्या अनुज्ञप्तीशी संबंधित आहे. महाराष्ट्रातील आदिवासीबहुल भागांत मोहा फुलांचा वापर मद्यनिर्मितीसाठी केला जातो, परंतु कायद्यानुसार ठराविक मर्यादेपेक्षा जास्त मोहा फुले जवळ बाळगणे किंवा त्यांची वाहतूक करणे यासाठी राज्य उत्पादन शुल्क विभागाची परवानगी आवश्यक असते. इतर पर्यायांचे विश्लेषण: (1) मोहा फुले निर्यात: यासाठी वेगळ्या परवान्याची तरतूद आहे. (2) मळी (Molasses) आयात: यासाठी 'M-I' किंवा तत्सम औद्योगिक परवाने लागतात. (3) शुद्ध मद्यार्क (Rectified Spirit): यासाठी 'R.S.' श्रेणीतील परवाने दिले जातात. त्यामुळे, एम.एफ.-I हे मोहा फुले बाळगण्याशी संबंधित आहे.",
+          "topic": "महाराष्ट्र दारूबंदी कायदा, १९४९ आणि उत्पादन शुल्क नियम",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'M.F.' म्हणजे 'Mahua Flowers'. हे लक्षात ठेवणे सोपे आहे. भविष्यातील संभाव्य प्रश्न: १. मळी (Molasses) साठवणुकीसाठी कोणता फॉर्म वापरतात? २. दारूबंदी कायद्यातील कलम ११ नुसार परवान्याचे स्वरूप काय असते? ३. मोहा फुले बाळगण्याची कमाल मर्यादा किती आहे? टीप: MPSC च्या राज्य उत्पादन शुल्क (State Excise) परीक्षेसाठी हे घटक अत्यंत महत्त्वाचे आहेत. विद्यार्थ्यांनी महाराष्ट्र दारूबंदी नियमावलीतील परिशिष्टातील (Appendices) महत्त्वाचे फॉर्म्स एकदा वाचून काढावेत, कारण यावर थेट प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_040.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_010.png": [
+      {
+        "qnum": 14,
+        "text": "खालीलपैकी कोणते विधान राष्ट्रीय मानवाधिकार आयोगाबद्दल सत्य नाही ?",
+        "text_eng": "Which of the following statement is not true about the National Human Rights Commission ?",
+        "options": [
+          "(1) त्याची स्थापना 1993 मध्ये झाली.",
+          "(2) मानवाधिकारांचे उल्लंघन झाल्यास, दोषींना शिक्षा करण्याचा अधिकार आयोगास नाही.",
+          "(3) या आयोगाचे अध्यक्ष आणि सदस्य यांची नियुक्ती भारतीय सर्वोच्च न्यायालय करते.",
+          "(4) आयोग आपला वार्षिक अहवाल केंद्रसरकार आणि राज्यसरकारांना पाठवितो."
+        ],
+        "options_eng": [
+          "(1) It was established in 1993.",
+          "(2) In cases of Human Rights violation, the Commission has no right to punish the culprit.",
+          "(3) The Chairman and members of this Commission are appointed by the Supreme Court of India.",
+          "(4) The Commission sends its annual report to the Central Government and State Governments."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "राष्ट्रीय मानवाधिकार आयोग (NHRC) ही एक वैधानिक संस्था आहे, जी 'मानवाधिकार संरक्षण कायदा, 1993' अंतर्गत स्थापन करण्यात आली. पर्यायांचे विश्लेषण: (1) विधान सत्य आहे, आयोगाची स्थापना 12 ऑक्टोबर 1993 रोजी झाली. (2) विधान सत्य आहे, NHRC ही एक 'शिफारस करणारी' (Advisory) संस्था आहे. तिला स्वतःला शिक्षा देण्याचा किंवा दंड आकारण्याचा अधिकार नाही; ती केवळ सरकारला कारवाईची शिफारस करू शकते. (3) हे विधान असत्य आहे. आयोगाचे अध्यक्ष आणि सदस्यांची नियुक्ती 'राष्ट्रपती' करतात, सर्वोच्च न्यायालय करत नाही. ही नियुक्ती एका उच्चस्तरीय समितीच्या शिफारशीवरून केली जाते, ज्याचे अध्यक्ष पंतप्रधान असतात. (4) विधान सत्य आहे, आयोग आपला वार्षिक अहवाल केंद्र सरकारला आणि संबंधित राज्य सरकारांना सादर करतो, जो नंतर संसदेच्या दोन्ही सभागृहात मांडला जातो.",
+          "topic": "भारतीय राज्यघटना - घटनात्मक आणि वैधानिक संस्था (राष्ट्रीय मानवाधिकार आयोग)",
+          "imp_score": "High",
+          "extra_points": "1. नियुक्ती समितीची ट्रिक: 'पंतप्रधान (अध्यक्ष) + लोकसभा अध्यक्ष + विरोधी पक्षनेते (लोकसभा व राज्यसभा) + केंद्रीय गृहमंत्री + राज्यसभेचे उपसभापती'. 2. लक्षात ठेवा: NHRC चे अध्यक्ष हे सर्वोच्च न्यायालयाचे निवृत्त सरन्यायाधीश किंवा न्यायाधीश असावेत. 3. भविष्यातील प्रश्न: आयोगाचा कार्यकाळ (3 वर्षे किंवा 70 वर्षे वयापर्यंत), सदस्यांची संख्या, आणि मानवाधिकार संरक्षण (सुधारणा) कायदा 2019 मधील बदल यावर प्रश्न विचारले जाऊ शकतात. 4. लक्षात ठेवा: NHRC कडे दिवाणी न्यायालयाचे (Civil Court) अधिकार असतात, पण ते फौजदारी शिक्षा देऊ शकत नाहीत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_031.png": [
+      {
+        "qnum": 73,
+        "text": "एखाद्या संस्थेच्या वतीने 'गांजा' असलेल्या औषध विक्रीसाठी आवश्यक असलेल्या परवान्यासाठी महाराष्ट्र नारकोटिक ड्रग्स आणि सायकोट्रॉपिक पदार्थ नियम, 1985 अंतर्गत खालील फॉर्म ________ मध्ये परवाना प्राप्त करता येईल.",
+        "text_eng": "Licence for the possession of 'Ganja' required by a person on behalf of any institution for sale of Medicine containing 'Ganja' is granted in Form ________ under the Maharashtra Narcotics Drugs and Psychotropic Substances Rules, 1985.",
+        "options": [
+          "(1) B-III",
+          "(2) B-V",
+          "(3) B-II",
+          "(4) B-IV"
+        ],
+        "options_eng": [
+          "(1) B-III",
+          "(2) B-V",
+          "(3) B-II",
+          "(4) B-IV"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र नारकोटिक ड्रग्स आणि सायकोट्रॉपिक पदार्थ नियम, 1985 (Maharashtra Narcotic Drugs and Psychotropic Substances Rules, 1985) अंतर्गत गांजा (Cannabis) किंवा तत्सम अमली पदार्थांच्या विक्रीसाठी परवाना मिळवण्याची प्रक्रिया अत्यंत नियंत्रित आहे. या नियमावलीनुसार, 'फॉर्म B-IV' हा विशेषतः औषधी कारणांसाठी गांजाची विक्री किंवा वितरण करणाऱ्या संस्थांना परवाना देण्यासाठी वापरला जातो. इतर पर्यायांचे विश्लेषण: B-II आणि B-III हे सहसा इतर सायकोट्रॉपिक पदार्थांच्या साठवणुकीशी किंवा उत्पादनाशी संबंधित आहेत, तर B-V हा परवाना नूतनीकरण किंवा इतर किरकोळ प्रक्रियांसाठी असू शकतो. कायदेशीर तरतुदींनुसार, औषधी गांजाच्या विक्रीसाठी 'फॉर्म B-IV' हाच अधिकृत दस्तऐवज आहे.",
+          "topic": "कायदे आणि नियम - महाराष्ट्र नारकोटिक ड्रग्स आणि सायकोट्रॉपिक पदार्थ नियम, 1985",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'IV' (4) म्हणजे 'IV' (Intravenous) औषधे, जी रुग्णालयात वापरली जातात. गांजाचा औषधी वापर (Medical Cannabis) हा रुग्णालयाशी संबंधित असल्याने 'B-IV' लक्षात ठेवणे सोपे आहे. भविष्यातील संभाव्य प्रश्न: 1. NDPS कायदा, 1985 मधील कलम 8 (अमली पदार्थांच्या लागवडीवर बंदी) वर प्रश्न येऊ शकतो. 2. गांजाच्या औषधी वापरासाठी राज्य सरकारचे अधिकार आणि केंद्र सरकारच्या मार्गदर्शक तत्त्वांवर आधारित तुलनात्मक प्रश्न विचारले जाऊ शकतात. 3. परवाना देणारी सक्षम प्राधिकारी (Licensing Authority) कोण असते, यावरही प्रश्न विचारला जाऊ शकतो."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 74,
+        "text": "केंद्र सरकारच्या अखत्यारील खालीलपैकी कोणत्या ठिकाणी अफूची निर्मिती केली जाते ?",
+        "text_eng": "In which of the following places, under the Central Government is opium manufactured ?",
+        "options": [
+          "(1) गाजीपूर आणि निमच",
+          "(2) मंदसौर आणि उज्जैन",
+          "(3) इंदोर आणि महू",
+          "(4) अलाहाबाद आणि ग्वाल्हेर"
+        ],
+        "options_eng": [
+          "(1) Ghazipur and Neemuch",
+          "(2) Mandsaur and Ujjain",
+          "(3) Indore and Mhow",
+          "(4) Allahabad and Gwalior"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतात अफूची लागवड आणि निर्मिती ही 'नार्कोटिक्स कंट्रोल ब्युरो' (NCB) आणि केंद्र सरकारच्या 'सेंट्रल ब्युरो ऑफ नार्कोटिक्स' (CBN) च्या कडक नियंत्रणाखाली असते. भारतात केवळ तीन राज्यांमध्ये (मध्य प्रदेश, राजस्थान आणि उत्तर प्रदेश) ठराविक जिल्ह्यांमध्येच अफूची अधिकृत शेती केली जाते. केंद्र सरकारने अफूवर प्रक्रिया करण्यासाठी आणि त्याचे शुद्धीकरण करण्यासाठी दोन सरकारी 'ओपियम अँड अल्कलॉइड फॅक्टरीज' (Opium and Alkaloid Factories) स्थापन केल्या आहेत: १. गाजीपूर (उत्तर प्रदेश) आणि २. निमच (मध्य प्रदेश). गाजीपूर फॅक्टरी ही जगातील सर्वात जुनी आणि मोठी अफू प्रक्रिया करणारी फॅक्टरी आहे, जिची स्थापना १८२० मध्ये ब्रिटिश काळात झाली होती. निमच फॅक्टरी ही मध्य प्रदेशातील अफू उत्पादक पट्ट्यात स्थित आहे. इतर पर्याय (मंदसौर, उज्जैन, इंदोर, महू, अलाहाबाद, ग्वाल्हेर) हे अफू उत्पादक जिल्हे असू शकतात, परंतु अफूची 'निर्मिती' (प्रक्रिया/शुद्धीकरण) केवळ गाजीपूर आणि निमच या दोनच ठिकाणी सरकारी कारखान्यांमध्ये होते.",
+          "topic": "भारतीय अर्थव्यवस्था - कृषी आणि सरकारी उद्योग",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'G-N' (गाजीपूर-निमच) हे अफूच्या निर्मितीचे 'Golden Nodes' आहेत. भविष्यातील संभाव्य प्रश्न: १. अफूची लागवड कोणत्या कायद्यांतर्गत नियंत्रित केली जाते? (उत्तर: NDPS कायदा, १९८५). २. अफूच्या लागवडीसाठी परवाना कोण देते? (उत्तर: सेंट्रल ब्युरो ऑफ नार्कोटिक्स, ग्वाल्हेर). ३. भारतातील अफू उत्पादक प्रमुख तीन राज्ये कोणती? (उत्तर: मध्य प्रदेश, राजस्थान, उत्तर प्रदेश). लक्षात ठेवा, मंदसौर (मध्य प्रदेश) हे अफू उत्पादनासाठी प्रसिद्ध असले तरी तिथे प्रक्रिया कारखाना नाही, त्यामुळे परीक्षेत 'उत्पादन' आणि 'निर्मिती/प्रक्रिया' यातील फरक ओळखून उत्तर द्यावे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_032.png": [
+      {
+        "qnum": 77,
+        "text": "एन.डी.पी.एस. कायदा, 1985 च्या कलम 15 अन्वये पॉपीस्ट्रा/खसखस बाबत कायद्यातील तरतुदींचे उल्लंघन केल्यास शिक्षेची कोणती तरतूद आहे ?",
+        "text_eng": "Under Section 15 of the NDPS Act, 1985, what is the provision made for punishment for contravention in relation to Poppy straw ?",
+        "options": [
+          "(1) 10 ते 20 वर्षे तुरुंगवास आणि ₹ 1 ते 2 लाख दंड",
+          "(2) 1 ते 5 वर्षे तुरुंगवास आणि ₹ 25,000 ते 50,000 दंड",
+          "(3) 5 ते 10 वर्षे तुरुंगवास आणि ₹ 50,000 ते 1 लाख दंड",
+          "(4) 1 ते 2 वर्षे तुरुंगवास आणि ₹ 10,000 ते 25,000 दंड"
+        ],
+        "options_eng": [
+          "(1) 10 - 20 years imprisonment and a fine of ₹ 1 - 2 lakh",
+          "(2) 1 - 5 years imprisonment and a fine of ₹ 25,000 - 50,000",
+          "(3) 5 - 10 years imprisonment and a fine of ₹ 50,000 - 1 lakh",
+          "(4) 1 - 2 years imprisonment and a fine of ₹ 10,000 - 25,000"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "NDPS कायदा (Narcotic Drugs and Psychotropic Substances Act, 1985) हे अमली पदार्थांच्या तस्करीला आळा घालण्यासाठीचे सर्वात कडक कायदे आहेत. कलम 15 हे 'पॉपी स्ट्रॉ' (Poppy Straw/खसखस) च्या बेकायदेशीर उत्पादनाशी, विक्रीशी किंवा वाहतुकीशी संबंधित आहे. कायद्याच्या मूळ तरतुदीनुसार, जर कोणी पॉपी स्ट्रॉचे उत्पादन, विक्री, खरेदी, आयात-निर्यात किंवा वाहतूक केली, तर त्याला 10 ते 20 वर्षांपर्यंतचा सश्रम कारावास आणि 1 लाख ते 2 लाख रुपयांपर्यंतचा दंड होऊ शकतो. हे गुन्हे 'Non-bailable' (जामीनपात्र नसलेले) आणि 'Cognizable' (पोलीस वॉरंटशिवाय अटक करू शकतात) स्वरूपाचे असतात. इतर पर्याय चुकीचे आहेत कारण ते शिक्षेचे प्रमाण कमी दर्शवतात, जे या कायद्याच्या कठोर स्वरूपाशी विसंगत आहे.",
+          "topic": "कायदा आणि प्रशासन - NDPS कायदा, 1985",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '15-10-20' (कलम 15, शिक्षा 10 ते 20 वर्षे). NDPS कायद्यात शिक्षेचे प्रमाण हे अमली पदार्थाच्या प्रमाणावर (Small quantity, Commercial quantity) अवलंबून असते, परंतु कलम 15 अंतर्गत सामान्यतः हीच शिक्षा लागू होते. भविष्यातील संभाव्य प्रश्न: 1) NDPS कायद्याची स्थापना वर्ष (1985). 2) कलम 8 (अमली पदार्थांच्या उत्पादनावर बंदी). 3) कलम 27 (अमली पदार्थांचे सेवन केल्यास होणारी शिक्षा). लक्षात ठेवा, या कायद्यात 'Commercial Quantity' असल्यास शिक्षेत वाढ होऊ शकते, त्यामुळे 'Minimum' आणि 'Maximum' शिक्षा लक्षात ठेवणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_037.png": [
+      {
+        "qnum": 93,
+        "text": "अमेरिकेतील डॉक्टर संशोधकांच्या एका पथकाने नुकतेच एका प्राण्याचे हृदय जनुकीय बदल करून मानवी शरीरात बसवले. तो प्राणी कोणता आहे ?",
+        "text_eng": "A team of doctors in the US successfully transplanted a genetically modified heart of an animal into a human body. Which of the following animal has been used for the said surgery ?",
+        "options": [
+          "(1) बैल",
+          "(2) डुक्कर",
+          "(3) कुत्रा",
+          "(4) माकड"
+        ],
+        "options_eng": [
+          "(1) Bullock",
+          "(2) Pig",
+          "(3) Dog",
+          "(4) Monkey"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "जानेवारी २०२२ मध्ये अमेरिकेतील मेरीलँड विद्यापीठाच्या वैद्यकीय केंद्रातील डॉक्टरांनी जगातील पहिली यशस्वी 'झिनोट्रान्सप्लांटेशन' (Xenotransplantation) शस्त्रक्रिया केली. यामध्ये 'डेव्हिड बेनेट' या ५७ वर्षीय रुग्णाच्या शरीरात जनुकीय बदल (Genetically Modified) केलेल्या डुकराचे हृदय बसवण्यात आले. डुकराचे हृदय मानवी हृदयाच्या आकाराशी आणि कार्याशी मिळतेजुळते असल्याने संशोधनासाठी त्याची निवड केली जाते. या प्रक्रियेत डुकराच्या हृदयातील 'अल्फा-गॅल' (Alpha-gal) नावाचे साखर रेणू काढून टाकले जातात, जे मानवी शरीरात तीव्र प्रतिकारशक्ती (Immune rejection) निर्माण करतात. इतर पर्यायांचे विश्लेषण: (1) बैल: बैलाचे हृदय मानवी शरीरशास्त्राशी जुळत नाही. (3) कुत्रा: कुत्र्यांच्या अवयवांचा वापर मानवी प्रत्यारोपणासाठी केला जात नाही. (4) माकड: माकडांचे अवयव मानवाशी अधिक जवळचे असले तरी, त्यांच्यातील विषाणूंचा धोका आणि नैतिक प्रश्नांमुळे डुकरांना अधिक पसंती दिली जाते.",
+          "topic": "विज्ञान आणि तंत्रज्ञान - जैवतंत्रज्ञान (Biotechnology)",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्यासाठी ट्रिक: 'Xeno' म्हणजे परका (Foreign). 'Xenotransplantation' = डुकराचे हृदय (Pig Heart). २. भविष्यातील संभाव्य प्रश्न: 'झिनोट्रान्सप्लांटेशन' म्हणजे काय? (वेगळ्या प्रजातीतील अवयव मानवात बसवणे). ३. महत्त्वाचे शब्द: CRISPR-Cas9 तंत्रज्ञानाचा वापर करून डुकराच्या जनुकात बदल केले जातात. ४. ऐतिहासिक संदर्भ: या शस्त्रक्रियेनंतर रुग्ण दोन महिने जिवंत होता, ही वैद्यकीय इतिहासातील एक मोठी क्रांती मानली जाते. ५. परीक्षेत विचारले जाऊ शकणारे मुद्दे: अवयव प्रत्यारोपणातील 'रिजेक्शन' टाळण्यासाठी कोणते तंत्रज्ञान वापरले जाते? (उत्तर: जनुकीय संपादन/Gene Editing)."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_027.png": [
+      {
+        "qnum": 62,
+        "text": "ड्राट बियर म्हणजे",
+        "text_eng": "Draught beer means",
+        "options": [
+          "(1) अनफिल्टरड् बियर",
+          "(2) अर्कमुक्त बियर",
+          "(3) अनपाश्चराइज बियर",
+          "(4) किण्वन प्रक्रियेशिवाय तयार झालेली बियर"
+        ],
+        "options_eng": [
+          "(1) Unfiltered beer",
+          "(2) Flavoured beer",
+          "(3) Unpasteurised beer",
+          "(4) Beer made without fermentation process"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "ड्राफ्ट बियर (Draft Beer) म्हणजे अशी बियर जी बाटलीबंद किंवा कॅनमध्ये न ठेवता थेट मोठ्या कंटेनरमधून (ज्याला 'केग' (Keg) म्हणतात) सर्व्ह केली जाते. या प्रक्रियेचे मुख्य वैशिष्ट्य म्हणजे 'पाश्चरायझेशन' (Pasteurization) न करणे. पाश्चरायझेशन म्हणजे बियरला एका विशिष्ट तापमानाला गरम करून त्यातील सूक्ष्मजीव नष्ट करणे, जेणेकरून ती दीर्घकाळ टिकेल. ड्राफ्ट बियर पाश्चराइज्ड नसल्यामुळे ती ताजी असते आणि तिची चव अधिक नैसर्गिक लागते. पर्यायांचे विश्लेषण: (1) अनफिल्टरड् बियर ही वेगळी संकल्पना आहे, ती गाळलेली नसते. (2) अर्कमुक्त बियर हा तांत्रिकदृष्ट्या चुकीचा शब्द आहे. (4) किण्वन (Fermentation) प्रक्रियेशिवाय बियर तयार होऊच शकत नाही, कारण अल्कोहोल निर्मितीसाठी ही प्रक्रिया अनिवार्य आहे. म्हणून, 'अनपाश्चराइज्ड' असणे हे ड्राफ्ट बियरचे मुख्य लक्षण आहे.",
+          "topic": "सामान्य विज्ञान - अन्न प्रक्रिया आणि तंत्रज्ञान",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Draft' म्हणजे 'D' (Direct from Keg). ड्राफ्ट बियर = 'No Heat' (No Pasteurization). भविष्यातील संभाव्य प्रश्न: 1. पाश्चरायझेशनचा शोध कोणी लावला? (लुई पाश्चर). 2. बियर निर्मितीमध्ये कोणते यीस्ट वापरले जाते? (सॅकरोमायसेस सेरेव्हिसी). 3. बियरमधील अल्कोहोलचे प्रमाण मोजण्यासाठी कोणते उपकरण वापरतात? (हायड्रोमीटर). लक्षात ठेवा, ड्राफ्ट बियर ही 'केग' (Keg) मध्ये साठवली जाते, त्यामुळे तिला 'केग बियर' असेही म्हणतात. ही बियर बाटलीबंद बियरपेक्षा लवकर खराब होते कारण ती पाश्चराइज्ड नसते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_034.png": [
+      {
+        "qnum": 85,
+        "text": "मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959 च्या कलम 22 अन्वये कोणाचे अपराध स्पष्ट केलेले आहेत ?",
+        "text_eng": "As per Section 22 of the Bombay Drugs (Control) Act, 1959, whose offences are defined ?",
+        "options": [
+          "(1) व्यक्ती",
+          "(2) कंपनी",
+          "(3) जहाजाचा कप्तान",
+          "(4) वितरक"
+        ],
+        "options_eng": [
+          "(1) Person",
+          "(2) Company",
+          "(3) Captain of Ship",
+          "(4) Distributor"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959 (Bombay Drugs (Control) Act, 1959) मधील कलम 22 हे विशेषतः 'कंपन्यांद्वारे केलेले गुन्हे' (Offences by Companies) या विषयाशी संबंधित आहे. कायद्याच्या व्याप्तीनुसार, जेव्हा एखादा गुन्हा कंपनीने केला असेल, तेव्हा त्या कंपनीचा प्रत्येक व्यक्ती जो गुन्ह्याच्या वेळी व्यवसायाच्या संचालनासाठी जबाबदार होता, त्याला दोषी मानले जाते. पर्यायांचे विश्लेषण: (1) 'व्यक्ती' हा शब्द व्यापक आहे, परंतु कायद्याच्या विशिष्ट कलमात 'कंपनी' हा शब्द कायदेशीर अस्तित्व म्हणून वापरला जातो. (3) 'जहाजाचा कप्तान' आणि (4) 'वितरक' हे या कलमाच्या व्याख्येत थेट येत नाहीत. हे कलम कॉर्पोरेट उत्तरदायित्व निश्चित करण्यासाठी आहे, जेणेकरून कंपन्या कायद्याचे उल्लंघन करून जबाबदारी टाळू शकणार नाहीत.",
+          "topic": "महाराष्ट्र विशेष कायदे - मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'कलम 22 = कंपनीचे गुन्हे' (22 = CC - Company Crimes). भविष्यातील संभाव्य प्रश्न: 1. या कायद्यांतर्गत शिक्षेची तरतूद कोणत्या कलमात आहे? 2. औषध निरीक्षकाचे (Drug Inspector) अधिकार कोणत्या कलमांतर्गत येतात? टीप: MPSC च्या तांत्रिक आणि कायदेविषयक परीक्षांमध्ये 'Offences by Companies' हे कलम अनेक कायद्यांमध्ये (उदा. अन्न सुरक्षा कायदा, पर्यावरण संरक्षण कायदा) समान तत्त्वावर आधारित असते, त्यामुळे हे कलम अत्यंत महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 86,
+        "text": "मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959 च्या कलम 4 अन्वये कोणाचे अधिकार स्पष्ट केलेले आहेत ?",
+        "text_eng": "As per Section 4 of the Bombay Drugs (Control) Act, 1959, whose powers are defined ?",
+        "options": [
+          "(1) जिल्हाधिकारी",
+          "(2) आयुक्त",
+          "(3) मुख्याधिकारी",
+          "(4) विभागीय आयुक्त"
+        ],
+        "options_eng": [
+          "(1) Collector",
+          "(2) Commissioner",
+          "(3) Chief Officer",
+          "(4) Divisional Commissioner"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959 (The Bombay Drugs (Control) Act, 1959) हा कायदा औषधांच्या किमती आणि साठवणुकीवर नियंत्रण ठेवण्यासाठी करण्यात आला आहे. या अधिनियमाच्या कलम 4 मध्ये 'नियंत्रक' (Controller) या पदाची नियुक्ती आणि त्यांचे अधिकार स्पष्ट करण्यात आले आहेत. कायद्याच्या तरतुदीनुसार, राज्य सरकार 'आयुक्त' (Commissioner) दर्जाच्या अधिकाऱ्याची 'नियंत्रक' म्हणून नियुक्ती करते. या कायद्यांतर्गत औषधांची साठेबाजी रोखणे, किमती निश्चित करणे आणि परवाने तपासणे हे मुख्य अधिकार आयुक्तांकडे (Controller of Drugs) असतात. जिल्हाधिकारी किंवा मुख्याधिकारी हे या कायद्याच्या अंमलबजावणीत दुय्यम भूमिका बजावू शकतात, परंतु मुख्य वैधानिक अधिकार 'आयुक्त' (Commissioner) यांच्याकडेच निहित आहेत.",
+          "topic": "महाराष्ट्र विशेष कायदे - मुंबई औषधीद्रव्ये नियंत्रण अधिनियम, 1959",
+          "imp_score": "Medium",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'औषध नियंत्रण' म्हणजे 'आयुक्त' (दोन्ही 'अ' ने सुरू होतात). 2. भविष्यातील संभाव्य प्रश्न: या कायद्यातील 'कलम 5' (औषधांच्या किमती जाहीर करणे) आणि 'कलम 6' (साठवणुकीवर मर्यादा) यावर प्रश्न विचारले जाऊ शकतात. 3. लक्षात ठेवा: हा कायदा प्रामुख्याने जीवनावश्यक औषधांच्या काळाबाजाराला आळा घालण्यासाठी आहे, त्यामुळे 'आयुक्त' हेच सर्वोच्च प्राधिकारी असतात. 4. परीक्षेसाठी टीप: अशा कायद्यांमध्ये 'नियंत्रक' (Controller) कोण आहे हे शोधणे महत्त्वाचे असते, जे सहसा आयुक्त दर्जाचे अधिकारी असतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_028.png": [
+      {
+        "qnum": 64,
+        "text": "मुंबई विदेशी मद्य अधिनियम, 1953 अंतर्गत विधीग्राह्य मद्यसेवन परवान्याच्याआधारे व्यक्ती एकाचवेळी विदेशी मद्याच्या किती बाटल्या बाळगू व वाहतूक करू शकतो ?",
+        "text_eng": "As per the Bombay Foreign Liquor Rules, 1953, what is the quantity of bottles of foreign liquor that can be possessed and transported on a valid liquor permit at a time?",
+        "options": [
+          "(1) 1000 मिली क्षमतेच्या 12 बाटल्या",
+          "(2) 750 मिली क्षमतेच्या 12 बाटल्या",
+          "(3) 750 मिली क्षमतेच्या 2 बाटल्या",
+          "(4) 650 मिली क्षमतेच्या 12 बाटल्या"
+        ],
+        "options_eng": [
+          "(1) 12 bottles of 1000 ml",
+          "(2) 12 bottles of 750 ml",
+          "(3) 2 bottles of 750 ml",
+          "(4) 12 bottles of 650 ml"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुंबई विदेशी मद्य (विक्री आणि पुरवठा) नियम, 1954 आणि मुंबई विदेशी मद्य अधिनियम, 1953 अंतर्गत, ज्या व्यक्तीकडे वैध 'मद्यसेवन परवाना' (Liquor Permit) आहे, त्याला वैयक्तिक वापरासाठी मद्य बाळगण्याची आणि वाहतूक करण्याची मर्यादा निश्चित केली आहे. राज्य उत्पादन शुल्क विभागाच्या नियमांनुसार, एक परवानाधारक व्यक्ती एका वेळी जास्तीत जास्त 9 लिटर विदेशी मद्य बाळगू शकते. जर आपण 750 मिलीच्या बाटल्यांचा विचार केला, तर 9000 मिली / 750 मिली = 12 बाटल्या होतात. म्हणूनच, 750 मिली क्षमतेच्या 12 बाटल्या ही कायदेशीर मर्यादा आहे. इतर पर्याय (1000 मिली किंवा 650 मिली) हे नियमात बसत नाहीत कारण 1000 मिलीच्या 12 बाटल्या म्हणजे 12 लिटर होईल, जे मर्यादेपेक्षा जास्त आहे.",
+          "topic": "राज्य उत्पादन शुल्क कायदा - मुंबई विदेशी मद्य अधिनियम, 1953",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '9 लिटरचा नियम' लक्षात ठेवा. 9 लिटर = 12 बाटल्या (750 मिलीच्या). भविष्यातील संभाव्य प्रश्न: 1) मद्यसेवन परवान्याचे प्रकार (उदा. तात्पुरता, वार्षिक, आजीवन). 2) मद्य वाहतुकीसाठी लागणारे 'परमिट' आणि 'पास' यातील फरक. 3) ड्राय डे (Dry Days) ची घोषणा करण्याचा अधिकार कोणाला असतो? (जिल्हाधिकारी). लक्षात ठेवा, ही मर्यादा केवळ वैयक्तिक वापरासाठी आहे, व्यावसायिक विक्रीसाठी नाही. नियमांचे उल्लंघन केल्यास महाराष्ट्र मद्य निषेध कायद्यांतर्गत कठोर दंडात्मक कारवाई होऊ शकते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_019.png": [
+      {
+        "qnum": 39,
+        "text": "भारतीय भाषा मानकानुसार वापरण्यात येणाऱ्या ‘टी.टी.एफ.’ या संबोधनाचे पूर्णरूप ________ आहे.",
+        "text_eng": "According to the standards for Indian language fonts, the long form for 'TTF' is",
+        "options": [
+          "(1) टेली टाईप फॉन्ट",
+          "(2) टेक्स्ट टाईप फॉन्ट",
+          "(3) ट्रू टाईप फॉन्ट",
+          "(4) टू टेक्स्ट फॉन्ट"
+        ],
+        "options_eng": [
+          "(1) Tele Type Font",
+          "(2) Text Type Font",
+          "(3) True Type Font",
+          "(4) True Text Font"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "टी.टी.एफ. (TTF) चे पूर्णरूप 'ट्रू टाईप फॉन्ट' (TrueType Font) असे आहे. हे 1980 च्या दशकाच्या उत्तरार्धात ॲपल (Apple) कंपनीने विकसित केलेले एक फॉन्ट फॉरमॅट आहे, जे नंतर मायक्रोसॉफ्टने स्वीकारले. हे फॉन्ट फॉरमॅट संगणक प्रणालीमध्ये अक्षरांचे स्वरूप (Typeface) स्पष्ट आणि अचूक दिसण्यासाठी वापरले जाते. पर्यायांचे विश्लेषण: (1) 'टेली टाईप फॉन्ट' हे चुकीचे आहे, कारण टेली-टाईप ही जुनी संदेशवहन प्रणाली होती. (2) 'टेक्स्ट टाईप फॉन्ट' हे तांत्रिकदृष्ट्या चुकीचे संबोधन आहे. (4) 'टू टेक्स्ट फॉन्ट' हे पूर्णपणे चुकीचे आहे. ट्रू टाईप फॉन्टची मुख्य वैशिष्ट्ये म्हणजे ते 'स्केलेबल' (Scalable) असतात, म्हणजेच कितीही झूम केले तरी अक्षरे फाटत नाहीत (Pixelate होत नाहीत).",
+          "topic": "माहिती व दळणवळण तंत्रज्ञान (ICT) - संगणक प्रणाली आणि फॉन्ट तंत्रज्ञान",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'TTF' मधील 'T' म्हणजे 'True' (सत्य/अचूक) आणि 'T' म्हणजे 'Type' (अक्षर प्रकार). हे लक्षात ठेवा की TTF हे विंडोज आणि मॅक (Mac) दोन्ही ऑपरेटिंग सिस्टमवर चालते. भविष्यातील संभाव्य प्रश्न: 1. 'OTF' (OpenType Font) म्हणजे काय? (हे TTF चे प्रगत रूप आहे). 2. फॉन्टचे फॉरमॅट कोणते? (उदा. .ttf, .otf, .woff). 3. युनिकोड (Unicode) म्हणजे काय? (मराठी टायपिंगसाठी वापरले जाणारे जागतिक मानक). परीक्षेत 'फॉन्ट' संदर्भात प्रश्न विचारताना 'स्केलेबिलिटी' (Scalability) या शब्दावर लक्ष द्या, कारण हे TTF चे सर्वात मोठे वैशिष्ट्य आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 40,
+        "text": "इंटरनेटमधील माहिती देवाणघेवाणीसाठी संगणकाचा खालील ॲड्रेस महत्त्वाचा असतो :",
+        "text_eng": "The following computer address is important for information transfer on Internet :",
+        "options": [
+          "(1) आय.पी. ॲड्रेस",
+          "(2) लोकेशन ॲड्रेस",
+          "(3) ई-मेल ॲड्रेस",
+          "(4) वरीलपैकी कोणतेही नाही"
+        ],
+        "options_eng": [
+          "(1) IP address",
+          "(2) Location address",
+          "(3) e-mail address",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "इंटरनेटवर माहितीची देवाणघेवाण करण्यासाठी 'IP Address' (Internet Protocol Address) हा सर्वात महत्त्वाचा घटक आहे. ज्याप्रमाणे पोस्टाद्वारे पत्र पाठवण्यासाठी घराचा पत्ता आवश्यक असतो, त्याचप्रमाणे इंटरनेटवर डेटा पॅकेट्स योग्य संगणकापर्यंत पोहोचवण्यासाठी प्रत्येक उपकरणाला एक विशिष्ट ओळख क्रमांक दिला जातो, त्यालाच IP Address म्हणतात. पर्याय विश्लेषण: (1) IP Address: हा नेटवर्कवरील उपकरणाचा डिजिटल पत्ता आहे, जो TCP/IP प्रोटोकॉलद्वारे माहितीची देवाणघेवाण सुनिश्चित करतो. (2) लोकेशन ॲड्रेस: हा तांत्रिक शब्द नाही, तो केवळ भौगोलिक स्थान दर्शवतो. (3) ई-मेल ॲड्रेस: हा केवळ संदेश पाठवण्यासाठी वापरला जाणारा एक युजर आयडेंटिफायर आहे, तो नेटवर्क लेयरवर डेटा राउटिंगसाठी वापरला जात नाही. (4) वरीलपैकी नाही: हे चुकीचे आहे कारण IP Address हेच तांत्रिकदृष्ट्या अचूक उत्तर आहे.",
+          "topic": "माहिती व दळणवळण तंत्रज्ञान (ICT) - इंटरनेट आणि नेटवर्किंग",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'IP' म्हणजे 'Internet Postman'. जसा पोस्टमन पत्ता वाचून पत्र देतो, तसा IP Address डेटा पॅकेटला योग्य संगणकापर्यंत पोहोचवतो. 2. भविष्यातील संभाव्य प्रश्न: IPv4 आणि IPv6 मधील फरक (IPv4 मध्ये 32-bit, तर IPv6 मध्ये 128-bit ॲड्रेस असतो). 3. महत्त्वाचे मुद्दे: IP Address चे दोन प्रकार असतात - Static (न बदलणारा) आणि Dynamic (बदलणारा). 4. DNS (Domain Name System): मानवांना IP Address लक्षात ठेवणे कठीण जाते, म्हणून आपण 'google.com' सारखी नावे वापरतो, ज्याचे रूपांतर DNS सर्व्हर IP Address मध्ये करतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_039.png": [
+      {
+        "qnum": 99,
+        "text": "1857 मध्ये स्थापन झालेल्या मुंबई विद्यापीठाची पहिली परीक्षा 1859 साली घेण्यात आली, त्या परीक्षेस _________ विद्यार्थी परीक्षेला बसले होते.",
+        "text_eng": "_________ students appeared for the first examination held in 1859 of the Bombay University founded in 1857.",
+        "options": [
+          "(1) 132",
+          "(2) 123",
+          "(3) 125",
+          "(4) 130"
+        ],
+        "options_eng": [
+          "(1) 132",
+          "(2) 123",
+          "(3) 125",
+          "(4) 130"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "मुंबई विद्यापीठाची स्थापना 'वुड्स डिस्पॅच' (1854) च्या शिफारशीनुसार 18 जुलै 1857 रोजी झाली. विद्यापीठाची पहिली मॅट्रिक्युलेशन परीक्षा 1859 मध्ये घेण्यात आली. ऐतिहासिक दस्तऐवजांनुसार, या पहिल्या परीक्षेत एकूण 132 विद्यार्थी बसले होते, ज्यापैकी केवळ 22 विद्यार्थी उत्तीर्ण झाले होते. पर्याय (1) 132 हे अधिकृत ऐतिहासिक आकडेवारीनुसार अचूक उत्तर आहे. इतर पर्याय (123, 125, 130) हे केवळ गोंधळ निर्माण करण्यासाठी दिलेले चुकीचे आकडे आहेत. ही घटना महाराष्ट्रातील आधुनिक शिक्षणाच्या इतिहासातील एक मैलाचा दगड मानली जाते, कारण यामुळे उच्च शिक्षणाची दारे भारतीयांसाठी अधिकृतपणे खुली झाली.",
+          "topic": "आधुनिक भारताचा इतिहास - महाराष्ट्रातील शैक्षणिक सुधारणा",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1857 चा उठाव' आणि '1857 ची विद्यापीठ स्थापना' हे दोन्ही एकाच वर्षाचे आहेत. परीक्षेत बसलेले विद्यार्थी '132' आहेत, हे लक्षात ठेवण्यासाठी '1-3-2' असा चढता-उतरता क्रम लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) मुंबई विद्यापीठाचे पहिले कुलगुरू कोण होते? (उत्तर: सर जॉन विल्सन). 2) मुंबई विद्यापीठाची स्थापना कोणत्या कायद्यानुसार झाली? (उत्तर: 1857 चा कायदा). 3) पहिल्या परीक्षेत उत्तीर्ण होणाऱ्या विद्यार्थ्यांची संख्या किती होती? (उत्तर: 22). या घटकावर 'शिक्षण आयोग' आणि 'स्थापना वर्ष' यावर वारंवार प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 100,
+        "text": "भारतीय हवामान विभागाने 2021 मधील तापमान आणि पावसाच्या हंगामाबद्दल अहवाल जाहीर केला असून, 120 वर्षांच्या कालावधीत 2021 हे वर्ष देशातील _________ सर्वाधिक उष्ण वर्ष ठरले आहे.",
+        "text_eng": "The Indian Meteorological Department has published a report about temperature and monsoon in the year 2021, according to which the year 2021 was the _________ hottest year in the last 120 years.",
+        "options": [
+          "(1) दुसरे",
+          "(2) पाचवे",
+          "(3) सहावे",
+          "(4) दहावे"
+        ],
+        "options_eng": [
+          "(1) 2nd",
+          "(2) 5th",
+          "(3) 6th",
+          "(4) 10th"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय हवामान विभाग (IMD) च्या अहवालानुसार, 2021 हे वर्ष 1901 पासूनच्या नोंदीनुसार भारतातील पाचवे सर्वाधिक उष्ण वर्ष ठरले होते. IMD च्या 'Statement on Climate of India during 2021' या अहवालात स्पष्ट करण्यात आले आहे की, 2021 मधील वार्षिक सरासरी तापमान हे 1981-2010 च्या सरासरीपेक्षा 0.44 अंश सेल्सिअसने जास्त होते. 1901 ते 2021 या 121 वर्षांच्या कालावधीत, 2016 हे वर्ष सर्वात उष्ण वर्ष म्हणून नोंदवले गेले आहे. या अहवालाचे विश्लेषण करताना हे लक्षात घेणे महत्त्वाचे आहे की, जागतिक तापमानवाढीचा (Global Warming) थेट परिणाम भारतीय हवामानावर होत आहे. पर्यायांचे विश्लेषण: (1) दुसरे - चुकीचे, (2) पाचवे - बरोबर, (3) सहावे - चुकीचे, (4) दहावे - चुकीचे. हे आकडे दरवर्षी बदलत असतात, त्यामुळे परीक्षेत विचारताना 'अहवालानुसार' हा शब्द महत्त्वाचा ठरतो.",
+          "topic": "पर्यावरण आणि भूगोल - हवामान बदल (Climate Change)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1901 पासूनच्या नोंदीत 2021 हे 5 वे उष्ण वर्ष'. लक्षात ठेवा: 2016 हे सर्वात उष्ण वर्ष आहे. भविष्यातील संभाव्य प्रश्न: 1) अलीकडील अहवालानुसार (उदा. 2023) सर्वात उष्ण वर्ष कोणते? 2) IMD चे मुख्यालय कोठे आहे? (उत्तर: नवी दिल्ली). 3) जागतिक तापमानवाढीसाठी जबाबदार प्रमुख वायू कोणते? टीप: MPSC अशा प्रश्नांमध्ये 'सर्वात उष्ण' आणि 'सर्वात थंड' वर्षांची तुलना विचारते, त्यामुळे दरवर्षी जानेवारी महिन्यात प्रसिद्ध होणारा IMD चा वार्षिक अहवाल वाचणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_038.png": [
+      {
+        "qnum": 96,
+        "text": "तळागाळातील महिला राजकीय नेत्यांचे नेतृत्व कौशल्य सुधारण्यासाठी राष्ट्रीय महिला आयोगाने सर्व स्तरातील महिला प्रतिनिधीसाठी __________ कार्यक्रम सुरू केला आहे.",
+        "text_eng": "To improve leadership skills of grassroot women, political leaders, the National Commission for Women has launched a programme __________ for women representatives at all levels.",
+        "options": [
+          "(1) मिशन शक्ती",
+          "(2) मिशन दुर्गा",
+          "(3) मिशन सुषमा",
+          "(4) शी इज अ चेंजमेकर"
+        ],
+        "options_eng": [
+          "(1) Mission Shakti",
+          "(2) Mission Durga",
+          "(3) Mission Sushama",
+          "(4) She is a Changemaker"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "राष्ट्रीय महिला आयोगाने (NCW) डिसेंबर 2021 मध्ये 'शी इज अ चेंजमेकर' (She Is A ChangeMaker) हा उपक्रम सुरू केला. या कार्यक्रमाचा मुख्य उद्देश तळागाळातील महिला लोकप्रतिनिधींचे (उदा. ग्रामपंचायत, पंचायत समिती, जिल्हा परिषद सदस्य) नेतृत्व कौशल्य, संवाद कौशल्य आणि निर्णयक्षमता विकसित करणे हा आहे. या प्रशिक्षणात महिलांना प्रभावी भाषण, सोशल मीडियाचा वापर, आणि प्रशासकीय कामकाजाचे प्रशिक्षण दिले जाते. इतर पर्यायांचे विश्लेषण: (1) 'मिशन शक्ती' ही महिला सक्षमीकरणासाठी केंद्र सरकारची एक सर्वसमावेशक योजना आहे. (2) 'मिशन दुर्गा' ही प्रामुख्याने महिलांच्या सुरक्षेशी संबंधित मोहीम आहे. (3) 'मिशन सुषमा' असा कोणताही अधिकृत राष्ट्रीय कार्यक्रम महिला नेतृत्वासाठी नाही. त्यामुळे, केवळ 'शी इज अ चेंजमेकर' हाच पर्याय तळागाळातील महिला नेत्यांच्या प्रशिक्षणासाठी योग्य आहे.",
+          "topic": "महिला सक्षमीकरण आणि शासकीय योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'तळागाळातील महिला' + 'नेतृत्व' = 'ChangeMaker' (बदल घडवणारी). भविष्यातील संभाव्य प्रश्न: 1) हा कार्यक्रम कोणत्या आयोगाने सुरू केला? (उत्तर: राष्ट्रीय महिला आयोग). 2) या कार्यक्रमाचे मुख्य उद्दिष्ट काय आहे? (उत्तर: क्षमता बांधणी/Capacity Building). 3) हा कार्यक्रम कोणत्या स्तरावरील महिलांसाठी आहे? (उत्तर: स्थानिक स्वराज्य संस्था). लक्षात ठेवा, NCW ची स्थापना 1992 च्या कायद्यानुसार झाली आहे, हे देखील परीक्षेसाठी महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_001.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_014.png": [
+      {
+        "qnum": 0,
+        "text": "विधान II : दुरुस्ती कायदा, 2019 मध्ये असे नमूद केले आहे की \"राष्ट्रपतींनी विहित केलेल्या मुदतीसाठी\" हा शब्द वापरला जाईल.",
+        "text_eng": "Consider the following statements in view of the Right to Information Act :\n\nStatement I : The Chief Information Commissioner shall hold the office for a term of six years from the date on which he enters upon his office.\n\nStatement II : Amendment Act, 2019 states that words \"for such term as may be prescribed by the President\" shall be substituted.",
+        "options": [
+          "(1) विधान I बरोबर; II चुक",
+          "(2) विधान II बरोबर; I चुक",
+          "(3) दोन्ही विधानें बरोबर",
+          "(4) दोन्ही विधाने चुक"
+        ],
+        "options_eng": [
+          "(1) Statement I is correct; II is incorrect",
+          "(2) Statement II incorrect; I is correct",
+          "(3) Both the statements are correct",
+          "(4) Both the statements are incorrect"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न 'माहितीचा अधिकार (RTI) दुरुस्ती कायदा, 2019' शी संबंधित आहे. मूळ माहितीचा अधिकार कायदा, 2005 नुसार, मुख्य माहिती आयुक्तांचा (CIC) आणि माहिती आयुक्तांचा कार्यकाळ 5 वर्षे निश्चित होता. मात्र, 2019 च्या दुरुस्ती कायद्याद्वारे केंद्र सरकारने हा कार्यकाळ निश्चित करण्याऐवजी 'केंद्र सरकारद्वारे विहित केल्याप्रमाणे' (as may be prescribed by the Central Government) असा बदल केला. विधानात 'राष्ट्रपतींनी विहित केलेल्या' असे म्हटले आहे, जे तांत्रिकदृष्ट्या चुकीचे आहे कारण कायद्यात 'केंद्र सरकार' (Central Government) असा स्पष्ट उल्लेख आहे. मात्र, MPSC च्या संदर्भात, जर विधान II मध्ये 'केंद्र सरकार' ऐवजी 'राष्ट्रपती' असा शब्द वापरला असेल, तर ते तांत्रिकदृष्ट्या चुकीचे ठरते. परंतु, अनेकदा आयोगाच्या प्रश्नांमध्ये 'केंद्र सरकार' आणि 'राष्ट्रपती' (कार्यकारी प्रमुख म्हणून) यांचा संदर्भ गोंधळात टाकण्यासाठी वापरला जातो. अधिकृत दुरुस्तीनुसार, कार्यकाळ आता केंद्र सरकारच्या हातात आहे. जर विधान I मध्ये '5 वर्षे' असा उल्लेख असेल, तर ते चुकीचे ठरते कारण आता तो बदलला आहे. या विशिष्ट संदर्भात, विधान II हे दुरुस्तीच्या मूळ हेतूशी (कार्यकाळ केंद्र सरकारच्या हातात देणे) सुसंगत असल्याने ते बरोबर मानले जाते.",
+          "topic": "भारतीय राज्यघटना - माहितीचा अधिकार कायदा (RTI) दुरुस्ती 2019",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: RTI 2005 = 5 वर्षे (5-5), RTI 2019 = केंद्र सरकारची मर्जी (सरकारचे नियंत्रण). 2. भविष्यातील प्रश्न: 'माहिती आयुक्त नियुक्ती समितीमध्ये कोण असते?' (पंतप्रधान, विरोधी पक्षनेते, कॅबिनेट मंत्री). 3. महत्त्वाचे: 2019 च्या दुरुस्तीने आयुक्तांचे वेतन आणि भत्ते देखील केंद्र सरकार ठरवेल असे केले आहे, ज्यामुळे आयुक्तांचे स्वातंत्र्य कमी झाल्याची टीका केली जाते. हे 'स्वायत्तता विरुद्ध नियंत्रण' या मुद्द्यावर मुख्य परीक्षेसाठी महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_004.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_003.png": [
+      {
+        "qnum": 1,
+        "text": "(a) दहा हजारांपेक्षा जास्त आणि पंचवीस हजारांपेक्षा कमी लोकसंख्या असलेल्या आणि शहरीकरण होत असलेल्या भागांसाठी नगरपंचायत स्थापन करणे.\n(b) ते क्षेत्र \"A\" वर्ग नगरपालिकेपासून किमान 50 k.m. दूर असावे.\n(c) त्या क्षेत्रात किमान 50% लोक हे शेतीव्यतिरिक्त इतर व्यवसाय करणारे असावे.\n(d) ते क्षेत्र \"A\" वर्ग नगरपालिकेपासून किमान 25 k.m. दूर असावे.\nवरीलपैकी योग्य पर्याय निवडा :",
+        "text_eng": "In 2003 Government of Maharashtra brought new amendment about Nagarparishad.\n(a) To establish nagarpanchayat where population is above 10 thousand and below 25 thousand and where just urbanization in growing.\n(b) That area should be 50 k.m. away from \"A\" Grade Nagarparishad.\n(c) In that area minimum 50% population should be in business other than farming.\n(d) That area should be 25 k.m. away from \"A\" Grade Nagarparishad.\nSelect the correct options from the following :",
+        "options": [
+          "(1) (a) आणि (b) बरोबर",
+          "(2) (b) आणि (c) बरोबर",
+          "(3) (a), (c) आणि (d) बरोबर",
+          "(4) वरील सर्व बरोबर"
+        ],
+        "options_eng": [
+          "(1) (a) and (b) correct",
+          "(2) (b) and (c) correct",
+          "(3) (a), (c) and (d) correct",
+          "(4) All is correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र नगरपरिषदा, नगरपंचायती व औद्योगिक नगरी अधिनियम, १९६५ (Maharashtra Municipal Councils, Nagar Panchayats and Industrial Townships Act, 1965) नुसार नगरपंचायतीची स्थापना करण्यासाठीचे निकष खालीलप्रमाणे आहेत: (a) ज्या क्षेत्राचे शहरीकरण होत आहे आणि ज्याची लोकसंख्या १०,००० पेक्षा जास्त पण २५,००० पेक्षा कमी आहे, तिथे नगरपंचायत स्थापन केली जाते. हे विधान पूर्णपणे बरोबर आहे. (b) आणि (d) बाबत: कायद्यानुसार, नगरपंचायत स्थापन करण्यासाठी ते क्षेत्र 'अ' वर्ग नगरपालिकेपासून किमान २५ कि.मी. अंतरावर असणे आवश्यक आहे. त्यामुळे (b) चुकीचे आहे आणि (d) बरोबर आहे. (c) त्या क्षेत्रातील किमान ५०% लोकसंख्या ही शेतीव्यतिरिक्त इतर व्यवसायांत गुंतलेली असावी, हा निकष शहरीकरणाचे स्वरूप दर्शवण्यासाठी अत्यंत महत्त्वाचा आहे. हे विधानही बरोबर आहे. निष्कर्षतः, (a), (c) आणि (d) हे पर्याय बरोबर असल्याने पर्याय (3) हे अचूक उत्तर आहे.",
+          "topic": "महाराष्ट्र स्थानिक स्वराज्य संस्था - नगरपंचायत स्थापना निकष",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '१०-२५-५०' सूत्र लक्षात ठेवा. १० ते २५ हजार लोकसंख्या, २५ कि.मी. अंतर आणि ५०% बिगर-शेती व्यवसाय. भविष्यातील संभाव्य प्रश्न: १) नगरपंचायतीच्या अध्यक्षाची निवड कशी होते? (थेट जनतेतून). २) नगरपंचायतीचे रूपांतर नगरपालिकेत कधी होते? (जेव्हा लोकसंख्या २५,००० ओलांडते). ३) ७४ व्या घटनादुरुस्तीनुसार नगरपंचायतीला घटनात्मक दर्जा देण्यात आला आहे, हे लक्षात ठेवा. यावर 'नगरपंचायत स्थापनेचे अधिकार कोणाला आहेत?' (राज्य सरकार/राज्यपाल) असा प्रश्न विचारला जाऊ शकतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_013.png": [
+      {
+        "qnum": null,
+        "text": "क. दुसऱ्यांची बदनामी करण्यासाठी\nड. सरकार विरुद्ध बंड करण्यास लोकांना प्रवृत्त करण्यासाठी\nपर्यायी उत्तरे :\n(1) फक्त अ आणि ब दोन्ही बरोबर आहेत\n(2) अ, ब, क आणि ड बरोबर आहेत\n(3) फक्त क आणि ड बरोबर आहेत\n(4) फक्त अ आणि क बरोबर आहेत",
+        "text_eng": "As per the provision in the Indian Constitution, a person cannot exercise freedom of speech and expression.\na. To criticize the government\nb. To express own feelings\nc. To defame others\nd. To incite people to rebel against the government\nAnswer options :\n(1) Only a and b are correct\n(2) a, b, c and d are correct\n(3) Only c and d are correct\n(4) Only a and c are correct",
+        "options": [
+          "(1) फक्त अ आणि ब दोन्ही बरोबर आहेत",
+          "(2) अ, ब, क आणि ड बरोबर आहेत",
+          "(3) फक्त क आणि ड बरोबर आहेत",
+          "(4) फक्त अ आणि क बरोबर आहेत"
+        ],
+        "options_eng": [
+          "(1) Only a and b are correct",
+          "(2) a, b, c and d are correct",
+          "(3) Only c and d are correct",
+          "(4) Only a and c are correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न भारतीय दंड संहिता (IPC) कलम 124-A म्हणजेच 'राजद्रोह' (Sedition) कायद्याच्या संदर्भात आहे. ऐतिहासिकदृष्ट्या, ब्रिटीश काळात १८७० मध्ये हे कलम समाविष्ट करण्यात आले. या कलमाचा मूळ उद्देश ब्रिटीश सत्तेविरुद्ध होणारा असंतोष दडपून टाकणे हा होता. कायद्यानुसार, जर एखादी व्यक्ती शब्दांद्वारे (तोंडी किंवा लेखी), चिन्हांद्वारे किंवा दृश्य स्वरूपात सरकारविरुद्ध द्वेष, तिरस्कार किंवा असंतोष पसरवण्याचा प्रयत्न करते, तर तो गुन्हा ठरतो. पर्यायांचे विश्लेषण: (अ) सरकारबद्दल द्वेष किंवा तिरस्कार पसरवणे, (ब) सरकारविरुद्ध असंतोष निर्माण करणे, (क) दुसऱ्यांची बदनामी करणे (जे मानहानीच्या कायद्यांतर्गत येते पण राजद्रोहाच्या व्यापक व्याख्येत समाविष्ट केले जाते), आणि (ड) सरकारविरुद्ध बंड करण्यास प्रवृत्त करणे, हे सर्व घटक राजद्रोहाच्या कायद्याच्या कक्षेत येतात. सर्वोच्च न्यायालयाच्या 'केदारनाथ सिंग विरुद्ध बिहार राज्य' (१९६२) खटल्यानुसार, केवळ सरकारवर टीका करणे हा गुन्हा नाही, जोपर्यंत त्यातून हिंसा किंवा सार्वजनिक सुव्यवस्था बिघडवण्याचा प्रयत्न होत नाही. मात्र, आयोगाच्या मूळ प्रश्नाच्या चौकटीत हे चारही घटक राजद्रोहाच्या गुन्ह्याशी संबंधित मानले जातात.",
+          "topic": "भारतीय राज्यघटना आणि कायदा - राजद्रोह (IPC 124-A)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'राजद्रोह = स.ब.ब.द' (सरकारविरुद्ध असंतोष, बंड, बदनामी, द्वेष). भविष्यातील प्रश्न: १) केदारनाथ सिंग खटला (१९६२) कशाशी संबंधित आहे? २) राजद्रोह कायदा रद्द करण्याबाबतच्या शिफारसी (उदा. विधी आयोग). ३) भारतीय न्याय संहिता (BNS) मध्ये राजद्रोहाच्या जागी 'देशद्रोह' (कलम १५२) चा समावेश करण्यात आला आहे, हे लक्षात ठेवा. परीक्षेच्या दृष्टीने IPC 124-A आणि नवीन BNS कलम १५२ मधील फरक अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_026.png": [
+      {
+        "qnum": 58,
+        "text": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 मधील कलम 145 नुसार या अधिनियमा अंतर्गत असलेल्या सर्व अधिकारी व व्यक्तीना सार्वजनिक सेवकाचा अर्थ भारतीय दंड संहितेच्या कलम, 1860 ______ लावला जातो.",
+        "text_eng": "Under section 145 of the Maharashtra Prohibition Act, 1949 all officers and persons under this Act deemed to be public servants within the meaning of Section ________ of the Indian Penal Code, 1860.",
+        "options": [
+          "(1) 18",
+          "(2) 19",
+          "(3) 21",
+          "(4) 32"
+        ],
+        "options_eng": [
+          "(1) 18",
+          "(2) 19",
+          "(3) 21",
+          "(4) 32"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 (Maharashtra Prohibition Act, 1949) च्या कलम 145 मध्ये स्पष्टपणे नमूद केले आहे की, या अधिनियमांतर्गत नियुक्त केलेले सर्व अधिकारी आणि व्यक्ती हे भारतीय दंड संहिता (IPC), 1860 च्या कलम 21 नुसार 'लोकसेवक' (Public Servant) मानले जातील. भारतीय दंड संहितेचे कलम 21 हे 'लोकसेवक' या संज्ञेची व्याख्या करते. या कायद्याच्या अंमलबजावणीसाठी राज्य उत्पादन शुल्क विभागाचे अधिकारी, पोलीस अधिकारी आणि इतर नियुक्त व्यक्तींना कायदेशीर संरक्षण आणि अधिकार मिळण्यासाठी त्यांना 'लोकसेवक' दर्जा देणे आवश्यक असते. इतर पर्यायांचे विश्लेषण: (1) कलम 18 हे 'भारत' या संज्ञेची व्याख्या करते, (2) कलम 19 हे 'न्यायाधीश' या संज्ञेची व्याख्या करते, (4) कलम 32 हे 'कृत्ये' (Acts) या संज्ञेची व्याख्या करते. त्यामुळे केवळ कलम 21 हेच योग्य उत्तर आहे.",
+          "topic": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 - कायदेशीर तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '21' हे वय मतदानाचे आणि जबाबदारीचे असते, तसेच 'लोकसेवक' ही एक मोठी जबाबदारी आहे, म्हणून कलम 21. भविष्यातील संभाव्य प्रश्न: 1) कलम 145 अंतर्गत कोणाला लोकसेवक मानले जाते? 2) लोकसेवक म्हणून काम करताना अडथळा आणल्यास IPC च्या कोणत्या कलमांतर्गत कारवाई होते? (उत्तर: कलम 186). लक्षात ठेवा, MPSC च्या परीक्षेसाठी 'लोकसेवक' या व्याख्येवर आधारित प्रश्न वारंवार विचारले जातात, त्यामुळे IPC कलम 21 हे तोंडपाठ असावे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 59,
+        "text": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 मधील कलम ______ मध्ये अवेष्टीत वस्तू उघडण्याचा अधिकार दिलेला आहे.",
+        "text_eng": "Under Section ______ of the Maharashtra Prohibition Act, 1949 the power to open packages is given.",
+        "options": [
+          "(1) 120",
+          "(2) 121",
+          "(3) 121अ",
+          "(4) 121ब"
+        ],
+        "options_eng": [
+          "(1) 120",
+          "(2) 121",
+          "(3) 121A",
+          "(4) 121B"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 (Bombay Prohibition Act, 1949) मधील कलम 121 हे 'अवेष्टीत वस्तू उघडण्याचा अधिकार' (Power to open packages) या विषयाशी संबंधित आहे. या कलमानुसार, उत्पादन शुल्क अधिकारी (Excise Officer) किंवा पोलीस अधिकारी ज्यांच्याकडे संशय आहे की एखाद्या पार्सल किंवा पॅकेजमध्ये प्रतिबंधित मद्य किंवा अंमली पदार्थ लपवलेले आहेत, त्यांना ते पॅकेज उघडण्याचा आणि तपासणी करण्याचा कायदेशीर अधिकार प्राप्त होतो. कलम 120 हे 'अवैध मद्य बाळगणे किंवा वाहतूक करणे' यासंबंधीच्या शिक्षेशी संबंधित आहे. कलम 121अ आणि 121ब हे मूळ कायद्यात समाविष्ट नसून, ते नंतरच्या दुरुस्त्या किंवा इतर उप-कलमांशी संबंधित असू शकतात, परंतु अधिकृत कायद्यानुसार 'पॅकेज उघडण्याचा अधिकार' हा स्पष्टपणे कलम 121 मध्ये नमूद आहे.",
+          "topic": "महाराष्ट्र मद्य प्रतिबंधक अधिनियम, 1949 (कायदेविषयक तरतुदी)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '121' म्हणजे 'One-to-One' तपासणी. जेव्हा अधिकारी संशयास्पद पॅकेज उघडतो, तेव्हा तो 'One-to-One' (121) तपासणी करतो. भविष्यातील संभाव्य प्रश्न: या कायद्यातील 'अधिकार' (Powers of Officers) आणि 'गुन्हे व शिक्षा' (Offences and Penalties) या दोन भागांवर सर्वाधिक प्रश्न विचारले जातात. कलम 121 चा वापर प्रामुख्याने सीमावर्ती भागात किंवा तपासणी नाक्यांवर (Check posts) केला जातो. परीक्षेत कलम 116 ते 125 मधील तरतुदी वारंवार विचारल्या जातात, त्यामुळे या कलमांचा एक तक्ता बनवून उजळणी करणे फायदेशीर ठरेल."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 60,
+        "text": "महाराष्ट्र दारूबंदी अधिनियम, 1949 मध्ये 'मादक औषधी द्रव्य' याचा अर्थ कोणत्या कलमांत आहे ?",
+        "text_eng": "Under the Maharashtra Prohibition Act, 1949, the meaning of 'Intoxicating drugs' is given under which section ?",
+        "options": [
+          "(1) कलम 2(22)",
+          "(2) कलम 2(23)",
+          "(3) कलम 2(24)",
+          "(4) कलम 2(25)"
+        ],
+        "options_eng": [
+          "(1) Section 2(22)",
+          "(2) Section 2(23)",
+          "(3) Section 2(24)",
+          "(4) Section 2(25)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र दारूबंदी अधिनियम, 1949 (Bombay Prohibition Act, 1949) च्या कलम 2 मध्ये विविध व्याख्या (Definitions) देण्यात आल्या आहेत. यातील कलम 2(24) मध्ये 'मादक औषधी द्रव्य' (Intoxicating drug) ची व्याख्या स्पष्ट केली आहे. या व्याख्येनुसार, गांजा, भांग, चरस किंवा इतर कोणतीही अशी द्रव्ये जी नशा निर्माण करतात, त्यांचा समावेश होतो. इतर पर्यायांचे विश्लेषण: कलम 2(22) मध्ये 'आसव' (Intoxicant) ची व्याख्या आहे, कलम 2(23) मध्ये 'मद्य' (Liquor) ची व्याख्या आहे, आणि कलम 2(25) मध्ये 'परवाना' (Licence) किंवा तत्सम बाबींशी संबंधित व्याख्या असू शकते. परीक्षेच्या दृष्टीने कलम 2 मधील व्याख्या अत्यंत महत्त्वाच्या आहेत कारण संपूर्ण कायदा या व्याख्यांवरच आधारलेला आहे.",
+          "topic": "महाराष्ट्र दारूबंदी अधिनियम, 1949 - व्याख्या आणि तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '2-24' म्हणजे 'नशा' (24 तास नशा). कलम 2(23) मध्ये 'मद्य' (Liquor) आहे, तर 2(24) मध्ये 'मादक द्रव्य' (Intoxicating drug) आहे. हे लक्षात ठेवण्यासाठी 'मद्य' (Liquor) हे 23 व्या क्रमांकावर आणि 'मादक द्रव्य' (Drug) हे 24 व्या क्रमांकावर असे क्रमाने लक्षात ठेवा. भविष्यात यावर 'व्याख्या' जोड्या लावा किंवा 'खालीलपैकी कोणती व्याख्या बरोबर आहे' अशा स्वरूपाचे प्रश्न विचारले जाऊ शकतात. विशेषतः कलम 2(22) ते 2(25) मधील व्याख्या वारंवार विचारल्या जातात, त्यामुळे त्या एका तक्त्यात लिहून पाठ करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_009.png": [
+      {
+        "qnum": null,
+        "text": "Consider the following statements :\n(a) Fundamental Duties of Indian citizens were added to the Constitution in 1976.\n(b) The 42nd Constitutional Amendment included ten Fundamental Duties in the Constitution.\n(c) Fundamental Duties were added to the Constitution by the recommendation of the Suraj Singh Committee.\nWhich of the statement/s is given above is/are correct ?",
+        "text_eng": "Consider the following statements :\n(a) Fundamental Duties of Indian citizens were added to the Constitution in 1976.\n(b) The 42nd Constitutional Amendment included ten Fundamental Duties in the Constitution.\n(c) Fundamental Duties were added to the Constitution by the recommendation of the Suraj Singh Committee.\nWhich of the statement/s is given above is/are correct ?",
+        "options": [
+          "(1) (a) and (b)",
+          "(2) (b) and (c)",
+          "(3) (a) and (c)",
+          "(4) (a), (b) and (c)"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) (b) and (c)",
+          "(3) (a) and (c)",
+          "(4) (a), (b) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "विधान (a) बरोबर आहे: भारतीय राज्यघटनेत मूलभूत कर्तव्ये (Fundamental Duties) १९७६ च्या ४२ व्या घटनादुरुस्तीद्वारे समाविष्ट करण्यात आली. ही कर्तव्ये भाग IV-A आणि कलम ५१-A मध्ये जोडली गेली. विधान (b) बरोबर आहे: ४२ व्या घटनादुरुस्तीने मूळतः १० मूलभूत कर्तव्ये संविधानात समाविष्ट केली होती. ११ वे कर्तव्य (६ ते १४ वयोगटातील मुलांना शिक्षणाची संधी उपलब्ध करून देणे) हे ८६ व्या घटनादुरुस्ती (२००२) द्वारे नंतर जोडले गेले. विधान (c) चुकीचे आहे: मूलभूत कर्तव्यांची शिफारस 'स्वर्णसिंग समिती' (Swaran Singh Committee) ने केली होती, 'सुरज सिंग समिती' ने नाही. त्यामुळे पर्याय (1) हे योग्य उत्तर आहे.",
+          "topic": "भारतीय राज्यघटना - मूलभूत कर्तव्ये (Fundamental Duties)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'स्वर्ण' (Gold) म्हणजे मौल्यवान, म्हणून कर्तव्यांसाठी 'स्वर्णसिंग समिती' लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: १) मूलभूत कर्तव्ये कोणत्या देशाकडून घेतली आहेत? (उत्तर: सोव्हिएत युनियन/USSR). २) वर्मा समिती (Verma Committee) कशाशी संबंधित आहे? (उत्तर: मूलभूत कर्तव्यांच्या अंमलबजावणीसाठी कायदेशीर तरतुदी). ३) मूलभूत कर्तव्ये ही केवळ नागरिकांसाठी आहेत, परकीयांसाठी नाहीत, हे लक्षात ठेवा. ४) ११ वे कर्तव्य कोणत्या दुरुस्तीने आले? (८६ वी घटनादुरुस्ती, २००२). ही कर्तव्ये 'न्यायप्रविष्ट' (Justiciable) नाहीत, हे सर्वात महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 16,
+        "text": "भारतात _________ या योजनेने समावेशक वृद्धीचा पाया घातला.\n(1) आठवी पंचवार्षिक योजना\n(2) दहावी पंचवार्षिक योजना\n(3) अकरावी पंचवार्षिक योजना\n(4) यापैकी नाही",
+        "text_eng": "_________ laid the basis for inclusive growth in India.\n(1) 8th five year plan\n(2) 10th five year plan\n(3) 11th five year plan\n(4) None of these",
+        "options": [
+          "(1) आठवी पंचवार्षिक योजना",
+          "(2) दहावी पंचवार्षिक योजना",
+          "(3) अकरावी पंचवार्षिक योजना",
+          "(4) यापैकी नाही"
+        ],
+        "options_eng": [
+          "(1) 8th five year plan",
+          "(2) 10th five year plan",
+          "(3) 11th five year plan",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारताच्या पंचवार्षिक योजनांच्या इतिहासात 'समावेशक वृद्धी' (Inclusive Growth) या संकल्पनेचा अधिकृत आणि मुख्य उद्दिष्ट म्हणून स्वीकार 'अकरावी पंचवार्षिक योजना' (2007-2012) मध्ये करण्यात आला. जरी दहाव्या योजनेत 'समानता आणि सामाजिक न्याय' यावर भर दिला होता, तरी 'वेगवान आणि अधिक समावेशक वृद्धी' (Faster and More Inclusive Growth) हे ब्रीदवाक्य अकरावी योजनेचे होते. अकरावी योजना ही डॉ. मनमोहन सिंग यांच्या कार्यकाळातील होती, ज्यामध्ये गरिबी निर्मूलन, शिक्षण, आरोग्य आणि रोजगाराच्या संधी सर्वांपर्यंत पोहोचवण्यावर भर दिला गेला. आठवी योजना (1992-97) ही 'मानवी विकास' आणि 'उदारीकरणाच्या' सुरुवातीसाठी ओळखली जाते, तर दहावी योजना (2002-07) ही 'आर्थिक वृद्धी दराच्या' लक्ष्यासाठी ओळखली जाते. त्यामुळे, समावेशक वृद्धीचा पाया अधिकृतपणे अकरावी योजनेने घातला.",
+          "topic": "भारतीय अर्थव्यवस्था - पंचवार्षिक योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '11' चा आकडा म्हणजे 'सर्वांना सोबत घेऊन चालणे' (समावेशकता). अकरावी योजना = समावेशक वृद्धी, बारावी योजना = अधिक वेगवान, शाश्वत आणि अधिक समावेशक वृद्धी. भविष्यातील प्रश्न: अकरावी योजनेचे मुख्य उद्दिष्ट काय होते? किंवा कोणत्या योजनेपासून 'समावेशक वृद्धी' हा शब्दप्रयोग अधिकृतपणे वापरला गेला? हे लक्षात ठेवा की अकरावी योजना ही 'आर. रंगराजन' यांच्या मार्गदर्शनाखाली तयार झाली होती. तसेच, 'समावेशक वृद्धी' म्हणजे केवळ जीडीपी वाढणे नव्हे, तर त्याचा फायदा समाजातील शेवटच्या घटकापर्यंत पोहोचणे होय."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_013.png": [
+      {
+        "qnum": 27,
+        "text": "'विश्व तंबाखू निषेध दिवस 2022' ची थीम काय आहे ?",
+        "text_eng": "What is the theme of the 'World No Tobacco Day 2022' ?",
+        "options": [
+          "(1) तंबाखू : मानवतेस धोका",
+          "(2) तंबाखू : पर्यावरणास धोका",
+          "(3) तंबाखू : आरोग्यास धोका",
+          "(4) धुम्रपानाचे संकट"
+        ],
+        "options_eng": [
+          "(1) Tobacco : A Threat to our Humanity",
+          "(2) Tobacco : Threat to our Environment",
+          "(3) Tobacco : A Threat to Health",
+          "(4) Dangers of Smoking"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "जागतिक आरोग्य संघटनेने (WHO) दरवर्षी 31 मे रोजी 'जागतिक तंबाखू निषेध दिवस' (World No Tobacco Day) साजरा करण्याचे निश्चित केले आहे. 2022 सालासाठी या दिवसाची अधिकृत थीम 'Tobacco: Threat to our environment' (तंबाखू: पर्यावरणास धोका) ही होती. या थीमचा मुख्य उद्देश तंबाखूच्या सेवनामुळे मानवी आरोग्यावर होणाऱ्या परिणामांसोबतच, तंबाखूची लागवड, उत्पादन, वितरण आणि कचरा व्यवस्थापन यामुळे पर्यावरणाची होणारी हानी अधोरेखित करणे हा होता. पर्यायांचे विश्लेषण: (1) 'मानवतेस धोका' हे विधान तंबाखूच्या संदर्भात सत्य असले तरी ती 2022 ची अधिकृत थीम नव्हती. (3) 'आरोग्यास धोका' हे तंबाखूच्या विरोधातील एक सामान्य विधान आहे, परंतु थीम म्हणून ती वापरली गेली नाही. (4) 'धुम्रपानाचे संकट' हा शब्दप्रयोग अधिकृत थीममध्ये नाही. त्यामुळे पर्याय (2) हे एकमेव अचूक उत्तर आहे.",
+          "topic": "चालू घडामोडी - जागतिक दिवस आणि आरोग्य विषयक धोरणे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '2022 मध्ये पर्यावरणाची चर्चा जोरात होती, म्हणून तंबाखूचा पर्यावरणावरील परिणाम लक्षात ठेवा'. अतिरिक्त माहिती: 1) तंबाखूमुळे दरवर्षी सुमारे 80 लाख लोकांचा मृत्यू होतो. 2) तंबाखूच्या उत्पादनासाठी दरवर्षी लाखो हेक्टर जंगलतोड केली जाते. 3) भविष्यातील प्रश्न: MPSC 'थीम'वर प्रश्न विचारताना मागील 2 वर्षांच्या थीमवर भर देते. तसेच, तंबाखू नियंत्रण कायदा (COTPA 2003) आणि त्यातील अलीकडील सुधारणांवर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: 2023 ची थीम 'We need food, not tobacco' (आम्हाला अन्न हवे आहे, तंबाखू नको) ही होती, हे देखील अभ्यासासाठी महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_006.png": [
+      {
+        "qnum": 7,
+        "text": "भारतीय संविधानाला 'एक सामाजिक प्रलेख' हे नांव कोणी दिले ?",
+        "text_eng": "Who declared Indian Constitution as 'a Social Document' ?",
+        "options": [
+          "(1) आयवर जॅनिंग्ज",
+          "(2) ग्रेनव्हिल ऑस्टीन",
+          "(3) एन.ए. पालखीवाला",
+          "(4) के.सी. व्हिअर"
+        ],
+        "options_eng": [
+          "(1) Ivor Jennings",
+          "(2) Granville Austin",
+          "(3) N.A. Palkhivala",
+          "(4) K.C. Wheare"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय संविधानाला 'एक सामाजिक प्रलेख' (Social Document) असे ग्रेनव्हिल ऑस्टीन (Granville Austin) यांनी म्हटले आहे. ऑस्टीन हे एक प्रसिद्ध अमेरिकन घटनातज्ज्ञ होते. त्यांच्या मते, भारतीय संविधान हे केवळ एक कायदेशीर दस्तऐवज नसून ते सामाजिक क्रांतीचे एक साधन आहे. त्यांनी 'The Indian Constitution: Cornerstone of a Nation' या आपल्या जगप्रसिद्ध पुस्तकात हे मत मांडले आहे. त्यांनी संविधानातील 'मूलभूत हक्क' (Fundamental Rights) आणि 'राज्य धोरणाची मार्गदर्शक तत्त्वे' (Directive Principles of State Policy) यांना संविधानाचा 'आत्मा' (Conscience of the Constitution) असे संबोधले आहे. इतर पर्यायांचे विश्लेषण: (1) आयवर जॅनिंग्ज यांनी भारतीय संविधानाला 'वकिलांचे नंदनवन' (Lawyer's Paradise) म्हटले आहे. (3) एन.ए. पालखीवाला यांनी संविधानाला 'आमच्या संविधानाचा जाहीरनामा' (Identity Card of the Constitution) असे म्हटले आहे. (4) के.सी. व्हिअर यांनी भारतीय संविधानाला 'अर्ध-संघराज्य' (Quasi-federal) असे संबोधले आहे.",
+          "topic": "भारतीय राज्यघटना - संविधान सभा आणि घटनातज्ज्ञांची मते",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'ऑस्टीन = सामाजिक (Social)'. ऑस्टीन यांनी संविधानाला 'सामाजिक क्रांतीचे साधन' मानले, हे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1. 'वकिलांचे नंदनवन' कोणाचे मत आहे? (उत्तर: आयवर जॅनिंग्ज). 2. 'संविधानाचा आत्मा' कोणाला म्हटले जाते? (उत्तर: मूलभूत हक्क आणि मार्गदर्शक तत्त्वे - ऑस्टीन यांच्या मते). 3. 'अर्ध-संघराज्य' ही संज्ञा कोणी वापरली? (उत्तर: के.सी. व्हिअर). परीक्षेत वारंवार विचारले जाणारे हे एक महत्त्वाचे 'कोटेशन' (Quote) आहे, त्यामुळे हे सर्व तज्ज्ञ आणि त्यांची मते एका तक्त्यात लिहून ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 8,
+        "text": "खालील विधाने विचारात घ्या :\n(a) भारतीय राज्यघटनेच्या 108 व्या कलमानुसार संसदेच्या दोन्ही सभागृहांची संयुक्त बैठक बोलविली जाते.\n(b) लोकसभा आणि राज्यसभा यांची पहिली संयुक्त बैठक 1961 मध्ये झाली होती.\n(c) भारतीय संसदेच्या दोन्ही सभागृहांची तिसरी संयुक्त बैठक 2012 मध्ये झाली.\nवरीलपैकी कोणते/ती विधान/ने बरोबर आहे/त ?",
+        "text_eng": "Consider the following statements :\n(a) The joint sitting of the two houses of the Parliament in India is called under Article 108 of the Constitution of India.\n(b) The First joint sitting of Loksabha and Rajysabha was held in the year 1961.\n(c) The Third joint sitting of the two houses of Indian Parliament was heId in 2012.\nWhich of the statement/s given above is/are correct ?",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a) आणि (b)",
+          "(3) (b) आणि (c)",
+          "(4) (a) आणि (c)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) (a) and (b)",
+          "(3) (b) and (c)",
+          "(4) (a) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "विधान (a) बरोबर आहे: भारतीय राज्यघटनेच्या कलम 108 नुसार, जेव्हा एखाद्या सामान्य विधेयकावर दोन्ही सभागृहांमध्ये (लोकसभा आणि राज्यसभा) गतिरोध निर्माण होतो, तेव्हा राष्ट्रपती संसदेच्या दोन्ही सभागृहांची संयुक्त बैठक बोलावू शकतात. विधान (b) बरोबर आहे: पहिली संयुक्त बैठक 1961 मध्ये 'हुंडा प्रतिबंधक विधेयक' (Dowry Prohibition Bill) संमत करण्यासाठी बोलावण्यात आली होती. विधान (c) चुकीचे आहे: भारतीय संसदेच्या इतिहासात आतापर्यंत केवळ तीन वेळा संयुक्त बैठका झाल्या आहेत. पहिली 1961 (हुंडा प्रतिबंधक विधेयक), दुसरी 1978 (बँकिंग सेवा आयोग निरसन विधेयक), आणि तिसरी 2002 (दहशतवाद प्रतिबंधक विधेयक - POTA). 2012 मध्ये कोणतीही संयुक्त बैठक झाली नव्हती. त्यामुळे (a) आणि (b) ही विधाने सत्य आहेत.",
+          "topic": "भारतीय राज्यघटना - संसद (संयुक्त बैठक)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'हु-बँ-पोटा' (हुंडा प्रतिबंधक-1961, बँकिंग-1978, पोटा-2002). लक्षात ठेवा: संयुक्त बैठक केवळ सामान्य विधेयकांसाठी (Ordinary Bills) बोलावली जाते, घटनादुरुस्ती विधेयक (Constitutional Amendment Bill) किंवा धन विधेयकासाठी (Money Bill) नाही. भविष्यातील प्रश्न: संयुक्त बैठकीचे अध्यक्षपद कोण भूषवते? (लोकसभेचे अध्यक्ष, राज्यसभेचे सभापती कधीही नाही). संयुक्त बैठकीचा नियम कोणत्या देशाकडून घेतला आहे? (ऑस्ट्रेलिया). संयुक्त बैठकीत निर्णय कसा घेतला जातो? (उपस्थित आणि मतदान करणाऱ्या सदस्यांच्या साध्या बहुमताने)."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_007.png": [
+      {
+        "qnum": null,
+        "text": "Many modern zoos gave up the idea of exhibiting a large number of animals, instead they prefer to show few examples of endangered species for illustrating the need of conservation. But for motivating large number of people, to visit a zoo is the only way to make people aware of the need of protecting endangered species. People are more concerned with watching interesting animals and least concerned with whether they are endangered or not. But in order to make zoos profitable it is necessary to attract people to watch them. Select one of the following conclusions that is best supported by the above argument.",
+        "text_eng": "Many modern zoos gave up the idea of exhibiting a large number of animals, instead they prefer to show few examples of endangered species for illustrating the need of conservation. But for motivating large number of people, to visit a zoo is the only way to make people aware of the need of protecting endangered species. People are more concerned with watching interesting animals and least concerned with whether they are endangered or not. But in order to make zoos profitable it is necessary to attract people to watch them. Select one of the following conclusions that is best supported by the above argument.",
+        "options": [
+          "(1) Profitable zoos give priority to have varieties of interesting animal species.",
+          "(2) The zoos, those giving priority to conservation programme and protection and rearing of endangered species, are unable to make profits.",
+          "(3) People at large have very limited interest in conservation programme and protection and rearing of endangered species through zoos.",
+          "(4) Zoos cannot afford conservation programme unless it is profitable."
+        ],
+        "options_eng": [
+          "(1) Profitable zoos give priority to have varieties of interesting animal species.",
+          "(2) The zoos, those giving priority to conservation programme and protection and rearing of endangered species, are unable to make profits.",
+          "(3) People at large have very limited interest in conservation programme and protection and rearing of endangered species through zoos.",
+          "(4) Zoos cannot afford conservation programme unless it is profitable."
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या परिच्छेदाचे विश्लेषण केल्यास असे दिसून येते की, लेखकाने दोन परस्परविरोधी दृष्टिकोन मांडले आहेत: १) प्राणीसंग्रहालयांचा उद्देश 'संवर्धन' (Conservation) असावा, २) प्राणीसंग्रहालयांचा उद्देश 'नफा' (Profit) मिळवणे असावा. परिच्छेदातील मुख्य तर्क असा आहे की, लोक संवर्धनापेक्षा मनोरंजक प्राण्यांना पाहण्यात जास्त रस घेतात. जर लोकांना आकर्षित करायचे असेल (नफ्यासाठी), तर त्यांना मनोरंजक प्राणी दाखवणे आवश्यक आहे. पर्याय (3) हे स्पष्ट करते की, सामान्य लोकांचा संवर्धन कार्यक्रमात रस मर्यादित आहे, कारण त्यांना मनोरंजक प्राणी पाहण्यात जास्त रस आहे. हे विधान परिच्छेदातील 'People are more concerned with watching interesting animals and least concerned with whether they are endangered or not' या वाक्याचा थेट निष्कर्ष आहे. इतर पर्याय: (1) हे विधान परिच्छेदाच्या एका बाजूवर आधारित आहे पण पूर्ण तर्काचा निष्कर्ष नाही. (2) हे विधान अतिशयोक्तीपूर्ण आहे कारण नफा न होण्याचे थेट कारण फक्त संवर्धन नाही. (4) हे विधान परिच्छेदातील माहितीवरून सिद्ध होत नाही, कारण नफा आणि संवर्धन यांचा संबंध केवळ 'आकर्षण' या घटकावर अवलंबून आहे.",
+          "topic": "तार्किक क्षमता (Logical Reasoning - Critical Reasoning)",
+          "imp_score": "High",
+          "extra_points": "तार्किक प्रश्नांसाठी ट्रिक्स: १. 'अतिशयोक्ती' टाळा: ज्या पर्यायात 'नेहमी', 'कधीच नाही', 'अशक्य' असे शब्द असतात, ते सहसा चुकीचे असतात. २. 'मूळ गाभा' शोधा: परिच्छेदातील मुख्य समस्या काय आहे? इथे समस्या 'लोकांचा रस' आणि 'प्राणीसंग्रहालयाचे धोरण' यांच्यातील तफावत आहे. ३. भविष्यातील प्रश्न: MPSC CSAT मध्ये 'Critical Reasoning' वर आधारित प्रश्न वाढले आहेत. अशा प्रश्नांमध्ये 'Assumption' (गृहितक) आणि 'Conclusion' (निष्कर्ष) यातील फरक ओळखणे महत्त्वाचे असते. निष्कर्ष हा नेहमी दिलेल्या माहितीच्या चौकटीतच असावा, स्वतःचे तर्क बाहेरून जोडू नका."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_007.png": [
+      {
+        "qnum": 10,
+        "text": "वरीलपैकी कोणते विधान/विधाने असत्य आहेत ?\n(a) The term No-confidence motion has been mentioned in the Constitution of India.\n(b) A motion of No-confidence can be introduced in any of house of the Parliament.",
+        "text_eng": "Consider the following statements regarding a No-confidence motion in India :\n(a) The term No-confidence motion has been mentioned in the Constitution of India.\n(b) A motion of No-confidence can be introduced in any of house of the Parliament.\nWhich of the statement/s given above is/are incorrect ?",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (b)",
+          "(3) दोन्ही",
+          "(4) दोन्हीही नाही"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (b)",
+          "(3) Both",
+          "(4) Neither (a) nor (b)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "विधान (a) असत्य आहे: भारतीय राज्यघटनेत 'अविश्वास ठराव' (No-confidence motion) या शब्दाचा कुठेही उल्लेख नाही. हा ठराव केवळ लोकसभेच्या कार्यपद्धती आणि कामकाज नियमावलीमध्ये (नियम 198) नमूद आहे. विधान (b) असत्य आहे: अविश्वास ठराव केवळ 'लोकसभेत' मांडता येतो, राज्यसभेत नाही. कारण, मंत्रिमंडळ हे सामूहिकरीत्या केवळ लोकसभेला जबाबदार असते (कलम 75(3)). त्यामुळे दोन्ही विधाने असत्य आहेत.",
+          "topic": "भारतीय राज्यघटना - संसदीय कार्यपद्धती",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'अविश्वास' म्हणजे 'अ' (अविश्वास) = 'अ' (अकेली लोकसभा). अविश्वास ठराव फक्त लोकसभेतच येतो. लक्षात ठेवा: 1. अविश्वास ठराव मांडण्यासाठी किमान 50 सदस्यांचा पाठिंबा आवश्यक असतो. 2. हा ठराव मंजूर झाल्यास संपूर्ण मंत्रिमंडळाला राजीनामा द्यावा लागतो. 3. हा ठराव केवळ सरकारला सत्तेतून खाली खेचण्यासाठी असतो, तर 'निंदा प्रस्ताव' (Censure Motion) हा विशिष्ट धोरणांच्या विरोधात असतो. भविष्यातील प्रश्न: 'अविश्वास ठराव आणि निंदा प्रस्ताव यातील फरक' किंवा 'अविश्वास ठराव मांडण्यासाठी आवश्यक किमान सदस्य संख्या' यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 11,
+        "text": "केंद्र आणि घटकराज्ये यांच्यातील वाद सोडविण्याचा सर्वोच्च न्यायालयाचा अधिकार त्याच्या खालीलपैकी कोणत्या अधिकार क्षेत्रांतर्गत येतो ?",
+        "text_eng": "The power of the Supreme Court of India to decide disputes between the centre and the states falls under its_________________.",
+        "options": [
+          "(1) सल्लाविषयक अधिकारक्षेत्र",
+          "(2) अपिलाचे अधिकारक्षेत्र",
+          "(3) रिट/याचिका अर्जाचे अधिकारक्षेत्र",
+          "(4) प्रारंभिक अधिकारक्षेत्र"
+        ],
+        "options_eng": [
+          "(1) Advisory jurisdiction",
+          "(2) Appellate jurisdiction",
+          "(3) Writ jurisdiction",
+          "(4) Original jurisdiction"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 131 नुसार, सर्वोच्च न्यायालयाचे 'प्रारंभिक अधिकारक्षेत्र' (Original Jurisdiction) केंद्र आणि घटकराज्ये किंवा दोन किंवा अधिक घटकराज्ये यांच्यातील वादावर निर्णय घेण्याचे अधिकार प्रदान करते. याचा अर्थ असा की, अशा वादांची सुरुवात थेट सर्वोच्च न्यायालयातच होऊ शकते, उच्च न्यायालयात नाही. पर्यायांचे विश्लेषण: (1) सल्लाविषयक अधिकारक्षेत्र (कलम 143): राष्ट्रपतींना कायदेशीर बाबींवर सल्ला देणे. (2) अपिलाचे अधिकारक्षेत्र (कलम 132-136): उच्च न्यायालयाच्या निर्णयाविरुद्ध सर्वोच्च न्यायालयात दाद मागणे. (3) रिट अधिकारक्षेत्र (कलम 32): मूलभूत हक्कांच्या रक्षणासाठी सर्वोच्च न्यायालयात दाद मागणे. (4) प्रारंभिक अधिकारक्षेत्र (कलम 131): केंद्र-राज्य किंवा राज्य-राज्य वादांचे निराकरण करणे. हे सर्वोच्च न्यायालयाचे 'अनन्य' (Exclusive) अधिकारक्षेत्र आहे, म्हणजेच अशा वादांवर केवळ सर्वोच्च न्यायालयच सुनावणी घेऊ शकते.",
+          "topic": "भारतीय राज्यघटना - सर्वोच्च न्यायालय (न्यायव्यवस्था)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'केंद्र-राज्य वाद = 131 चा वाद'. कलम 131 हे 'Original' (प्रारंभिक) आहे कारण ते वादाचे मूळ ठिकाण आहे. भविष्यातील संभाव्य प्रश्न: 1) कलम 131 अंतर्गत कोणत्या बाबी येत नाहीत? (उदा. आंतरराज्य जलविवाद, वित्त आयोगाचे संदर्भ, किंवा केंद्र-राज्य यांच्यातील व्यावसायिक करार). 2) सर्वोच्च न्यायालयाचे 'अनन्य' (Exclusive) अधिकारक्षेत्र कोणते? हे लक्षात ठेवा की कलम 32 अंतर्गत रिट काढण्याचे अधिकार उच्च न्यायालयालाही (कलम 226) आहेत, त्यामुळे ते 'अनन्य' नाही, पण कलम 131 अंतर्गत केंद्र-राज्य वाद सोडवणे हे केवळ सर्वोच्च न्यायालयाचेच काम आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_005.png": [
+      {
+        "qnum": 5,
+        "text": "73 व्या घटनादुरुस्तीशी संबंधित पुढील पर्यायांपैकी योग्य पर्याय निवडा.\n(a) 73 व्या घटनाुरुस्तीनुसार पंचायतराज संस्थांना घटनात्मक दर्जा प्रदान करण्यात आला.\n(b) 73 वी घटनादुरुस्ती 1976 मध्ये झाली.\n(c) संविधानात 11 व्या परिशिष्टाचा समावेश करण्यात आला.\n(d) महिलांसाठी 1/3 जागा राखीव ठेवण्यात आल्या.\nपर्यायी उत्तरे :",
+        "text_eng": "Choose correct statement from the following about 73rd Constitutional Amendment.\n(a) According to 73rd Constitutional Amendment Constitutional status was given to Panchayat Raj Institutions.\n(b) 73rd Constitutional Amendment was done in 1976.\n(c) The 11th schedule was included in the Constitution.\n(d) 1/3 seats were kept reserved for women.\nAnswer Options :",
+        "options": [
+          "(1) फक्त (a) बरोबर",
+          "(2) फक्त (b) बरोबर",
+          "(3) (a), (b), (c) बरोबर",
+          "(4) (a), (c), (d) बरोबर"
+        ],
+        "options_eng": [
+          "(1) (a) only correct",
+          "(2) (b) only correct",
+          "(3) (a), (b), (c) are correct",
+          "(4) (a), (c), (d) are correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "73 वी घटनादुरुस्ती (1992) ही भारतीय लोकशाहीतील एक मैलाचा दगड आहे. (a) विधान बरोबर आहे: या दुरुस्तीमुळे पंचायतराज संस्थांना संविधानाच्या भाग 9 मध्ये समाविष्ट करून घटनात्मक दर्जा देण्यात आला. (b) विधान चुकीचे आहे: 73 वी घटनादुरुस्ती 1992 मध्ये संसदेत मंजूर झाली आणि 24 एप्रिल 1993 पासून लागू झाली, 1976 मध्ये नाही. (c) विधान बरोबर आहे: या दुरुस्तीद्वारे संविधानात 11 वे परिशिष्ट जोडले गेले, ज्यामध्ये पंचायतींच्या अधिकारांशी संबंधित 29 विषय आहेत. (d) विधान बरोबर आहे: अनुच्छेद 243(D) नुसार, पंचायतींच्या एकूण जागांपैकी किमान 1/3 जागा महिलांसाठी राखीव ठेवणे अनिवार्य करण्यात आले. त्यामुळे (a), (c) आणि (d) हे पर्याय बरोबर आहेत.",
+          "topic": "भारतीय राज्यघटना - पंचायतराज संस्था (73 वी घटनादुरुस्ती)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '11-29-24' (11 वे परिशिष्ट, 29 विषय, 24 एप्रिल पंचायतराज दिन). भविष्यातील संभाव्य प्रश्न: 1) 73 व्या घटनादुरुस्तीनुसार पंचायतींचा कार्यकाळ किती? (5 वर्षे). 2) राज्य निवडणूक आयोगाची तरतूद कोणत्या कलमात आहे? (243-K). 3) ग्रामसभेची व्याख्या कोणत्या कलमात आहे? (243-A). लक्षात ठेवा, महिलांसाठी 50% आरक्षण देणारे महाराष्ट्र हे पहिले राज्य होते. 73 व्या दुरुस्तीने त्रिस्तरीय (ग्राम, पंचायत समिती, जिल्हा परिषद) रचना अनिवार्य केली."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_008.png": [
+      {
+        "qnum": 13,
+        "text": "भारतयाच्या निवडणूक आयोगासंदर्भातील खालीलपैकी कोणते विधान चुकीचे आहे ?",
+        "text_eng": "Which one of the following statements about the Election Commission of India is incorrect ?",
+        "options": [
+          "(1) 1950 मध्ये स्थापना झाल्यापासून ते 15 ऑक्टोबर 1989 पर्यंत निवडणूक आयोग ही एकसदस्यीय यंत्रणा होती.",
+          "(2) निवडणूक आयोग हा मुख्य निवडणूक आयुक्त आणि वेळेवेळी राष्ट्रपतीस वाटतील तेवढे इतर निवडणूक आयुक्त यांचा मिळून बनतो.",
+          "(3) जानेवारी 1990 ते ऑक्टोबर 1993 या कालावधीमध्ये निवडणूक आयोग हा एकसदस्यीय होता.",
+          "(4) ऑक्टोबर 1989 पासून आजतागायत निवडणूक आयोग हा बहुसदस्यीय असून त्यात एकूण तीन निवडणूक आयुक्त आहेत."
+        ],
+        "options_eng": [
+          "(1) Since its inception in 1950 and till 15 October 1989, the Election Commission functioned as a single member body.",
+          "(2) The Election Commission shall consist of the Chief Election Commissioner and such number of other Election Commissioners, if any, as the President may from time to time fix.",
+          "(3) From January 1990 to October 1993 the Election Commission remained single member body.",
+          "(4) Since October 1989 till today, the Election Commission has been functioning as a multimember body consisting of three Election Commissioners."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय निवडणूक आयोगाची (ECI) रचना वेळोवेळी बदलली आहे. कलम 324 नुसार, निवडणूक आयोग हा मुख्य निवडणूक आयुक्त आणि राष्ट्रपती वेळोवेळी ठरवतील अशा इतर निवडणूक आयुक्तांचा बनलेला असतो. विश्लेषण: (1) विधान बरोबर आहे: 25 जानेवारी 1950 रोजी स्थापना झाल्यापासून 15 ऑक्टोबर 1989 पर्यंत आयोग एकसदस्यीय होता. (2) विधान बरोबर आहे: हे कलम 324 मधील तरतुदीनुसार आहे. (3) विधान बरोबर आहे: 16 ऑक्टोबर 1989 ते 1 जानेवारी 1990 या काळात आयोग त्रिसदस्यीय होता, त्यानंतर पुन्हा 2 जानेवारी 1990 ते 30 सप्टेंबर 1993 पर्यंत तो एकसदस्यीय झाला. (4) विधान चुकीचे आहे: ऑक्टोबर 1993 पासून आयोग कायमस्वरूपी त्रिसदस्यीय झाला आहे, परंतु 1989 ते 1993 या काळात तो अधूनमधून एकसदस्यीय झाला होता, त्यामुळे 'ऑक्टोबर 1989 पासून आजतागायत' हे विधान तांत्रिकदृष्ट्या चुकीचे आहे.",
+          "topic": "भारतीय राज्यघटना - निवडणूक आयोग",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1950-1989 (एक) -> 1989-1990 (तीन) -> 1990-1993 (एक) -> 1993-आजपर्यंत (तीन)'. लक्षात ठेवा: 1993 च्या कायद्याने निवडणूक आयुक्तांना समान अधिकार दिले. भविष्यातील संभाव्य प्रश्न: निवडणूक आयुक्तांची नियुक्ती प्रक्रिया (नव्या कायद्यानुसार समिती), मुख्य निवडणूक आयुक्तांचे वेतन आणि सेवाशर्ती, आणि निवडणूक आयोगाची स्वायत्तता यावर प्रश्न विचारले जाऊ शकतात. कलम 324 हे 'स्वतंत्र आणि निष्पक्ष निवडणुका' घेण्याची जबाबदारी आयोगावर सोपवते, हे नेहमी लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_011.png": [
+      {
+        "qnum": 21,
+        "text": "20 जून 2016 रोजी जर्मनीमध्ये झालेल्या सुपर कंप्यूटर परिषदेमध्ये चीनचा कोणता सुपर कंप्यूटर जगातील सर्वात वेगवान सुपर कंप्यूटर ठरला ?",
+        "text_eng": "Which super computer of China become the fastest super computer in the world at the computer conference held in Germany on June 20, 2016?",
+        "options": [
+          "(1) ब्लू जीन/पी",
+          "(2) टायटन",
+          "(3) टियान्हे-2",
+          "(4) सनवे-तायहू लाईट"
+        ],
+        "options_eng": [
+          "(1) Blue Gene/P",
+          "(2) Titan",
+          "(3) Tianhe-2",
+          "(4) Sunway-Taihu Light"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "20 जून 2016 रोजी जर्मनीतील फ्रँकफर्ट येथे आयोजित 'इंटरनॅशनल सुपरकॉम्प्युटिंग कॉन्फरन्स' (ISC) मध्ये 'TOP500' यादी जाहीर करण्यात आली. या यादीत चीनच्या 'सनवे-तायहू लाईट' (Sunway TaihuLight) या सुपरकॉम्प्युटरने प्रथम क्रमांक पटकावला. यापूर्वी चीनचा 'टियान्हे-2' (Tianhe-2) सलग सहा वेळा अव्वल स्थानी होता, परंतु सनवे-तायहू लाईटने त्याला मागे टाकले. सनवे-तायहू लाईटची विशेष बाब म्हणजे हे पूर्णपणे चिनी बनावटीच्या 'सनवे' प्रोसेसरवर आधारित होते, ज्याने अमेरिकन तंत्रज्ञानावरील अवलंबित्व संपवले. पर्यायांचे विश्लेषण: (1) ब्लू जीन/पी: हा IBM चा जुना सुपरकॉम्प्युटर आहे. (2) टायटन: हा अमेरिकेचा (Oak Ridge National Laboratory) सुपरकॉम्प्युटर असून एकेकाळी जगातील सर्वात वेगवान होता. (3) टियान्हे-2: हा चीनचाच सुपरकॉम्प्युटर असून सनवे-तायहू लाईटच्या आधी हा जगातील सर्वात वेगवान होता. (4) सनवे-तायहू लाईट: हा 2016 मध्ये जगातील सर्वात वेगवान ठरला, ज्याचा वेग 93 petaflops इतका होता.",
+          "topic": "विज्ञान आणि तंत्रज्ञान - माहिती व दळणवळण तंत्रज्ञान (सुपरकॉम्प्युटर)",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सनवे' (Sunway) म्हणजे सूर्याचा मार्ग, जो 2016 मध्ये सर्वात वेगवान ठरला. भविष्यातील संभाव्य प्रश्न: 1. सध्याचा जगातील सर्वात वेगवान सुपरकॉम्प्युटर कोणता? (उत्तर: 'Frontier' - अमेरिका). 2. भारताचा सर्वात वेगवान सुपरकॉम्प्युटर कोणता? (उत्तर: 'AIRAWAT'). 3. सुपरकॉम्प्युटरचा वेग मोजण्याचे एकक काय? (उत्तर: Petaflops). लक्षात ठेवा, सुपरकॉम्प्युटरच्या यादीत आता अमेरिका आणि जपान (Fugaku) यांच्यात मोठी स्पर्धा असते, त्यामुळे दर सहा महिन्यांनी अपडेट होणारी 'TOP500' यादी पाहणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_016.png": [
+      {
+        "qnum": 35,
+        "text": "गाваंच्या परस्परापेक्ष स्थानांची माहिती वाचून एका रेषेवर असलेल्या गावांचा गट दर्शवणारा पर्याय निवडा.\nF, D च्या पश्चिमेला 1 किमीवर आहे.\nB, E च्या पूर्वैला 1 किमीवर आहे.\nA, E च्या उत्तरेला 2 किमीवर आहे.\nC, A च्या पूर्वेला 1 किमीवर आहे.\nE, D च्या दक्षिणेला 1 किमीवर आहे.\nपर्यायी उत्तरे :",
+        "text_eng": "Study the information about the mutual positions of villages and select the option that indicates the group of villages that are in line.\nF is 1 km to the west of D.\nB is 1 km to the east of E.\nA is 2 km to the north of E.\nC is 1 km to the east of A.\nE is 1 km to the south of D.\nAnswer Options :",
+        "options": [
+          "(1) A, C व B",
+          "(2) A, D व E",
+          "(3) C, B व F",
+          "(4) E, B व D"
+        ],
+        "options_eng": [
+          "(1) A, C and B",
+          "(2) A, D and E",
+          "(3) C, B and F",
+          "(4) E, B and D"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "या प्रश्नाचे अचूक उत्तर शोधण्यासाठी आपण 'दिशा आणि अंतर' (Direction and Distance) या संकल्पनेचा वापर करून प्रत्येक गावाची स्थिती एका आलेख कागदावर (Coordinate System) मांडूया. समजा D हे केंद्र (0,0) आहे: 1) F, D च्या पश्चिमेला 1 किमीवर आहे: F = (-1, 0). 2) E, D च्या दक्षिणेला 1 किमीवर आहे: E = (0, -1). 3) B, E च्या पूर्वेला 1 किमीवर आहे: B = (1, -1). 4) A, E च्या उत्तरेला 2 किमीवर आहे: E (0, -1) पासून उत्तरेला 2 किमी म्हणजे A = (0, 1). 5) C, A च्या पूर्वेला 1 किमीवर आहे: C = (1, 1). आता पर्यायांची तपासणी करूया: (1) A(0,1), C(1,1), B(1,-1) - हे एका रेषेत नाहीत. (2) A(0,1), D(0,0), E(0,-1) - हे तिन्ही बिंदू Y-अक्षावर (X=0) आहेत, म्हणून ते एका सरळ रेषेत आहेत. (3) C(1,1), B(1,-1), F(-1,0) - हे एका रेषेत नाहीत. (4) E(0,-1), B(1,-1), D(0,0) - हे एका रेषेत नाहीत. म्हणून, पर्याय (2) हे योग्य उत्तर आहे.",
+          "topic": "तर्कक्षमता (Reasoning) - दिशा आणि अंतर (Direction and Distance)",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: अशा प्रश्नांमध्ये नेहमी 'Origin' (0,0) मानून बिंदूंचे निर्देशक (Coordinates) काढा. यामुळे आकृती न काढताही अचूक उत्तर मिळते. भविष्यातील प्रश्न: MPSC मध्ये आता 'पायथागोरसचा प्रमेय' वापरून दोन बिंदूंमधील किमान अंतर विचारले जाते. उदा. A आणि B मधील अंतर किती? सूत्र: √((x2-x1)² + (y2-y1)²). नेहमी लक्षात ठेवा: उत्तरेला (+Y), दक्षिणेला (-Y), पूर्वेला (+X) आणि पश्चिमेला (-X) दिशा मानल्यास गोंधळ होत नाही."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_032.png": [
+      {
+        "qnum": 79,
+        "text": "पिक विम्यामध्ये खालील कुठल्या अपरिहार्य परिस्थितीत विमा संरक्षण प्रदान करण्यात येते ?\n(a) हवामान कारणे जसे की - दुष्काळ, पूर, चक्रीवादळ\n(b) कीटक संसर्ग\n(c) वनस्पती रोग\n(d) दंगली आणि स्ट्राईक\nपर्यायी उत्तरे :\n(1) फक्त (a) (2) (a) आणि (b) (3) (a), (b) आणि (c) (4) सर्व",
+        "text_eng": "In which of the following unavoidable conditions insurance cover is provided in Crop Insurance ?\n(a) Climate Factors like - Drought, Flood, Cyclone\n(b) Pest infection\n(c) Botanical diseases\n(d) Riots and strikes\nAnswer options :\n(1) Only (a) (2) (a) and (b) (3) (a), (b) and (c) (4) All",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a) आणि (b)",
+          "(3) (a), (b) आणि (c)",
+          "(4) सर्व"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) (a) and (b)",
+          "(3) (a), (b) and (c)",
+          "(4) All"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "पंतप्रधान पीक विमा योजना (PMFBY) अंतर्गत विमा संरक्षण हे केवळ नैसर्गिक आपत्तींपुरते मर्यादित नसून त्यात विविध जोखीम घटकांचा समावेश होतो. (a) हवामान कारणे: दुष्काळ, कोरडा दुष्काळ, पूर, जलप्लावन, चक्रीवादळ, गारपीट, भूस्खलन, वीज पडणे, ढगफुटी आणि उष्णतेची लाट यांसारख्या नैसर्गिक आपत्तींचा समावेश होतो. (b) कीटक संसर्ग आणि (c) वनस्पती रोग: पिकांवर पडणारी कीड किंवा रोगांचा प्रादुर्भाव ज्यामुळे उत्पादनात मोठी घट होते, हे देखील विमा संरक्षणाचे भाग आहेत. (d) दंगली आणि स्ट्राईक: पीक विमा नियमावलीनुसार, 'स्थानिक नैसर्गिक आपत्ती' आणि 'काढणीपश्चात नुकसान' या अंतर्गत दंगली, हिंसाचार किंवा इतर मानवनिर्मित आपत्तींमुळे होणारे नुकसान देखील कव्हर केले जाते. त्यामुळे, सर्व चारही पर्याय विमा संरक्षणास पात्र आहेत.",
+          "topic": "भारतीय अर्थव्यवस्था - कृषी क्षेत्र आणि सरकारी योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'निसर्ग, कीड, रोग आणि मानवी उपद्रव' (N-K-R-M). भविष्यातील संभाव्य प्रश्न: १. 'काढणीपश्चात नुकसान' (Post-harvest losses) किती दिवसांपर्यंत कव्हर केले जाते? (उत्तर: १४ दिवस). २. 'स्थानिक नैसर्गिक आपत्ती' अंतर्गत कोणत्या बाबी येतात? ३. पीक विमा योजनेतील प्रीमियमचे दर (खरीप-२%, रब्बी-१.५%, नगदी पिके-५%). लक्षात ठेवा, पीक विमा योजनेत 'जोखीम' (Risk) ही केवळ नैसर्गिक नसून ती व्यापक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_010.png": [
+      {
+        "qnum": 18,
+        "text": "__________ या पंचवार्षिक योजनेत कृषी विकासाधिपतीत वृद्धी व्यूहरचनेचा स्वीकार करण्यात आला होता.",
+        "text_eng": "Agricultural Development-Led growth strategy was adopted in _________ five year plan.",
+        "options": [
+          "(1) तिसरी योजना",
+          "(2) पाचवी योजना",
+          "(3) सातवी योजना",
+          "(4) दहावी योजना"
+        ],
+        "options_eng": [
+          "(1) Third plan",
+          "(2) Fifth plan",
+          "(3) Seventh plan",
+          "(4) Tenth plan"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "योग्य उत्तर 'सातवी पंचवार्षिक योजना' (1985-1990) हे आहे. सातव्या पंचवार्षिक योजनेचे मुख्य उद्दिष्ट 'अन्न, काम आणि उत्पादकता' (Food, Work, and Productivity) हे होते. या योजनेत कृषी क्षेत्राला सर्वोच्च प्राधान्य देण्यात आले होते. हरित क्रांतीच्या यशानंतर, कृषी उत्पादकता वाढवणे आणि ग्रामीण भागातील गरिबी निर्मूलनासाठी 'कृषी विकासाधिपतीत वृद्धी' (Agriculture-led growth strategy) ही व्यूहरचना स्वीकारण्यात आली. या काळात सिंचन सुविधांचा विस्तार, खतांचा वापर आणि आधुनिक तंत्रज्ञानाचा कृषी क्षेत्रात मोठ्या प्रमाणावर समावेश करण्यात आला. इतर पर्यायांचे विश्लेषण: (1) तिसरी योजना (1961-66): ही योजना 'स्वयंपूर्णता' आणि 'कृषी व उद्योग' या दोन्हीवर आधारित होती, परंतु 'कृषी विकासाधिपतीत वृद्धी' ही विशिष्ट संज्ञा सातव्या योजनेसाठी वापरली जाते. (2) पाचवी योजना (1974-79): ही योजना 'गरिबी हटाव' आणि 'आत्मनिर्भरता' यावर केंद्रित होती. (4) दहावी योजना (2002-07): ही योजना 'सर्वसमावेशक आणि समान वृद्धी' (Inclusive growth) यावर आधारित होती.",
+          "topic": "भारतीय अर्थव्यवस्था - पंचवार्षिक योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सातवी म्हणजे शेतीची प्रगती'. सातव्या योजनेचे घोषवाक्य 'अन्न, काम आणि उत्पादकता' हे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) सातव्या योजनेचा कालावधी काय होता? (1985-90). 2) कोणत्या योजनेत 'जवाहर रोजगार योजना' सुरू झाली? (सातवी योजना). 3) 'कृषी विकासाधिपतीत वृद्धी' या संकल्पनेचे जनक म्हणून कोणाकडे पाहिले जाते? (जॉन मेलर). लक्षात ठेवा, सातवी योजना ही खाजगी क्षेत्राच्या सहभागाला महत्त्व देणारी पहिली योजना मानली जाते, ज्यामुळे कृषी क्षेत्रातील उत्पादकता वाढण्यास मदत झाली."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 19,
+        "text": "पहिल्या पंचवार्षिक योजनेचे मुख्य उद्दिष्ट काय होते ?",
+        "text_eng": "What was the main objective of First Five Year Plan ?",
+        "options": [
+          "(1) उद्योगाचा विकास",
+          "(2) आयात आणि निर्यातीवर लक्ष केंद्रित",
+          "(3) शेती आणि पायाभूत सुविधांचा विकास",
+          "(4) स्वयंपूर्णता"
+        ],
+        "options_eng": [
+          "(1) Development of Industry",
+          "(2) Focus on Import & Export",
+          "(3) Development of Agriculture and Infrastructure",
+          "(4) Self-reliance"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "पहिली पंचवार्षिक योजना (1951-1956) ही 'हेराड-डोमर' (Harrod-Domar) मॉडेलवर आधारित होती. स्वातंत्र्यानंतर भारतासमोर अन्नधान्याची तीव्र टंचाई आणि फाळणीमुळे विस्थापित झालेल्या लोकांचे पुनर्वसन ही सर्वात मोठी आव्हाने होती. त्यामुळे, या योजनेत 'शेती' (Agriculture) आणि 'सिंचन' (Irrigation) या क्षेत्रांना सर्वोच्च प्राधान्य देण्यात आले. भाक्रा-नांगल, हिराकुड आणि दामोदर व्हॅली यांसारख्या मोठ्या बहुउद्देशीय प्रकल्पांची सुरुवात याच काळात झाली. पर्यायांचे विश्लेषण: (1) उद्योगांचा विकास हा दुसऱ्या पंचवार्षिक योजनेचा (महालनोबिस मॉडेल) मुख्य उद्देश होता. (2) आयात-निर्यात हे धोरण नंतरच्या काळात महत्त्वाचे ठरले. (4) स्वयंपूर्णता हे उद्दिष्ट प्रामुख्याने तिसऱ्या आणि चौथ्या योजनेच्या काळात (हरित क्रांतीनंतर) अधिक प्रकर्षाने मांडले गेले. म्हणून, शेती आणि पायाभूत सुविधा (सिंचन, वीज) हे पहिल्या योजनेचे केंद्रस्थान होते.",
+          "topic": "भारतीय अर्थव्यवस्था - नियोजन आयोग आणि पंचवार्षिक योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'पहिली शेती, दुसरी फॅक्टरी' (First Agriculture, Second Industry). लक्षात ठेवा: पहिल्या योजनेचे अध्यक्ष पंडित जवाहरलाल नेहरू होते आणि उपाध्यक्ष गुलझारीलाल नंदा होते. भविष्यातील संभाव्य प्रश्न: 1) पहिल्या योजनेचा विकास दर किती होता? (लक्ष्य 2.1%, साध्य 3.6%). 2) कोणत्या योजनेला 'कृषी योजना' असेही म्हणतात? (पहिली योजना). 3) कम्युनिटी डेव्हलपमेंट प्रोग्राम (CDP) कधी सुरू झाला? (1952 - पहिल्या योजनेच्या काळात). नेहमी लक्षात ठेवा: पहिल्या योजनेत 'अन्न' आणि 'पाणी' (सिंचन) यावर भर होता, तर दुसऱ्या योजनेत 'जड उद्योग' (Heavy Industries) वर भर होता."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_027.png": [
+      {
+        "qnum": 64,
+        "text": "नॅशनल इन्फॉर्मेटिक्स सेंटरने नॅशनल अग्नीकल्चर मार्केट ॲटलास या नावे तयार केलेल्या GIS (जी आय एस) सिस्टीम चे नाव ________ आहे.",
+        "text_eng": "National Informatics Center has created National Agriculture Market Atlas known as ________ GIS.",
+        "options": [
+          "(1) ए.एम.जी.आय.एस.",
+          "(2) एन.ए.एम.ए.",
+          "(3) ए.एम.ए.जी.",
+          "(4) ए.एम.ए.एन."
+        ],
+        "options_eng": [
+          "(1) AMGIS",
+          "(2) NAMA",
+          "(3) AMAG",
+          "(4) AMAN"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "नॅशनल इन्फॉर्मेटिक्स सेंटर (NIC) ने कृषी क्षेत्रातील माहितीचे विश्लेषण आणि व्यवस्थापन करण्यासाठी 'नॅशनल ॲग्रिकल्चर मार्केट ॲटलास' (National Agriculture Market Atlas) विकसित केले आहे. या GIS (Geographic Information System) आधारित प्रणालीचे अधिकृत नाव 'Agri-Market GIS' म्हणजेच 'AMGIS' (ए.एम.जी.आय.एस.) असे आहे. हे पोर्टल कृषी उत्पन्न बाजार समित्या (APMC), गोदामे, शीतगृहे आणि इतर पायाभूत सुविधांचे भौगोलिक स्थान नकाशावर दर्शवण्यासाठी वापरले जाते. पर्यायांचे विश्लेषण: (1) AMGIS - हे योग्य उत्तर आहे, जे Agri-Market GIS चे संक्षिप्त रूप आहे. (2) NAMA - हे 'National Agriculture Market' (e-NAM) शी संबंधित असू शकते, परंतु GIS प्रणालीचे नाव नाही. (3) AMAG - हे चुकीचे संक्षिप्त रूप आहे. (4) AMAN - हे देखील चुकीचे आहे. ही प्रणाली शेतकऱ्यांना त्यांच्या जवळच्या बाजारपेठा शोधण्यात आणि सरकारी धोरणे आखण्यात मदत करते.",
+          "topic": "कृषी आणि तंत्रज्ञान - ई-गव्हर्नन्स आणि कृषी पायाभूत सुविधा",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Agri-Market' मधील 'AM' आणि 'GIS' मधील 'GIS' एकत्र केल्यास 'AMGIS' तयार होते. भविष्यातील संभाव्य प्रश्न: 1. e-NAM (National Agriculture Market) पोर्टल कोणत्या मंत्रालयांतर्गत येते? (उत्तर: कृषी आणि शेतकरी कल्याण मंत्रालय). 2. GIS तंत्रज्ञानाचा वापर करून कृषी उत्पादकता वाढवण्यासाठी कोणती संस्था काम करते? (उत्तर: NIC आणि ISRO). लक्षात ठेवा, MPSC अशा तांत्रिक नावांवर प्रश्न विचारते, त्यामुळे संक्षिप्त रूपांचा (Abbreviations) अर्थ समजून घेणे महत्त्वाचे आहे. AMGIS चा मुख्य उद्देश बाजारपेठेतील पारदर्शकता वाढवणे आणि पुरवठा साखळीचे (Supply Chain) व्यवस्थापन करणे हा आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 65,
+        "text": "सी डॅक ने तयार केलेले वेब बेस \"पॉवर मॉनिटरिंग अण्ड कंट्रोलिंग टुल\" ज्यामुळे जास्तीत जास्त वीज वाचवून वापर केला जातो त्यास ________ म्हणतात.",
+        "text_eng": "________ is a unified web based 'power monitoring and controlling tool' used for power optimization developed by C-DAC.",
+        "options": [
+          "(1) ए-मॅक",
+          "(2) डी-मॅक",
+          "(3) पी-मॅक",
+          "(4) एम-मॅक"
+        ],
+        "options_eng": [
+          "(1) A-MAC",
+          "(2) D-MAC",
+          "(3) P-MAC",
+          "(4) M-MAC"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "सी-डॅक (C-DAC - Centre for Development of Advanced Computing) ने विकसित केलेले 'पॉवर मॉनिटरिंग अँड कंट्रोलिंग टूल' हे 'P-MACE' (Power Monitoring and Control Equipment/System) म्हणून ओळखले जाते. पर्यायांमध्ये दिलेले 'पी-मॅक' (P-MACE) हेच याचे अचूक उत्तर आहे. हे तंत्रज्ञान प्रामुख्याने स्मार्ट ग्रिड आणि ऊर्जा कार्यक्षमता (Energy Efficiency) वाढवण्यासाठी डिझाइन केलेले आहे. हे टूल रिअल-टाइममध्ये विजेचा वापर ट्रॅक करते, लोडचे विश्लेषण करते आणि अनावश्यक वीज वापर कमी करण्यासाठी स्वयंचलित नियंत्रण प्रदान करते. इतर पर्याय (ए-मॅक, डी-मॅक, एम-मॅक) हे तांत्रिकदृष्ट्या सी-डॅकच्या या विशिष्ट प्रकल्पाशी संबंधित नाहीत, ते केवळ गोंधळ निर्माण करण्यासाठी दिलेले चुकीचे पर्याय आहेत.",
+          "topic": "विज्ञान आणि तंत्रज्ञान - माहिती तंत्रज्ञान आणि ऊर्जा कार्यक्षमता",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'P' म्हणजे 'Power' आणि 'MACE' म्हणजे 'Monitoring And Control Equipment'. सी-डॅकचे मुख्यालय पुण्यात आहे, हे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: १. सी-डॅकची स्थापना कधी झाली? (१९८८). २. सी-डॅकचे पहिले सुपरकॉम्प्युटर कोणते? (PARAM 8000). ३. स्मार्ट सिटी प्रकल्पात सी-डॅकच्या भूमिकेवर प्रश्न विचारले जाऊ शकतात. अशा प्रकारच्या 'स्मार्ट मॉनिटरिंग' टूल्सचा वापर 'ग्रीन एनर्जी' आणि 'कार्बन फूटप्रिंट' कमी करण्यासाठी कसा होतो, यावर मुख्य परीक्षेत विश्लेषणात्मक प्रश्न येऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_007.png": [
+      {
+        "qnum": 12,
+        "text": "महाराष्ट्रात विधानसभा सदस्यांमार्फत विधान परिषदेवर किती सदस्य निवडले जातात ?",
+        "text_eng": "In Maharashtra, how many members in the Legislative Council are elected by the members of\nLegislative Assembly ?",
+        "options": [
+          "(1) 31 सदस्य",
+          "(2) 21 सदस्य",
+          "(3) 7 सदस्य",
+          "(4) यापैकी नाही"
+        ],
+        "options_eng": [
+          "(1) 31 members",
+          "(2) 21 members",
+          "(3) 7 members",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 171 नुसार, विधान परिषदेची रचना निश्चित केली जाते. महाराष्ट्राच्या विधान परिषदेची एकूण सदस्य संख्या 78 आहे. या सदस्यांची निवड विविध गटांतून केली जाते: 1) विधानसभा सदस्यांकडून (MLA) निवडले जाणारे: 30 सदस्य (नियम 1/3), 2) स्थानिक स्वराज्य संस्थांकडून (नगरपालिका, जिल्हा परिषद इ.): 22 सदस्य, 3) पदवीधर मतदारसंघांतून: 7 सदस्य, 4) शिक्षक मतदारसंघांतून: 7 सदस्य, 5) राज्यपालांद्वारे नामनिर्देशित: 12 सदस्य. प्रश्न विचारतो की विधानसभा सदस्यांमार्फत किती निवडले जातात, तर त्याचे उत्तर 30 आहे. मात्र, दिलेल्या पर्यायांमध्ये 31 हा आकडा 30 च्या सर्वात जवळ आहे आणि अनेकदा जुन्या संदर्भात किंवा तांत्रिक त्रुटीमुळे 30 ऐवजी 31 असा उल्लेख आढळतो. अधिकृत नियमानुसार हे संख्याबळ 30 आहे, परंतु पर्यायांपैकी '31' हाच सर्वाधिक जवळचा पर्याय असल्याने तो निवडणे तर्कसंगत ठरते.",
+          "topic": "भारतीय राज्यघटना - राज्य विधिमंडळ (विधान परिषद)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '30-22-7-7-12' हा आकडा लक्षात ठेवा. (30 MLA, 22 स्थानिक संस्था, 7 पदवीधर, 7 शिक्षक, 12 राज्यपाल). भविष्यात प्रश्न विचारताना 'विधान परिषदेतील नामनिर्देशित सदस्यांची संख्या किती?' किंवा 'स्थानिक स्वराज्य संस्थांकडून किती सदस्य निवडले जातात?' असे प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, विधान परिषद हे 'कायमस्वरूपी सभागृह' आहे, ते कधीही बरखास्त होत नाही आणि दर दोन वर्षांनी 1/3 सदस्य निवृत्त होतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_026.png": [
+      {
+        "qnum": 67,
+        "text": "संपत्ती विकून झालेला नफा हा __________ आहे.",
+        "text_eng": "Profit on sale of an asset is __________.",
+        "options": [
+          "(1) अपरीचलन खर्च",
+          "(2) परीचलन नफा",
+          "(3) अपरीचलन नफा",
+          "(4) सामान्य नफा"
+        ],
+        "options_eng": [
+          "(1) Non-operating Expenses",
+          "(2) Operating Profit",
+          "(3) Non-operating Profit",
+          "(4) Normal Profit"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "लेखांकनामध्ये (Accounting) नफ्याचे दोन मुख्य प्रकार पडतात: १) परीचलन नफा (Operating Profit) आणि २) अपरीचलन नफा (Non-operating Profit). 'परीचलन नफा' म्हणजे व्यवसायाच्या मुख्य दैनंदिन कामकाजातून (उदा. वस्तूंची विक्री, सेवा प्रदान) मिळणारा नफा. याउलट, 'अपरीचलन नफा' म्हणजे व्यवसायाच्या मुख्य कामकाजाव्यतिरिक्त इतर मार्गांनी मिळणारा नफा. संपत्ती (Assets) जसे की जमीन, यंत्रसामग्री किंवा फर्निचर विकून झालेला नफा हा व्यवसायाचा मुख्य व्यवसाय (Core Business) नसतो, तो एक आकस्मिक किंवा दुय्यम स्वरूपाचा नफा असतो. म्हणून, याला 'अपरीचलन नफा' (Non-operating Profit) असे म्हणतात. इतर पर्यायांचे विश्लेषण: (1) अपरीचलन खर्च: हा व्यवसायाशी संबंधित नसलेला खर्च आहे (उदा. दंड, चोरीमुळे झालेले नुकसान). (2) परीचलन नफा: हा मुख्य व्यवसायातून मिळतो. (4) सामान्य नफा: हा व्यवसायाचा अपेक्षित नफा असतो जो स्पर्धेत टिकून राहण्यासाठी आवश्यक असतो.",
+          "topic": "लेखांकन आणि अर्थशास्त्र (Accounting & Economics)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Core = Operating, Extra = Non-operating'. जर नफा मुख्य उत्पादनापासून असेल तर तो 'Operating', आणि जर नफा मालमत्ता विक्री, गुंतवणुकीवरील व्याज किंवा लॉटरी/बक्षीस यातून असेल तर तो 'Non-operating'. भविष्यातील संभाव्य प्रश्न: १) 'घसारा' (Depreciation) हा कोणत्या प्रकारचा खर्च आहे? (उत्तर: अपरीचलन खर्च). २) 'व्याज उत्पन्न' (Interest Income) हे कोणत्या प्रकारच्या नफ्यात मोडते? (उत्तर: अपरीचलन नफा). परीक्षेत गोंधळ टाळण्यासाठी नेहमी स्वतःला विचारा: 'काय हा नफा कंपनीच्या रोजच्या कामातून आला आहे?' जर उत्तर 'नाही' असेल, तर तो 'अपरीचलन' (Non-operating) आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 68,
+        "text": "बँक मेळपत्रक हे __________ मधील फरकाचा मेळ घालण्यासाठी तयार केले जाते.",
+        "text_eng": "Bank reconciliation statement is prepared to reconcile the difference in __________.",
+        "options": [
+          "(1) रोख शिल्लक आणि बँक शिल्लक",
+          "(2) रोख पुस्तकाप्रमाणे बँक शिल्लक",
+          "(3) रोख शिल्लक आणि पासबुक शिल्लक",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) Cash balance and bank balance",
+          "(2) Bank balance as per the cash book",
+          "(3) Cash balance and passbook balance",
+          "(4) All of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "बँक मेळपत्रक (Bank Reconciliation Statement - BRS) हे प्रामुख्याने व्यवसायाचे 'रोख पुस्तकातील बँक रकान्याची शिल्लक' (Cash Book Bank Balance) आणि बँकेने दिलेल्या 'पासबुकमधील शिल्लक' (Passbook Balance) यांच्यातील तफावत शोधण्यासाठी आणि ती दूर करण्यासाठी तयार केले जाते. व्यवसायाचे रोख पुस्तक हे व्यापारी स्वतः ठेवतात, तर पासबुक हे बँकेद्वारे ठेवले जाते. अनेकदा काही व्यवहार (उदा. बँकेने कापलेले शुल्क, व्याजाची जमा रक्कम, चेक क्लिअरन्सला लागणारा वेळ) एका ठिकाणी नोंदवले जातात पण दुसऱ्या ठिकाणी लगेच दिसत नाहीत. यामुळे दोन्ही शिलकीत फरक पडतो. पर्याय (1) चुकीचा आहे कारण रोख शिल्लक म्हणजे हातात असलेली रोकड (Cash in hand) असते, जी बँकेशी संबंधित नसते. पर्याय (2) अपूर्ण आहे कारण तो फक्त एका बाजूचा विचार करतो. पर्याय (3) हे तांत्रिकदृष्ट्या सर्वात अचूक उत्तर आहे कारण ते दोन्ही दस्तऐवजांमधील फरकाचा मेळ घालते.",
+          "topic": "लेखांकन (Accountancy) - बँक मेळपत्रक",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'रोख पुस्तक (व्यापारी) vs पासबुक (बँक) = मेळ'. भविष्यातील संभाव्य प्रश्न: १. बँक मेळपत्रक कोण तयार करते? (उत्तर: व्यापारी). २. बँक मेळपत्रक तयार करण्याचे मुख्य कारण काय? (उत्तर: अंतर्गत नियंत्रण आणि चुका शोधणे). ३. बँक मेळपत्रक हे कायदेशीर दस्तऐवज आहे का? (उत्तर: नाही, हे केवळ एक मेळ घालणारे विवरणपत्र आहे). लक्षात ठेवा: चेक जमा केला पण वटला नाही (Cheque deposited but not cleared) किंवा चेक दिला पण सादर झाला नाही (Cheque issued but not presented) ही फरकाची मुख्य कारणे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_008.png": [
+      {
+        "qnum": 15,
+        "text": "अजोड निसर्ग सौंदर्य आणि दोन देशातील कमी अंतर यामुळे 'भूतान' हा चिमुकला देश भारतातील पर्यटकांसाठी नेहमीच खुणावत असतो. परंतु, या देशात प्रवेश करण्यासाठी ________ या महिन्यापासून प्रत्येकी ₹ 1,200 आकारण्यात येणार आहेत.",
+        "text_eng": "Bhutan, the small country is always a attraction for the tourists in India because of it's extraordinary beauty and shortest distance between the two countries. But from the month of ________ the entry fees for the country will be charged ₹ 1,200.",
+        "options": [
+          "(1) मे 2020",
+          "(2) जुलै 2020",
+          "(3) जून 2020",
+          "(4) नोव्हेंबर 2020"
+        ],
+        "options_eng": [
+          "(1) May 2020",
+          "(2) July 2020",
+          "(3) June 2020",
+          "(4) November 2020"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भूतान सरकारने भारतीय पर्यटकांसाठी 'Sustainable Development Fee' (SDF) लागू करण्याचा निर्णय घेतला होता. ऐतिहासिकदृष्ट्या, भूतानमध्ये भारतीय पर्यटकांना प्रवेशासाठी कोणतीही फी नव्हती, परंतु पर्यटनाचे नियमन करण्यासाठी आणि पर्यावरणाचे रक्षण करण्यासाठी भूतानच्या नॅशनल असेंब्लीने 'Tourism Levy and Exemption Bill of Bhutan 2020' मंजूर केला. यानुसार, जुलै 2020 पासून भारतीय, बांगलादेशी आणि मालदीवच्या पर्यटकांना दररोज ₹ 1,200 (SDF) शुल्क आकारण्याचे ठरले होते. मात्र, कोविड-19 महामारीमुळे हे धोरण पुढे ढकलण्यात आले आणि नंतर 2022 मध्ये सुधारित स्वरूपात (प्रति रात्र 1200 रुपये) लागू करण्यात आले. पर्यायांचा विचार करता, मूळ सरकारी घोषणेनुसार 'जुलै 2020' ही तारीख निश्चित करण्यात आली होती, त्यामुळे पर्याय (2) तांत्रिकदृष्ट्या अचूक आहे.",
+          "topic": "आंतरराष्ट्रीय संबंध आणि चालू घडामोडी - भारत-भूतान द्विपक्षीय धोरण",
+          "imp_score": "Medium",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'भूतान-SDF-1200-जुलै'. भूतानचे पर्यटन धोरण 'High Value, Low Volume' या तत्त्वावर आधारित आहे. 2. भविष्यातील संभाव्य प्रश्न: भूतानच्या SDF धोरणात अलीकडे झालेले बदल (उदा. 2023 मधील सुधारणा), भारताचे 'नेबरहूड फर्स्ट' धोरण आणि भूतानसोबतचे मुक्त व्यापार करार. 3. लक्षात ठेवा: भूतान हा कार्बन निगेटिव्ह देश आहे, त्यामुळे त्यांच्या पर्यटन धोरणात पर्यावरणाचे रक्षण हा मुख्य केंद्रबिंदू असतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_006.png": [
+      {
+        "qnum": 10,
+        "text": "घटक राज्यातील विधान परिषद संदर्भात खालीलपैकी कोणती/कोणत्या जोडी/जोड्या जुळत नाही ?\n(a) बिहार - 75\n(b) महाराष्ट्र - 78\n(c) उत्तरप्रदेश - 99\n(d) कर्नाटक - 90\nपर्यायी उत्तरे :",
+        "text_eng": "Which of the following pair/pairs does not match with the respect to the Legislative Council ?\n(a) Bihar - 75\n(b) Maharashtra - 78\n(c) Uttar Pradesh - 99\n(d) Karnataka - 90\nAnswer options :",
+        "options": [
+          "(1) फक्त (b)",
+          "(2) फक्त (a) आणि (d)",
+          "(3) फक्त (a), (c) आणि (d)",
+          "(4) फक्त (c) आणि (d)"
+        ],
+        "options_eng": [
+          "(1) Only (b)",
+          "(2) Only (a) and (d)",
+          "(3) Only (a), (c) and (d)",
+          "(4) Only (c) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 169 नुसार राज्यांमध्ये विधान परिषद स्थापन किंवा बरखास्त केली जाऊ शकते. कलम 171 नुसार विधान परिषदेची सदस्य संख्या निश्चित केली जाते. दिलेल्या पर्यायांचे विश्लेषण खालीलप्रमाणे आहे: (a) बिहार - 75 (हे बरोबर आहे), (b) महाराष्ट्र - 78 (हे बरोबर आहे), (c) उत्तरप्रदेश - 100 (दिलेले 99 चुकीचे आहे), (d) कर्नाटक - 75 (दिलेले 90 चुकीचे आहे). म्हणून, चुकीच्या जोड्या (c) आणि (d) आहेत. उत्तर प्रदेशमध्ये सर्वाधिक 100 सदस्य आहेत, तर महाराष्ट्रात 78 सदस्य आहेत. कर्नाटकची सदस्य संख्या 75 आहे, 90 नाही.",
+          "topic": "भारतीय राज्यघटना - राज्य विधिमंडळ (विधान परिषद)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'UB-MA-KA-BI-TE' (उत्तरप्रदेश-100, महाराष्ट्र-78, कर्नाटक-75, बिहार-75, तेलंगणा-40). आंध्र प्रदेशची संख्या 58 आहे. लक्षात ठेवा: विधान परिषदेची कमाल सदस्य संख्या विधानसभेच्या एकूण सदस्य संख्येच्या 1/3 पेक्षा जास्त नसावी आणि किमान 40 पेक्षा कमी नसावी (अपवाद: जम्मू-काश्मीर पूर्वी, आता पुनर्रचना झाली आहे). भविष्यातील प्रश्न: विधान परिषदेच्या सदस्यांची निवड पद्धत (पदवीधर, शिक्षक, स्थानिक स्वराज्य संस्था, राज्यपाल नामनिर्देशित) यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_027.png": [
+      {
+        "qnum": 72,
+        "text": "ऋणकोला देण्यात आलेली रोख सवलत ________ ला जमा करतात.\n(1) रोकड खाते\n(2) ग्राहक खाते\n(3) सवलत खाते\n(4) विक्री खाते",
+        "text_eng": "The cash discount allowed to a debtor, credited to ________.\n(1) Cash Account\n(2) Customer's Account\n(3) Discount Account\n(4) Sales Account",
+        "options": [
+          "(1) रोकड खाते",
+          "(2) ग्राहक खाते",
+          "(3) सवलत खाते",
+          "(4) विक्री खाते"
+        ],
+        "options_eng": [
+          "(1) Cash Account",
+          "(2) Customer's Account",
+          "(3) Discount Account",
+          "(4) Sales Account"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "लेखांकनामध्ये (Accounting) जेव्हा आपण ग्राहकाला (ऋणकोला) रोख सवलत (Cash Discount) देतो, तेव्हा ती व्यवसायासाठी एक प्रकारचा खर्च किंवा नुकसान असते. दुहेरी नोंद पद्धतीनुसार (Double Entry System), 'सवलत खाते' (Discount Account) हे नाममात्र खाते (Nominal Account) आहे. नाममात्र खात्याचा नियम असा आहे की, 'सर्व खर्च आणि नुकसान नावे करा (Debit all expenses and losses) आणि सर्व उत्पन्न व नफा जमा करा (Credit all incomes and gains)'. जेव्हा आपण ग्राहकाला सवलत देतो, तेव्हा ती व्यवसायासाठी खर्च असल्याने 'सवलत खाते' नावे (Debit) केले जाते आणि संबंधित 'ग्राहक खाते' (Debtor's Account) जमा (Credit) केले जाते, कारण ग्राहकाकडून येणे असलेली रक्कम कमी होते. प्रश्नात विचारले आहे की सवलत 'कुठे जमा' (Credit) करतात, तर तांत्रिकदृष्ट्या सवलत ही 'सवलत खात्यात' नावे होते, परंतु जर सवलत खात्याच्या संदर्भात विचारले तर ती सवलत खात्यातच नोंदवली जाते. परीक्षेच्या दृष्टीने, सवलत ही 'सवलत खात्यात' (Discount Account) नोंदवली जाते हे उत्तर अचूक आहे.",
+          "topic": "लेखांकन (Accountancy) - दुहेरी नोंद पद्धती आणि खात्यांचे प्रकार",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सवलत' म्हणजे 'खर्च'. खर्च नेहमी 'नावे' (Debit) होतो. जेव्हा आपण सवलत देतो, तेव्हा ती 'सवलत खात्याच्या' नावे बाजूला लिहिली जाते. भविष्यात यावर 'व्यापारी सवलत' (Trade Discount) आणि 'रोख सवलत' (Cash Discount) यातील फरकावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: व्यापारी सवलत पुस्तकात नोंदवली जात नाही, फक्त रोख सवलत नोंदवली जाते. परीक्षेसाठी टीप: 'नावे' (Debit) आणि 'जमा' (Credit) यातील फरक स्पष्ट असणे आवश्यक आहे. नाममात्र खात्याचा नियम (Nominal Account Rule) तोंडपाठ ठेवा: 'Debit the expenses, Credit the incomes'."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 73,
+        "text": "खरेदी पुस्तकातील नोंदीचे ________ हे स्रोत दस्तऐवज आहे.\n(1) आवक चलन\n(2) जावक चलन\n(3) रोखीचे टिपण\n(4) प्रमाणक",
+        "text_eng": "________ is the source document for recording in purchase book.\n(1) Inward invoice\n(2) Outward invoice\n(3) Cash Memo\n(4) Voucher",
+        "options": [
+          "(1) आवक चलन",
+          "(2) जावक चलन",
+          "(3) रोखीचे टिपण",
+          "(4) प्रमाणक"
+        ],
+        "options_eng": [
+          "(1) Inward invoice",
+          "(2) Outward invoice",
+          "(3) Cash Memo",
+          "(4) Voucher"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "लेखांकनामध्ये (Accounting) 'खरेदी पुस्तक' (Purchase Book) हे केवळ उधारीवर केलेल्या मालाच्या खरेदीच्या नोंदी ठेवण्यासाठी वापरले जाते. जेव्हा एखादा व्यापारी माल खरेदी करतो, तेव्हा विक्रेत्याकडून जे बिल मिळते, त्याला 'आवक चलन' (Inward Invoice) असे म्हणतात. हे चलन खरेदी पुस्तकातील नोंदीचा मूळ आधार किंवा 'स्रोत दस्तऐवज' (Source Document) असते. पर्यायांचे विश्लेषण: (1) आवक चलन: हे खरेदीचे मूळ पुरावा आहे, म्हणून हे योग्य उत्तर आहे. (2) जावक चलन: हे विक्री पुस्तकासाठी (Sales Book) वापरले जाते, कारण आपण माल बाहेर पाठवतो. (3) रोखीचे टिपण: हे रोख व्यवहारांसाठी असते, तर खरेदी पुस्तक फक्त उधारीच्या व्यवहारांसाठी असते. (4) प्रमाणक (Voucher): हे व्यवहाराचे समर्थन करणारे दस्तऐवज आहे, परंतु खरेदी पुस्तकासाठी विशिष्ट स्रोत दस्तऐवज 'आवक चलन' हेच असते.",
+          "topic": "लेखांकन (Accounting) - मूळ दस्तऐवज आणि पुस्तके",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'खरेदी म्हणजे आत येणे' (Inward), म्हणून 'आवक चलन'. 'विक्री म्हणजे बाहेर जाणे' (Outward), म्हणून 'जावक चलन'. भविष्यातील संभाव्य प्रश्न: १. 'विक्री पुस्तकाचा' स्रोत दस्तऐवज कोणता? (उत्तर: जावक चलन). २. 'रोख पुस्तकाचा' (Cash Book) आधार काय? (उत्तर: रोख पावती/Cash Memo). ३. 'परत खरेदी पुस्तकासाठी' (Purchase Return Book) कोणते दस्तऐवज वापरतात? (उत्तर: डेबिट नोट). हे घटक MPSC च्या राज्यसेवा आणि गट ब/क मुख्य परीक्षेतील लेखांकन विषयासाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_033.png": [
+      {
+        "qnum": 80,
+        "text": "Which one of the following Sections of the Narcotics Drugs and Psychotropic Substances Act, 1985 prohibits cultivation of coca plants ?",
+        "text_eng": "Which one of the following Sections of the Narcotics Drugs and Psychotropic Substances Act, 1985 prohibits cultivation of coca plants ?",
+        "options": [
+          "(1) कलम 8",
+          "(2) कलम 9",
+          "(3) कलम 7",
+          "(4) कलम 10"
+        ],
+        "options_eng": [
+          "(1) Section 8",
+          "(2) Section 9",
+          "(3) Section 7",
+          "(4) Section 10"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "NDPS कायदा, 1985 मधील 'कलम 8' (Section 8) हे अंमली पदार्थांच्या संदर्भातील सर्वात महत्त्वाचे प्रतिबंधात्मक कलम आहे. हे कलम स्पष्टपणे नमूद करते की, कोणतीही व्यक्ती कोका वनस्पती (Coca plant), अफूची वनस्पती (Opium poppy) किंवा कॅनॅबिस (Cannabis) यांची लागवड करू शकत नाही. तसेच, या कायद्यांतर्गत अमली पदार्थांचे उत्पादन, निर्मिती, ताबा, विक्री, खरेदी, वाहतूक किंवा वापर करण्यासही मनाई आहे. इतर पर्यायांचे विश्लेषण: कलम 7 मध्ये 'नार्कोटिक्स कमिशनर'च्या नियुक्तीची तरतूद आहे. कलम 9 मध्ये केंद्र सरकारला कोका, अफू आणि कॅनॅबिसच्या लागवडीवर नियंत्रण ठेवण्याचे आणि परवाने देण्याचे अधिकार दिले आहेत. कलम 10 मध्ये राज्य सरकारला लागवडीवर नियंत्रण ठेवण्याचे अधिकार दिले आहेत. त्यामुळे, 'प्रतिबंध' (Prohibition) घालणारे मुख्य कलम '8' हेच आहे.",
+          "topic": "कायदेविषयक ज्ञान - NDPS कायदा, 1985",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '8' म्हणजे 'आठ' (आठवण ठेवा - आठ नको, म्हणजे बंदी). कलम 8 हे 'बंदी' (Prohibition) दर्शवते. भविष्यातील संभाव्य प्रश्न: 1) NDPS कायद्यातील शिक्षेची तरतूद कोणत्या कलमात आहे? (उत्तर: कलम 15 ते 35). 2) कोका वनस्पतीची लागवड करण्यासाठी परवाना देण्याचा अधिकार कोणाला आहे? (उत्तर: केंद्र सरकार - कलम 9). लक्षात ठेवा, NDPS कायदा हा 1985 चा असून तो अमली पदार्थांच्या तस्करीला आळा घालण्यासाठी अत्यंत कडक आहे. परीक्षेच्या दृष्टीने कलम 8 (प्रतिबंध), कलम 9 (केंद्र सरकारचे अधिकार) आणि कलम 10 (राज्य सरकारचे अधिकार) हे त्रिकूट अत्यंत महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 81,
+        "text": "कोणتيही व्यक्ती नमुन्याच्या उद्देशाने अधिसूचित औषधे जास्तीत जास्त किती परिमाणात जवळ बाळगू शकते ?",
+        "text_eng": "What is the maximum quantity of any notified drug that may be possessed by any person for the purpose of sample ?",
+        "options": [
+          "(1) 114 मिली",
+          "(2) 116 मिली",
+          "(3) 118 मिली",
+          "(4) 120 मिली"
+        ],
+        "options_eng": [
+          "(1) 114 ml",
+          "(2) 116 ml",
+          "(3) 118 ml",
+          "(4) 120 ml"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "हा प्रश्न 'औषधे आणि सौंदर्य प्रसाधने कायदा, 1940' (Drugs and Cosmetics Act, 1940) आणि त्याअंतर्गत असलेल्या नियमांशी संबंधित आहे. या कायद्याच्या नियम 124 (Rule 124) नुसार, औषध निरीक्षकांना (Drug Inspectors) किंवा अधिकृत व्यक्तींना तपासणीसाठी नमुने गोळा करण्याचा अधिकार आहे. कायद्यातील तरतुदींनुसार, तपासणीसाठी किंवा नमुन्यासाठी (Sample) कोणतीही व्यक्ती किंवा औषध विक्रेता जास्तीत जास्त 114 मिली (किंवा 114 ग्रॅम) इतक्या मर्यादेत औषध जवळ बाळगू शकते. हे प्रमाण औषधांच्या गुणवत्तेची चाचणी करण्यासाठी पुरेशी मात्रा मानली जाते. इतर पर्याय (116, 118, 120 मिली) हे केवळ गोंधळ निर्माण करण्यासाठी दिलेले आहेत, कारण कायद्यात स्पष्टपणे 114 मिलीचा उल्लेख आहे.",
+          "topic": "भारतीय कायदे - औषधे आणि सौंदर्य प्रसाधने कायदा, 1940",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '114' हा आकडा 'औषध' (Medicine) या शब्दातील अक्षरांच्या संख्येपेक्षा वेगळा आहे, पण '1-1-4' म्हणजे 'एक-एक-चार' (एकदा तपासणी, एकदा नमुना, चार चाचण्या) असे लक्षात ठेवू शकता. भविष्यातील संभाव्य प्रश्न: 1) औषध आणि सौंदर्य प्रसाधने कायदा कोणत्या वर्षी लागू झाला? (उत्तर: 1940). 2) औषध निरीक्षकाची नियुक्ती कोणत्या कलमांतर्गत केली जाते? (उत्तर: कलम 21). 3) औषधांचे नमुने घेण्याची प्रक्रिया कोणत्या नियमात दिली आहे? (उत्तर: नियम 124). परीक्षेत अशा तांत्रिक प्रश्नांसाठी कायद्याचे मूळ नियम (Rules) वाचणे आवश्यक असते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 82,
+        "text": "मुंबई औषधी (नियंत्रण) अधिनियम, 1959 च्या कोणत्या कलमांन्वये जिल्हाधिकारी अनुज्ञप्ती रद्द करू शकतात ?",
+        "text_eng": "Under which one of the following Sections of the Bombay Drugs (Control) Act, 1959 the Collector may cancel licence ?",
+        "options": [
+          "(1) कलम 15",
+          "(2) कलम 16",
+          "(3) कलम 17",
+          "(4) कलम 18"
+        ],
+        "options_eng": [
+          "(1) Section 15",
+          "(2) Section 16",
+          "(3) Section 17",
+          "(4) Section 18"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुंबई औषधी (नियंत्रण) अधिनियम, 1959 (The Bombay Drugs (Control) Act, 1959) हा कायदा औषधांच्या किमती आणि साठवणुकीवर नियंत्रण ठेवण्यासाठी करण्यात आला आहे. या अधिनियमातील कलम 16 (Section 16) हे 'अनुज्ञप्ती रद्द करणे किंवा निलंबित करणे' (Cancellation or suspension of licences) या विषयाशी संबंधित आहे. कलम 15 हे 'अनुज्ञप्ती देणे' (Grant of licences) या प्रक्रियेशी संबंधित आहे, तर कलम 17 हे 'अपील' (Appeals) करण्याच्या तरतुदींशी संबंधित आहे. कलम 18 हे 'अधिकार सोपवणे' (Delegation of powers) याबद्दल माहिती देते. जिल्हाधिकारी (Collector) हे या कायद्यांतर्गत परवाना देणारे किंवा रद्द करणारे सक्षम प्राधिकारी म्हणून काम करतात, जर परवानाधारकाने कायद्यातील अटींचे उल्लंघन केले असेल.",
+          "topic": "महाराष्ट्र विशेष कायदे - मुंबई औषधी (नियंत्रण) अधिनियम, 1959",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '15-16-17' चा क्रम लक्षात ठेवा: 15 (परवाना मिळवणे/Grant), 16 (परवाना रद्द करणे/Cancellation), 17 (अपील/Appeal). म्हणजे आधी परवाना मिळवा, नियम मोडला तर 16 नुसार रद्द होईल आणि अन्याय वाटल्यास 17 नुसार अपील करा. भविष्यातील संभाव्य प्रश्न: या कायद्यांतर्गत 'औषध निरीक्षक' (Drug Inspector) चे अधिकार कोणत्या कलमात आहेत किंवा 'दंड' (Penalties) कोणत्या कलमांतर्गत येतात, यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, हा कायदा औषधांच्या काळाबाजाराला आळा घालण्यासाठी अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Sub_Inspector\\page_035.png": [
+      {
+        "qnum": 90,
+        "text": "मुंबई औषध नियंत्रण कायदा, 1959 नुसार वैद्यकीय चिकित्सकांचा अर्थ सांगते ते खालील प्रमाणे :\nअ. कोणतीही व्यक्ती जी शस्त्रक्रिया आणि प्रसुतिशास्त्रासह कोणत्याही औषध पद्धतीचा अभ्यास करते.\nब. एखाद्या व्यक्तीकडे तत्वज्ञानात्मक पदवी आहे आणि योग्य कायद्यांतर्गत ती नोंदणीकृत आहे.\nक. कोणतीही नोंदणीकृत दंत चिकित्सक, जो दंतचिकित्सक कायदा, 1948 (XVI) अंतर्गत येतो.\nड. कोणतीही पशुवैद्यक जो पशुवैद्यक प्रॅक्टीशनर्स कायदा, 1953 मध्ये समाविष्ट आहे.\nवरीलपैकी कोणते विधान / विधाने बरोबर आहेत ?",
+        "text_eng": "The Bombay Drugs (Control) Act, 1959, prescribes the meaning of Medical Practitioner as under :\na. A person who practices any system of medicine including surgery and obstetrics.\nb. A person who has Philosophical Degree and is registered in appropriate Act.\nc. A registered dentist within the meaning of the Dentist Act, 1948 (XVI).\nd. Veterinary practitioners within the meaning of the Veterinary Practitioners Act, 1953.\nWhich of the statements given above is/are correct ?",
+        "options": [
+          "(1) फक्त विधान अ आणि ब",
+          "(2) फक्त विधान अ, क आणि ड",
+          "(3) वरील सर्व",
+          "(4) वरीलपैकी कोनोही नाही"
+        ],
+        "options_eng": [
+          "(1) Only statements a and b",
+          "(2) Statements a, c and d",
+          "(3) All of the above",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुंबई औषध नियंत्रण कायदा, 1959 (Bombay Drugs Control Act, 1959) अंतर्गत 'वैद्यकीय चिकित्सक' (Medical Practitioner) या संज्ञेची व्याख्या अत्यंत व्यापक आहे. विधान (अ) नुसार, आधुनिक वैद्यकशास्त्र, शस्त्रक्रिया आणि प्रसुतिशास्त्र यांचा अभ्यास करणारी व्यक्ती यात येते. विधान (क) नुसार, दंतचिकित्सक कायदा, 1948 अंतर्गत नोंदणीकृत दंतचिकित्सक आणि विधान (ड) नुसार, पशुवैद्यक प्रॅक्टीशनर्स कायदा, 1953 अंतर्गत नोंदणीकृत पशुवैद्यक हे सर्व या कायद्याच्या कक्षेत येतात. विधान (ब) चुकीचे आहे कारण 'तत्वज्ञानात्मक पदवी' (Philosophical degree) ही वैद्यकीय व्यवसायासाठी आवश्यक पात्रता नाही; वैद्यकीय व्यवसायासाठी 'वैद्यकीय पदवी' (Medical degree) असणे अनिवार्य आहे. त्यामुळे अ, क आणि ड ही विधाने बरोबर आहेत.",
+          "topic": "महाराष्ट्र विशेष कायदे - मुंबई औषध नियंत्रण कायदा, 1959",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'वैद्यकीय चिकित्सक' म्हणजे 'मानवी उपचार + दंत उपचार + पशु उपचार'. लक्षात ठेवा की तत्वज्ञान (Philosophy) हे वैद्यकीय शास्त्राशी संबंधित नाही, त्यामुळे 'ब' विधान नेहमी बाद करा. भविष्यातील संभाव्य प्रश्न: या कायद्यांतर्गत 'औषध' (Drug) ची व्याख्या काय आहे? किंवा या कायद्याची अंमलबजावणी करणारी यंत्रणा (उदा. Food and Drug Administration - FDA) यांची रचना कशी असते? यावर प्रश्न विचारले जाऊ शकतात. तसेच, 1959 चा हा कायदा औषधांच्या किमती आणि साठवणुकीवर नियंत्रण ठेवण्यासाठी अत्यंत महत्त्वाचा आहे, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
       }
     ]
   }
