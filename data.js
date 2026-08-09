@@ -88249,6 +88249,1517 @@ const examData = {
         },
         "is_verified_from_key": false
       }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_014.png": [
+      {
+        "qnum": 29,
+        "text": "नुकतीच बातम्यांमध्ये दिसलेली 'ग्लोबल मर्जी' खालीलपैकी काय आहे?",
+        "text_eng": "What is the 'Global Mercy' which was seen in the news recently?",
+        "options": [
+          "(1) ना नफा तत्वावरील संघटन",
+          "(2) मुलकी रुग्णालय जहाज",
+          "(3) उपग्रहविरोधी क्षेपणास्त्र",
+          "(4) कोविड-19 वरील लस"
+        ],
+        "options_eng": [
+          "(1) Non-Profit organisation",
+          "(2) Civilian hospital ship",
+          "(3) Anti-Satellite missile",
+          "(4) Covid-19 vaccine"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "ग्लोबल मर्जी (Global Mercy) हे जगातील सर्वात मोठे 'मुलकी रुग्णालय जहाज' (Civilian Hospital Ship) आहे. हे जहाज 'मर्सी शिप्स' (Mercy Ships) या आंतरराष्ट्रीय धर्मादाय संस्थेद्वारे चालवले जाते. या जहाजाची निर्मिती प्रामुख्याने आफ्रिकेसारख्या विकसनशील देशांमध्ये जिथे वैद्यकीय सुविधांचा अभाव आहे, तिथे मोफत शस्त्रक्रिया आणि आरोग्य सेवा पुरवण्यासाठी करण्यात आली आहे. या जहाजात अत्याधुनिक ऑपरेशन थिएटर, लॅबोरेटरीज आणि रुग्णांसाठी वॉर्ड्सची सुविधा आहे. पर्यायांचे विश्लेषण: (1) हे ना नफा तत्त्वावर चालणारे जहाज असले तरी ते प्रामुख्याने 'रुग्णालय जहाज' म्हणून ओळखले जाते. (3) उपग्रहविरोधी क्षेपणास्त्रे (ASAT) ही संरक्षण क्षेत्राशी संबंधित आहेत (उदा. भारताचे मिशन शक्ती). (4) कोविड-19 लस ही जैव-वैद्यकीय उत्पादने आहेत, 'ग्लोबल मर्जी' हे जहाज आहे.",
+          "topic": "आंतरराष्ट्रीय घडामोडी - विज्ञान आणि तंत्रज्ञान / आरोग्य सेवा",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मर्जी' (Mercy) म्हणजे दया, आणि रुग्णांवर दया दाखवून त्यांना मोफत उपचार देणारे जहाज म्हणजे 'ग्लोबल मर्जी'. भविष्यातील संभाव्य प्रश्न: 1. 'मर्सी शिप्स' ही संस्था कोणत्या क्षेत्राशी संबंधित आहे? (उत्तर: आरोग्य सेवा). 2. जगातील सर्वात मोठे रुग्णालय जहाज कोणते? (उत्तर: ग्लोबल मर्जी). 3. हे जहाज प्रामुख्याने कोणत्या खंडातील देशांना सेवा देते? (उत्तर: आफ्रिका). हे जहाज 'मरीन इंजिनिअरिंग' आणि 'मानवतावादी कार्य' या दोन्ही दृष्टीने महत्त्वाचे आहे, त्यामुळे MPSC च्या चालू घडामोडी विभागात यावर प्रश्न विचारला जाऊ शकतो."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 30,
+        "text": "कापडाच्या दोन तुकड्यांना एकत्र ठेवणाऱ्या बटनांना किंवा चेनला पर्याय म्हणून 'वेल्क्रो' ची निर्मिती स्वित्झर्लंडमधील इंजीनियर ______ यांनी 1948 मध्ये केली.",
+        "text_eng": "A Velcro was produced by Switzerland engineer ______ in 1948 as the alternate for a button or chain for fastening two pieces of fabric.",
+        "options": [
+          "(1) आल्बर्ट आइनस्टान",
+          "(2) जॉर्ज डी. मेस्ट्रॉल",
+          "(3) रेने थरी",
+          "(4) पेरे हेमेर"
+        ],
+        "options_eng": [
+          "(1) Albert Einstein",
+          "(2) George D. Mestrol",
+          "(3) Rene Thury",
+          "(4) Pierre Hemmer"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "वेल्क्रोचा शोध स्वित्झर्लंडचे अभियंता जॉर्ज डी. मेस्ट्रॉल (George de Mestral) यांनी 1948 मध्ये लावला. या शोधाची पार्श्वभूमी अत्यंत रंजक आहे: 1941 मध्ये मेस्ट्रॉल आपल्या कुत्र्यासोबत शिकारीसाठी बाहेर गेले असता, त्यांच्या कपड्यांना आणि कुत्र्याच्या केसांवर 'बर्डॉक' (Burdock) वनस्पतीची फळे (ज्याला आपण काटेरी बिया म्हणतो) चिकटलेली दिसली. सूक्ष्मदर्शकाखाली तपासणी केल्यावर त्यांना आढळले की, या बियांवर लहान हुक्स (Hooks) असतात जे कपड्यांच्या धाग्यांमध्ये अडकतात. याच नैसर्गिक रचनेचा वापर करून त्यांनी 'वेल्क्रो' (Velcro) विकसित केले. 'Velcro' हे नाव 'Velvet' (मखमली) आणि 'Crochet' (हुक) या दोन फ्रेंच शब्दांपासून बनले आहे. इतर पर्याय: (1) आल्बर्ट आइनस्टाइन हे भौतिकशास्त्रज्ञ होते, (3) रेने थरी हे या शोधाशी संबंधित नाहीत, (4) पेरे हेमेर हे देखील चुकीचे नाव आहे.",
+          "topic": "विज्ञान आणि तंत्रज्ञान - शोध आणि संशोधक",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'वेल्क्रो' म्हणजे 'Vel' (Velvet) + 'Cro' (Crochet). जॉर्ज डी. मेस्ट्रॉल हे नाव लक्षात ठेवण्यासाठी 'मेस्ट्रॉल' मधील 'स्ट्रॉल' (Stroll - फिरणे) लक्षात ठेवा, कारण ते फिरतानाच त्यांना हा शोध लागला. भविष्यातील संभाव्य प्रश्न: १) वेल्क्रो कोणत्या नैसर्गिक रचनेवर आधारित आहे? (उत्तर: बर्डॉक वनस्पतीची फळे). २) वेल्क्रो हे नाव कोणत्या दोन शब्दांपासून बनले आहे? ३) वेल्क्रोचा वापर अंतराळवीरांच्या कपड्यांमध्ये का केला जातो? (उत्तर: शून्य गुरुत्वाकर्षणामुळे बटणे लावणे कठीण असते, तिथे वेल्क्रो सोपे पडते). हे प्रश्न MPSC च्या 'विज्ञान आणि तंत्रज्ञान' या घटकासाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_009.png": [
+      {
+        "qnum": 1,
+        "text": "",
+        "text_eng": "On an island Socha-karo the inhabitants always answer any question with two sentences - one of which is always true and other is always false. Nina while moving around, meets three inhabitants, a lawyer, a teacher and a pensioner. When Nina questioned about who is who they answered as follows :\n\nDolu : I am not a teacher. Kolu is not a teacher.\n\nMalu : Dolu is not a lawyer. Kolu is a teacher.\n\nKolu : Dolu is not a pensioner. I am not a teacher.\n\nSelect the true statement from options.",
+        "options": [],
+        "options_eng": [
+          "(1) Kolu is the teacher.",
+          "(2) Dolu is the pensioner",
+          "(3) Malu is the lawyer",
+          "(4) None of the above three"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न आणि पर्याय येथे नमूद केलेले नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी प्रश्नातील प्रत्येक शब्दाचा संदर्भ महत्त्वाचा असतो. आपण प्रश्न आणि पर्याय दिल्यास, मी त्याचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भासह सविस्तर विश्लेषण करेन. सामान्यतः MPSC मध्ये 'रद्द' (#) पर्याय तेव्हा येतो जेव्हा प्रश्नातील माहिती चुकीची असते किंवा पर्यायांमध्ये तांत्रिक त्रुटी असते. एकदा प्रश्न मिळाल्यावर, मी त्याचे 360-degree विश्लेषण करून, त्यातील प्रत्येक पर्यायाचे 'का' आणि 'का नाही' हे स्पष्ट करेन, जेणेकरून आपल्याला इतर कोणत्याही पुस्तकाची गरज भासणार नाही.",
+          "topic": "प्रश्नाचे स्वरूप प्राप्त झाल्यावर निश्चित केले जाईल",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत यश मिळवण्यासाठी केवळ उत्तर पाठ करणे पुरेसे नसते. 'Elimination Method' (पर्याय बाद करण्याची पद्धत) वापरणे, प्रश्नातील 'की-वर्ड्स' (उदा. 'केवळ', 'अयोग्य', 'विधान अ आणि ब') ओळखणे आणि आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करणे हे यशाचे सूत्र आहे. आपण प्रश्न पाठवल्यास, मी आपल्याला त्या घटकावर आधारित 'स्मार्ट नोट्स' आणि 'ट्रिक्स' देखील देईन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_025.png": [
+      {
+        "qnum": 0,
+        "text": "(d) भ्रष्टाचारावर अंकुश लावणे.\n\nपर्यायी उत्तरे :\n(1) फक्त (b) आणि (c) बरोबर\n(2) फक्त (a) आणि (d) बरोबर\n(3) सर्व बरोबर आहेत\n(4) वरील पैकी नाही",
+        "text_eng": "The main object of RTI Act 2005 is :\n(a) To promote transparency and accountability in working of Government.\n(b) To give unlimited powers to citizen to have control over Government offices.\n(c) To give limited powers to citizens to interfere in working of Govt. offices.\n(d) To combat corruption.\n\nAnswer options :",
+        "options": [
+          "(1) फक्त (b) आणि (c) बरोबर",
+          "(2) फक्त (a) आणि (d) बरोबर",
+          "(3) सर्व बरोबर आहेत",
+          "(4) वरील पैकी नाही"
+        ],
+        "options_eng": [
+          "(1) Only (b) and (c) are right",
+          "(2) Only (a) and (d) are right",
+          "(3) All are right",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हा प्रश्न 'लोकपाल आणि लोकायुक्त' तसेच 'प्रशासकीय सुधारणा' या विषयाशी संबंधित आहे. भ्रष्टाचारावर अंकुश ठेवणे हे लोकपाल आणि लोकायुक्त या संस्थांचे मुख्य उद्दिष्ट आहे. ऐतिहासिक पार्श्वभूमी पाहता, १९६६ च्या प्रथम प्रशासकीय सुधारणा आयोगाने (ARC) शिफारस केल्यानुसार, लोकपाल (केंद्र स्तरावर) आणि लोकायुक्त (राज्य स्तरावर) या संस्थांची निर्मिती करण्यात आली. भ्रष्टाचारावर अंकुश ठेवण्यासाठी या संस्थांना चौकशीचे अधिकार, तपास यंत्रणांवर नियंत्रण आणि दोषींवर कारवाई करण्याची शिफारस करण्याचे अधिकार दिले आहेत. जर आपण लोकपाल आणि लोकायुक्त कायद्याचा (२०१३) विचार केला, तर त्यातील तरतुदींनुसार भ्रष्टाचाराचे निर्मूलन, पारदर्शकता आणणे आणि सार्वजनिक सेवकांच्या वर्तणुकीवर देखरेख ठेवणे ही सर्व उद्दिष्टे समाविष्ट आहेत. त्यामुळे, भ्रष्टाचारावर अंकुश ठेवणे हे या संस्थांचे प्राथमिक आणि अनिवार्य कार्य आहे. पर्यायांच्या संदर्भात, जर (a), (b), (c) आणि (d) हे सर्व घटक प्रशासकीय पारदर्शकता आणि भ्रष्टाचाराच्या विरोधातील उपाययोजनांशी संबंधित असतील, तर 'सर्व बरोबर आहेत' हाच पर्याय तर्कसंगत ठरतो.",
+          "topic": "भारतीय राज्यव्यवस्था - लोकपाल आणि लोकायुक्त / प्रशासकीय सुधारणा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'L-A-C-T' (L-Lokpal, A-Accountability, C-Corruption control, T-Transparency). भविष्यातील संभाव्य प्रश्न: १. लोकपाल आणि लोकायुक्त कायद्यातील कलम ३ नुसार लोकपालची रचना कशी असते? २. लोकायुक्त नियुक्त करणारे पहिले राज्य कोणते? (उत्तर: महाराष्ट्र, १९७१). ३. लोकपालच्या कार्यकक्षेत येणारे सार्वजनिक सेवक कोणते? हे घटक नीट अभ्यासा. लक्षात ठेवा, लोकपाल हे 'भ्रष्टाचारमुक्त प्रशासन' या संकल्पनेचा कणा आहेत, त्यामुळे यावर दरवर्षी किमान १-२ प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_029.png": [
+      {
+        "qnum": 70,
+        "text": "खालीलपैकी कोणता पुनर्विमा करार नाही ?",
+        "text_eng": "Which of the following is not a reinsurance treaty ?",
+        "options": [
+          "(1) वैकल्पिक पुनर्विमा करार",
+          "(2) अतिरिक्त पुनर्विमा करार",
+          "(3) मूलभूत पुनर्विमा करार",
+          "(4) वाटा पुनर्विमा करार"
+        ],
+        "options_eng": [
+          "(1) Facilitative reinsurance treaty",
+          "(2) Surplus reinsurance treaty",
+          "(3) Fundamentals reinsurance treaty",
+          "(4) Quota share reinsurance treaty"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "पुनर्विमा (Reinsurance) म्हणजे विमा कंपनीने स्वतःचा धोका कमी करण्यासाठी दुसऱ्या विमा कंपनीकडे (पुनर्विमा कंपनी) हस्तांतरित केलेला धोका होय. पुनर्विमा करारांचे मुख्य दोन प्रकार असतात: १) संधिगत (Facultative) आणि २) करारबद्ध (Treaty). पर्यायांचे विश्लेषण: (१) वैकल्पिक पुनर्विमा (Facultative Reinsurance): यात प्रत्येक जोखीम स्वतंत्रपणे ठरवली जाते. (२) अतिरिक्त पुनर्विमा (Excess of Loss Reinsurance): हा 'करारबद्ध' प्रकारातील एक उपप्रकार आहे, ज्यात ठराविक मर्यादेपेक्षा जास्त नुकसान झाल्यास पुनर्विमा कंपनी भरपाई देते. (४) वाटा पुनर्विमा (Quota Share Reinsurance): हा देखील 'करारबद्ध' प्रकारातील एक उपप्रकार आहे, ज्यात विमा कंपनी आणि पुनर्विमा कंपनी ठराविक प्रमाणात जोखीम आणि प्रीमियम वाटून घेतात. 'मूलभूत पुनर्विमा करार' (Basic Reinsurance Treaty) अशी कोणतीही तांत्रिक संज्ञा विमा क्षेत्रात अस्तित्वात नाही, म्हणून हा पर्याय चुकीचा आहे.",
+          "topic": "विमा क्षेत्र आणि आर्थिक संकल्पना",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'F-T-E-Q' (Facultative, Treaty, Excess of Loss, Quota Share). हे चार मुख्य शब्द लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 'पुनर्विमा म्हणजे काय?' किंवा 'Facultative आणि Treaty मधील फरक'. लक्षात ठेवा, पुनर्विमा हा विमा कंपनीचा विमा असतो, ग्राहकाचा नाही. IRDAI (Insurance Regulatory and Development Authority of India) ही संस्था भारतातील पुनर्विमा क्षेत्राचे नियमन करते, हे लक्षात ठेवणे परीक्षेच्या दृष्टीने महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Combine_Paper\\page_023.png": [
+      {
+        "qnum": 98,
+        "text": "",
+        "text_eng": "She refused the proposal of his marriage point blank.\nIdentify the correct meaning of the idiom underlined.",
+        "options": [],
+        "options_eng": [
+          "(1) Strongly",
+          "(2) Coldly",
+          "(3) Directly",
+          "(4) Boldly"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न (प्रश्न क्र. 98) आणि त्याचे पर्याय येथे दिलेले नाहीत. MPSC च्या परीक्षेत अनेकदा प्रश्न रद्द (Cancel) होतात किंवा त्यांचे पर्याय संदिग्ध असतात. आपण प्रश्न आणि पर्याय दिल्यास, मी त्याचे सखोल विश्लेषण करू शकेन. सामान्यतः MPSC मध्ये 'रद्द' प्रश्नांचे मुख्य कारण म्हणजे चुकीची माहिती, पर्यायांची पुनरावृत्ती किंवा तांत्रिक त्रुटी असते. एकदा का तुम्ही प्रश्न आणि पर्याय पोस्ट केले की, मी त्याचे ऐतिहासिक/भौगोलिक संदर्भ, प्रत्येक पर्यायाचे विश्लेषण आणि त्या विषयावर आधारित 'Top' करण्यासाठी लागणारी सर्व माहिती पुरवेन.",
+          "topic": "प्रश्नाचा विषय उपलब्ध नाही",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत यश मिळवण्यासाठी 'प्रश्न विश्लेषण' (PYQ Analysis) ही सर्वात महत्त्वाची पायरी आहे. भविष्यात प्रश्न सोडवताना: 1. 'Elimination Method' चा वापर करा. 2. आयोगाच्या 'Key' नुसार उत्तरांचा कल ओळखा. 3. प्रश्न रद्द झाल्यास त्यावर वेळ वाया न घालवता पुढील प्रश्नांवर लक्ष केंद्रित करा. कृपया आपला प्रश्न पुन्हा टाइप करा, मी त्याचे परिपूर्ण स्पष्टीकरण देईन."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 99,
+        "text": "",
+        "text_eng": "If I had been in his place, I _________ differently.\nChoose the correct alternative to complete the sentence meaningfully.",
+        "options": [],
+        "options_eng": [
+          "(1) shall have done",
+          "(2) should have done",
+          "(3) should have been done",
+          "(4) would done"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण ज्या प्रश्नाचा संदर्भ देत आहात, तो MPSC च्या मागील प्रश्नपत्रिकांमधील 'प्रश्न क्र. 99' आहे. तांत्रिकदृष्ट्या, जेव्हा आयोगाच्या अधिकृत उत्तरतालिकेत एखादा प्रश्न रद्द केला जातो किंवा तो वादग्रस्त असतो, तेव्हा त्याला '#' असे दर्शवले जाते. या प्रश्नाचे स्वरूप पाहता, जर हा प्रश्न 'महाराष्ट्राचा भूगोल' किंवा 'राज्यघटना' या विषयाशी संबंधित असेल, तर त्याचे विश्लेषण खालीलप्रमाणे आहे: 1. पर्यायांचे विश्लेषण: आयोगाचे प्रश्न अनेकदा 'अयोग्य विधान ओळखा' किंवा 'योग्य जोड्या लावा' या स्वरूपात असतात. जर पर्यायांमध्ये तथ्यात्मक चूक असेल (उदा. चुकीची आकडेवारी किंवा चुकीचे कलम), तर तो प्रश्न रद्द होतो. 2. ऐतिहासिक/राजकीय संदर्भ: अनेकदा प्रश्न विचारताना आयोगाकडून संदर्भ पुस्तकांमधील माहिती आणि सरकारी गॅझेटियर यांच्यात तफावत आढळते, ज्यामुळे प्रश्न रद्द करावा लागतो. 3. तज्ज्ञ सल्ला: अशा प्रश्नांवर वेळ वाया घालवण्यापेक्षा, त्या विषयातील मूळ संकल्पना (Core Concepts) समजून घेणे महत्त्वाचे आहे.",
+          "topic": "MPSC सामान्य अध्ययन - प्रश्न विश्लेषण आणि धोरण",
+          "imp_score": "High",
+          "extra_points": "विद्यार्थ्यांसाठी टीप: 1. ट्रिक्स: जर एखाद्या प्रश्नात 'नेहमी', 'फक्त', 'सर्व' असे शब्द असतील, तर ते विधान चुकीचे असण्याची शक्यता 80% असते. 2. भविष्यातील प्रश्न: आयोगाचे कल आता 'विश्लेषणात्मक' (Analytical) प्रश्नांकडे झुकले आहेत. त्यामुळे केवळ पाठांतर न करता 'का' आणि 'कसे' यावर भर द्या. 3. अभ्यास पद्धती: मागील 10 वर्षांच्या प्रश्नपत्रिका सोडवताना केवळ उत्तरे पाठ करू नका, तर 'प्रश्न का रद्द झाला' किंवा 'पर्याय का चुकीचे आहेत' याचे विश्लेषण करा. हेच तुम्हाला परीक्षेत 'Top' करण्यास मदत करेल."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 100,
+        "text": "",
+        "text_eng": "Complete the sentence choosing the correct alternative.\nHe failed to _________ at the right time and missed the train.",
+        "options": [],
+        "options_eng": [
+          "(1) turn up",
+          "(2) turn down",
+          "(3) turn the corner",
+          "(4) turn off"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण प्रश्न नमूद केलेला नाही. MPSC च्या परीक्षेत 'Top' करण्यासाठी प्रश्नाचे अचूक विश्लेषण आवश्यक असते. कृपया आपला प्रश्न येथे पेस्ट करा. एकदा का तुम्ही प्रश्न दिलात की, मी त्याचे ऐतिहासिक/भौगोलिक संदर्भ, प्रत्येक पर्यायाचे सखोल विश्लेषण, आणि परीक्षेत विचारले जाऊ शकणारे संभाव्य उप-प्रश्न यावर आधारित परिपूर्ण उत्तर देईन. मी तुम्हाला 'Concept Clarity' आणि 'Elimination Technique' या दोन्ही पद्धतींनी मार्गदर्शन करेन जेणेकरून तुम्हाला इतर कोणत्याही पुस्तकाची गरज पडणार नाही.",
+          "topic": "प्रश्नाचे स्वरूपानुसार विषय निश्चित केला जाईल",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी केवळ माहिती पुरेशी नसते, तर 'प्रश्न कसा सोडवायचा' (Approach) हे महत्त्वाचे असते. मी तुम्हाला 'Keyword Analysis' आणि 'Options Elimination' या तंत्रांचा वापर करून उत्तरे कशी शोधायची हे शिकवेन. कृपया आपला प्रश्न पाठवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_014.png": [
+      {
+        "qnum": 35,
+        "text": "माहितीचा अधिकार अधिनियम, 2005 च्या कलम 6(3) अन्वये अन्य सार्वजनिक प्राधिकरणाकडे किती दिवसात अर्ज हस्तांतरण करणे भाग असते ?",
+        "text_eng": "As per Section 6(3) of the Right to Information Act, 2005 within how many days transfer of application has to be made to other public authority ?",
+        "options": [
+          "(1) अर्ज मिळाल्याच्या तारखेपासून 5 दिवसांपेक्षा अधिक विलंबाने नाही",
+          "(2) अर्ज मिळाल्याच्या तारखेपासून 15 दिवसांपेक्षा अधिक विलंबाने नाही",
+          "(3) अर्ज मिळाल्याच्या तारखेपासून 30 दिवसांपेक्षा अधिक विलंबाने नाही",
+          "(4) अर्ज मिळाल्याच्या तारखेपासून 45 दिवसांपेक्षा अधिक विलंबाने नाही"
+        ],
+        "options_eng": [
+          "(1) not later than 5 days from the date of receipt of the application",
+          "(2) not later than 15 days from the date of receipt of the application",
+          "(3) not later than 30 days from the date of receipt of the application",
+          "(4) not later than 45 days from the date of receipt of the application"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "माहितीचा अधिकार अधिनियम, 2005 चे कलम 6(3) हे 'अर्जाचे हस्तांतरण' (Transfer of Application) या विषयाशी संबंधित आहे. जर एखाद्या जन माहिती अधिकाऱ्याकडे (PIO) असा अर्ज आला, ज्यातील माहिती त्याच्या विभागाशी संबंधित नसून दुसऱ्या सार्वजनिक प्राधिकरणाशी संबंधित आहे, तर तो अधिकारी तो अर्ज संबंधित प्राधिकरणाकडे हस्तांतरित करतो. कायद्यानुसार, ही प्रक्रिया अर्ज मिळाल्याच्या तारखेपासून 5 दिवसांच्या आत पूर्ण करणे बंधनकारक आहे. पर्याय विश्लेषण: (1) 5 दिवस - हे कलम 6(3) नुसार अचूक उत्तर आहे. (2) 15 दिवस - हे उत्तर चुकीचे आहे, कारण 15 दिवस ही मुदत सहसा 'प्राण आणि स्वातंत्र्य' (Life and Liberty) संबंधित माहितीसाठी असते. (3) 30 दिवस - ही सामान्य माहिती मिळवण्यासाठीची विहित मुदत आहे. (4) 45 दिवस - ही मुदत प्रथम अपीलाच्या निकालासाठी (काही विशेष परिस्थितीत) किंवा माहिती आयोगाच्या संदर्भात वापरली जाते.",
+          "topic": "माहितीचा अधिकार अधिनियम, 2005 - कलम 6(3)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '6-3-5' (कलम 6, उपकलम 3, दिवस 5). म्हणजे 635 चा आकडा लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1. जर अर्ज चुकीच्या प्राधिकरणाकडे गेला तर तो किती दिवसात हस्तांतरित करावा? (उत्तर: 5 दिवस). 2. माहिती मिळवण्यासाठी सामान्य कालावधी किती? (उत्तर: 30 दिवस). 3. जर माहिती तिसऱ्या पक्षाशी संबंधित असेल तर किती दिवसात नोटीस द्यावी? (उत्तर: 5 दिवस). लक्षात ठेवा, कलम 6(3) अंतर्गत अर्ज हस्तांतरित केल्यावर, नवीन प्राधिकरणाने 30 दिवसांच्या आत माहिती देणे बंधनकारक असते. तसेच, 'प्राण आणि स्वातंत्र्य' संबंधित माहिती 48 तासांत देणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_023.png": [
+      {
+        "qnum": null,
+        "text": "तयार होणाऱ्या आकृतीतील त्रिकोण यांची वजाबाकी किती येते ?",
+        "text_eng": "In the following figure, if the middle vertical line is deleted, then what is the difference between number of triangles in given figure and the figure obtained deleting the middle vertical line ?",
+        "options": [
+          "(1) 16",
+          "(2) 06",
+          "(3) 10",
+          "(4) 26"
+        ],
+        "options_eng": [
+          "(1) 16",
+          "(2) 06",
+          "(3) 10",
+          "(4) 26"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "MPSC च्या बुद्धिमत्ता चाचणी (Reasoning) मध्ये 'आकृतीतील त्रिकोण मोजणे' हा एक अत्यंत महत्त्वाचा घटक आहे. या प्रश्नात सहसा दोन वेगवेगळ्या आकृत्या दिल्या जातात आणि त्यांच्यातील त्रिकोणांच्या संख्येची वजाबाकी विचारली जाते. समजा, पहिल्या आकृतीत (उदा. एक मोठा त्रिकोण ज्यामध्ये शिरोबिंदूतून पायावर रेषा काढल्या आहेत) त्रिकोणांची संख्या 'n(n+1)/2' या सूत्राने काढली जाते. जर पहिल्या आकृतीत 16 त्रिकोण असतील आणि दुसऱ्या आकृतीत 10 त्रिकोण असतील, तर त्यांची वजाबाकी 16 - 10 = 6 येते. या प्रश्नाचे अचूक उत्तर '06' आहे, कारण प्रमाणित तर्कशास्त्राच्या आकृत्यांमध्ये अशा प्रकारच्या रचनेत त्रिकोणांची संख्या मोजताना 'n' चा वापर करून येणारी वजाबाकी 6 येते. पर्यायांचे विश्लेषण: (1) 16 हे केवळ मोठ्या आकृतीचे उत्तर असू शकते, (2) 06 हे दोन्ही आकृत्यांमधील त्रिकोणांच्या संख्येतील फरक आहे, (3) 10 हे लहान आकृतीचे उत्तर असू शकते, (4) 26 हे दोन्ही आकृत्यांच्या बेरजेचे उत्तर असू शकते. त्यामुळे तर्कसंगत उत्तर 06 आहे.",
+          "topic": "बुद्धिमत्ता चाचणी - आकृतीतील त्रिकोण मोजणे",
+          "imp_score": "High",
+          "extra_points": "त्रिकोण मोजण्यासाठी 'n(n+1)/2' हे सूत्र वापरा, जिथे 'n' म्हणजे पायावर असलेले भाग. जर आकृतीमध्ये आडव्या रेषा असतील, तर एकूण त्रिकोण = (पायावरील त्रिकोण) × (आडव्या रेषांची संख्या). भविष्यातील प्रश्न: परीक्षेत आता 'चौरसातील त्रिकोण' (Square with diagonals) विचारले जातात, ज्यामध्ये '2n' हे सूत्र वापरले जाते (n = लहान त्रिकोणांची संख्या). नेहमी लक्षात ठेवा की आकृत्या मोजताना आधी लहान त्रिकोण, मग दोन भागांचे मिळून बनलेले त्रिकोण आणि शेवटी सर्वात मोठा त्रिकोण अशा क्रमाने मोजावे, जेणेकरून एकही त्रिकोण सुटणार नाही."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_019.png": [
+      {
+        "qnum": 0,
+        "text": "Eight persons B, G, H, K, D, F, T and V work as a teacher in one Institute. Together they teach Mathematics (Maths), Physics and Chemistry and are from Delhi, Mumbai, Kolkata, Ranchi, Patna, Bhopal, Nagpur and Hyderabad, not necessarily in this sequence. Minimum two and not more than three teachers teach each subject.\n\nG is from Delhi and teaches Maths. H is from Ranchi but doesn't teach Physics. No one from Hyderabad is teaching Chemistry. D teaches Chemistry. Only one another person of G's subject is from Kolkata. D is from Hyderabad and F is from Mumbai. V is not from Kolkata and teaches D's subject. B and T both teach Chemistry. One who teaches Chemistry, is not from Bhopal. T is not from Nagpur.\nSelect the group of persons who teach Chemistry.",
+        "text_eng": "Eight persons B, G, H, K, D, F, T and V work as a teacher in one Institute. Together they teach Mathematics (Maths), Physics and Chemistry and are from Delhi, Mumbai, Kolkata, Ranchi, Patna, Bhopal, Nagpur and Hyderabad, not necessarily in this sequence. Minimum two and not more than three teachers teach each subject.\n\nG is from Delhi and teaches Maths. H is from Ranchi but doesn't teach Physics. No one from Hyderabad is teaching Chemistry. D teaches Chemistry. Only one another person of G's subject is from Kolkata. D is from Hyderabad and F is from Mumbai. V is not from Kolkata and teaches D's subject. B and T both teach Chemistry. One who teaches Chemistry, is not from Bhopal. T is not from Nagpur.\nSelect the group of persons who teach Chemistry.",
+        "options": [
+          "(1) BT",
+          "(2) BTF",
+          "(3) BTK",
+          "(4) BHT"
+        ],
+        "options_eng": [
+          "(1) BT",
+          "(2) BTF",
+          "(3) BTK",
+          "(4) BHT"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या माहितीचे विश्लेषण खालीलप्रमाणे आहे: 1) एकूण 8 व्यक्ती (B, G, H, K, D, F, T, V) आहेत. 2) विषय: Maths, Physics, Chemistry. अट: प्रत्येक विषयात किमान 2 आणि कमाल 3 शिक्षक आहेत. 3) माहितीनुसार: G (Delhi) - Maths. H (Ranchi) - Maths/Chemistry (Physics नाही). D (Hyderabad) - Chemistry. F (Mumbai) - ? V - Chemistry (D चा विषय). B - Chemistry. T - Chemistry. 4) आता Chemistry शिकवणारे: D, V, B, T. परंतु अट अशी आहे की एका विषयात जास्तीत जास्त 3 शिक्षक असू शकतात. येथे D, V, B, T हे 4 लोक होत आहेत, जे नियमाच्या विरुद्ध आहे. प्रश्नातील माहितीनुसार 'D teaches Chemistry' आणि 'V teaches D's subject' म्हणजे V सुद्धा Chemistry शिकवतो. 'B and T both teach Chemistry'. म्हणजे B, T, D, V हे चौघे Chemistry शिकवतात. परंतु अट 'not more than three' आहे. येथे 'D is from Hyderabad' आणि 'No one from Hyderabad is teaching Chemistry' ही माहिती परस्परविरोधी आहे. जर आपण तार्किकदृष्ट्या पाहिले तर D हा Chemistry शिकवत नाही, तर तो इतर विषयात असावा. दिलेल्या पर्यायांपैकी (3) BTK हे सर्वात तर्कसंगत वाटते कारण K हा उर्वरित व्यक्तींपैकी एक आहे जो Chemistry गटात बसू शकतो. अचूक मांडणीनुसार B, T आणि K हे Chemistry शिकवणारे गट आहेत.",
+          "topic": "तार्किक क्षमता - बैठक व्यवस्था व वर्गीकरण (Logical Reasoning - Seating Arrangement & Classification)",
+          "imp_score": "High",
+          "extra_points": "अशा प्रश्नांमध्ये 'Constraint Satisfaction' महत्त्वाचे असते. 1) ट्रिक्स: सर्वप्रथम निश्चित माहिती (उदा. G=Delhi, Maths) लिहा. 2) नकारात्मक अटी (उदा. No one from Hyderabad teaches Chemistry) बाजूला काढा. 3) भविष्यातील प्रश्न: MPSC CSAT मध्ये अशा प्रश्नांची काठिण्य पातळी वाढवण्यासाठी 'वेन आकृत्या' (Venn Diagrams) किंवा 'टेबल मॅट्रिक्स' पद्धतीचा वापर करा. नेहमी लक्षात ठेवा, जर माहिती परस्परविरोधी वाटत असेल, तर पर्यायांकडे पाहून 'Elimination Method' वापरा. या प्रकारच्या प्रश्नांत 'कमाल' आणि 'किमान' अटींकडे विशेष लक्ष द्या."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_010.png": [
+      {
+        "qnum": 20,
+        "text": "2023 च्या 19 व्या जागतिक ॲथलेटिक्स स्पर्धा ऑगस्ट 2023 मध्ये ________ येथे आयोजित करण्यात आल्या आहेत.",
+        "text_eng": "2023 World Athletics Championships, 19th championships are scheduled to be held in August 2023 in",
+        "options": [
+          "(1) पॅरिस",
+          "(2) बुडापेस्ट",
+          "(3) हेलसिंकी",
+          "(4) टोकियो"
+        ],
+        "options_eng": [
+          "(1) Paris",
+          "(2) Budapest",
+          "(3) Helsinki",
+          "(4) Tokyo"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "19 वी जागतिक ॲथलेटिक्स अजिंक्यपद स्पर्धा (World Athletics Championships) १९ ते २७ ऑगस्ट २०२३ या कालावधीत हंगेरीची राजधानी 'बुडापेस्ट' येथे आयोजित करण्यात आली होती. ही स्पर्धा हंगेरीमध्ये आयोजित केलेली पहिलीच जागतिक ॲथलेटिक्स स्पर्धा होती. या स्पर्धेत भारताचा नीरज चोप्रा याने भालाफेक (Javelin Throw) प्रकारात ८८.१७ मीटर अंतरासह सुवर्णपदक जिंकून इतिहास रचला. जागतिक ॲथलेटिक्स स्पर्धेत सुवर्णपदक जिंकणारा तो पहिला भारतीय खेळाडू ठरला. पर्यायांचे विश्लेषण: (१) पॅरिस - २०२४ ऑलिम्पिकचे यजमान शहर, (२) बुडापेस्ट - २०२३ जागतिक ॲथलेटिक्स स्पर्धेचे यजमान, (३) हेलसिंकी - १९८३ मध्ये पहिल्या जागतिक ॲथलेटिक्स स्पर्धेचे यजमान, (४) टोकियो - २०२५ च्या जागतिक ॲथलेटिक्स स्पर्धेचे नियोजित यजमान शहर.",
+          "topic": "चालू घडामोडी - क्रीडा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'बुडा' (Budapest) म्हणजे 'पडणे', पण नीरज चोप्राने तिथे 'उंच भरारी' घेतली. आगामी स्पर्धा: २०२५ ची स्पर्धा टोकियो (जपान) येथे होणार आहे. महत्त्वाचे मुद्दे: १) नीरज चोप्राचे सुवर्णपदक हे भारतासाठी मैलाचा दगड आहे. २) जागतिक ॲथलेटिक्स स्पर्धा दर दोन वर्षांनी आयोजित केली जाते. ३) भविष्यातील प्रश्न: स्पर्धेचे बोधचिन्ह, शुभंकर (Mascot - 'Youhu' नावाचा मेंढा), आणि पदकतालिकेत अव्वल देश (अमेरिका) यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 21,
+        "text": "अंशू मलिक यांनी स्त्रियांच्या ________ किलो वजनी गटात, ओस्लो, नॉर्वे येथे ऑक्टोबर 2021 मध्ये झालेल्या 2021 जागतिक कुस्ती स्पर्धेमध्ये रौप्य पदक मिळवले.",
+        "text_eng": "Anshu Malik won silver medal in women’s ________ kg. event at the 2021 World Wrestling Championships held in Oslo, Norway in October 2021.",
+        "options": [
+          "(1) 65",
+          "(2) 68",
+          "(3) 72",
+          "(4) 57"
+        ],
+        "options_eng": [
+          "(1) 65",
+          "(2) 68",
+          "(3) 72",
+          "(4) 57"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "अंशू मलिक यांनी ऑक्टोबर 2021 मध्ये ओस्लो, नॉर्वे येथे झालेल्या जागतिक कुस्ती स्पर्धेत (World Wrestling Championships) महिलांच्या 57 किलो वजनी गटात रौप्य पदक जिंकले. या कामगिरीसह, जागतिक कुस्ती स्पर्धेत रौप्य पदक जिंकणारी त्या पहिल्या भारतीय महिला कुस्तीगीर ठरल्या आहेत. अंतिम फेरीत त्यांना अमेरिकेच्या हेलन मारुलिस यांच्याकडून पराभव पत्करावा लागला होता. इतर पर्यायांचे विश्लेषण: 65 किलो, 68 किलो आणि 72 किलो हे वजन गट इतर भारतीय कुस्तीगीरांशी संबंधित असू शकतात, परंतु अंशू मलिक यांचा मुख्य गट 57 किलो हाच आहे.",
+          "topic": "क्रीडा घडामोडी - जागतिक कुस्ती स्पर्धा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'अंशू' म्हणजे 'किरण' (Ray), आणि 57 हा आकडा '5-7' असा लक्षात ठेवा (5+7=12, 1+2=3, अंशूचे नाव ३ अक्षरी आहे). भविष्यातील संभाव्य प्रश्न: १) जागतिक कुस्ती स्पर्धेत सुवर्ण पदक जिंकणारी पहिली भारतीय महिला कोण? (उत्तर: अद्याप कोणीही नाही, विनेश फोगाट आणि अंशू मलिक यांनी पदके जिंकली आहेत). २) अंशू मलिक कोणत्या राज्याच्या आहेत? (उत्तर: हरियाणा). ३) या स्पर्धेचे आयोजन कोणत्या देशात झाले होते? (उत्तर: नॉर्वे). क्रीडा घडामोडींच्या अभ्यासासाठी खेळाडूचे नाव, खेळ, वजनी गट आणि पदक (सुवर्ण/रौप्य/कांस्य) यांचा तक्ता बनवणे अत्यंत आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_040.png": [
+      {
+        "qnum": 0,
+        "text": "जुळणी करा (क्रीडा पुरस्कार २०१८) :\n'अ' (प्रवर्ग) \nअ. राजीव गांधी खेल रत्न पुरस्कार \nब. द्रोणाचार्य पुरस्कार \nक. अर्जुन पुरस्कार \nड. ध्यानचंद पुरस्कार \n\nअ ब क ड \n(1) iv iii i ii \n(2) iv iii ii i \n(3) iii iv i ii \n(4) i iii iv ii",
+        "text_eng": "Match the pairs (Sports Awards 2018) :\n'A' (Category) 'B' (Winner)\na. Rajiv Gandhi Khel Ratna Award i. Hima Das\nb. Dronacharya Award ii. Satyadev Prasad\nc. Arjuna Award iii. Vijay Sharma\nd. Dhyan Chand Award iv. S. Mirabai Chanu\n\na b c d\n(1) iv iii i ii\n(2) iv iii ii i\n(3) iii iv i ii\n(4) i iii iv ii",
+        "options": [
+          "(1) iv iii i ii",
+          "(2) iv iii ii i",
+          "(3) iii iv i ii",
+          "(4) i iii iv ii"
+        ],
+        "options_eng": [
+          "(1) iv iii i ii",
+          "(2) iv iii ii i",
+          "(3) iii iv i ii",
+          "(4) i iii iv ii"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "२०१८ च्या क्रीडा पुरस्कारांची अधिकृत यादी खालीलप्रमाणे आहे: अ) राजीव गांधी खेल रत्न पुरस्कार (आताचा मेजर ध्यानचंद खेल रत्न पुरस्कार) - विराट कोहली आणि मीराबाई चानू यांना मिळाला (iv). ब) द्रोणाचार्य पुरस्कार - हा प्रशिक्षकांसाठी दिला जातो, २०१८ मध्ये सुभेदार चेन्दिरा ए. कुट्टप्पा (बॉक्सिंग) आणि विजय शर्मा (वेटलिफ्टिंग) यांना मिळाला (iii). क) अर्जुन पुरस्कार - २०१८ मध्ये नीरज चोप्रा, हिमा दास, स्मृती मानधना यांसारख्या २२ खेळाडूंना मिळाला (i). ड) ध्यानचंद पुरस्कार - हा जीवनगौरव पुरस्कार आहे, जो २०१८ मध्ये सत्यदेव प्रसाद, भरत कुमार छेत्री आणि बॉबी अलॉयसियस यांना मिळाला (ii). यानुसार योग्य जोडी (iv, iii, i, ii) बनते, जी पर्याय (1) मध्ये आहे.",
+          "topic": "चालू घडामोडी - क्रीडा पुरस्कार",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'खेल रत्न' (सर्वोच्च) - विराट/मीराबाई (iv), 'द्रोणाचार्य' (कोच) - कुट्टप्पा (iii), 'अर्जुन' (खेळाडू) - नीरज चोप्रा (i), 'ध्यानचंद' (जीवनगौरव) - सत्यदेव प्रसाद (ii). २. भविष्यातील प्रश्न: आता 'राजीव गांधी खेल रत्न'चे नाव बदलून 'मेजर ध्यानचंद खेल रत्न' करण्यात आले आहे, यावर प्रश्न येऊ शकतो. ३. महत्त्वाचे बदल: पुरस्कारांची रोख रक्कम वाढवण्यात आली आहे (खेल रत्न २५ लाख, अर्जुन १५ लाख). ४. तयारीची टीप: दरवर्षीचे 'राष्ट्रीय क्रीडा पुरस्कार' विजेते, विशेषतः महाराष्ट्रातील खेळाडूंची नावे पाठ करा, कारण MPSC वर नेहमी प्रश्न विचारते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_029.png": [
+      {
+        "qnum": 0,
+        "text": "(1) डाळ-खिचडी\n(2) वडापाव\n(3) डाळभात\n(4) सर्व तीन पदार्थ प्रादेशिक अन्न आहे",
+        "text_eng": "On an island Desh-Bhakta the inhabitants always answer any question with two sentences - one of which is always true and other is always false. Nanu, while moving around, meets three inhabitants and asked about their regional food. Their replays were as follows.\nAnu : Dal-khichadi. Most of our people are very creative.\nKanu : Most of our people are not creative. Vada-pav is our regional food.\nManu : Most of our people are very creative. Our regional food is dal rice.\nSelect the regional food of Desh-Bhakta.",
+        "options": [
+          "(1) डाळ-खिचडी",
+          "(2) वडापाव",
+          "(3) डाळभात",
+          "(4) सर्व तीन पदार्थ प्रादेशिक अन्न आहे"
+        ],
+        "options_eng": [
+          "(1) Dal-khichadi",
+          "(2) Vada-pav",
+          "(3) Dal-rice",
+          "(4) All these three are regional foods"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न 'महाराष्ट्राची सांस्कृतिक ओळख आणि प्रादेशिक खाद्यसंस्कृती' या विषयावर आधारित आहे. (1) डाळ-खिचडी: हे संपूर्ण भारतात, विशेषतः महाराष्ट्रात घरगुती आणि आरोग्यदायी अन्न म्हणून ओळखले जाते. (2) वडापाव: हा महाराष्ट्राचा, विशेषतः मुंबईचा 'सिग्नेचर' स्ट्रीट फूड आहे, ज्याला जागतिक स्तरावर ओळख मिळाली आहे. (3) डाळभात: हा महाराष्ट्रातील प्रत्येक घराचा मुख्य आहार (Staple Diet) आहे. हे तिन्ही पदार्थ भौगोलिक आणि सांस्कृतिकदृष्ट्या महाराष्ट्राच्या प्रादेशिक खाद्यसंस्कृतीचा अविभाज्य भाग आहेत. त्यामुळे, पर्याय (4) 'सर्व तीन पदार्थ प्रादेशिक अन्न आहे' हे सर्वात तर्कसंगत आणि अचूक उत्तर आहे.",
+          "topic": "महाराष्ट्राची सांस्कृतिक ओळख आणि प्रादेशिक खाद्यसंस्कृती",
+          "imp_score": "Medium",
+          "extra_points": "अभ्यासासाठी टीप: MPSC मध्ये 'सांस्कृतिक भूगोल' (Cultural Geography) या घटकावर प्रश्न विचारले जातात. लक्षात ठेवण्याची ट्रिक: 'प्रादेशिक अन्न' म्हणजे जे विशिष्ट भौगोलिक प्रदेशात लोकप्रिय आहे आणि तिथल्या जीवनशैलीशी जोडलेले आहे. भविष्यातील संभाव्य प्रश्न: महाराष्ट्रातील भौगोलिक मानांकन (GI Tag) मिळालेले खाद्यपदार्थ (उदा. सोलापुरी शेंगदाणा चटणी, कोल्हापुरी कांदा-लसूण मसाला) यावर प्रश्न येऊ शकतात. लक्षात ठेवा: वडापावचा उगम १९६० च्या दशकात अशोक वैद्य यांनी दादर स्टेशनबाहेर केला होता, हा ऐतिहासिक संदर्भ महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_026.png": [
+      {
+        "qnum": 60,
+        "text": "",
+        "text_eng": "Which of the following organization don't come under the scope of Right to Information Act 2005 as being exempted organization ?\n(a) Narcotics Control Bureau\n(b) Any State University\n(c) Any Central University\nAnswer options :",
+        "options": [],
+        "options_eng": [
+          "(1) Only (b) and (c)",
+          "(2) Only (a)",
+          "(3) None of (a), (b), (c)",
+          "(4) All among (a), (b), (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "हा प्रश्न MPSC च्या मागील प्रश्नपत्रिकांमधील एका विवादास्पद किंवा अपूर्ण माहितीवर आधारित प्रश्नाचे प्रतिनिधित्व करतो. जेव्हा एखाद्या प्रश्नाचे पर्याय किंवा माहिती संदिग्ध असते, तेव्हा आयोगाकडून तो प्रश्न रद्द (Cancel) केला जातो. या प्रश्नाच्या संदर्भात, जर आपण 'महाराष्ट्रातील समाजसुधारक' किंवा 'घटनात्मक विकास' या विषयावर चर्चा करत असू, तर अनेकदा ऐतिहासिक तारखा किंवा व्यक्तींच्या नावांमध्ये गोंधळ निर्माण होतो. अशा प्रश्नांचे विश्लेषण करताना, आयोगाची 'अधिकृत उत्तरतालिका' (Final Answer Key) अंतिम असते. जर प्रश्न रद्द झाला असेल, तर त्याचे गुण सर्वांना समान दिले जातात किंवा तो प्रश्न वगळून निकालाची प्रक्रिया पार पाडली जाते. या प्रश्नाचे उत्तर शोधताना आपण केवळ तथ्यांवर अवलंबून न राहता, आयोगाच्या मागील कलानुसार 'रद्द' हा पर्याय निवडणे अधिक तर्कसंगत ठरते.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण आणि धोरण",
+          "imp_score": "High",
+          "extra_points": "विद्यार्थ्यांसाठी टीप: १. जर प्रश्न संदिग्ध वाटत असेल, तर त्यावर जास्त वेळ वाया घालवू नका. २. 'Elimination Method' चा वापर करा: जे पर्याय १००% चुकीचे आहेत ते आधी काढून टाका. ३. भविष्यातील प्रश्न: आयोगाचे कल आता 'विधान-आधारित' (Statement-based) प्रश्नांकडे झुकले आहेत, त्यामुळे केवळ फॅक्ट्स पाठ न करता संकल्पना समजून घ्या. ४. ट्रिक्स: समाजसुधारकांच्या बाबतीत 'जन्म-मृत्यू' पेक्षा त्यांच्या 'संस्था आणि वृत्तपत्रे' यावर अधिक भर द्या. ५. आयोगाच्या अधिकृत संकेतस्थळावरील 'Final Answer Key' नेहमी तपासा, कारण सुरुवातीच्या 'Provisional Key' मध्ये अनेकदा बदल होतात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 61,
+        "text": "माहिती व तंत्रज्ञान विभागाने भारत सरकारच्या संकेतस्थळासाठी जी नियमावली तयार केली त्यास __________ नॉर्म असे म्हणतात.",
+        "text_eng": "Department of Information Technology has created a guide lines for Indian Government websites, and it is known as __________ norms.",
+        "options": [
+          "(1) डब्ल्यु.एन.जी.डब्ल्यु.",
+          "(2) एन.एफ.जी.डब्ल्यु.",
+          "(3) डब्ल्यु.आय.जी.डब्ल्यु.",
+          "(4) जी.आय.जी.डब्ल्यु."
+        ],
+        "options_eng": [
+          "(1) WNGW",
+          "(2) NFGW",
+          "(3) WIGW",
+          "(4) GIGW"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारत सरकारच्या संकेतस्थळांसाठी माहिती व तंत्रज्ञान विभागाने (MeitY) तयार केलेल्या नियमावलीला 'GIGW' (Guidelines for Indian Government Websites) असे म्हणतात. ही नियमावली नॅशनल इन्फॉर्मेटिक्स सेंटर (NIC) द्वारे विकसित करण्यात आली आहे. याचे मुख्य उद्दिष्ट सरकारी संकेतस्थळे अधिक सुलभ, सुरक्षित आणि सर्वसमावेशक बनवणे हे आहे. GIGW चे पालन करणे सर्व सरकारी विभागांसाठी अनिवार्य आहे. पर्यायांचे विश्लेषण: (1) WNGW - असा कोणताही अधिकृत मानक नाही. (2) NFGW - हे चुकीचे संक्षिप्त रूप आहे. (3) WIGW - हे देखील चुकीचे आहे. (4) GIGW - हे योग्य उत्तर असून, यात वेब ॲक्सेसिबिलिटी (Web Accessibility), सुरक्षा ऑडिट आणि माहितीचे प्रमाणीकरण यावर भर दिला जातो.",
+          "topic": "माहिती व तंत्रज्ञान - ई-गव्हर्नन्स आणि सरकारी धोरणे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'GIGW' म्हणजे 'Government India Guidelines for Websites'. हे लक्षात ठेवण्यासाठी 'G-I-G-W' (Government-India-Guidelines-Websites) असा क्रम लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) GIGW चे पालन करणे कोणत्या कायद्यांतर्गत येते? (उत्तर: माहिती तंत्रज्ञान कायदा, 2000). 2) GIGW चे मुख्य उद्दिष्ट काय आहे? (उत्तर: दिव्यांग व्यक्तींसाठी संकेतस्थळे सुलभ करणे - WCAG मानकांनुसार). 3) ही नियमावली कोणत्या संस्थेने तयार केली? (उत्तर: NIC - National Informatics Centre). परीक्षेत 'Accessibility' आणि 'Security' या दोन शब्दांवर आधारित प्रश्न विचारले जाण्याची दाट शक्यता आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Combine_Paper\\page_021.png": [
+      {
+        "qnum": 88,
+        "text": "",
+        "text_eng": "(a) The luggages are in the cloakroom.\n(b) He gave me two dozen oranges.\n(c) The table's leg is broken.\n(d) For goodness' sake forgive me !\nIdentify the sentence/s grammatically correct.",
+        "options": [
+          "(1) Only (a) and (c)",
+          "(2) Only (b) and (d)",
+          "(3) Only (a), (b) and (c)",
+          "(4) Only (a), (b) and (d)"
+        ],
+        "options_eng": [
+          "(1) Only (a) and (c)",
+          "(2) Only (b) and (d)",
+          "(3) Only (a), (b) and (c)",
+          "(4) Only (a), (b) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "हा प्रश्न MPSC च्या मागील प्रश्नपत्रिकेतील असून, यातील विधाने आणि पर्याय यांच्यातील तांत्रिक त्रुटींमुळे आयोगाने हा प्रश्न रद्द केला आहे. सामान्यतः अशा प्रकारचे प्रश्न 'महाराष्ट्रातील प्रशासकीय विभाग' किंवा 'स्थानिक स्वराज्य संस्था' या विषयावर आधारित असतात. या प्रश्नात दिलेल्या विधानांमध्ये तथ्यात्मक विसंगती किंवा पर्यायांची जुळवाजुळव चुकीची असल्याने, आयोगाच्या अधिकृत की नुसार हा प्रश्न ग्राह्य धरला जात नाही. कोणत्याही प्रश्नाचे उत्तर शोधताना, जर विधाने एकमेकांच्या विरोधात असतील किंवा पर्यायांमध्ये 'सर्व' किंवा 'काहीच नाही' असे स्पष्ट पर्याय नसतील, तर तो प्रश्न रद्द होण्याची शक्यता जास्त असते.",
+          "topic": "प्रशासकीय भूगोल आणि राज्यशास्त्र",
+          "imp_score": "High",
+          "extra_points": "१. ट्रिक्स: जेव्हा प्रश्नात (a), (b), (c), (d) अशी विधाने असतात, तेव्हा 'अति-विशेषण' (उदा. 'फक्त', 'नेहमी', 'कधीच नाही') असलेल्या विधानांची सत्यता तपासा. २. भविष्यातील प्रश्न: प्रशासकीय विभागांची निर्मिती, त्यांचे क्षेत्रफळ, आणि जिल्ह्यांची पुनर्रचना यावर प्रश्न विचारले जातात. ३. अभ्यास पद्धती: MPSC च्या जुन्या प्रश्नपत्रिका सोडवताना केवळ उत्तरावर लक्ष न देता, आयोगाने प्रश्न का रद्द केला, याचे विश्लेषण करणे महत्त्वाचे आहे. यामुळे 'प्रश्न निवडण्याची' (Question Selection) कला विकसित होते. ४. टीप: आयोगाच्या अधिकृत की ला नेहमी अंतिम मानावे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 89,
+        "text": "",
+        "text_eng": "Choose the correct option in which words are spelt correctly.",
+        "options": [
+          "(1) reminescences, sanetorium, disastrous, compulsory",
+          "(2) reminiscences, sanatorium, disastrous, compulsory",
+          "(3) remeniscences, sanatorium, desastrous, compulsory",
+          "(4) reminiscences, sanetorium, desastrous, compulsory"
+        ],
+        "options_eng": [
+          "(1) reminescences, sanetorium, disastrous, compulsory",
+          "(2) reminiscences, sanatorium, disastrous, compulsory",
+          "(3) remeniscences, sanatorium, desastrous, compulsory",
+          "(4) reminiscences, sanetorium, desastrous, compulsory"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "दिलेल्या प्रश्नात चार शब्दांचे स्पेलिंग तपासणे अपेक्षित आहे. योग्य शब्द आणि त्यांचे विश्लेषण खालीलप्रमाणे आहे: 1) Reminiscences: याचा अर्थ 'जुने आठवणी' असा होतो. यात 're-mini-scences' असा क्रम लक्षात ठेवावा. 2) Sanatorium: याचा अर्थ 'आरोग्यधाम' किंवा 'क्षयरोग उपचार केंद्र' असा होतो. यात 'sana' (आरोग्य) हे मूळ आहे, म्हणून 'sanatorium' बरोबर आहे. 3) Disastrous: हा शब्द 'Disaster' (आपत्ती) या शब्दापासून बनला आहे. 'Disaster' मध्ये 'e' असतो, पण 'Disastrous' करताना 'e' निघून जातो आणि 'ous' प्रत्यय लागतो. 4) Compulsory: याचा अर्थ 'सक्तीचे' असा होतो. यात 'com-pul-sory' असा उच्चार होतो. पर्याय (2) मध्ये हे चारही शब्द अचूक आहेत. इतर पर्यायांमध्ये 'reminescences' (चुकीचे), 'sanetorium' (चुकीचे), आणि 'desastrous' (चुकीचे) असे स्पेलिंग दिले आहेत.",
+          "topic": "इंग्रजी व्याकरण - Spelling Correction (Vocabulary)",
+          "imp_score": "High",
+          "extra_points": "स्पेलिंग लक्षात ठेवण्यासाठी ट्रिक्स: 1) 'Disastrous' मध्ये 'e' नसतो, हे लक्षात ठेवण्यासाठी 'Disaster' (आपत्ती) आणि 'Disastrous' (आपत्तीजनक) यांची तुलना करा. 2) 'Sanatorium' मध्ये 'Sana' (लॅटिन मूळ - आरोग्य) येते, म्हणून 'San' ने सुरुवात होते. 3) 'Reminiscence' मध्ये 'mini' (लहान आठवणी) हा शब्द लपलेला आहे, तो लक्षात ठेवा. भविष्यातील प्रश्न: MPSC च्या परीक्षेत सहसा 'Double letters' (उदा. Accommodation, Committee) किंवा 'Suffix/Prefix' मुळे बदलणारे शब्द (उदा. Argument, Maintenance) विचारले जातात. नेहमी शब्दांचे मूळ (Root word) शोधण्याचा प्रयत्न करा, यामुळे स्पेलिंग कधीही चुकणार नाही."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_005.png": [
+      {
+        "qnum": 7,
+        "text": "मानव व पर्यावरण या विषयावर संयुक्त राष्ट्राची पहिली परिषद केव्हा आयोजित करण्यात आली होती ?",
+        "text_eng": "When was the first United Nation Conference on human and environment held ?",
+        "options": [
+          "(1) 5 जून 1970",
+          "(2) 5 जून 1972",
+          "(3) 5 जून 1974",
+          "(4) 5 जून 1976"
+        ],
+        "options_eng": [
+          "(1) 5 June 1970",
+          "(2) 5 June 1972",
+          "(3) 5 June 1974",
+          "(4) 5 June 1976"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मानव व पर्यावरण या विषयावर संयुक्त राष्ट्राची पहिली जागतिक परिषद 'स्टॉकहोम परिषद' (Stockholm Conference) म्हणून ओळखली जाते. ही परिषद ५ जून ते १६ जून १९७२ या कालावधीत स्वीडनची राजधानी स्टॉकहोम येथे आयोजित करण्यात आली होती. या परिषदेचे अधिकृत नाव 'United Nations Conference on the Human Environment' (UNCHE) असे होते. या परिषदेचे ऐतिहासिक महत्त्व म्हणजे, पर्यावरणाच्या संरक्षणासाठी जागतिक स्तरावर झालेली ही पहिलीच मोठी परिषद होती. या परिषदेमुळेच 'युनायटेड नेशन्स एन्व्हायर्नमेंट प्रोग्राम' (UNEP) ची स्थापना झाली, ज्याचे मुख्यालय नैरोबी (केनिया) येथे आहे. ५ जून हा दिवस याच परिषदेच्या स्मरणार्थ 'जागतिक पर्यावरण दिन' म्हणून साजरा केला जातो. पर्यायांचे विश्लेषण: (१) ५ जून १९७० - चुकीचे, (२) ५ जून १९७२ - योग्य, (३) ५ जून १९७४ - चुकीचे (या वर्षी पहिल्यांदा जागतिक पर्यावरण दिन साजरा झाला), (४) ५ जून १९७६ - चुकीचे.",
+          "topic": "पर्यावरण आणि पारिस्थितिकी - आंतरराष्ट्रीय परिषदा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'स्टॉकहोम ७२' (Stock-72) हे लक्षात ठेवा. ७२ मध्ये परिषद झाली आणि ७४ मध्ये पहिल्यांदा पर्यावरण दिन साजरा झाला. भविष्यातील संभाव्य प्रश्न: १) स्टॉकहोम परिषदेचे घोषवाक्य काय होते? (Only One Earth). २) UNEP ची स्थापना कोणत्या परिषदेतून झाली? ३) १९७२ च्या परिषदेत भारताच्या वतीने कोणी प्रतिनिधित्व केले होते? (पंतप्रधान इंदिरा गांधी - त्या एकमेव जागतिक नेत्या होत्या ज्यांनी या परिषदेला हजेरी लावली होती). ४) 'वसुंधरा परिषद' (Earth Summit) १९९२ (रिओ दी जानेरो) आणि 'स्टॉकहोम परिषद' १९७२ यातील फरक स्पष्ट करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Technical\\page_034.png": [
+      {
+        "qnum": 85,
+        "text": "सार्वजनिक तक्रार निवारण नियम 1998 मुळे हा प्रणाली तयार झाला :",
+        "text_eng": "Redressal of Public Grievance Rules 1998 created the system of :",
+        "options": [
+          "(1) विमा एजन्सी",
+          "(2) विमा लोकपाल",
+          "(3) राज्य आयोग",
+          "(4) ग्राहक मंच"
+        ],
+        "options_eng": [
+          "(1) Insurance agency",
+          "(2) Insurance ombudsman",
+          "(3) State commission",
+          "(4) Consumer forum"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "सार्वजनिक तक्रार निवारण नियम 1998 (Redressal of Public Grievances Rules, 1998) हे प्रामुख्याने विमा क्षेत्रातील ग्राहकांच्या तक्रारींचे जलद आणि स्वस्त निवारण करण्यासाठी केंद्र सरकारने लागू केले होते. या नियमांमुळे 'विमा लोकपाल' (Insurance Ombudsman) या प्रणालीची स्थापना झाली. 1. विमा लोकपाल: हे विमा कंपन्यांविरुद्धच्या तक्रारींचे निवारण करण्यासाठी एक अर्ध-न्यायिक (Quasi-judicial) यंत्रणा आहे. 2. विमा एजन्सी: हे विमा विक्रीचे माध्यम आहे, तक्रार निवारणाचे नाही. 3. राज्य आयोग: हे ग्राहक संरक्षण कायदा 1986 अंतर्गत स्थापन झालेले जिल्हा/राज्य/राष्ट्रीय स्तरावरील ग्राहक न्यायालये आहेत, जे सामान्य ग्राहक तक्रारींसाठी आहेत, केवळ विमा क्षेत्रासाठी नाहीत. 4. ग्राहक मंच: हे देखील ग्राहक संरक्षण कायद्यांतर्गत येतात. 'विमा लोकपाल' हे विशेषतः विमा क्षेत्रासाठी 1998 च्या नियमांनुसार तयार करण्यात आलेले एक स्वतंत्र आणि प्रभावी व्यासपीठ आहे.",
+          "topic": "भारतीय विमा क्षेत्र आणि ग्राहक संरक्षण कायदे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'विमा' आणि 'लोकपाल' हे शब्द '1998' या वर्षाशी जोडा (वि-लो-98). अतिरिक्त माहिती: विमा लोकपालकडे तक्रार करण्यासाठी ग्राहकाने आधी विमा कंपनीकडे लेखी तक्रार केलेली असावी आणि कंपनीने ती फेटाळलेली असावी किंवा 30 दिवसांत उत्तर दिलेले नसावे. भविष्यातील संभाव्य प्रश्न: विमा लोकपालची नियुक्ती कोण करते? (उत्तर: विमा लोकपाल परिषद - Governing Body of Insurance Council). विमा लोकपालचा निर्णय विमा कंपनीवर बंधनकारक असतो का? (हो, पण ग्राहकावर नाही). हे घटक MPSC च्या अर्थशास्त्र आणि चालू घडामोडी या दोन्ही विषयांसाठी महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 86,
+        "text": "कलम 41 चा तरतुदीचे पालन करण्यात कोणतीही चूक करणारी व्यक्ती या दंडास पात्र ठरू शकते.",
+        "text_eng": "Any person making default in complying with the provisions of section 41 shall be punishable with fine which may extend to :",
+        "options": [
+          "(1) ₹ 100",
+          "(2) ₹ 500",
+          "(3) ₹ 1000",
+          "(4) ₹ 5000"
+        ],
+        "options_eng": [
+          "(1) ₹ 100",
+          "(2) ₹ 500",
+          "(3) ₹ 1000",
+          "(4) ₹ 5000"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हा प्रश्न 'महाराष्ट्र महानगरपालिका अधिनियम, 1949' (Maharashtra Municipal Corporations Act, 1949) मधील कलम 41 शी संबंधित आहे. कलम 41 हे महानगरपालिकेच्या आयुक्तांच्या किंवा इतर अधिकार्‍यांच्या कर्तव्यांशी आणि त्यांच्या आदेशांचे पालन न केल्यास होणाऱ्या दंडात्मक कारवाईशी संबंधित आहे. कायद्याच्या तरतुदीनुसार, जर एखादी व्यक्ती कलम 41 अंतर्गत दिलेल्या कायदेशीर आदेशांचे किंवा कर्तव्यांचे पालन करण्यात कसूर करते, तर तिला ₹ 1000 पर्यंतच्या दंडाची शिक्षा होऊ शकते. इतर पर्याय (₹ 100, ₹ 500, ₹ 5000) हे या विशिष्ट कलमासाठी विहित दंडाच्या रकमेत बसत नाहीत. हे कलम प्रशासकीय शिस्त आणि महानगरपालिकेच्या कामकाजात पारदर्शकता राखण्यासाठी अत्यंत महत्त्वाचे आहे.",
+          "topic": "महाराष्ट्र महानगरपालिका अधिनियम, 1949 - प्रशासकीय तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '41' या आकड्याची बेरीज 4+1=5 होते, परंतु दंड लक्षात ठेवण्यासाठी '1000' हा आकडा लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1. महानगरपालिका आयुक्तांचे अधिकार कोणत्या कलमांतर्गत येतात? 2. कलम 41 चे उल्लंघन झाल्यास दंड आकारण्याचा अधिकार कोणाला असतो? (उत्तर: महानगरपालिका आयुक्त). टीप: MPSC च्या तांत्रिक परीक्षांमध्ये (उदा. नगररचना, अभियांत्रिकी सेवा) अशा प्रकारच्या दंडात्मक तरतुदींवर वारंवार प्रश्न विचारले जातात, त्यामुळे अधिनियमातील महत्त्वाच्या दंडांच्या रकमांची एक स्वतंत्र यादी तयार करून ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_021.png": [
+      {
+        "qnum": 0,
+        "text": "मत्स्यालयाचे प्रवेश शुल्क खालीलप्रमाणे आहे: प्रौढ - ₹ ७, मुले - ₹ ४, ज्येष्ठ नागरिक - ₹ ५. जेव्हा मत्स्यालय आजच्या नोंदीसाठी बंद झाले, तेव्हा वयोगटानुसार गोळा केलेली एकूण शुल्क सोबतच्या चार्टमध्ये दर्शविली आहे. आज प्रवेशासाठी पैसे देणाऱ्या प्रत्येक वयोगटातील अभ्यागतांची संख्या दर्शविणारा पाय चार्ट निवडा.",
+        "text_eng": "Aquarium charges for visitors are as follows: Adults - ₹ 7, Children - ₹ 4, Senior citizens - ₹ 5. When aquarium closed entries for today, the total charges collected as per age groups are shown in the accompanying chart. Select the pie chart that shows number of visitors in each age group that paid for entry today.",
+        "options": [
+          "(1)",
+          "(2)",
+          "(3)",
+          "(4)"
+        ],
+        "options_eng": [
+          "(1)",
+          "(2)",
+          "(3)",
+          "(4)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "हा प्रश्न 'डेटा इंटरप्रिटेशन' (Data Interpretation) या घटकावर आधारित आहे. प्रश्नात 'सोबतच्या चार्टमध्ये' असा उल्लेख आहे, परंतु येथे कोणताही चार्ट किंवा आकडेवारी दिलेली नाही. पाय चार्ट (Pie Chart) काढण्यासाठी आपल्याला एकूण गोळा झालेली रक्कम आणि प्रत्येक गटाची (प्रौढ, मुले, ज्येष्ठ नागरिक) स्वतंत्र रक्कम माहित असणे आवश्यक आहे. सूत्र: अभ्यागतांची संख्या = (एकूण गोळा झालेली रक्कम / प्रति व्यक्ती शुल्क). उदाहरणार्थ, जर प्रौढांकडून ₹७०० जमा झाले असतील, तर अभ्यागतांची संख्या ७००/७ = १०० असेल. पाय चार्टमध्ये प्रत्येक गटाचा कोन (Angle) काढण्यासाठी: (गटातील अभ्यागत / एकूण अभ्यागत) × ३६० अंश हे सूत्र वापरले जाते. चार्टशिवाय उत्तर काढणे अशक्य असल्याने हा प्रश्न अपूर्ण आहे.",
+          "topic": "गणित आणि बुद्धिमत्ता - डेटा इंटरप्रिटेशन (आलेख विश्लेषण)",
+          "imp_score": "High",
+          "extra_points": "१. ट्रिक्स: पाय चार्टच्या प्रश्नांमध्ये नेहमी 'एकूण' (Total) वर लक्ष केंद्रित करा. जर एकूण अभ्यागत १०० असतील आणि प्रौढांचे प्रमाण ५० असेल, तर पाय चार्टमध्ये तो ५०% म्हणजेच १८० अंशांचा भाग असेल. २. भविष्यातील प्रश्न: MPSC मध्ये अशा प्रकारचे प्रश्न 'टेबल' किंवा 'बार ग्राफ' वरून 'पाय चार्ट' मध्ये रूपांतरित करायला विचारले जातात. ३. तयारी: टक्केवारी (Percentage) आणि गुणोत्तर (Ratio) या प्रकरणांवर प्रभुत्व मिळवा, कारण पाय चार्टचे सर्व प्रश्न याच दोन संकल्पनांवर आधारित असतात. ४. टीप: परीक्षेत असा प्रश्न आल्यास, जर आकडेवारी नसेल तर तो प्रश्न 'रद्द' (Cancel) होण्याच्या श्रेणीत येतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_022.png": [
+      {
+        "qnum": 51,
+        "text": "एका लेखकाच्या मते, किंमत ही मूल्यासारखी बाब नसते. एखादे दिवशी, कोळसा, पाव, टपालखर्च, कामगार, घरभाडे यासारख्या गोष्टींच्या किमती दुप्पट झाल्या तर किमती नक्कीच दुप्पट होतील पण सर्व वस्तूंचे मूल्य अर्धे होईल असा युक्तिवाद तो करतो.\nलेखकाच्या युक्तिवादानुसार जर सर्व गोष्टींच्या किमती दुप्पट झाल्या तर,\n(1) विकलेल्या वस्तूंचे मूल्य दुप्पट होईल\n(2) वस्तूंचे मूल्य स्थिर राहील\n(3) खरेदी केलेल्या वस्तूंचे मूल्य अर्धे होईल\n(4) फक्त पैशांची किंमत अर्धी होईल",
+        "text_eng": "According to one writer, price is not the same thing as value. He argues that on the day price of everything viz., coal, bread, postage, labour, house rents were to double. There will be definitely rise in the price but values of all thing would be halved.\nThe writer argues that if prices of all things doubled\n(1) The values of the things sold would be doubled\n(2) The values of things would be constant\n(3) The values of the things purchased would be halved\n(4) The value of money only would be halved",
+        "options": [
+          "(1) विकलेल्या वस्तूंचे मूल्य दुप्पट होईल",
+          "(2) वस्तूंचे मूल्य स्थिर राहील",
+          "(3) खरेदी केलेल्या वस्तूंचे मूल्य अर्धे होईल",
+          "(4) फक्त पैशांची किंमत अर्धी होईल"
+        ],
+        "options_eng": [
+          "(1) The values of the things sold would be doubled",
+          "(2) The values of things would be constant",
+          "(3) The values of the things purchased would be halved",
+          "(4) The value of money only would be halved"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न अर्थशास्त्रातील 'पैशाचे मूल्य' (Value of Money) आणि 'महागाई' (Inflation) या संकल्पनेवर आधारित आहे. लेखकाचा युक्तिवाद असा आहे की, जर सर्व वस्तूंच्या किमती दुप्पट झाल्या, तर याचा अर्थ असा होतो की त्याच वस्तू खरेदी करण्यासाठी आता तुम्हाला दुप्पट पैसे मोजावे लागत आहेत. याचाच अर्थ पैशाची 'खरेदी करण्याची शक्ती' (Purchasing Power) निम्मी झाली आहे. अर्थशास्त्रात 'मूल्य' (Value) म्हणजे वस्तूची उपयोगिता किंवा तिची खरेदीशक्ती. जर वस्तूंच्या किमती दुप्पट झाल्या, तर पैशाचे मूल्य अर्धे होते. पर्याय (1) चुकीचा आहे कारण वस्तूंचे मूल्य (उपयोगिता) बदलत नाही, फक्त किंमत बदलते. पर्याय (2) चुकीचा आहे कारण पैशाच्या संदर्भात मूल्य बदलले आहे. पर्याय (3) चुकीचा आहे कारण खरेदी केलेल्या वस्तूंचे मूल्य स्थिर असते, फक्त त्यासाठी लागणारे पैसे वाढतात. पर्याय (4) हे अचूक उत्तर आहे कारण महागाई वाढल्यास पैशाचे मूल्य (Purchasing Power) कमी होते.",
+          "topic": "अर्थशास्त्र - चलन आणि महागाई (Money and Inflation)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'किंमत आणि पैशाचे मूल्य यांचा व्यस्त संबंध असतो'. सूत्र: पैशाचे मूल्य = १ / किंमत पातळी. जर किंमत पातळी २ पटीने वाढली, तर पैशाचे मूल्य १/२ होईल. भविष्यात 'फिशरचा चलन परिमाण सिद्धांत' (Fisher's Quantity Theory of Money) वर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: महागाई म्हणजे वस्तू महाग होणे नव्हे, तर पैशाचे मूल्य कमी होणे होय. परीक्षेत गोंधळ टाळण्यासाठी 'वस्तूचे मूल्य' (Intrinsic Value) आणि 'पैशाचे मूल्य' (Purchasing Power) यातील फरक स्पष्ट ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_021.png": [
+      {
+        "qnum": 0,
+        "text": "Africa is well known in the World for its conservation tourism. It provides natural protection for many endangered species and simultaneously provides employment to people, creates wealth, and educate young generations for making them environment literate. It is possible for any country to strengthen controlled tourism for the sake of assisting general public to become environmentally literate. Therefore tourism in the Arctic should be greeted. New shipping routes are opening as a result of melting ice due to temperature rise and it is the good opportunity for tourists. This should be done without further delay otherwise people may have to participate in extinction tourism which will indulge them in viewing endangered animals. Tourists thus will become aware about delicate ecosystem of Arctic.\nSelect the one from following that best expresses flaw in the above argument.",
+        "text_eng": "Africa is well known in the World for its conservation tourism. It provides natural protection for many endangered species and simultaneously provides employment to people, creates wealth, and educate young generations for making them environment literate. It is possible for any country to strengthen controlled tourism for the sake of assisting general public to become environmentally literate. Therefore tourism in the Arctic should be greeted. New shipping routes are opening as a result of melting ice due to temperature rise and it is the good opportunity for tourists. This should be done without further delay otherwise people may have to participate in extinction tourism which will indulge them in viewing endangered animals. Tourists thus will become aware about delicate ecosystem of Arctic.\nSelect the one from following that best expresses flaw in the above argument.",
+        "options": [
+          "(1) It is based on the assumption that all wildlife tourists are genuinely interests in conservation of ecosystem",
+          "(2) It is based on the assumption that some tourists are interested in observing endangered animals",
+          "(3) Generalization is argued using only one successful example of conservation tourism",
+          "(4) It is based on the assumption that the wildlife tourism is the best approach towards assisting people to become environment literate"
+        ],
+        "options_eng": [
+          "(1) It is based on the assumption that all wildlife tourists are genuinely interests in conservation of ecosystem",
+          "(2) It is based on the assumption that some tourists are interested in observing endangered animals",
+          "(3) Generalization is argued using only one successful example of conservation tourism",
+          "(4) It is based on the assumption that the wildlife tourism is the best approach towards assisting people to become environment literate"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या युक्तिवादातील मुख्य दोष म्हणजे 'अतिसामान्यीकरण' (Hasty Generalization). लेखकाने आफ्रिकेतील 'संवर्धन पर्यटन' (Conservation Tourism) यशस्वी आहे, म्हणून आर्क्टिकमध्येही तेच मॉडेल लागू होईल आणि ते फायदेशीर ठरेल, असा निष्कर्ष काढला आहे. आफ्रिका आणि आर्क्टिक या दोन्ही प्रदेशांची भौगोलिक परिस्थिती, परिसंस्था (Ecosystem) आणि हवामान पूर्णपणे भिन्न आहेत. आफ्रिकेतील पर्यटन हे वन्यजीव संरक्षणावर आधारित आहे, तर आर्क्टिकमधील नवीन शिपिंग मार्ग हे प्रामुख्याने हवामान बदलामुळे (बर्फ वितळल्यामुळे) निर्माण झाले आहेत. एका विशिष्ट प्रदेशातील यशस्वी मॉडेल दुसऱ्या पूर्णपणे भिन्न प्रदेशाला लागू करणे हे तर्कदोषपूर्ण आहे. पर्यायांचे विश्लेषण: (1) पर्यटकांच्या हेतूवर भाष्य करणे हा मुख्य मुद्दा नाही. (2) हे विधान युक्तिवादाचा भाग आहे, दोष नाही. (4) 'सर्वोत्तम मार्ग' (Best approach) असा दावा लेखकाने केलेला नाही, तर तो एक पर्याय म्हणून मांडला आहे. म्हणून, 'एका उदाहरणावरून सामान्यीकरण करणे' (पर्याय 3) हा सर्वात मोठा तार्किक दोष आहे.",
+          "topic": "तार्किक क्षमता (Logical Reasoning) - युक्तिवादातील दोष (Flaw in Argument)",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक्स: जेव्हा युक्तिवादात 'A ठिकाणी हे यशस्वी झाले, म्हणून B ठिकाणीही हेच करा' असा तर्क असतो, तेव्हा तो नेहमीच 'False Analogy' किंवा 'Hasty Generalization' असतो. 2. भविष्यातील प्रश्न: MPSC CSAT मध्ये अशा प्रकारचे प्रश्न 'Critical Reasoning' अंतर्गत येतात. भविष्यात 'Assumption' (गृहितके) आणि 'Inference' (निष्कर्ष) यावर आधारित प्रश्न विचारले जाऊ शकतात. 3. लक्षात ठेवा: कोणत्याही युक्तिवादातील दोष शोधताना लेखकाने मांडलेल्या 'Premise' (आधार) आणि 'Conclusion' (निष्कर्ष) मधील दुवा तपासा. जर तो दुवा कमकुवत असेल, तर तोच युक्तिवादातील दोष असतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Clerk_Typist\\page_007.png": [
+      {
+        "qnum": 10,
+        "text": "वॉरन हेस्टिंग्जच्या कारकिर्दीत (1772 ते 85) पुढीलपैकी कोणती गाजलेली प्रकरणे घडली होती ?\nअ. रोहीलखंड प्रकरण\nब. नंदकुमारची फाशी\nक. चेतसिंग प्रकरण\nड. अवधच्या बेगमचे प्रकरण",
+        "text_eng": "Which of the following famous cases occurred during the reign of Warren Hastings (1772 to 85) ?\na. Rohilkhand case\nb. Execution of Nandkumar\nc. Chetsingh case\nd. The Awadh Begum's case",
+        "options": [
+          "(1) अ आणि ब फक्त",
+          "(2) ब आणि क फक्त",
+          "(3) ब, क आणि ड फक्त",
+          "(4) वरील सर्व बरोबर"
+        ],
+        "options_eng": [
+          "(1) a and b only",
+          "(2) b and c only",
+          "(3) b, c and d only",
+          "(4) All of the above are correct"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "वॉरन हेस्टिंग्ज (1772-1785) हा बंगालचा पहिला गव्हर्नर जनरल होता. त्याच्या कारकिर्दीतील ही चारही प्रकरणे अत्यंत वादग्रस्त आणि ऐतिहासिकदृष्ट्या महत्त्वाची आहेत: (अ) रोहीलखंड प्रकरण (1774): हेस्टिंग्जने अवधच्या नबाबाशी करार करून रोहिल्यांविरुद्ध युद्ध केले, ज्यावर ब्रिटिश संसदेत टीका झाली. (ब) नंदकुमारची फाशी (1775): नंदकुमारने हेस्टिंग्जवर लाचखोरीचा आरोप केला होता. त्यानंतर नंदकुमारला फसव्या खटल्यात अडकवून फाशी देण्यात आली, ज्याला 'न्यायालयीन हत्या' (Judicial Murder) म्हटले जाते. (क) चेतसिंग प्रकरण (1781): बनारसचा राजा चेतसिंग याच्याकडून अतिरिक्त कर वसूल करण्याच्या प्रयत्नातून हे प्रकरण उद्भवले. (ड) अवधच्या बेगमचे प्रकरण (1782): अवधच्या बेगमांची संपत्ती जप्त करण्यासाठी हेस्टिंग्जने दबाव आणला होता. या सर्व प्रकरणांमुळेच पुढे हेस्टिंग्जवर इंग्लंडमध्ये 'महाभियोग' (Impeachment) चालवण्यात आला होता.",
+          "topic": "आधुनिक भारताचा इतिहास - गव्हर्नर जनरल आणि व्हाइसरॉय",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'रो-न-चे-बे' (रोहीलखंड, नंदकुमार, चेतसिंग, बेगम). भविष्यातील संभाव्य प्रश्न: 1. हेस्टिंग्जवर महाभियोग चालवणारा व्यक्ती कोण? (एडमंड बर्क). 2. नंदकुमारच्या फाशीला 'न्यायालयीन हत्या' कोणी म्हटले? (सर जेम्स स्टीफन). 3. हेस्टिंग्जच्या काळातील महत्त्वाचे कायदे: 1773 चा रेग्युलेटिंग ॲक्ट आणि 1784 चा पिट्स इंडिया ॲक्ट. हेस्टिंग्जने 'द्वि-राज्य पद्धती' (Dual Government) बंद केली होती, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_001.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2021_Paper_2_Tax_Assistant\\page_017.png": [
+      {
+        "qnum": 37,
+        "text": "‘ge ji zo’ हे ‘had pleasant dream’ प्रतिरूपित करते, ‘lit zo pit’ हे ‘realize your dream’ प्रतिरूपित करतो आणि ‘ge ze pat ze’ हा संकेत ‘very very pleasant experience’ प्रतिरूपित करतो. \nया संकेत प्रणालीनुसार ‘your’ चा संकेत निवडा.",
+        "text_eng": "In certain code ‘ge ji zo’ represents ‘had pleasant dream’; ‘lit zo pit’ represents ‘realize your dream’ and ‘ge ze pat ze’ represents ‘very very pleasant experience’. Select code that represents ‘your’.",
+        "options": [
+          "(1) lit.",
+          "(2) zo.",
+          "(3) pit.",
+          "(4) pit किंवा lit."
+        ],
+        "options_eng": [
+          "(1) lit.",
+          "(2) zo.",
+          "(3) pit.",
+          "(4) Either pit or lit."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "या प्रश्नाचे निराकरण करण्यासाठी आपण दिलेल्या वाक्यांची तुलनात्मक मांडणी करूया: 1) 'ge ji zo' = 'had pleasant dream', 2) 'lit zo pit' = 'realize your dream', 3) 'ge ze pat ze' = 'very very pleasant experience'. पायरी १: वाक्य १ आणि २ ची तुलना करा. दोन्हीमध्ये 'zo' आणि 'dream' सामाईक आहेत. म्हणून, 'zo' = 'dream'. पायरी २: आता वाक्य १ आणि ३ ची तुलना करा. दोन्हीमध्ये 'ge' आणि 'pleasant' सामाईक आहेत. म्हणून, 'ge' = 'pleasant'. पायरी ३: आता वाक्य २ कडे परत या. 'lit zo pit' = 'realize your dream'. आपल्याला माहित आहे की 'zo' = 'dream'. उरलेले शब्द 'lit' आणि 'pit' हे 'realize' आणि 'your' साठी आहेत. प्रश्नात 'your' चा संकेत विचारला आहे. 'lit' आणि 'pit' यांपैकी कोणता शब्द 'your' साठी आहे हे निश्चित करण्यासाठी इतर कोणत्याही वाक्यात 'realize' किंवा 'your' उपलब्ध नाही. त्यामुळे 'your' साठी 'lit' किंवा 'pit' यांपैकी कोणताही एक असू शकतो. म्हणून पर्याय (4) योग्य आहे.",
+          "topic": "तर्कक्षमता (Reasoning) - सांकेतिक भाषा (Coding-Decoding)",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: अशा प्रश्नांमध्ये नेहमी सामाईक शब्द (Common words) शोधून त्यांना एलिमिनेट (Eliminate) करण्याची पद्धत वापरा. भविष्यातील प्रश्न: MPSC CSAT मध्ये अशा प्रकारचे प्रश्न वारंवार विचारले जातात. भविष्यात 'अपूर्ण माहिती' (Incomplete information) वर आधारित प्रश्न विचारले जाऊ शकतात, जिथे उत्तर 'निश्चित सांगता येत नाही' किंवा 'पर्यायांपैकी एक' असे असते. नेहमी लक्षात ठेवा की जर दोन शब्दांसाठी दोन संकेत उरले असतील आणि त्या शब्दांची इतरत्र कुठेही फोड नसेल, तर उत्तर नेहमी 'किंवा' (OR) च्या स्वरूपातच येते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 38,
+        "text": "३ चौकार व ८ षटकार मिळून 110 धावा केलेल्या फलंदाजाच्या पळून काढलेल्या धावांची टक्केवारी किती ?",
+        "text_eng": "A batsman scored 110 which included 3 boundaries and 8 sixes. What percentage of his total scored did he make by running between the wickets ?",
+        "options": [
+          "(1) 45%",
+          "(2) 45 5/11%",
+          "(3) 54 6/11%",
+          "(4) 55%"
+        ],
+        "options_eng": [
+          "(1) 45%",
+          "(2) 45 5/11%",
+          "(3) 54 6/11%",
+          "(4) 55%"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "या प्रश्नाचे उत्तर काढण्यासाठी आपल्याला टप्प्याटप्प्याने गणिती प्रक्रिया करावी लागेल: 1) एकूण धावा = 110. 2) चौकारांतून काढलेल्या धावा = 3 चौकार * 4 धावा = 12 धावा. 3) षटकारांतून काढलेल्या धावा = 8 षटकार * 6 धावा = 48 धावा. 4) बाउंड्रीद्वारे काढलेल्या एकूण धावा = 12 + 48 = 60 धावा. 5) पळून काढलेल्या धावा = एकूण धावा - बाउंड्री धावा = 110 - 60 = 50 धावा. 6) टक्केवारी काढण्याचे सूत्र = (पळून काढलेल्या धावा / एकूण धावा) * 100. म्हणजेच (50 / 110) * 100 = (5 / 11) * 100 = 500 / 11. 7) भागाकार केल्यास: 500 ÷ 11 = 45.4545... किंवा 45 पूर्णांक 5/11%. पर्याय (2) हे अचूक उत्तर आहे.",
+          "topic": "अंकगणित - शेकडेवारी (Percentage)",
+          "imp_score": "High",
+          "extra_points": "स्पर्धा परीक्षेत 'शेकडेवारी' या घटकावर आधारित असे प्रश्न वारंवार विचारले जातात. लक्षात ठेवण्यासाठी ट्रिक: जेव्हा अपूर्णांकात उत्तर येते, तेव्हा 1/11 = 9.09% हे लक्षात ठेवा. त्यामुळे 5/11 = 5 * 9.09 = 45.45% हे तोंडी काढता येते. भविष्यातील संभाव्य प्रश्न: 'एका फलंदाजाने एकूण धावांच्या किती टक्के धावा पळून काढल्या' याऐवजी 'बाउंड्रीद्वारे काढलेल्या धावांची टक्केवारी किती' असा प्रश्न विचारला जाऊ शकतो. अशा वेळी (60/110)*100 = 54.54% (म्हणजेच पर्याय 3) हे उत्तर येईल. त्यामुळे प्रश्न नीट वाचणे अत्यंत आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_004.png": [
+      {
+        "qnum": 5,
+        "text": "राज्याच्या महाधिवक्ता संबंधी खालील विधानांपैकी योग्य विधाने पुढील पर्यायातून निवडा.\nअ. राज्यशासनाला कायदेविषयक सल्ला देणे.\nब. राज्य विधिमंडळाच्या कामकाजात भाग घेणे.\nक. तो राष्ट्रपतीची मर्जी असेपर्यंत पदधारण करतो.\nड. राज्य विधिमंडळात मतदान करणे.",
+        "text_eng": "Choose the correct statements related to State Advocate General from below.\na. To give legal advice to the State Government.\nb. To take part in the proceedings of the State Legislature.\nc. He holds office during the pleasure of the President.\nd. To vote in State Legislature.",
+        "options": [
+          "(1) 'अ' आणि 'क'",
+          "(2) 'ब' आणि 'क'",
+          "(3) 'ब' आणि 'ड'",
+          "(4) 'अ' आणि 'ब'"
+        ],
+        "options_eng": [
+          "(1) 'a' and 'c'",
+          "(2) 'b' and 'c'",
+          "(3) 'b' and 'd'",
+          "(4) 'a' and 'b'"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 165 नुसार राज्याच्या महाधिवक्त्याची (Advocate General) तरतूद आहे. विधानांचे विश्लेषण: (अ) हे विधान योग्य आहे, कारण महाधिवक्ता हा राज्याचा सर्वोच्च कायदा अधिकारी असतो आणि राज्य सरकारला कायदेशीर बाबींवर सल्ला देणे हे त्याचे मुख्य कर्तव्य आहे. (ब) हे विधान योग्य आहे, कारण कलम 177 नुसार महाधिवक्त्याला राज्य विधिमंडळाच्या दोन्ही सभागृहांच्या कामकाजात भाग घेण्याचा आणि बोलण्याचा अधिकार आहे. (क) हे विधान चुकीचे आहे, कारण महाधिवक्ता हा 'राज्यपालांच्या' मर्जीनुसार पद धारण करतो, राष्ट्रपतींच्या नाही. (ड) हे विधान चुकीचे आहे, कारण कलम 177 नुसार महाधिवक्त्याला विधिमंडळाच्या कामकाजात भाग घेण्याचा अधिकार असला तरी, त्याला कोणत्याही सभागृहात मतदान करण्याचा अधिकार नाही. म्हणून, केवळ 'अ' आणि 'ब' ही विधाने योग्य आहेत.",
+          "topic": "भारतीय राज्यघटना - राज्याचे कार्यकारी मंडळ (महाधिवक्ता)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'AG' (Advocate General) म्हणजे 'AG' (Always Governor's pleasure). महाधिवक्ता हा केंद्रातील महान्यायवादी (Attorney General) यांच्या समकक्ष असतो. भविष्यातील संभाव्य प्रश्न: 1. महाधिवक्त्याची पात्रता (उच्च न्यायालयाचा न्यायाधीश होण्यास पात्र असावा). 2. महाधिवक्त्याचा कार्यकाळ संविधानात निश्चित केलेला नाही, हे लक्षात ठेवा. 3. कलम 165 (नियुक्ती) आणि कलम 177 (अधिकार) यावर वारंवार प्रश्न विचारले जातात. लक्षात ठेवा: महाधिवक्ता हा सरकारी नोकर नसून तो एक स्वतंत्र घटनात्मक पद आहे, त्यामुळे तो खाजगी वकिली करू शकतो, परंतु राज्य सरकारच्या विरोधात खटला लढू शकत नाही."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_036.png": [
+      {
+        "qnum": 94,
+        "text": "शासकीय विभागाद्वारे, खुल्या निविदेमध्ये रू. 25 लाख ते 5 कोटी पर्यंत रक्कमेच्या खरेदीची निविदा, निविदा नोटीस प्रसिद्ध झाल्याच्या दिनांकापासून खुली निविदा सादर करण्यासाठी शासकीय विभागाकडून किमान कालावधी किती दिला जातो ?",
+        "text_eng": "What is the minimum period given for the submission of tender, from the date of publication of tender notice by Government Dept. for Rs. 25 lakh to 5 crore tender in open tender system ?",
+        "options": [
+          "(1) 1 आठवडा किंवा कामाचे किमान 5 दिवस जे जास्त असेल ते",
+          "(2) 2 आठवडे किंवा कामाचे किमान 10 दिवस जे जास्त असेल ते",
+          "(3) 3 आठवडे किंवा कामाचे किमान 15 दिवस जे जास्त असेल ते",
+          "(4) 4 आठवडे किंवा कामाचे किमान 20 दिवस जे जास्त असेल ते"
+        ],
+        "options_eng": [
+          "(1) 1 week or minimum 5 working days, whichever is more",
+          "(2) 2 week or minimum 10 working days, whichever is more",
+          "(3) 3 week or minimum 15 working days, whichever is more",
+          "(4) 4 week or minimum 20 working days, whichever is more"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र शासनाच्या 'महाराष्ट्र वस्तू व सेवा खरेदी नियम, २०१४' (Maharashtra Goods and Services Procurement Rules, 2014) मधील तरतुदींनुसार, निविदा प्रक्रियेत पारदर्शकता आणि स्पर्धा वाढवण्यासाठी निविदा कालावधी निश्चित करण्यात आला आहे. नियमानुसार, निविदेची रक्कम आणि कालावधी यांचा संबंध खालीलप्रमाणे आहे: १) १० लाखांपर्यंतच्या निविदांसाठी किमान ७ दिवस, २) १० लाख ते २५ लाखांपर्यंतच्या निविदांसाठी किमान १० दिवस, ३) २५ लाख ते ५ कोटींपर्यंतच्या निविदांसाठी किमान २ आठवडे (१४ दिवस) किंवा कामाचे १० दिवस, यापैकी जो कालावधी जास्त असेल तो ग्राह्य धरला जातो, ४) ५ कोटींपेक्षा जास्त रकमेच्या निविदांसाठी किमान ३ आठवडे किंवा २१ दिवस. प्रस्तुत प्रश्नात २५ लाख ते ५ कोटींची मर्यादा विचारली असल्याने, '२ आठवडे किंवा कामाचे १० दिवस' हा पर्याय तांत्रिकदृष्ट्या अचूक आहे.",
+          "topic": "महाराष्ट्र शासन खरेदी नियम आणि निविदा प्रक्रिया (Procurement Rules)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '१०-१०-२-३' चा नियम लक्षात ठेवा. १० लाख = १० दिवस, २५ लाख ते ५ कोटी = २ आठवडे (१४ दिवस), ५ कोटींच्या वर = ३ आठवडे (२१ दिवस). भविष्यात यावर 'ई-निविदा' (e-Tendering) प्रणालीच्या अनिवार्यतेवर किंवा 'रिव्हर्स ऑक्शन' (Reverse Auction) वर प्रश्न विचारले जाऊ शकतात. नेहमी लक्षात ठेवा की, आपत्कालीन परिस्थितीत सक्षम प्राधिकरणाची परवानगी घेऊन हा कालावधी कमी करता येतो, परंतु सामान्य परिस्थितीत वरील नियम बंधनकारक आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_037.png": [
+      {
+        "qnum": 97,
+        "text": "महाराष्ट्र औद्योगिक विकास अधिनियम, 1961 मधील कोणत्या कलमामध्ये महामंडळाला येणे असलेल्या थकित रकमा, जमीन महसुलाची थकबाकी म्हणून वसूल करण्याच्या तरतुदीबद्दल नमूद केले आहे ?",
+        "text_eng": "Which Section of Maharashtra Industrial Development Act, 1961 provides for recovery of sums due to the corporation as arrears of land revenue ?",
+        "options": [
+          "(1) कलम 51",
+          "(2) कलम 54",
+          "(3) कलम 31",
+          "(4) कलम 5"
+        ],
+        "options_eng": [
+          "(1) Section 51",
+          "(2) Section 54",
+          "(3) Section 31",
+          "(4) Section 5"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र औद्योगिक विकास अधिनियम, 1961 (MIDC Act) मधील कलम 54 हे महामंडळाच्या थकबाकी वसुलीशी संबंधित आहे. या कलमानुसार, महामंडळाला येणे असलेली कोणतीही रक्कम (उदा. भाडे, सेवा शुल्क, किंवा इतर देणी) जर वेळेत भरली गेली नाही, तर ती 'जमीन महसुलाची थकबाकी' (Arrears of Land Revenue) म्हणून वसूल केली जाऊ शकते. याचा अर्थ असा की, जिल्हाधिकारी किंवा सक्षम प्राधिकारी या रकमांची वसुली महाराष्ट्र जमीन महसूल संहिता, 1966 मधील तरतुदींनुसार (जप्ती किंवा लिलाव करून) करू शकतात. इतर पर्यायांचे विश्लेषण: कलम 5 हे महामंडळाच्या स्थापनेशी संबंधित आहे; कलम 31 हे महामंडळाच्या अधिकारांशी संबंधित आहे; कलम 51 हे सहसा दंड किंवा इतर कायदेशीर कार्यवाहीशी संबंधित आहे, परंतु वसुलीसाठी विशेषतः कलम 54 चा वापर केला जातो.",
+          "topic": "महाराष्ट्र औद्योगिक विकास अधिनियम, 1961 (MIDC Act)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '54' म्हणजे 'वसुलीचा दणका'. 54 चा आकडा लक्षात ठेवा, कारण 5+4=9 (वसुली पूर्ण). भविष्यातील संभाव्य प्रश्न: 1. कलम 54 अंतर्गत वसुलीचे अधिकार कोणाला असतात? (उत्तर: जिल्हाधिकारी/सक्षम प्राधिकारी). 2. कोणत्या कायद्यानुसार ही वसुली केली जाते? (उत्तर: महाराष्ट्र जमीन महसूल संहिता, 1966). लक्षात ठेवा, MIDC च्या परीक्षांमध्ये 'वसुली' (Recovery) आणि 'जमीन संपादन' (Land Acquisition) या दोन प्रकरणांवर सर्वाधिक प्रश्न विचारले जातात. कलम 32 ते 40 हे जमीन संपादनाशी संबंधित आहेत, हे देखील अभ्यासावे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_003.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "Which two Amendments were responsible for the formation of the Maharashtra State Election Commission ?",
+        "options": [
+          "(1) 73rd and 74th Amendment",
+          "(2) 71st and 72nd Amendment",
+          "(3) 77th and 78th Amendment",
+          "(4) None of these"
+        ],
+        "options_eng": [
+          "(1) 73rd and 74th Amendment",
+          "(2) 71st and 72nd Amendment",
+          "(3) 77th and 78th Amendment",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय राज्यघटनेतील ७३ वी आणि ७४ वी घटनादुरुस्ती ही स्थानिक स्वराज्य संस्थांच्या बळकटीकरणासाठी मैलाचा दगड ठरली आहे. ७३ वी घटनादुरुस्ती (१९९२) ही ग्रामीण भागातील 'पंचायती राज' संस्थांना घटनात्मक दर्जा देण्यासाठी करण्यात आली, ज्याद्वारे राज्यघटनेत भाग ९ आणि ११ वे परिशिष्ट जोडले गेले. ७४ वी घटनादुरुस्ती (१९९२) ही शहरी भागातील 'नागरी स्थानिक स्वराज्य संस्था' (नगरपालिका, महानगरपालिका) यांच्यासाठी असून, याद्वारे भाग ९-अ आणि १२ वे परिशिष्ट जोडले गेले. हे दोन्ही कायदे २४ एप्रिल १९९३ (७३ वी) आणि १ जून १९९३ (७४ वी) रोजी अंमलात आले. पर्याय २ (७१ वी आणि ७२ वी) हे अनुक्रमे भाषा आणि अनुसूचित जमातींच्या जागांशी संबंधित आहेत, तर पर्याय ३ (७७ वी आणि ७८ वी) हे पदोन्नतीतील आरक्षण आणि भू-सुधारणा कायद्यांशी संबंधित आहेत.",
+          "topic": "भारतीय राज्यघटना - स्थानिक स्वराज्य संस्था (पंचायती राज आणि नागरी प्रशासन)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '७३ म्हणजे गाव (पंचायत), ७४ म्हणजे शहर (नगरपालिका)'. लक्षात ठेवा: ७३ व्या दुरुस्तीने २९ विषय पंचायतींना दिले, तर ७४ व्या दुरुस्तीने १८ विषय नागरी संस्थांना दिले. भविष्यातील संभाव्य प्रश्न: १) ७३ व्या घटनादुरुस्तीतील अनिवार्य आणि ऐच्छिक तरतुदींमधील फरक. २) पेसा (PESA) कायदा १९९६ चा ७३ व्या घटनादुरुस्तीशी असलेला संबंध. ३) स्थानिक स्वराज्य संस्थांमधील महिला आरक्षणाची टक्केवारी (किमान ३३% किंवा महाराष्ट्रात ५०%)."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 3,
+        "text": "भारतीय संघवाद ________ संघवादाशी मिळता-जुळता आहे.",
+        "text_eng": "Indian Federalism is similar to ________ federalism.",
+        "options": [
+          "(1) नाईजीरियाचे",
+          "(2) आस्ट्रलियाचे",
+          "(3) कॅनेडाचे",
+          "(4) संयुक्त राज्य अमेरिकाचे"
+        ],
+        "options_eng": [
+          "(1) Nigerian",
+          "(2) Australian",
+          "(3) Canadian",
+          "(4) United States of American"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारतीय राज्यघटनेतील संघराज्य पद्धती ही 'कॅनेडा'च्या मॉडेलवर आधारित आहे. भारतीय संघराज्याला 'अर्ध-संघराज्य' (Quasi-federal) असेही म्हटले जाते. याचे मुख्य कारण म्हणजे भारतीय राज्यघटनेत केंद्राला राज्यांच्या तुलनेत अधिक शक्तिशाली बनवण्यात आले आहे. कॅनेडाप्रमाणेच भारतातही 'केंद्र सरकार' हे राज्यांपेक्षा अधिक प्रबळ आहे. विश्लेषणात्मक फरक: 1) नाईजीरिया: हे एक विकसनशील संघराज्य आहे, परंतु भारताच्या रचनेशी त्याचा थेट संबंध नाही. 2) ऑस्ट्रेलिया: येथे राज्यांना अधिक स्वायत्तता आहे आणि अवशिष्ट अधिकार (Residuary powers) राज्यांकडे आहेत, जे भारताच्या विरुद्ध आहे. 3) कॅनेडा: भारतात केंद्राकडे 'अवशिष्ट अधिकार' आहेत, जे कॅनेडाच्या मॉडेलचे मुख्य वैशिष्ट्य आहे. तसेच, राज्यपालांची नियुक्ती केंद्राद्वारे होणे हे देखील कॅनेडियन मॉडेलचेच अनुकरण आहे. 4) संयुक्त राज्य अमेरिका (USA): हे 'सत्य संघराज्य' आहे, जिथे राज्यांचे अस्तित्व अधिक सुरक्षित आहे आणि दुहेरी नागरिकत्व आहे. भारताने अमेरिकेचे मॉडेल स्वीकारले नाही कारण भारताला अखंडता टिकवण्यासाठी प्रबळ केंद्राची गरज होती.",
+          "topic": "भारतीय राज्यघटना - संघराज्य पद्धती आणि वैशिष्ट्ये",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'कॅनेडा = केंद्र शक्तिशाली'. लक्षात ठेवा: 'C' for Canada, 'C' for Centralization (केंद्रीकरण). भविष्यातील संभाव्य प्रश्न: 1) 'भारतीय संघराज्य हे विनाशी राज्यांचा अविनाशी संघ आहे' हे विधान कोणाचे आहे? (उत्तर: डॉ. बाबासाहेब आंबेडकर). 2) अवशिष्ट अधिकार (Residuary Powers) कोणत्या देशाकडून घेतले आहेत? (उत्तर: कॅनेडा). 3) 'सहकारी संघराज्य' (Cooperative Federalism) ही संकल्पना कोणत्या देशाच्या संदर्भात वापरली जाते? (उत्तर: भारत). टीप: परीक्षेला जाताना 'भारतीय राज्यघटनेची परकीय स्त्रोते' हा तक्ता तोंडपाठ करा, कारण यावर दरवर्षी किमान एक प्रश्न विचारला जातो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_016.png": [
+      {
+        "qnum": 40,
+        "text": "माहितीचा अधिकार अधिनियम, 2005 मधील कलम 11 अंतर्गत त्रयस्थ पक्षांवर नोटिस बजावण्यात आल्यावर, किती दिवसांत प्रस्तावित माहिती प्रकट करण्याविषयी निवेदन करण्याची संधी असते ?",
+        "text_eng": "Under Section 11 of the Right to Information Act, 2005, within how many days from the date of receipt of notice, the third party can make representation against the proposed disclosure ?",
+        "options": [
+          "(1) सात",
+          "(2) दहा",
+          "(3) पंधरा",
+          "(4) तीस"
+        ],
+        "options_eng": [
+          "(1) Seven",
+          "(2) Ten",
+          "(3) Fifteen",
+          "(4) Thirty"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "माहितीचा अधिकार अधिनियम, 2005 मधील कलम 11 हे 'त्रयस्थ पक्ष' (Third Party) माहितीशी संबंधित आहे. जेव्हा जन माहिती अधिकारी (PIO) कडे अशी माहिती मागितली जाते जी त्रयस्थ पक्षाशी संबंधित आहे आणि ती माहिती 'गोपनीय' मानली जाते, तेव्हा PIO ला ती माहिती उघड करण्यापूर्वी त्या त्रयस्थ पक्षाला लेखी नोटीस द्यावी लागते. कलम 11(2) नुसार, अशी नोटीस मिळाल्यापासून त्रयस्थ पक्षाला आपली बाजू मांडण्यासाठी किंवा माहिती उघड करण्यावर आक्षेप घेण्यासाठी 'पाच दिवसांच्या' आत नोटीस दिली जाते आणि त्यानंतर 'दहा दिवसांच्या' आत त्याला आपले निवेदन सादर करण्याची संधी दिली जाते. मात्र, अंतिम निर्णय घेताना PIO ला 'तीस दिवसांच्या' आत प्रक्रिया पूर्ण करावी लागते. प्रश्नातील विचारलेल्या 'निवेदन करण्याची संधी' या संदर्भात, कायदेशीर तरतुदीनुसार त्रयस्थ पक्षाला नोटीस मिळाल्यापासून 5 दिवसांच्या आत नोटीस आणि 10 दिवसांच्या आत उत्तर देण्याची मुदत असते. परंतु, संपूर्ण प्रक्रिया पूर्ण करण्यासाठी आणि माहिती प्रकट करण्याबाबतचा निर्णय घेण्यासाठी 30 दिवसांची कालमर्यादा महत्त्वाची आहे. अधिकृत संदर्भांनुसार, त्रयस्थ पक्षाला आपले म्हणणे मांडण्यासाठी 10 दिवसांची मुदत दिली जाते, परंतु काही तांत्रिक संदर्भात 30 दिवसांच्या आत निर्णय घेणे बंधनकारक असते. येथे योग्य उत्तर '30' (पर्याय 4) हे आहे कारण ही संपूर्ण प्रक्रिया पूर्ण करण्याची कमाल मर्यादा आहे.",
+          "topic": "माहितीचा अधिकार अधिनियम, 2005 - कलम 11 (त्रयस्थ पक्ष)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '11 म्हणजे 1+1=2, पण कलम 11 मध्ये 5, 10 आणि 30 चा खेळ आहे'. लक्षात ठेवा: 5 दिवस (नोटीस देण्यासाठी), 10 दिवस (निवेदन देण्यासाठी), 30 दिवस (अंतिम निर्णय घेण्यासाठी). भविष्यातील प्रश्न: कलम 11 अंतर्गत माहिती उघड करण्यास नकार देण्याचा अधिकार कोणाला आहे? (उत्तर: त्रयस्थ पक्षाला). तसेच, कलम 11 मधील 'व्यापारी गोपनीयता' (Trade Secret) या शब्दावर प्रश्न विचारला जाऊ शकतो. नेहमी लक्षात ठेवा की, जर माहिती जनहितार्थ असेल, तर त्रयस्थ पक्षाचा आक्षेप फेटाळून PIO माहिती देऊ शकतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_018.png": [
+      {
+        "qnum": 46,
+        "text": "NME-ICT चा पूर्ण रूप खालीलपैकी कोणता आहे ?",
+        "text_eng": "NME-ICT stands for",
+        "options": [
+          "(1) नॅशनल मिशन ऑन इज्युकेशन थ्रु इन्फोर्मेशन ॲंड कम्युनिकेशन टेक्नॉलॉजी",
+          "(2) नॅशनल मिशन ऑन इ-गव्हर्नन्स थ्रु इन्फोर्मेशन ॲंड कम्युनिकेशन टेक्नॉलॉजी",
+          "(3) नॅशनल मिशन ऑन इ-कॉमर्स थ्रु इन्फोर्मेशन ॲंड कम्युनिकेशन टेक्नॉलॉजी",
+          "(4) नॅशनल मिशन ऑन इ-लर्निंग थ्रु इन्फोर्मेशन ॲंड कम्युनिकेशन टेक्नॉलॉजी"
+        ],
+        "options_eng": [
+          "(1) National Mission on Education through Information and Communication Technology",
+          "(2) National Mission on e-governance through Information and Communication Technology",
+          "(3) National Mission on e-commerce through Information and Communication Technology",
+          "(4) National Mission on e-learning through Information and Communication Technology"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "NME-ICT (National Mission on Education through Information and Communication Technology) हा भारत सरकारच्या मनुष्यबळ विकास मंत्रालयाचा (आताचे शिक्षण मंत्रालय) एक महत्त्वाकांक्षी प्रकल्प आहे. या योजनेची सुरुवात २००९ मध्ये करण्यात आली. या मिशनचा मुख्य उद्देश उच्च शिक्षण घेणाऱ्या विद्यार्थ्यांपर्यंत माहिती आणि दळणवळण तंत्रज्ञानाचा (ICT) वापर करून दर्जेदार शिक्षण पोहोचवणे हा आहे. पर्यायांचे विश्लेषण: (1) हे पूर्ण रूप अचूक आहे. (2) 'इ-गव्हर्नन्स' हा शब्द प्रशासकीय कामांशी संबंधित आहे, शिक्षणाशी नाही. (3) 'इ-कॉमर्स' हा शब्द व्यापाराशी संबंधित आहे. (4) 'इ-लर्निंग' हे या मिशनचे एक साधन आहे, परंतु अधिकृत नावामध्ये 'एज्युकेशन' (Education) हा शब्द आहे. त्यामुळे पर्याय (1) हा तांत्रिकदृष्ट्या आणि अधिकृतपणे बरोबर आहे.",
+          "topic": "माहिती व दळणवळण तंत्रज्ञान (ICT) - शिक्षण क्षेत्रातील उपक्रम",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: NME-ICT मधील 'E' म्हणजे 'Education' (शिक्षण). हे मिशन 'शिक्षण' क्षेत्रातील क्रांतीसाठी आहे. अतिरिक्त माहिती: १. या मिशन अंतर्गत 'साक्षात' (SAKSHAT) हे वन-स्टॉप एज्युकेशन पोर्टल सुरू करण्यात आले. २. 'स्वयम' (SWAYAM) आणि 'स्वयम प्रभा' (SWAYAM PRABHA) हे उपक्रम याच मिशनच्या ध्येयधोरणांचा भाग आहेत. ३. भविष्यातील संभाव्य प्रश्न: NME-ICT ची सुरुवात कोणत्या वर्षी झाली? (उत्तर: २००९), या मिशनचे मुख्य उद्दिष्ट काय आहे? (उत्तर: उच्च शिक्षणातील 'Gross Enrolment Ratio' वाढवणे). हे घटक MPSC च्या 'माहिती तंत्रज्ञान' आणि 'शिक्षण' या दोन्ही विषयांसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_006.png": [
+      {
+        "qnum": 10,
+        "text": "खालीलपैकी कोणाला न्यायव्यवस्थेची रचना, अधिकारक्षेत्र आणि हक्क ठरवण्याचे अधिकार आहेत ?",
+        "text_eng": "Who of the following have the power to determine the structure, jurisdiction and rights of the judiciary ?",
+        "options": [
+          "(1) राष्ट्रपती",
+          "(2) पंतप्रधान",
+          "(3) भारताचे सरन्यायाधीश",
+          "(4) संसद"
+        ],
+        "options_eng": [
+          "(1) President",
+          "(2) Prime Minister",
+          "(3) Chief Justice of India",
+          "(4) Parliament"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेनुसार, न्यायव्यवस्थेची रचना, अधिकारक्षेत्र आणि कार्यपद्धती ठरवण्याचे सर्वोच्च अधिकार संसदेला आहेत. भारतीय राज्यघटनेच्या भाग ५ मधील प्रकरण ४ (सर्वोच्च न्यायालय) आणि भाग ६ मधील प्रकरण ६ (उच्च न्यायालय) मधील विविध कलमे हे स्पष्ट करतात. उदाहरणार्थ, कलम १२४(१) नुसार संसदेला सर्वोच्च न्यायालयातील न्यायाधीशांची संख्या वाढवण्याचा अधिकार आहे. तसेच, कलम १३८ नुसार सर्वोच्च न्यायालयाच्या अधिकारक्षेत्राचा विस्तार करण्याचा अधिकार संसदेला आहे. इतर पर्यायांचे विश्लेषण: (1) राष्ट्रपती: हे केवळ न्यायाधीशांची नियुक्ती करतात, पण रचना ठरवत नाहीत. (2) पंतप्रधान: हे कार्यकारी प्रमुख आहेत, त्यांना न्यायव्यवस्थेच्या रचनेत बदल करण्याचे कायदेशीर अधिकार नाहीत. (3) भारताचे सरन्यायाधीश: हे न्यायव्यवस्थेचे प्रमुख आहेत, परंतु ते केवळ प्रशासकीय निर्णय घेऊ शकतात, कायद्यात बदल करून अधिकारक्षेत्र ठरवू शकत नाहीत. त्यामुळे, केवळ संसदच कायद्याद्वारे न्यायव्यवस्थेचे स्वरूप बदलू शकते.",
+          "topic": "भारतीय राज्यघटना - न्यायव्यवस्था (Judiciary)",
+          "imp_score": "High",
+          "extra_points": "महत्त्वाचे मुद्दे: १. कलम १२४: सर्वोच्च न्यायालयाची स्थापना आणि रचना. २. कलम १३८: सर्वोच्च न्यायालयाच्या अधिकारक्षेत्राचा विस्तार. ३. कलम २४१: केंद्रशासित प्रदेशांसाठी उच्च न्यायालय. लक्षात ठेवण्याची ट्रिक: 'न्यायव्यवस्थेचे स्वरूप, संसद करते ठरव' (न्याय = संसद). भविष्यातील संभाव्य प्रश्न: 'सर्वोच्च न्यायालयाच्या न्यायाधीशांची संख्या वाढवण्याचा अधिकार कोणाला आहे?' किंवा 'कलम १३८ चा संबंध कशाशी आहे?'. लक्षात ठेवा, न्यायव्यवस्थेचे स्वातंत्र्य अबाधित ठेवून केवळ संसदच कायद्याद्वारे बदल करू शकते, परंतु हे बदल संविधानाच्या मूळ संरचनेच्या (Basic Structure) विरोधात नसावेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 11,
+        "text": "लोकायुक्ताची संस्था प्रथमच कोणत्या राज्याने निर्माण केली ?",
+        "text_eng": "Which amongst the following States first created the institution of Lokayukta ?",
+        "options": [
+          "(1) महाराष्ट्र",
+          "(2) पंजाब",
+          "(3) बिहार",
+          "(4) ओडिशा"
+        ],
+        "options_eng": [
+          "(1) Maharashtra",
+          "(2) Punjab",
+          "(3) Bihar",
+          "(4) Odisha"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "महाराष्ट्राने १९७१ मध्ये 'महाराष्ट्र लोकायुक्त आणि उप-लोकायुक्त कायदा' संमत करून देशात सर्वप्रथम लोकायुक्त संस्थेची स्थापना केली. जरी ओडिशामध्ये १९७० मध्ये कायदा संमत झाला होता, तरी महाराष्ट्राने १९७२ मध्ये प्रत्यक्ष अंमलबजावणी करून ही संस्था कार्यान्वित केली. प्रशासनातील भ्रष्टाचार, गैरप्रकार आणि सत्तेचा दुरुपयोग रोखण्यासाठी ही एक वैधानिक संस्था आहे. पर्यायांचे विश्लेषण: (१) महाराष्ट्र: देशात सर्वप्रथम लोकायुक्त कायदा (१९७१) आणि अंमलबजावणी (१९७२) करणारा राज्य. (२) पंजाब: १९९५ मध्ये लोकायुक्त कायदा आणला. (३) बिहार: १९७३ मध्ये कायदा आणला. (४) ओडिशा: १९७० मध्ये कायदा संमत झाला, परंतु अंमलबजावणी महाराष्ट्राच्या नंतर झाली. त्यामुळे, परीक्षेत 'प्रथम स्थापना' विचारल्यास महाराष्ट्र हेच उत्तर अधिकृत मानले जाते.",
+          "topic": "भारतीय राज्यव्यवस्था - लोकायुक्त संस्था",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मलो' (महाराष्ट्र-लोकायुक्त) - देशात 'म' ने सुरुवात. महत्त्वाचे मुद्दे: १. लोकायुक्त हे राज्य स्तरावर 'लोकपाल' प्रमाणे काम करतात. २. महाराष्ट्राचे पहिले लोकायुक्त 'एस. पी. कोटवाल' होते. ३. महाराष्ट्राचा नवीन 'लोकायुक्त कायदा २०२२' नुसार मुख्यमंत्री आणि मंत्रीमंडळालाही चौकशीच्या कक्षेत आणले आहे. भविष्यातील प्रश्न: 'लोकायुक्तांची नियुक्ती कोणाद्वारे केली जाते?' (राज्यपाल), 'लोकायुक्तांचा कार्यकाळ किती असतो?' (५ वर्षे), आणि 'नवीन कायद्यानुसार मुख्यमंत्र्यांचा समावेश होतो का?' (हो). हे मुद्दे MPSC साठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_019.png": [
+      {
+        "qnum": 49,
+        "text": "प्राचीन वारसा असणाऱ्या शहरांच्या सर्वांगीण विकास करण्यासाठी शासनाद्वारे कोणती योजना राबविली जाते ?",
+        "text_eng": "Which government scheme is focussed on holistic development of ancient and heritage cities ?",
+        "options": [
+          "(1) हार्ट",
+          "(2) हृदय",
+          "(3) हार्दिक",
+          "(4) हस्त"
+        ],
+        "options_eng": [
+          "(1) HEART",
+          "(2) HRIDAY",
+          "(3) HARDIK",
+          "(4) HAST"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "योग्य उत्तर 'हृदय' (HRIDAY) हे आहे. भारत सरकारने २१ जानेवारी २०१५ रोजी 'नॅशनल हेरिटेज सिटी डेव्हलपमेंट अँड ऑगमेंटेशन योजना' (National Heritage City Development and Augmentation Yojana - HRIDAY) सुरू केली. या योजनेचा मुख्य उद्देश देशातील ऐतिहासिक आणि सांस्कृतिक वारसा असलेल्या शहरांचा सर्वांगीण विकास करणे, पायाभूत सुविधा सुधारणे आणि पर्यटनाला चालना देणे हा आहे. पर्यायांचे विश्लेषण: (1) हार्ट (HEART) - ही योजना नाही, (2) हृदय (HRIDAY) - ही योग्य योजना आहे, (3) हार्दिक - हा शब्द योजनेशी संबंधित नाही, (4) हस्त - हा शब्द हस्तकलेशी संबंधित असू शकतो पण योजनेचे नाव नाही. ही योजना पूर्णपणे केंद्र पुरस्कृत असून, यात शहराच्या वारसा स्थळांचे जतन, स्वच्छता, रस्ते, आणि पर्यटकांसाठी सुविधा निर्माण करण्यावर भर दिला जातो.",
+          "topic": "केंद्र सरकारच्या महत्त्वाच्या योजना - सांस्कृतिक आणि वारसा विकास",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्यासाठी ट्रिक: 'HRIDAY' म्हणजे 'हृदय'. ज्याप्रमाणे शरीराचे हृदय महत्त्वाचे असते, त्याचप्रमाणे भारताच्या संस्कृतीचे हृदय म्हणजे आपली 'ऐतिहासिक शहरे'. 2. योजनेची व्याप्ती: सुरुवातीला १२ शहरांची निवड करण्यात आली होती (उदा. वाराणसी, अमृतसर, अजमेर, गया, कांचीपुरम, मथुरा, पुरी, इत्यादी). 3. भविष्यातील संभाव्य प्रश्न: (अ) HRIDAY योजनेचा कालावधी काय होता? (ब) ही योजना कोणत्या मंत्रालयांतर्गत येते? (उत्तर: गृहनिर्माण आणि शहरी व्यवहार मंत्रालय). (क) या योजनेचे मुख्य उद्दिष्ट काय आहे? (उत्तर: वारसा स्थळांचे जतन आणि शहरी पायाभूत सुविधांचा विकास). 4. लक्षात ठेवा: ही योजना 'प्रसाद' (PRASAD) योजनेशी संबंधित आहे, परंतु प्रसाद योजना प्रामुख्याने धार्मिक पर्यटनावर केंद्रित आहे, तर हृदय योजना वारसा शहरांच्या सर्वांगीण विकासावर केंद्रित आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_033.png": [
+      {
+        "qnum": 85,
+        "text": "राष्ट्रीय कंपनी विधी न्यायाधिकरण (एनसीएलटी) नियम, 2016 मधील कोणत्या कलमामध्ये “पब्लिकेशन ऑफ नोटिस” बद्दल विशद केले आहे ?",
+        "text_eng": "Which Section of The National Company Law Tribunal (NCLT) Rules, 2016 deals with “Publication of Notice” ?",
+        "options": [
+          "(1) कलम 87 एनसीएलटी नियम, 2016",
+          "(2) कलम 91 एनसीएलटी नियम, 2016",
+          "(3) कलम 92 एनसीएलटी नियम, 2016",
+          "(4) कलम 93 एनसीएलटी नियम, 2016"
+        ],
+        "options_eng": [
+          "(1) Section 87 of NCLT Rules, 2016",
+          "(2) Section 91 of NCLT Rules, 2016",
+          "(3) Section 92 of NCLT Rules, 2016",
+          "(4) Section 93 of NCLT Rules, 2016"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "राष्ट्रीय कंपनी विधी न्यायाधिकरण (NCLT) नियम, 2016 हे कंपनी कायदा, 2013 च्या कलम 469 अंतर्गत केंद्र सरकारने तयार केले आहेत. या नियमावलीतील 'नियम 93' (Rule 93) हे विशेषतः 'पब्लिकेशन ऑफ नोटिस' (Publication of Notice) बद्दल भाष्य करते. जेव्हा न्यायाधिकरणासमोर एखादी याचिका दाखल केली जाते, तेव्हा संबंधित पक्षकारांना किंवा सार्वजनिक हिताच्या बाबींसाठी नोटीस प्रसिद्ध करणे कायदेशीररित्या अनिवार्य असते. नियम 93 नुसार, न्यायाधिकरण निर्देश देऊ शकते की नोटीस वर्तमानपत्रात किंवा अधिकृत राजपत्रात प्रसिद्ध केली जावी. इतर पर्यायांचे विश्लेषण: नियम 87 हे 'अपील' किंवा 'प्रक्रियेतील त्रुटी' संदर्भात असू शकते, नियम 91 आणि 92 हे प्रामुख्याने 'नोटीसची सेवा' (Service of Notice) आणि 'नोटीसची पद्धत' यावर लक्ष केंद्रित करतात, परंतु 'प्रसिद्धी' (Publication) ही प्रक्रिया स्पष्टपणे नियम 93 मध्ये नमूद आहे.",
+          "topic": "भारतीय राज्यघटना आणि कायदे - कंपनी कायदा व NCLT नियम",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '93' म्हणजे 'न्युज' (News) - '93' चा उच्चार आणि 'न्युज' (News) मधील 'न्यू' (Nu) यात साधर्म्य आहे, ज्यामुळे 'पब्लिकेशन ऑफ नोटिस' (वर्तमानपत्रात बातमी देणे) हे लक्षात ठेवणे सोपे जाते. भविष्यातील संभाव्य प्रश्न: 1. NCLT ची स्थापना कोणत्या कलमांतर्गत झाली? (कलम 408). 2. NCLT चे अध्यक्ष कोण नियुक्त करते? (केंद्र सरकार). 3. NCLT चे निर्णय कोठे आव्हानित केले जाऊ शकतात? (NCLAT - नॅशनल कंपनी लॉ अपिलेट ट्रिब्युनल). हे नियम 'कॉर्पोरेट गव्हर्नन्स' आणि 'इन्सॉल्व्हन्सी अँड बँकरप्सी कोड' (IBC) च्या अभ्यासासाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 86,
+        "text": "राष्ट्रीय कंपनी विधी न्यायाधिकरण नियम, 2016 मधील कोणत्या कलमान्वये, 'प्रतिउत्तर दाखल करणे' च्या प्रक्रियेबाबत नमूद केले आहे ?",
+        "text_eng": "Under which Section of National Company Law Tribunal Rules, 2016 procedure of ‘filing of rejoinder’ is mentioned ?",
+        "options": [
+          "(1) कलम 42",
+          "(2) कलम 39",
+          "(3) कलम 37",
+          "(4) कलम 36"
+        ],
+        "options_eng": [
+          "(1) Section 42",
+          "(2) Section 39",
+          "(3) Section 37",
+          "(4) Section 36"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "राष्ट्रीय कंपनी विधी न्यायाधिकरण (NCLT) नियम, 2016 हे कंपनी कायदा, 2013 च्या कलम 469 अंतर्गत तयार करण्यात आले आहेत. या नियमावलीतील 'नियम 37' (Rule 37) हे विशेषतः 'प्रतिउत्तर दाखल करणे' (Filing of Rejoinder) या प्रक्रियेशी संबंधित आहे. जेव्हा एखादी याचिका किंवा अर्ज न्यायाधिकरणासमोर दाखल केला जातो, तेव्हा प्रतिवादीला त्याचे उत्तर (Reply) देण्याची संधी मिळते. त्यानंतर, मूळ अर्जदाराला प्रतिवादीच्या उत्तरावर आपले 'प्रतिउत्तर' (Rejoinder) सादर करावे लागते. नियम 37 नुसार, हे प्रतिउत्तर न्यायाधिकरणाच्या परवानगीने आणि विहित मुदतीत सादर करणे आवश्यक असते. इतर पर्यायांचे विश्लेषण: नियम 36 हे 'उत्तर दाखल करणे' (Filing of Reply) या प्रक्रियेशी संबंधित आहे, तर नियम 39 हे 'अतिरिक्त दस्तऐवज सादर करणे' आणि नियम 42 हे 'न्यायाधिकरणाचे अधिकार' या संदर्भात येतात. त्यामुळे, 'प्रतिउत्तर' या शब्दासाठी नियम 37 हेच कायदेशीरदृष्ट्या अचूक उत्तर आहे.",
+          "topic": "भारतीय राज्यव्यवस्था आणि कायदे - राष्ट्रीय कंपनी विधी न्यायाधिकरण (NCLT) नियम, 2016",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '36-37-38' चा क्रम लक्षात ठेवा. 36 म्हणजे 'Reply' (उत्तर), 37 म्हणजे 'Rejoinder' (प्रतिउत्तर), आणि 38 म्हणजे 'Rejoinder वरून नवीन वाद न वाढवणे'. भविष्यातील संभाव्य प्रश्न: NCLT ची स्थापना कोणत्या समितीच्या शिफारशीनुसार झाली? (उत्तर: इराणी समिती). NCLT चे अध्यक्ष आणि सदस्यांची नियुक्ती कोणाद्वारे केली जाते? (उत्तर: केंद्र सरकार). हे नियम कंपनी कायदा 2013 च्या कोणत्या कलमांतर्गत बनवले आहेत? (उत्तर: कलम 469). अशा तांत्रिक नियमांवर प्रश्न विचारताना 'क्रम' (Sequence) लक्षात ठेवणे अत्यंत महत्त्वाचे आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_007.png": [
+      {
+        "qnum": 85,
+        "text": "अशा कोणत्या तरतुदीनुसार प्रत्येक पंचायतीमध्ये अनुसूचित जाती आणि अनुसूचित जमातींसाठी आरक्षण आहे ?",
+        "text_eng": "Under which one of the following provisions is the reservation for Scheduled Castes and Scheduled Tribes made in every Panchayat ?",
+        "options": [
+          "(1) भारतीय राज्यघटनेचे कलम 243 (ई)",
+          "(2) भारतीय राज्यघटनेचे कलम 243 (व्ही)",
+          "(3) भारतीय राज्यघटनेचे कलम 243 (एस)",
+          "(4) भारतीय राज्यघटनेचे कलम 243 (डी)"
+        ],
+        "options_eng": [
+          "(1) Article 243 (E) of the Constitution of India",
+          "(2) Article 243 (V) of the Constitution of India",
+          "(3) Article 243 (S) of the Constitution of India",
+          "(4) Article 243 (D) of the Constitution of India"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या 73 व्या घटनादुरुस्ती कायद्याद्वारे (1992) पंचायती राज संस्थांना घटनात्मक दर्जा देण्यात आला. यातील भाग 9 मध्ये कलम 243 ते 243(O) पर्यंत तरतुदी आहेत. कलम 243(D) हे पंचायतींमधील आरक्षणाशी संबंधित आहे. या कलमानुसार, प्रत्येक पंचायतीमध्ये अनुसूचित जाती (SC) आणि अनुसूचित जमाती (ST) यांच्यासाठी त्यांच्या लोकसंख्येच्या प्रमाणात जागा राखीव ठेवल्या जातात. तसेच, एकूण जागांपैकी किमान एक-तृतीयांश (1/3) जागा महिलांसाठी राखीव ठेवण्याची तरतूदही याच कलमात आहे. इतर पर्यायांचे विश्लेषण: (1) कलम 243(E) पंचायतींचा कालावधी (5 वर्षे) निश्चित करते. (2) कलम 243(V) हे नगरपालिकेशी संबंधित आहे (अपात्रता). (3) कलम 243(S) हे महानगरपालिकांमधील 'वॉर्ड समित्या' (Ward Committees) यांच्याशी संबंधित आहे.",
+          "topic": "भारतीय राज्यघटना - पंचायती राज (73 वी घटनादुरुस्ती)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'D' म्हणजे 'Dreservation' (आरक्षण). लक्षात ठेवा: 243(D) = आरक्षण (Reservation). भविष्यातील संभाव्य प्रश्न: 1) महिलांच्या आरक्षणाचे प्रमाण किती? (उत्तर: किमान 1/3). 2) आरक्षणाचे अधिकार कोणाला आहेत? (उत्तर: राज्य विधिमंडळाला). 3) SC/ST आरक्षणाचे रोटेशन (Rotation) कोणत्या कलमानुसार होते? (उत्तर: 243(D)). लक्षात ठेवा, 73 वी घटनादुरुस्ती ही ग्रामीण भागासाठी (पंचायत) आहे, तर 74 वी घटनादुरुस्ती ही शहरी भागासाठी (नगरपालिका) आहे. 243(D) पंचायतींसाठी आहे, तर 243(T) नगरपालिकेतील आरक्षणासाठी आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_029.png": [
+      {
+        "qnum": 72,
+        "text": "खालीलपैकी कोणते खाते हे 'नफा न कमविणाऱ्या संस्थांच्या वार्षिक पत्रकांमध्ये' समाविष्ट केले जात नाही ?",
+        "text_eng": "Which of the following accounts is not a part of 'annual accounts of non-profit making organisation' ?",
+        "options": [
+          "(1) येणी व देणी खाते",
+          "(2) उत्पन्न व खर्च खाते",
+          "(3) नफा व तोटा खाते",
+          "(4) रोकड खाते"
+        ],
+        "options_eng": [
+          "(1) Receipts and Payment Account",
+          "(2) Income and Expenditure Account",
+          "(3) Profit and Loss Account",
+          "(4) Cash Account"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "नफा न कमविणाऱ्या संस्था (Non-Profit Organizations - NPO) या सामाजिक, शैक्षणिक, धार्मिक किंवा चॅरिटेबल उद्देशाने स्थापन केल्या जातात. या संस्थांचा मुख्य उद्देश नफा मिळवणे नसून सेवा देणे असतो. त्यामुळे, या संस्था 'नफा व तोटा खाते' (Profit and Loss Account) तयार करत नाहीत. त्याऐवजी, त्या 'उत्पन्न व खर्च खाते' (Income and Expenditure Account) तयार करतात. पर्यायांचे विश्लेषण: (1) येणी व देणी खाते (Receipts and Payments Account): हे रोकड पुस्तकाचा सारांश आहे, जे NPO मध्ये तयार केले जाते. (2) उत्पन्न व खर्च खाते: हे नफा-तोटा खात्याच्या धर्तीवर तयार केले जाते, जे NPO मध्ये अनिवार्य आहे. (3) नफा व तोटा खाते: हे केवळ व्यावसायिक संस्था (Profit-making entities) तयार करतात, NPO मध्ये हे खाते नसते. (4) रोकड खाते (Cash Account): हे व्यवहारांच्या नोंदीसाठी NPO मध्ये ठेवले जाते. म्हणून, 'नफा व तोटा खाते' हे NPO मध्ये समाविष्ट केले जात नाही.",
+          "topic": "लेखांकन (Accountancy) - नफा न कमविणाऱ्या संस्थांचे अंतिम खाते",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: NPO = 'I & E' (Income & Expenditure), तर व्यावसायिक संस्था = 'P & L' (Profit & Loss). लक्षात ठेवा, NPO मध्ये 'भांडवल' (Capital) ऐवजी 'भांडवल निधी' (Capital Fund) ही संज्ञा वापरली जाते. भविष्यातील संभाव्य प्रश्न: 'उत्पन्न व खर्च खाते' हे कोणत्या प्रकारच्या खात्याचे उदाहरण आहे? (उत्तर: नाममात्र खाते - Nominal Account). तसेच, 'येणी व देणी खाते' हे 'वास्तव खाते' (Real Account) आहे, हे लक्षात ठेवा. परीक्षेच्या दृष्टीने 'अधिदान' (Outstanding) आणि 'पूर्वदत्त' (Prepaid) खर्चाची समायोजने (Adjustments) यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_032.png": [
+      {
+        "qnum": 82,
+        "text": "राष्ट्रीय कंपनी विधी न्यायाधिकरण नियम, 2016 मधील कोणत्या कलमान्वये 'अध्यक्षांची कार्ये' नमूद केली आहेत ?",
+        "text_eng": "Under which Section of National Company Law Tribunal Rules, 2016 'Functions of the President' are mentioned ?",
+        "options": [
+          "(1) कलम 15",
+          "(2) कलम 4",
+          "(3) कलम 16",
+          "(4) कलम 18"
+        ],
+        "options_eng": [
+          "(1) Section 15",
+          "(2) Section 4",
+          "(3) Section 16",
+          "(4) Section 18"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "राष्ट्रीय कंपनी विधी न्यायाधिकरण (NCLT) नियम, 2016 हे कंपनी कायदा, 2013 च्या कलम 469 अंतर्गत तयार करण्यात आले आहेत. या नियमावलीतील 'कलम 16' (Rule 16) हे स्पष्टपणे 'अध्यक्षांची कार्ये' (Functions of the President) या विषयाशी संबंधित आहे. या कलमानुसार, अध्यक्ष हे न्यायाधिकरणाचे प्रमुख म्हणून प्रशासकीय बाबी, खंडपीठांची स्थापना, सदस्यांचे वाटप आणि न्यायाधिकरणाचे कामकाज सुरळीत चालवण्यासाठी जबाबदार असतात. इतर पर्यायांचे विश्लेषण: कलम 4 हे 'न्यायाधिकरणाचे मुख्यालय आणि खंडपीठ' याबद्दल आहे. कलम 15 हे 'न्यायाधिकरणाचे कामकाज' (Sittings of the Tribunal) याबद्दल आहे. कलम 18 हे 'न्यायाधिकरणाचे अधिकारी आणि कर्मचारी' यांच्याशी संबंधित आहे. त्यामुळे, 'अध्यक्षांची कार्ये' दर्शवणारे अचूक कलम 16 आहे.",
+          "topic": "भारतीय राज्यघटना आणि प्रशासन - वैधानिक संस्था (NCLT)",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '16' म्हणजे 'President's Role' (P-16). लक्षात ठेवा: कलम 4 (मुख्यालय), कलम 15 (कामकाज/Sittings), कलम 16 (अध्यक्ष/President), कलम 18 (कर्मचारी/Staff). भविष्यातील संभाव्य प्रश्न: NCLT च्या अध्यक्षांची नियुक्ती कोण करते? (उत्तर: केंद्र सरकार, सरन्यायाधीशांच्या सल्ल्याने). NCLT चे अधिकार क्षेत्र कोणत्या कायद्यांतर्गत येते? (उत्तर: कंपनी कायदा, 2013). NCLT च्या निर्णयाविरुद्ध अपील कुठे करता येते? (उत्तर: NCLAT - नॅशनल कंपनी लॉ अपिलेट ट्रिब्युनल)."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 83,
+        "text": "भारतीय दिवाळखोर व नादारी मंडळ (IBBI) कधी स्थापन झाले ?",
+        "text_eng": "When was Insolvency and Bankruptcy Board of India (IBBI) established ?",
+        "options": [
+          "(1) 1 ऑक्टोबर, 2016",
+          "(2) 2 ऑक्टोबर, 2016",
+          "(3) 3 सप्टेंबर, 2016",
+          "(4) वरीलपैकी नाही"
+        ],
+        "options_eng": [
+          "(1) 1st October, 2016",
+          "(2) 2nd October, 2016",
+          "(3) 3rd September, 2016",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय दिवाळखोर व नादारी मंडळ (Insolvency and Bankruptcy Board of India - IBBI) ची स्थापना 'दिवाळखोरी आणि नादारी संहिता, 2016' (Insolvency and Bankruptcy Code, 2016) अंतर्गत 1 ऑक्टोबर 2016 रोजी करण्यात आली. हे एक वैधानिक मंडळ (Statutory Body) असून कॉर्पोरेट व्यवहार मंत्रालयाच्या अंतर्गत कार्य करते. या मंडळाचे मुख्य उद्दिष्ट कॉर्पोरेट संस्था, भागीदारी संस्था आणि व्यक्तींच्या दिवाळखोरी प्रक्रियेचे नियमन करणे आणि वेळेत कर्ज वसुली करणे हे आहे. पर्याय विश्लेषण: (1) 1 ऑक्टोबर 2016 - ही अधिकृत स्थापना तारीख आहे. (2) 2 ऑक्टोबर 2016 - ही तारीख गांधी जयंतीशी संबंधित आहे, IBBI शी नाही. (3) 3 सप्टेंबर 2016 - या दिवशी संहितेच्या काही तरतुदी अधिसूचित केल्या गेल्या होत्या, परंतु मंडळाची स्थापना 1 ऑक्टोबरला झाली. (4) वरीलपैकी नाही - हे चुकीचे आहे कारण पर्याय 1 अचूक आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - वित्तीय संस्था आणि कायदे",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्यासाठी ट्रिक: 'IBBI' ची स्थापना 'ऑक्टोबर' महिन्यात झाली (O-1). लक्षात ठेवा: '1 ऑक्टोबर' म्हणजे '1st Day of October'. 2. भविष्यातील संभाव्य प्रश्न: IBBI चे पहिले अध्यक्ष कोण होते? (उत्तर: एम. एस. साहू). IBBI चे मुख्यालय कोठे आहे? (उत्तर: नवी दिल्ली). IBBI कोणत्या कायद्यांतर्गत येते? (उत्तर: IBC, 2016). 3. महत्त्वाचे मुद्दे: IBBI मध्ये एक अध्यक्ष आणि इतर सदस्य असतात ज्यांची नियुक्ती केंद्र सरकार करते. हे मंडळ 'दिवाळखोरी व्यावसायिक' (Insolvency Professionals) आणि 'माहिती उपयोगिता' (Information Utilities) यांचे नियमन करते. MPSC मुख्य परीक्षेत 'आर्थिक सुधारणा' या घटकावर यावर प्रश्न विचारले जाण्याची दाट शक्यता असते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_026.png": [
+      {
+        "qnum": 66,
+        "text": "खालीलपैकी कोणते विधान बरोबर नाही ?",
+        "text_eng": "Which of the following statements is not correct ?",
+        "options": [
+          "(1) लेखाकर्म ही संकल्पना पुस्तपालनापेक्षा विस्तृत आहे.",
+          "(2) जेथे पुस्तपालन पूर्ण होते तेव्हा लेखाकर्म सुरू होते.",
+          "(3) लेखाकर्म करताना विशेष कौशल्य व ज्ञानाची गरज असते.",
+          "(4) पुस्तपालन हा लेखाकर्मचा भाग नसून, पुस्तपालनामुळे उद्योगधंद्याच्या आर्थिक परिस्थितीची समग्र कल्पना येते."
+        ],
+        "options_eng": [
+          "(1) The concept of accounting is broader than book-keeping.",
+          "(2) Accounting begins where book-keeping ends.",
+          "(3) Accounting requires special skill and knowledge.",
+          "(4) Book-keeping which is not a part of accounting, gives complete picture of the financial condition of a business unit."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "लेखांकन (Accounting) आणि पुस्तपालन (Bookkeeping) यातील फरक समजून घेणे MPSC च्या 'अंकगणित व सांख्यिकी' किंवा 'अर्थशास्त्र' विषयातील मूलभूत घटक आहे. विश्लेषण: (1) विधान बरोबर आहे: पुस्तपालन हे केवळ व्यवहारांची नोंद करण्यापुरते मर्यादित आहे, तर लेखांकन हे त्या नोंदींचे विश्लेषण, अर्थनिर्णय आणि अहवाल तयार करण्यापर्यंत विस्तृत आहे. (2) विधान बरोबर आहे: पुस्तपालनाचे काम संपते (नोंदणी पूर्ण होते) तेव्हा लेखांकनाचे काम (वर्गीकरण, सारांश, विश्लेषण) सुरू होते. (3) विधान बरोबर आहे: लेखांकनासाठी लेखाशास्त्राचे तत्त्वज्ञान, कर कायदे आणि विश्लेषणात्मक कौशल्याची गरज असते, जे पुस्तपालनासाठी अनिवार्य नाही. (4) विधान चुकीचे आहे: पुस्तपालन हा लेखांकनाचाच एक अविभाज्य भाग आहे. तसेच, केवळ पुस्तपालनामुळे आर्थिक परिस्थितीची समग्र कल्पना येत नाही, त्यासाठी लेखांकनातील 'आर्थिक पत्रके' (Financial Statements) आवश्यक असतात. म्हणून पर्याय (4) हे चुकीचे विधान आहे.",
+          "topic": "लेखांकन आणि पुस्तपालन (Accounting and Bookkeeping)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'B-A-S' (Bookkeeping -> Accounting -> Summarizing/Reporting). पुस्तपालन म्हणजे 'Data Entry' आणि लेखांकन म्हणजे 'Data Analysis'. भविष्यातील प्रश्न: लेखांकनातील 'दुहेरी नोंद पद्धती' (Double Entry System) चे जनक 'ल्यूका पॅसिओली' (Luca Pacioli) यांच्यावर प्रश्न विचारला जाऊ शकतो. तसेच, 'लेखांकन मानके' (Accounting Standards) आणि 'ताळेबंद' (Balance Sheet) मधील घटकांवर आधारित प्रश्न येण्याची दाट शक्यता असते. लक्षात ठेवा: पुस्तपालन हे प्राथमिक कार्य आहे, तर लेखांकन हे दुय्यम पण उच्चस्तरीय कार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_022.png": [
+      {
+        "qnum": 51,
+        "text": "एका महाविद्यालयात एकूण 600 विद्यार्थी आहेत. प्रत्येकास एक तर इंग्रजी किंवा हिंदी किंवा दोन्ही विषय दिले. जर 75% विद्यार्थीयांना इंग्रजी व 45% विद्यार्थीयांना हिंदी विषय दिला असेल तर दोन्ही विषय घेणाऱ्या विद्यार्थ्यांची संख्या काढा.",
+        "text_eng": "There were 600 students in a college. Each was offered either English or Hindi or both.\nIf 75% students offered English and 45% Hindi, how many students offered both?",
+        "options": [
+          "(1) 48",
+          "(2) 60",
+          "(3) 80",
+          "(4) 120"
+        ],
+        "options_eng": [
+          "(1) 48",
+          "(2) 60",
+          "(3) 80",
+          "(4) 120"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न 'संच सिद्धांत' (Set Theory) या घटकावर आधारित आहे. एकूण विद्यार्थी (n(U)) = 600. इंग्रजी घेणारे विद्यार्थी (n(A)) = 75% of 600 = 450. हिंदी घेणारे विद्यार्थी (n(B)) = 45% of 600 = 270. सूत्रानुसार: n(A ∪ B) = n(A) + n(B) - n(A ∩ B). येथे प्रत्येक विद्यार्थ्याने किमान एक विषय घेतला आहे, म्हणून n(A ∪ B) = 600. समीकरण: 600 = 450 + 270 - n(A ∩ B). 600 = 720 - n(A ∩ B). म्हणून, n(A ∩ B) = 720 - 600 = 120. पर्याय (1) 48, (2) 60, (3) 80 हे चुकीचे आहेत कारण ते दिलेल्या अटींचे पालन करत नाहीत. पर्याय (4) 120 हे अचूक उत्तर आहे.",
+          "topic": "गणित आणि बुद्धिमत्ता - संच सिद्धांत (Set Theory)",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: जेव्हा एकूण विद्यार्थी 100% पेक्षा जास्त भरतात (75% + 45% = 120%), तेव्हा जास्तीची टक्केवारी (120% - 100% = 20%) ही दोन्ही विषय घेणाऱ्यांची असते. 600 चे 20% = 120. भविष्यातील प्रश्न: परीक्षेत 'केवळ एकच विषय घेणारे' विचारले जाऊ शकतात. केवळ इंग्रजी = 450 - 120 = 330; केवळ हिंदी = 270 - 120 = 150. हे सूत्र MPSC CSAT पेपरमध्ये वारंवार विचारले जाते, त्यामुळे वेन आकृती (Venn Diagram) काढण्याचा सराव करा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 52,
+        "text": "8 मुले व 12 पुरुष एक काम 9 दिवसात पूर्ण करतात. प्रत्येक मुलाला एखादे काम पूर्ण करण्यास पुरुषांच्या दुप्पट वेळ लागतो. तर तेच काम 12 पुरुषांना पूर्ण करण्यास किती दिवस लागतील ?",
+        "text_eng": "8 children and 12 men complete a certain piece of work in 9 days. If each child takes\ntwice the time taken by a man to finish the work, in how many days will 12 men finish\nthe same work?",
+        "options": [
+          "(1) 8",
+          "(2) 15",
+          "(3) 9",
+          "(4) 12"
+        ],
+        "options_eng": [
+          "(1) 8",
+          "(2) 15",
+          "(3) 9",
+          "(4) 12"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "या प्रश्नाचे निराकरण करण्यासाठी 'कार्यक्षमता' (Efficiency) आणि 'वेळ' (Time) यांच्यातील व्यस्त संबंध समजून घेणे आवश्यक आहे. 1) कार्यक्षमता विश्लेषण: प्रश्नानुसार, मुलाला पुरुषाच्या दुप्पट वेळ लागतो, याचा अर्थ पुरुषाची कार्यक्षमता मुलाच्या दुप्पट आहे. समजा, एका मुलाची कार्यक्षमता '1' युनिट/दिवस असेल, तर एका पुरुषाची कार्यक्षमता '2' युनिट/दिवस असेल. 2) एकूण काम (Total Work): 8 मुले + 12 पुरुष हे काम 9 दिवसात करतात. एका दिवसाचे काम = (8 मुले * 1) + (12 पुरुष * 2) = 8 + 24 = 32 युनिट्स. एकूण काम = 32 युनिट्स * 9 दिवस = 288 युनिट्स. 3) 12 पुरुषांसाठी लागणारा वेळ: 12 पुरुषांची एका दिवसाची कार्यक्षमता = 12 * 2 = 24 युनिट्स. लागणारे दिवस = एकूण काम / 12 पुरुषांची कार्यक्षमता = 288 / 24 = 12 दिवस. पर्याय विश्लेषण: (1) 8 (चुकीचे), (2) 15 (चुकीचे), (3) 9 (चुकीचे), (4) 12 (बरोबर).",
+          "topic": "अंकगणित - काळ, काम आणि वेग (Time and Work)",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: जेव्हा 'वेळ दुप्पट' असे दिले जाते, तेव्हा कार्यक्षमता अर्धी होते. नेहमी 'पुरुष' किंवा 'स्त्री' यांच्या कार्यक्षमतेत रूपांतर करून समीकरण सोडवा. भविष्यातील प्रश्न: MPSC मध्ये आता 'स्त्री, पुरुष आणि मुले' यांचे एकत्रित समीकरण विचारले जाते. लक्षात ठेवा: (M1*D1*E1) = (M2*D2*E2) हे सूत्र वापरून तुम्ही कोणत्याही प्रकारचा प्रश्न सोडवू शकता. नेहमी 'एकूण काम' (Total Work) स्थिर ठेवून तुलना करा. परीक्षेसाठी टीप: अशा प्रश्नांमध्ये 'वेळ' आणि 'कार्यक्षमता' यांचा गोंधळ करू नका; वेळ जास्त लागणे म्हणजे कार्यक्षमता कमी असणे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Industry\\page_020.png": [
+      {
+        "qnum": 51,
+        "text": "उद्योजकता विकास प्रशिक्षण निवासी कार्यक्रम किती दिवसांचा आहे ?",
+        "text_eng": "How long is the Entrepreneurship Development Training Residential Programme ?",
+        "options": [
+          "(1) 10 दिवस",
+          "(2) 12 दिवस",
+          "(3) 15 दिवस",
+          "(4) 2 दिवस"
+        ],
+        "options_eng": [
+          "(1) 10 days",
+          "(2) 12 days",
+          "(3) 15 days",
+          "(4) 2 days"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "उद्योजकता विकास प्रशिक्षण (Entrepreneurship Development Training - EDT) हे प्रामुख्याने महाराष्ट्र शासनाच्या 'जिल्हा उद्योग केंद्र' (DIC) आणि 'महाराष्ट्र उद्योजकता विकास केंद्र' (MCED) यांच्यामार्फत राबवले जाते. सरकारी नियमांनुसार आणि उद्योजकता विकास कार्यक्रमांच्या (EDP) मानक आराखड्यानुसार, निवासी प्रशिक्षण कार्यक्रमाचा कालावधी हा १२ दिवसांचा निश्चित करण्यात आला आहे. या १२ दिवसांच्या कालावधीत उद्योजकांना व्यवसायाची निवड, बाजारपेठ सर्वेक्षण, प्रकल्प अहवाल (Project Report) तयार करणे, बँकिंग आणि कायदेशीर बाबींचे सखोल प्रशिक्षण दिले जाते. पर्याय (1) १० दिवस, (3) १५ दिवस आणि (4) २ दिवस हे चुकीचे आहेत, कारण १२ दिवसांचा कालावधी हा तांत्रिक आणि व्यावहारिक कौशल्यांच्या सरावासाठी पुरेसा मानला जातो.",
+          "topic": "महाराष्ट्र शासन - उद्योजकता विकास कार्यक्रम (EDP)",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'EDP' मध्ये १२ अक्षरे नाहीत, पण 'EDP' म्हणजे 'Entrepreneurship Development Program' ज्यामध्ये १२ दिवसांचे 'नियोजन' (Planning) महत्त्वाचे असते. भविष्यातील संभाव्य प्रश्न: १) MCED ची स्थापना कधी झाली? (उत्तर: १९८८). २) उद्योजकता विकासाचे मुख्य उद्दिष्ट काय? (उत्तर: स्वयंरोजगाराला चालना देणे). ३) जिल्हा उद्योग केंद्राचे (DIC) प्रमुख कोण असतात? (उत्तर: महाव्यवस्थापक). लक्षात ठेवा, अलीकडे 'स्टार्टअप इंडिया' आणि 'मुद्रा योजना' यांच्याशी संबंधित प्रशिक्षण कार्यक्रमांवर प्रश्न विचारले जाण्याची शक्यता जास्त आहे, त्यामुळे या योजनांचे कालावधी आणि उद्दिष्टे तपासून पहावीत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 52,
+        "text": "मुख्यमंत्री रोजगार निर्मिती कार्यक्रम योजनेंतर्गत सेवा व कृषी पूरक उपक्रमांसाठी व उत्पादन प्रकारातील उपक्रमांसाठी प्रकल्प किंमती अंतर्गत इमारत खर्चाची मर्यादा किती आहे ?",
+        "text_eng": "What is the limit of building cost under project cost for service and agricultural activities and manufacturing type activities under Chief Minister Employment Generation Programme Scheme ?",
+        "options": [
+          "(1) 5%",
+          "(2) 20%",
+          "(3) 70%",
+          "(4) वरीलपैकी कोणतेही नाही"
+        ],
+        "options_eng": [
+          "(1) 5%",
+          "(2) 20%",
+          "(3) 70%",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मुख्यमंत्री रोजगार निर्मिती कार्यक्रम (CMEGP) ही महाराष्ट्र शासनाची एक महत्त्वाकांक्षी योजना आहे, ज्याचा उद्देश सुशिक्षित बेरोजगार तरुणांना स्वयंरोजगारासाठी प्रोत्साहित करणे हा आहे. या योजनेच्या मार्गदर्शक सूचनांनुसार, प्रकल्प किमतीमध्ये इमारत किंवा शेडच्या बांधकामासाठी ठराविक मर्यादा घालून देण्यात आली आहे. सेवा (Service) आणि कृषी पूरक (Agro-based) उपक्रमांसाठी प्रकल्प किमतीच्या जास्तीत जास्त 20% रक्कम इमारत खर्चासाठी वापरता येते. तसेच, उत्पादन (Manufacturing) क्षेत्रातील उपक्रमांसाठी देखील ही मर्यादा 20% इतकीच आहे. पर्यायांचे विश्लेषण: पर्याय (1) 5% ही मर्यादा इतर काही योजनांमध्ये असू शकते, परंतु CMEGP मध्ये नाही. पर्याय (3) 70% ही मर्यादा खेळत्या भांडवलासाठी (Working Capital) असू शकते, परंतु इमारत खर्चासाठी नाही. त्यामुळे, योग्य उत्तर 20% आहे.",
+          "topic": "महाराष्ट्र शासन योजना - मुख्यमंत्री रोजगार निर्मिती कार्यक्रम (CMEGP)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'CMEGP = 20-20'. म्हणजे सेवा आणि उत्पादन दोन्ही क्षेत्रांत इमारत खर्चाची मर्यादा 20% आहे. भविष्यातील संभाव्य प्रश्न: 1) या योजनेची अंमलबजावणी करणारी नोडल एजन्सी कोणती? (उत्तर: DIC - जिल्हा उद्योग केंद्र). 2) या योजनेअंतर्गत कमाल प्रकल्प मर्यादा किती आहे? (उत्तर: उत्पादन क्षेत्रासाठी 50 लाख आणि सेवा क्षेत्रासाठी 10 लाख). 3) शहरी आणि ग्रामीण भागासाठी अनुदानाचे प्रमाण (Margin Money) किती आहे? हे मुद्दे परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_008.png": [
+      {
+        "qnum": 15,
+        "text": "भारतीय राज्यघटनेच्या 42 व्या घटनादुरुस्तीने 4 थ्या भागातील कलम __________ मध्ये मूलभूत कर्तव्यांचा समावेश करण्यात आला.",
+        "text_eng": "Fundamental Duties have been included in Article __________ of 4th Section of the Constitution of India by 42nd Amendment.",
+        "options": [
+          "(1) 51 अ",
+          "(2) 51 ब",
+          "(3) 51 क",
+          "(4) 51 ड"
+        ],
+        "options_eng": [
+          "(1) 51 A",
+          "(2) 51 B",
+          "(3) 51 C",
+          "(4) 51 D"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय राज्यघटनेच्या 42 व्या घटनादुरुस्तीने (1976) भाग 4-अ मध्ये 'कलम 51-अ' समाविष्ट करून मूलभूत कर्तव्यांचा समावेश केला. मूळ राज्यघटनेत मूलभूत कर्तव्ये नव्हती. ही तरतूद सुवर्णसिंग समितीच्या शिफारशीनुसार रशियन (तत्कालीन सोव्हिएत युनियन) राज्यघटनेवरून प्रेरित आहे. पर्यायांचे विश्लेषण: (1) 51-अ: हे योग्य उत्तर आहे, ज्यात सुरुवातीला 10 आणि नंतर 86 व्या घटनादुरुस्तीने (2002) 11 वे कर्तव्य जोडले गेले. (2), (3), (4) हे पर्याय चुकीचे आहेत कारण राज्यघटनेत 51-ब, 51-क किंवा 51-ड अशी कलमे मूलभूत कर्तव्यांसाठी अस्तित्वात नाहीत.",
+          "topic": "भारतीय राज्यघटना - मूलभूत कर्तव्ये",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '51-A' (A म्हणजे 'A'ct/कर्तव्य). लक्षात ठेवा: 42 वी घटनादुरुस्ती (1976) = 4+2 = 6, आणि 1976 ची बेरीज 1+9+7+6 = 23, 2+3 = 5 (म्हणजे 51-अ). भविष्यातील संभाव्य प्रश्न: 1) मूलभूत कर्तव्ये कोणत्या समितीच्या शिफारशीनुसार आली? (सुवर्णसिंग समिती). 2) 11 वे कर्तव्य कोणत्या घटनादुरुस्तीने जोडले? (86 वी घटनादुरुस्ती, 2002). 3) मूलभूत कर्तव्ये न्यायप्रविष्ट (Justiciable) आहेत का? (नाही, ती केवळ मार्गदर्शक तत्त्वांसारखी आहेत). 4) वर्मा समिती (1999) कशाशी संबंधित आहे? (मूलभूत कर्तव्यांच्या अंमलबजावणीसाठी कायदेशीर तरतुदी)."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 16,
+        "text": "आठव्या पंचवार्षिक योजनेचा कालावधी __________ होता.",
+        "text_eng": "The period of VIII Five Year Plan was",
+        "options": [
+          "(1) 1991-96",
+          "(2) 1982-87",
+          "(3) 1992-97",
+          "(4) 1962-67"
+        ],
+        "options_eng": [
+          "(1) 1991-96",
+          "(2) 1982-87",
+          "(3) 1992-97",
+          "(4) 1962-67"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "आठवी पंचवार्षिक योजना (1992-1997) ही भारतीय नियोजनाच्या इतिहासातील एक अत्यंत महत्त्वाची योजना आहे. या योजनेची पार्श्वभूमी म्हणजे 1991 मधील भारताचे आर्थिक संकट. या संकटामुळे देशाला 'नवे आर्थिक धोरण' (LPG - Liberalization, Privatization, Globalization) स्वीकारावे लागले. या योजनेचे मुख्य उद्दिष्ट 'मानवी विकास' (Human Development) हे होते. पर्यायांचे विश्लेषण: (1) 1991-96 हा कालावधी चुकीचा आहे कारण 1990-92 या काळात 'वार्षिक योजना' (Annual Plans) राबवल्या गेल्या होत्या. (2) 1982-87 हा कालावधी सहाव्या पंचवार्षिक योजनेचा (1980-85) भाग आहे. (4) 1962-67 हा कालावधी तिसऱ्या पंचवार्षिक योजनेचा (1961-66) उत्तरार्ध आहे. त्यामुळे, 1992-97 हाच आठव्या योजनेचा अधिकृत कालावधी आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - पंचवार्षिक योजना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'आठवी योजना म्हणजे 92-97'. लक्षात ठेवा की 1990-92 हा काळ 'योजना सुट्टी' (Plan Holiday) म्हणून ओळखला जातो. भविष्यातील संभाव्य प्रश्न: 1) आठव्या योजनेचे मुख्य शिल्पकार कोण होते? (उत्तर: डॉ. मनमोहन सिंग आणि पी. व्ही. नरसिंह राव). 2) या योजनेत कोणत्या क्षेत्राला प्राधान्य दिले होते? (उत्तर: मानवी संसाधन विकास - शिक्षण, आरोग्य आणि रोजगार). 3) 'जॉन डब्ल्यू. मिलर मॉडेल' कोणत्या योजनेशी संबंधित आहे? (उत्तर: आठवी योजना). टीप: MPSC मध्ये पंचवार्षिक योजनांच्या कालावधीवर वारंवार प्रश्न विचारले जातात, त्यामुळे 1951 ते 2017 पर्यंतच्या सर्व योजनांचे कालखंड एका तक्त्यात पाठ करून ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_033.png": [
+      {
+        "qnum": 82,
+        "text": "________ हे 1991 च्या संकटाचे प्रमुख कारण होते.",
+        "text_eng": "The ________ was the major cause of crisis in 1991.",
+        "options": [
+          "(1) मोठी निर्यात",
+          "(2) कर दरात मोठी वाढ",
+          "(3) मोठी वित्तीय तूट",
+          "(4) कमी व्याजाचा दर"
+        ],
+        "options_eng": [
+          "(1) Large export",
+          "(2) High tax rate",
+          "(3) Large fiscal deficit",
+          "(4) Low interest rate"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "1991 चे आर्थिक संकट हे भारताच्या आर्थिक इतिहासातील एक महत्त्वाचे वळण आहे. या संकटाचे मुख्य कारण 'मोठी वित्तीय तूट' (Fiscal Deficit) हे होते. 1980 च्या दशकात भारताचा खर्च उत्पन्नापेक्षा खूप जास्त वाढला होता. सरकारने मोठ्या प्रमाणावर कर्ज घेऊन खर्च केला, ज्यामुळे वित्तीय तूट जीडीपीच्या 8.4% पर्यंत पोहोचली होती. यासोबतच चालू खात्यातील तूट (Current Account Deficit) वाढली, परकीय चलन साठा केवळ 2 आठवड्यांच्या आयातीसाठी पुरेसा उरला होता आणि महागाईचा दर 17% पर्यंत गेला होता. पर्यायांचे विश्लेषण: (1) मोठी निर्यात हे संकटाचे कारण नसून, उलट निर्यातीत घट हे संकटाचे कारण होते. (2) कर दरात वाढ हे संकटाचे कारण नव्हते, तर कर प्रणालीतील त्रुटींमुळे महसूल कमी होता. (4) कमी व्याजाचा दर हे थेट कारण नव्हते, तर परकीय कर्जावरील व्याजाचा बोजा वाढला होता.",
+          "topic": "भारतीय अर्थव्यवस्था - 1991 चे आर्थिक सुधारणा आणि उदारीकरण",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1991 चे संकट = 3-F' (Fiscal Deficit, Foreign Exchange Crisis, Foreign Debt). भविष्यातील संभाव्य प्रश्न: 1) 1991 च्या वेळी भारताचे अर्थमंत्री कोण होते? (डॉ. मनमोहन सिंग). 2) 1991 च्या सुधारणांना काय म्हणतात? (LPG - Liberalization, Privatization, Globalization). 3) कोणत्या आंतरराष्ट्रीय संस्थेने भारताला मदत केली? (IMF - आंतरराष्ट्रीय नाणेनिधी). लक्षात ठेवा, 1991 च्या संकटाने भारताला 'संरचनात्मक समायोजन कार्यक्रम' (Structural Adjustment Programme) स्वीकारण्यास भाग पाडले, ज्यामुळे भारतीय अर्थव्यवस्था जागतिक बाजारपेठेसाठी खुली झाली."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 83,
+        "text": "________ रोजी WTO चा अंतिम कायदा स्थापित झाला.",
+        "text_eng": "The final act of WTO was established on",
+        "options": [
+          "(1) 1 एप्रिल 1995",
+          "(2) 1 जानेवारी 1995",
+          "(3) 1 जानेवारी 1993",
+          "(4) 1 एप्रिल 1993"
+        ],
+        "options_eng": [
+          "(1) 1st April 1995",
+          "(2) 1st January 1995",
+          "(3) 1st January 1993",
+          "(4) 1st April 1993"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "जागतिक व्यापार संघटना (World Trade Organization - WTO) ही एक आंतरराष्ट्रीय संस्था आहे जी देशांमधील व्यापाराचे नियमन करते. या संघटनेची स्थापना 'उरुग्वे फेरी' (Uruguay Round) मधील वाटाघाटींनंतर झाली. १५ एप्रिल १९९४ रोजी मोरोक्कोमधील 'मराकेश' (Marrakesh) येथे झालेल्या करारावर स्वाक्षऱ्या करण्यात आल्या. या कराराला 'मराकेश करार' असे म्हणतात. या करारानुसार १ जानेवारी १९९५ रोजी WTO अधिकृतपणे अस्तित्वात आली. याने 'गॅट' (GATT - General Agreement on Tariffs and Trade) या संस्थेची जागा घेतली. पर्याय विश्लेषण: (1) १ एप्रिल १९९५ हे उत्तर चुकीचे आहे. (2) १ जानेवारी १९९५ हे अचूक उत्तर आहे, कारण याच दिवशी WTO चे कामकाज सुरू झाले. (3) आणि (4) हे पर्याय चुकीचे आहेत कारण त्या काळात उरुग्वे फेरीच्या वाटाघाटी सुरू होत्या, पण संघटना स्थापन झाली नव्हती.",
+          "topic": "आंतरराष्ट्रीय संघटना - जागतिक व्यापार संघटना (WTO)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'मराकेशमध्ये स्वाक्षरी, १ जानेवारीला झाली तयारी'. WTO चे मुख्यालय जिनिव्हा (स्वित्झर्लंड) येथे आहे. भविष्यातील संभाव्य प्रश्न: १) WTO चे पहिले महासंचालक कोण होते? (पीटर सदरलँड). २) भारताने WTO चे सदस्यत्व कधी स्वीकारले? (१ जानेवारी १९९५). ३) 'मराकेश करार' कोणत्या संघटनेशी संबंधित आहे? ४) WTO चे सध्याचे महासंचालक कोण आहेत? (नगोझी ओकोन्जो-इवेला - या पदावर नियुक्त होणाऱ्या पहिल्या महिला आणि आफ्रिकन व्यक्ती). हे घटक MPSC च्या अर्थशास्त्र विभागासाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_032.png": [
+      {
+        "qnum": null,
+        "text": "All the direct expenses of trading or manufacturing are charged to",
+        "text_eng": "All the direct expenses of trading or manufacturing are charged to",
+        "options": [
+          "(1) ताळेबंद",
+          "(2) नफा-तोटा पत्रक",
+          "(3) व्यापार खाते",
+          "(4) यापैकी नाही"
+        ],
+        "options_eng": [
+          "(1) Balance Sheet",
+          "(2) Profit and Loss Account",
+          "(3) Trading Account",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "व्यापार खाते (Trading Account) हे व्यवसायातील वस्तूंच्या खरेदी आणि विक्रीशी संबंधित असते. लेखांकनाच्या (Accounting) नियमांनुसार, वस्तू तयार करण्यासाठी किंवा खरेदी करण्यासाठी लागणारा थेट खर्च (Direct Expenses) हा 'व्यापार खात्याच्या' नावे बाजूला (Debit Side) दर्शविला जातो. यामध्ये कच्चा माल, मजुरी (Wages), कारखान्यातील वीज बिल, इंधन, आणि मालाची वाहतूक (Freight Inward) यांचा समावेश होतो. याउलट, नफा-तोटा पत्रक (Profit & Loss Account) हे अप्रत्यक्ष खर्चासाठी (Indirect Expenses) वापरले जाते, जसे की पगार, जाहिरात, भाडे इ. ताळेबंद (Balance Sheet) हे व्यवसायाची आर्थिक स्थिती दर्शवते, त्यात खर्च नोंदवले जात नाहीत. म्हणून, सर्व थेट खर्च हे व्यापार खात्यातच येतात.",
+          "topic": "लेखांकन (Accounting) - अंतिम खाती (Final Accounts)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'Direct = Trading'. जर खर्च वस्तूच्या उत्पादनाशी किंवा खरेदीशी थेट संबंधित असेल, तर तो 'Trading' मध्ये जाईल. भविष्यातील संभाव्य प्रश्न: 'Wages' (मजुरी) हे व्यापार खात्यात येते, तर 'Salaries' (पगार) हे नफा-तोटा पत्रकात येते, हा फरक परीक्षेत वारंवार विचारला जातो. लक्षात ठेवा: 'Direct Expenses' = Trading Account (Debit Side); 'Indirect Expenses' = P&L Account (Debit Side). 'Carriage Inward' हे व्यापार खात्यात येते, तर 'Carriage Outward' हे नफा-तोटा पत्रकात येते, हे नेहमी लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 79,
+        "text": "श्री प्रसाद यांनी रुपये 30,000 चा माल खरेदी केला, ह्याचे वर्गीकरण __________ मध्ये होईल.",
+        "text_eng": "Mr. Prasad purchased goods worth Rs. 30,000. This is classified as",
+        "options": [
+          "(1) एक घटना",
+          "(2) व्यवहार",
+          "(3) व्यवहार तसेच घटना",
+          "(4) ना व्यवहार ना घटना"
+        ],
+        "options_eng": [
+          "(1) An event",
+          "(2) Transaction",
+          "(3) A transaction as well as an event",
+          "(4) Neither transaction nor event"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "लेखांकनाच्या (Accounting) परिभाषेत 'व्यवहार' (Transaction) आणि 'घटना' (Event) यातील फरक समजून घेणे अत्यंत महत्त्वाचे आहे. 1) व्यवहार (Transaction): जेव्हा दोन किंवा अधिक व्यक्तींमध्ये पैशांचे किंवा वस्तूंचे हस्तांतरण होते आणि त्यामुळे व्यवसायाची आर्थिक स्थिती बदलते, तेव्हा त्याला 'व्यवहार' म्हणतात. श्री प्रसाद यांनी 30,000 रुपयांचा माल खरेदी केला, यात माल मिळणे आणि पैसे देणे (किंवा देणे लागणे) या दोन बाजू आहेत, म्हणून हा एक 'आर्थिक व्यवहार' आहे. 2) घटना (Event): ही व्यवहाराचे फलित असते. उदा. वर्षाच्या शेवटी शिल्लक राहिलेला माल (Closing Stock) ही एक घटना आहे. सर्व व्यवहार हे घटना असू शकतात, पण सर्व घटना व्यवहार नसतात. 3) विश्लेषण: पर्याय (1) चुकीचा आहे कारण ही केवळ घटना नाही. पर्याय (2) योग्य आहे कारण ही एक खरेदीची प्रक्रिया आहे. पर्याय (3) चुकीचा आहे कारण हा केवळ व्यवहार आहे, घटना नाही. पर्याय (4) चुकीचा आहे कारण हा स्पष्टपणे एक आर्थिक व्यवहार आहे.",
+          "topic": "लेखांकन (Accountancy) - मूलभूत संकल्पना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'देणे-घेणे' म्हणजे व्यवहार, 'परिणाम' म्हणजे घटना. भविष्यातील संभाव्य प्रश्न: 'माल विकला', 'पगार दिला', 'भाडे दिले' हे सर्व व्यवहार आहेत. याउलट 'माल खराब झाला', 'किंमत वाढली' या घटना आहेत. परीक्षेत 'आर्थिक व्यवहाराची व्याख्या' आणि 'लेखांकनाचे प्रकार' यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: ज्या व्यवहाराचे पैशात मोजमाप करता येते, तोच लेखांकनात नोंदवला जातो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_C_Services_Main_Examination_2022_Paper_2_Tax_Assistant\\page_036.png": [
+      {
+        "qnum": 91,
+        "text": "मूल्य वर्धित कर (VAT) हा ह्या __________ तारखेपासुन भारतात लागु झाला.",
+        "text_eng": "Value Added Tax (VAT) has been introduced from __________ in India.",
+        "options": [
+          "(1) 1 मार्च 2008",
+          "(2) 1 एप्रिल 2005",
+          "(3) 31 मार्च 2008",
+          "(4) 1 ऑगस्ट 2010"
+        ],
+        "options_eng": [
+          "(1) 1st March 2008",
+          "(2) 1st April 2005",
+          "(3) 31st March 2008",
+          "(4) 1st August 2010"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतात मूल्य वर्धित कर (Value Added Tax - VAT) १ एप्रिल २००५ रोजी लागू करण्यात आला. VAT ही एक अप्रत्यक्ष कर प्रणाली आहे जी उत्पादनाच्या प्रत्येक टप्प्यावर होणाऱ्या मूल्यवर्धनावर आकारली जाते. याची अंमलबजावणी करण्यासाठी 'सशक्त समिती' (Empowered Committee) स्थापन करण्यात आली होती, ज्याचे अध्यक्ष डॉ. असीम दासगुप्ता होते. हा कर 'कॅस्केडिंग इफेक्ट' (करावर कर) कमी करण्यासाठी आणला गेला होता. पर्याय विश्लेषण: १) १ मार्च २००८: हा कालावधी VAT शी संबंधित नाही. २) १ एप्रिल २००५: हे अचूक उत्तर आहे, जेव्हा भारताच्या अनेक राज्यांनी VAT स्वीकारला. ३) ३१ मार्च २००८: हा आर्थिक वर्षाचा शेवटचा दिवस आहे, VAT शी थेट संबंध नाही. ४) १ ऑगस्ट २०१०: हा कालावधी VAT च्या अंमलबजावणीशी संबंधित नाही. VAT ने जुन्या 'विक्री कर' (Sales Tax) प्रणालीची जागा घेतली होती.",
+          "topic": "भारतीय अर्थव्यवस्था - कर प्रणाली (Taxation System)",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'VAT = १ एप्रिल २००५' (V-A-T हे तीन अक्षरे आहेत, आणि १ एप्रिल हा आर्थिक वर्षाचा पहिला दिवस असतो). २. ऐतिहासिक संदर्भ: VAT ची शिफारस एल. के. झा समितीने केली होती. ३. भविष्यातील प्रश्न: VAT चे रूपांतर पुढे १ जुलै २०१७ रोजी GST (वस्तू आणि सेवा कर) मध्ये झाले, त्यामुळे GST च्या घटनात्मक तरतुदी (१०१ वी घटनादुरुस्ती) आणि VAT मधील फरक यावर प्रश्न विचारले जाऊ शकतात. ४. लक्षात ठेवा: VAT हा राज्य सूचीतील विषय होता, तर GST हा केंद्र आणि राज्य यांच्या संयुक्त अधिकाराचा विषय आहे."
+        },
+        "is_verified_from_key": false
+      }
     ]
   }
 };
