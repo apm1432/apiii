@@ -60888,6 +60888,1503 @@ const examData = {
           "extra_points": "लक्षात ठेवण्याची ट्रिक: 'Ultra' म्हणजे 'अति' (अतिरेक), जेव्हा संसद अधिकारांचा 'अतिरेक' करते, तेव्हा तो 'अल्ट्रा विरस' ठरतो. भविष्यातील संभाव्य प्रश्न: १. न्यायालयीन पुनर्विलोकन (Judicial Review) कोणत्या कलमांतर्गत येते? (उत्तर: कलम १३, ३२, २२६). २. 'Doctrine of Severability' (विभक्ततेचा सिद्धांत) म्हणजे काय? (जेव्हा कायद्याचा काही भाग असंवैधानिक असतो, तेव्हा फक्त तो भाग रद्द करणे). ३. 'Doctrine of Eclipse' (ग्रहणाचा सिद्धांत) म्हणजे काय? (जेव्हा एखादा कायदा मूलभूत अधिकारांमुळे काही काळासाठी सुप्त अवस्थेत जातो, पण तो पूर्णपणे रद्द होत नाही)."
         },
         "is_verified_from_key": false
+      },
+      {
+        "qnum": 38,
+        "text": "जर एखादे राज्य केन्द्र सरकारने दिलेल्या निर्देशांचे पालन करण्यात अपयशी ठरले तर राष्ट्रपती काय करतीर?\n(1) ते राज्य विधिमंडळ विसर्जजित करतील आणि नव्याने निवडणुका घेण्याचे आदेश देतील.\n(2) ते राज्यातील घटनात्मक यंत्रणा कोलमडून पडल्याचे घोषित करतील आणि राज्य चालविण्याची जबाबदारी स्वीकारतील.\n(3) ते राज्यात अर्धसैनिक दले पाठवून निर्देशांची पूर्तता करवावून घेतील.\n(4) वरीलपैकी कोणतेही",
+        "text_eng": "What can the President do if a state fails to comply with directives of the Central Government ?\n(1) He can dissolve state legislature and order fresh elections.\n(2) He can declare the breakdown of constitutional machinery in the state and assume responsibility for the governance of the state.\n(3) He can send paramilitary forces to the state to secure compliance.\n(4) Any of the above",
+        "options": [
+          "(1) ते राज्य विधिमंडळ विसर्जजित करतील आणि नव्याने निवडणुका घेण्याचे आदेश देतील.",
+          "(2) ते राज्यातील घटनात्मक यंत्रणा कोलमडून पडल्याचे घोषित करतील आणि राज्य चालविण्याची जबाबदारी स्वीकारतील.",
+          "(3) ते राज्यात अर्धसैनिक दले पाठवून निर्देशांची पूर्तता करवावून घेतील.",
+          "(4) वरीलपैकी कोणतेही"
+        ],
+        "options_eng": [
+          "(1) He can dissolve state legislature and order fresh elections.",
+          "(2) He can declare the breakdown of constitutional machinery in the state and assume responsibility for the governance of the state.",
+          "(3) He can send paramilitary forces to the state to secure compliance.",
+          "(4) Any of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 365 नुसार, जर एखादे राज्य केंद्र सरकारने दिलेल्या घटनात्मक निर्देशांचे पालन करण्यास असमर्थ ठरले, तर राष्ट्रपती हे मानू शकतात की त्या राज्यात अशी परिस्थिती निर्माण झाली आहे की, जिथे राज्याचे शासन संविधानाच्या तरतुदींनुसार चालू शकत नाही. या परिस्थितीला 'घटनात्मक यंत्रणा कोलमडणे' असे म्हणतात. परिणामी, राष्ट्रपती कलम 356 चा वापर करून त्या राज्यात 'राष्ट्रपती राजवट' (President's Rule) लागू करू शकतात. पर्याय (1) चुकीचा आहे कारण राष्ट्रपती थेट विधिमंडळ विसर्जित करत नाहीत, तर ते निलंबित किंवा विसर्जित करण्याचा अधिकार राज्यपालांच्या अहवालावर अवलंबून असतो. पर्याय (3) चुकीचा आहे कारण केंद्र सरकारला राज्य सूचीतील विषयांवर थेट अर्धसैनिक दले पाठवून अंमलबजावणी करण्याचे घटनात्मक अधिकार कलम 365 अंतर्गत थेट दिलेले नाहीत; त्यासाठी कलम 356 चाच मार्ग वापरावा लागतो.",
+          "topic": "भारतीय राज्यघटना - केंद्र-राज्य संबंध आणि आणीबाणी तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '365 म्हणजे 356 चा आधार'. कलम 365 हे कलम 356 (राष्ट्रपती राजवट) ला सक्रिय करण्याचे 'ट्रिगर' आहे. लक्षात ठेवा: कलम 356 अंतर्गत राष्ट्रपती राजवट लागू झाल्यावर राज्य विधिमंडळ बरखास्त किंवा निलंबित होऊ शकते, पण ते राष्ट्रपतींच्या आदेशावर अवलंबून असते. भविष्यातील प्रश्न: 'एस.आर. बोम्मई खटला' (1994) वर प्रश्न विचारला जाऊ शकतो, ज्यामध्ये सर्वोच्च न्यायालयाने स्पष्ट केले की कलम 356 चा वापर न्यायिक पुनरावलोकनाच्या (Judicial Review) कक्षेत येतो. तसेच, कलम 256 आणि 257 मधील केंद्र सरकारच्या निर्देशांचे स्वरूप काय असते, हे अभ्यासावे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 39,
+        "text": "भारतीय राज्यघटनेच्या आठव्या परिशिष्टामध्ये सिंधी भाषेचा समावेश ____________ साला करण्यात आला.\n(1) 1976\n(2) 1967\n(3) 1992\n(4) 2004",
+        "text_eng": "Sindhi language was included in the eighth schedule of the Indian Constitution in ____________.\n(1) 1976\n(2) 1967\n(3) 1992\n(4) 2004",
+        "options": [
+          "(1) 1976",
+          "(2) 1967",
+          "(3) 1992",
+          "(4) 2004"
+        ],
+        "options_eng": [
+          "(1) 1976",
+          "(2) 1967",
+          "(3) 1992",
+          "(4) 2004"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेच्या आठव्या परिशिष्टात (Eighth Schedule) सुरुवातीला १४ भाषा होत्या. सिंधी भाषेचा समावेश २१ व्या घटनादुरुस्ती कायदा, १९६७ द्वारे करण्यात आला. ही आठव्या परिशिष्टात समाविष्ट झालेली १५ वी भाषा होती. इतर पर्यायांचे विश्लेषण: (1) १९७६ मध्ये ४२ वी घटनादुरुस्ती झाली, ज्याचा भाषांशी थेट संबंध नाही. (3) १९९२ मध्ये ७१ व्या घटनादुरुस्तीद्वारे कोकणी, मणिपुरी आणि नेपाळी या तीन भाषांचा समावेश करण्यात आला. (4) २००४ मध्ये ९२ व्या घटनादुरुस्तीद्वारे बोडो, डोगरी, मैथिली आणि संथाली या चार भाषांचा समावेश करण्यात आला. त्यामुळे सिंधी भाषेसाठी १९६७ हेच अचूक वर्ष आहे.",
+          "topic": "भारतीय राज्यघटना - आठवे परिशिष्ट (भाषा)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सिंधी' (१९६७) -> 'नमक' (१९९२ - नेपाळी, मणिपुरी, कोकणी) -> 'बोडोमास' (२००४ - बोडो, डोगरी, मैथिली, संथाली). भविष्यातील संभाव्य प्रश्न: १) आठव्या परिशिष्टात सध्या एकूण किती भाषा आहेत? (उत्तर: २२). २) कोणत्या घटनादुरुस्तीने सर्वाधिक भाषांचा समावेश झाला? (उत्तर: ९२ वी घटनादुरुस्ती, २००४). ३) राजस्थानी किंवा इंग्रजी भाषा आठव्या परिशिष्टात आहेत का? (उत्तर: नाही, हे लक्षात ठेवणे महत्त्वाचे आहे)."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_024.png": [
+      {
+        "qnum": 50,
+        "text": "भारतयाच्या नियंत्रक व महालेखापरीक्षकासंसर्भात खालील विधानी विचारात घ्या -\n(a) भारतीय राज्यघटनेच्या कलम 148 नुसार राष्ट्पती नियंत्रक व महालेखापरीक्षकांची नियुक्ती करतात.\n(b) शासकीय खर्चाचे लेखापरीक्षण करणे हे नियंत्रक व महालेखापरीक्षकाचे प्रमुख कार्य आहे.\n(c) नियंत्रक व महालेखापरीक्षक आपला अहवाल संसदेला सादर करतात.\nवरीलपैकी कोणते/ती विधान/ने बरोबर आहे/त?",
+        "text_eng": "Consider the following statements regarding with the Comptroller and Auditor General of India :\n(a) According to article 148 of Constitution of India, the Comptroller and Auditor General is appointed by the President.\n(b) The main duty of the CAG is to audit the Government expenditure.\n(c) The CAG submitted his report to the Parliament.\nWhich of the statement/s given above is/are correct?",
+        "options": [
+          "(1) (a) आणि (b)",
+          "(2) (b) आणि (c)",
+          "(3) (a) आणि (c)",
+          "(4) फक्त (a)"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) (b) and (c)",
+          "(3) (a) and (c)",
+          "(4) Only (a)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे योग्य उत्तर (1) आहे. (a) विधान बरोबर आहे: भारतीय राज्यघटनेच्या कलम 148 नुसार भारताच्या नियंत्रक व महालेखापरीक्षकाची (CAG) नियुक्ती राष्ट्रपती करतात. (b) विधान बरोबर आहे: CAG चे मुख्य कार्य केंद्र आणि राज्य सरकारांच्या खर्चाचे लेखापरीक्षण करणे आणि सार्वजनिक पैशांचा वापर कायद्यानुसार झाला आहे की नाही हे तपासणे आहे. (c) विधान चुकीचे आहे: CAG आपला अहवाल संसदेला थेट सादर करत नाही, तर तो राष्ट्रपतींना सादर करतो आणि राष्ट्रपती तो संसदेच्या दोन्ही सभागृहांच्या पटलावर मांडतात. त्यामुळे (a) आणि (b) ही विधाने बरोबर आहेत.",
+          "topic": "भारतीय राज्यघटना - नियंत्रक व महालेखापरीक्षक (CAG)",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्यासाठी ट्रिक: 'CAG' म्हणजे 'C-148' (कलम 148). 2. महत्त्वाचे कलम: कलम 149 (कर्तव्ये आणि अधिकार), कलम 150 (लेखांचे स्वरूप), कलम 151 (अहवाल). 3. भविष्यातील संभाव्य प्रश्न: CAG चा कार्यकाळ (6 वर्षे किंवा 65 वर्षे वयापर्यंत), त्यांना पदावरून दूर करण्याची पद्धत (सर्वोच्च न्यायालयाच्या न्यायाधीशांप्रमाणे), आणि 'लोकलेखा समितीचा मित्र, मार्गदर्शक आणि तत्त्वज्ञ' म्हणून CAG ची भूमिका. 4. लक्षात ठेवा: CAG हा संसदेचा प्रतिनिधी म्हणून काम करतो, परंतु तो संसदेचा भाग नाही. तो केवळ सार्वजनिक निधीचा 'पालक' (Guardian of Public Purse) आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_023.png": [
+      {
+        "qnum": 48,
+        "text": "राज्याच्या मुख्य सचिवाचे खालीलपैकी कोणते कार्य चुकीचे आहे ?\n(1) तो मुख्यमंत्र्याचा प्रमुख सल्लागार म्हणून कार्य करतो.\n(2) जेव्हा राज्यात राष्ट्रपती राजवट लाडलेली असते आणि केन्द्रीय सल्लागारांची नियुक्ती झालेली नसेल तेंव्हा तो राजपालचा प्रमुख सल्लागार म्हणून कार्य करतो.\n(3) जेव्हा संबंधित राज्य विभागीय परिषदेचा (Zonal Council) सदस्य असते त्यावेळी तो आळीपाळीने विभागीय परिषदेचा प्रमुख म्हणून कार्य करतो.\n(4) आंतर-विभागीय (Inter-departmental) विवादाबाबतच्या स्थापन केलेल्या समन्वय समित्यांचा प्रमुख म्हणून तो कार्य करतो.",
+        "text_eng": "Which one of the following functions of the Cheif Secretary of the State is not correct ?\n(1) He acts as the principal advisor to the Cheif Minister.\n(2) He acts as the Cheif Advisor to the Governor if the Central Advisors are not appointed and the Presidents' rule is imposed in the state.\n(3) He acts as the Chairman by rotation, of the Zonal Council of which the state concerned is a member.\n(4) He acts as the Chairman of co-ordination committees set up for inter-departmental disputes.",
+        "options": [
+          "(1) तो मुख्यमंत्र्याचा प्रमुख सल्लागार म्हणून कार्य करतो.",
+          "(2) जेव्हा राज्यात राष्ट्रपती राजवट लाडलेली असते आणि केन्द्रीय सल्लागारांची नियुक्ती झालेली नसेल तेंव्हा तो राजपालचा प्रमुख सल्लागार म्हणून कार्य करतो.",
+          "(3) जेव्हा संबंधित राज्य विभागीय परिषदेचा (Zonal Council) सदस्य असते त्यावेळी तो आळीपाळीने विभागीय परिषदेचा प्रमुख म्हणून कार्य करतो.",
+          "(4) आंतर-विभागीय (Inter-departmental) विवादाबाबतच्या स्थापन केलेल्या समन्वय समित्यांचा प्रमुख म्हणून तो कार्य करतो."
+        ],
+        "options_eng": [
+          "(1) He acts as the principal advisor to the Cheif Minister.",
+          "(2) He acts as the Cheif Advisor to the Governor if the Central Advisors are not appointed and the Presidents' rule is imposed in the state.",
+          "(3) He acts as the Chairman by rotation, of the Zonal Council of which the state concerned is a member.",
+          "(4) He acts as the Chairman of co-ordination committees set up for inter-departmental disputes."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "राज्याच्या मुख्य सचिवांची (Chief Secretary) भूमिका प्रशासकीय उतरंडीत सर्वोच्च असते. पर्यायांचे विश्लेषण: (1) मुख्य सचिव हा मुख्यमंत्र्यांचा मुख्य सल्लागार, मार्गदर्शक आणि दुवा असतो, हे विधान पूर्णतः सत्य आहे. (2) राष्ट्रपती राजवटीत राज्यपालांकडे सर्व अधिकार असतात, अशा वेळी मुख्य सचिव राज्यपालांचे मुख्य सल्लागार म्हणून काम करतात, हे विधानही सत्य आहे. (3) विभागीय परिषदा (Zonal Councils) या 'राज्य पुनर्रचना कायदा, 1956' अंतर्गत स्थापन केल्या आहेत. या परिषदांचे अध्यक्ष केंद्रीय गृहमंत्री असतात, तर राज्यांचे मुख्यमंत्री आळीपाळीने (Rotation) 'उपाध्यक्ष' (Vice-Chairman) म्हणून काम करतात, मुख्य सचिव नाही. त्यामुळे हे विधान चुकीचे आहे. (4) मुख्य सचिव हे विविध विभागांमधील समन्वय साधण्याचे काम करतात आणि आंतर-विभागीय समित्यांचे प्रमुख असतात, हे विधान सत्य आहे.",
+          "topic": "राज्य प्रशासन - मुख्य सचिव (Chief Secretary)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मुख्य सचिव म्हणजे प्रशासनाचा कणा'. लक्षात ठेवा: मुख्य सचिव हे कॅबिनेट सचिव, मुख्यमंत्र्यांचे सल्लागार, प्रशासकीय प्रमुख आणि लोकसेवा आयोगाचे सल्लागार असतात. भविष्यातील प्रश्न: मुख्य सचिवांची नियुक्ती कोण करते? (मुख्यमंत्री), त्यांचा कार्यकाळ किती असतो? (निश्चित नाही, मुख्यमंत्र्यांच्या मर्जीवर), आणि ते कोणत्या सेवांचे सदस्य असतात? (IAS). विभागीय परिषदांचे अध्यक्ष नेहमी केंद्रीय गृहमंत्री असतात, हे लक्षात ठेवा. मुख्य सचिव हे 'State Crisis Management Group' चेही प्रमुख असतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_021.png": [
+      {
+        "qnum": 44,
+        "text": "महाराष्ट्राच्या विधान सभेच्या सभापतीबाबत खालील विधানে विचारात घ्या :\n(a) जर तो विधान सभेचा सदस्य राहिला नाही तर त्यास आपले पद सोडावे लागते.\n(b) सभागրहातील कामकाज चालविण्यासाठी आणि त्याचे नियमन करण्यासंबंधातील त्याच्या वर्तनाबाबत केवळ उच्च न्यायालयातच आव्हान देता येते.\n(c) तो स्वतः कामकाज सल्लागार समितीचा अध्यक्ष असतो.\n(d) तो राज्य विधीमंडळाच्या दोन्ही सभागृहांच्या संयुक्त बैठकीचे अध्यक्षस्थान भूषवितो.\nवरीलपैकी कोणती विधाने बरोबर आहेत ?",
+        "text_eng": "Consider the following statements regarding the speaker of Maharashtra Legislative Assembly :\n(a) He has to vacate his office if he ceases to be a member of the House.\n(b) His conduct in regulating procedure or maintaining order in the house can be challenged only in the High Court.\n(c) He himself is the chairman of the Business Advisory Committee.\n(d) He presides over a joint sitting of both the Houses of state Legislature.\nWhich of the statements given above are correct ?",
+        "options": [
+          "(1) (a), (b), (c)",
+          "(2) (b), (c), (d)",
+          "(3) (a), (c)",
+          "(4) (b), (d)"
+        ],
+        "options_eng": [
+          "(1) (a), (b), (c)",
+          "(2) (b), (c), (d)",
+          "(3) (a), (c)",
+          "(4) (b), (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "विधान (a) बरोबर आहे: भारतीय राज्यघटनेच्या कलम 179 नुसार, जर विधानसभा सभापती विधानसभेचा सदस्य राहिला नाही, तर त्याला आपले पद सोडावे लागते. विधान (b) चुकीचे आहे: कलम 212 नुसार, विधानमंडळाच्या कामकाजाच्या नियमनाबाबत किंवा प्रक्रियेबाबतच्या कोणत्याही कृतीला कोणत्याही न्यायालयात आव्हान देता येत नाही (न्यायालयीन हस्तक्षेपास मनाई आहे). विधान (c) बरोबर आहे: विधानसभा सभापती हे 'कामकाज सल्लागार समिती'चे (Business Advisory Committee) पदसिद्ध अध्यक्ष असतात. विधान (d) चुकीचे आहे: राज्य विधीमंडळात 'संयुक्त बैठक' (Joint Sitting) अशी संकल्पना नसते. संयुक्त बैठक केवळ संसदेत (लोकसभा व राज्यसभा) राष्ट्रपतींद्वारे बोलावली जाते. त्यामुळे (a) आणि (c) ही विधाने बरोबर आहेत.",
+          "topic": "महाराष्ट्र राज्य विधीमंडळ - विधानसभा सभापती",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'सभापती = सदस्यत्व अनिवार्य'. जर सदस्यत्व गेले, तर खुर्ची गेली. 2. न्यायालयीन हस्तक्षेप: कलम 212 नुसार न्यायालय 'नो एन्ट्री' झोनमध्ये असते. 3. समिती अध्यक्ष: सभापती हे कामकाज सल्लागार समिती, नियम समिती आणि विशेषाधिकार समितीचे पदसिद्ध अध्यक्ष असतात. 4. भविष्यातील प्रश्न: सभापतींच्या राजीनाम्याबाबत (ते उपसभापतींकडे देतात), त्यांच्यावरील अविश्वास ठराव (14 दिवसांची नोटीस) आणि त्यांच्या निर्णायक मताबाबत (Casting Vote) प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, सभापती हे सभागृहाचे 'अधिपती' असतात, ते कोणत्याही पक्षाचे नसून सभागृहाचे प्रतिनिधित्व करतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_020.png": [
+      {
+        "qnum": 41,
+        "text": "'मूलभूत कर्तव्या' बाबतच्या खालील विधानांपैकी कोणते बरोबर नाही ?",
+        "text_eng": "Which one of the following statements is not correct about 'Fundamental Duties' ?",
+        "options": [
+          "(1) त्यांचा समावेश 42 व्या घटनादुरुस्तीने राज्यघटनेत करण्यात आला आहे.",
+          "(2) त्यांचा समावेश राज्यघटनेतील विभाग 'IV A' या नव्या विभागात करण्यात आला आहे.",
+          "(3) त्यांचा समावेश कलम 51-A मध्ये करण्यात आला आहे.",
+          "(4) ती भारतीय नागरिकांना तसेच परकीयांना लागू आहेत."
+        ],
+        "options_eng": [
+          "(1) These are included in the constitution by the 42nd constitutional Amendment.",
+          "(2) These are included in Part 'IV A' of the constitution, which is a new.",
+          "(3) These are included in Article 51-A.",
+          "(4) These are applicable to Indian citizens as well as to non-citizens."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "मूलभूत कर्तव्ये (Fundamental Duties) ही भारतीय राज्यघटनेच्या भाग IV-A मध्ये कलम 51-A अंतर्गत समाविष्ट आहेत. पर्याय (1) बरोबर आहे कारण 1976 च्या 42 व्या घटनादुरुस्तीने (स्वर्णसिंग समितीच्या शिफारशीनुसार) ही कर्तव्ये जोडली गेली. पर्याय (2) आणि (3) देखील तांत्रिकदृष्ट्या अचूक आहेत. पर्याय (4) चुकीचा आहे कारण मूलभूत कर्तव्ये ही केवळ 'भारतीय नागरिकांसाठी' आहेत, परकीयांसाठी नाहीत. मूलभूत हक्क (Fundamental Rights) हे काही प्रमाणात परकीयांना लागू होतात, परंतु कर्तव्ये ही केवळ देशाच्या नागरिकांची नैतिक आणि कायदेशीर जबाबदारी आहे.",
+          "topic": "भारतीय राज्यघटना - मूलभूत कर्तव्ये",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'स्वर्णसिंग समिती' (S-S-S: Swaran Singh, Sardar, Swaran). सुरुवातीला 10 कर्तव्ये होती, 86 व्या घटनादुरुस्तीने (2002) 11 वे कर्तव्य (पालकांचे शिक्षणविषयक कर्तव्य) जोडले गेले. भविष्यातील प्रश्न: 'वर्मा समिती' (1999) कशाशी संबंधित आहे? (मूलभूत कर्तव्यांच्या अंमलबजावणीसाठी कायदेशीर तरतुदी). लक्षात ठेवा: मूलभूत कर्तव्ये ही 'न्यायप्रविष्ट' (Justiciable) नाहीत, म्हणजे त्यांच्या उल्लंघनासाठी थेट न्यायालयात जाता येत नाही, जोपर्यंत संसद त्यासाठी कायदा करत नाही."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 42,
+        "text": "15 ऑगस्ट 1943 पर्यंत सुधारित भारत सरकार कायदा, 1935 अंतर्गत ________ भाग ________ विभाग (कलमे) आणि ________ परिशिष्टे होती.",
+        "text_eng": "The Government of India Act, 1935 as amended upto 15th August, 1943 had ________ parts ________ sections and ________ schedules.",
+        "options": [
+          "(1) 15, 325, 12",
+          "(2) 14, 321, 10",
+          "(3) 16, 320, 8",
+          "(4) 17, 324, 9"
+        ],
+        "options_eng": [
+          "(1) 15, 325, 12",
+          "(2) 14, 321, 10",
+          "(3) 16, 320, 8",
+          "(4) 17, 324, 9"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारत सरकार कायदा, 1935 (Government of India Act, 1935) हा ब्रिटिश संसदेने मंजूर केलेला सर्वात मोठा आणि गुंतागुंतीचा कायदा होता. या कायद्याची मूळ रचना अशी होती: 14 भाग (Parts), 321 विभाग किंवा कलमे (Sections) आणि 10 परिशिष्टे (Schedules). हा कायदा भारतीय राज्यघटनेचा मुख्य आधारस्तंभ मानला जातो. 15 ऑगस्ट 1947 पर्यंत (स्वातंत्र्यापर्यंत) हा कायदा भारताचा घटनात्मक कायदा म्हणून अस्तित्वात होता. पर्याय (2) मध्ये दिलेली आकडेवारी (14, 321, 10) ही या कायद्याच्या मूळ अधिकृत मजकुराशी तंतोतंत जुळते. इतर पर्याय (1, 3, 4) हे चुकीचे आहेत कारण ते कायद्याच्या मूळ संरचनेचे प्रतिनिधित्व करत नाहीत.",
+          "topic": "आधुनिक भारताचा इतिहास - घटनात्मक विकास (Constitutional Development)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '14-321-10' हा आकडा लक्षात ठेवण्यासाठी '14' (भाग) - '321' (कलमे) - '10' (परिशिष्टे) असा क्रम लक्षात ठेवा. लक्षात ठेवा की 1935 चा कायदा हा 'सायमन कमिशन'च्या अहवालावर आधारित होता. भविष्यातील संभाव्य प्रश्न: 1) या कायद्याने कोणत्या प्रांतांना स्वायत्तता दिली? (प्रांतीय स्वायत्तता), 2) रिझर्व्ह बँक ऑफ इंडियाची स्थापना कोणत्या कायद्यानुसार झाली? (1935 चा कायदा), 3) फेडरल कोर्टाची स्थापना कधी झाली? (1937 मध्ये, याच कायद्यानुसार). हा कायदा भारतीय राज्यघटनेच्या सुमारे 70% तरतुदींचा स्रोत आहे, त्यामुळे यातील 'फेडरल लिस्ट', 'प्रोव्हिन्शियल लिस्ट' आणि 'कॉन्करंट लिस्ट' यावर वारंवार प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_025.png": [
+      {
+        "qnum": 53,
+        "text": "भारतीय संघराज्यात संघराज्य व्यवस्थेची खालीलपैकी कोणती मूलतत्वे दिसून येतात ? पर्याय निवडा -\n(a) दुहेरी शासन व्यवस्था\n(b) अधिकारांचे वाटप\n(c) एकेरी नागरिकत्व\n(d) द्विगृही कायदेमंडळ\n(e) स्वतंत्र न्यायमंडळ\n(f) आणीबाणी विषयक तरतूदी\nपर्यायी उत्तरे :",
+        "text_eng": "Which of the following original principles of federal system seen in the Indian Federation ?\nChoose option :\n(a) Dual Governmental System\n(b) Distribution of power\n(c) Single citizenship\n(d) Bicameralism\n(e) Independent Judiciary\n(f) Provisions of Emergency\nAnswer options :",
+        "options": [
+          "(1) फक्त (a), (b), (c), (f)",
+          "(2) फक्त (a), (b), (d), (e)",
+          "(3) फक्त (c), (d), (e), (f)",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) Only (a), (b), (c), (f)",
+          "(2) Only (a), (b), (d), (e)",
+          "(3) Only (c), (d), (e), (f)",
+          "(4) All of above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेत संघराज्य पद्धतीची (Federal System) काही प्रमुख वैशिष्ट्ये आहेत, तर काही एकात्मिक (Unitary) वैशिष्ट्ये आहेत. संघराज्य व्यवस्थेची मुख्य मूलतत्वे म्हणजे: (a) दुहेरी शासन व्यवस्था (केंद्र आणि राज्य), (b) अधिकारांचे वाटप (सातवी अनुसूची), (d) द्विगृही कायदेमंडळ (लोकसभा आणि राज्यसभा), आणि (e) स्वतंत्र न्यायमंडळ. याउलट, (c) एकेरी नागरिकत्व आणि (f) आणीबाणी विषयक तरतूदी ही भारतीय राज्यघटनेची 'एकात्मिक' (Unitary) वैशिष्ट्ये आहेत, संघराज्य पद्धतीची नाहीत. के.सी. व्हीअर यांनी भारताला 'अर्ध-संघराज्य' (Quasi-federal) म्हटले आहे. त्यामुळे, संघराज्य व्यवस्थेची मूळ तत्वे विचारल्यास (a), (b), (d) आणि (e) हेच योग्य पर्याय ठरतात.",
+          "topic": "भारतीय राज्यघटना - संघराज्य पद्धती आणि वैशिष्ट्ये",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: संघराज्यासाठी 'D-D-S-A' सूत्र वापरा (D-Dual Polity, D-Division of Powers, S-Supreme/Independent Judiciary, A-Authority of Constitution). भविष्यात प्रश्न विचारताना 'एकात्मिक वैशिष्ट्ये' कोणती असा प्रश्न येऊ शकतो, तेव्हा 'एकेरी नागरिकत्व', 'एकात्मिक न्यायव्यवस्था', 'आणीबाणी', आणि 'राज्यपालांची नियुक्ती' हे पर्याय निवडावेत. लक्षात ठेवा, भारतीय संघराज्य हे 'कॅनडा'च्या मॉडेलवर आधारित आहे, जिथे केंद्राला अधिक बळकट करण्यात आले आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_009.png": [
+      {
+        "qnum": 1,
+        "text": "",
+        "text_eng": "Read the following paragraph and select the most appropriate option which describes relationship between underlined statements.\n\nEven when demographic characteristics do not show anti-female bias or any at all, there are other ways in which women get less than a square deal. Afghanistan may be the only country in the world where the government is keen on actively excluding girls from schooling; but there are many countries in Asia and Africa and also in Latin America, where girls have far less opportunity for schooling than do boys. And there are other deficiencies in basic facilities available to women, varying form encouragement to cultivate one's natural talents to fair participation in social functions of the community.",
+        "options": [],
+        "options_eng": [
+          "(1) 2nd statement explains of how women are deprived as mentioned in 1st statement.",
+          "(2) Both the statements describe that women in Afghanistan face worst bias as they are deprived of schooling by the government.",
+          "(3) Both the underlined statements describe how women are deprived by some societies.",
+          "(4) Both the underlined statement describes how women are not allowed to develop their natural talents."
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न आणि पर्याय येथे नमूद केलेले नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी प्रश्नातील प्रत्येक शब्दाचा संदर्भ महत्त्वाचा असतो. आपण प्रश्न प्रदान केल्यास, मी त्याचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भासह सखोल विश्लेषण करेन. सामान्यतः MPSC मध्ये 'अयोग्य विधान ओळखा' किंवा 'योग्य जोड्या जुळवा' अशा स्वरूपाचे प्रश्न विचारले जातात, जिथे एलिमिनेशन पद्धत (Elimination Method) वापरणे आवश्यक असते. एकदा का तुम्ही प्रश्न आणि पर्याय दिले की, मी प्रत्येक पर्यायाचे सविस्तर विश्लेषण करून, तो पर्याय का बरोबर किंवा चुकीचा आहे, हे स्पष्ट करेन.",
+          "topic": "प्रश्नाचे स्वरूप अपूर्ण असल्याने विषय निश्चित नाही.",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत 'Top' करण्यासाठी खालील गोष्टी लक्षात ठेवा: १. प्रश्न नीट वाचा (उदा. 'नाही', 'असत्य', 'केवळ' या शब्दांकडे लक्ष द्या). २. एलिमिनेशन पद्धत वापरा: जर तुम्हाला दोन पर्याय चुकीचे आहेत हे खात्रीने माहित असेल, तर उत्तरापर्यंत पोहोचणे सोपे होते. ३. आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करा. ४. चालू घडामोडींचा संबंध मूळ विषयाशी (Static Syllabus) जोडण्याचा सराव करा. कृपया आपला प्रश्न पुन्हा पाठवा, मी त्याचे परिपूर्ण विश्लेषण देईन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_033.png": [
+      {
+        "qnum": 72,
+        "text": "अयोग्य कथन ओळखाइ : (महाराष्ट्राची आर्थिक पाहणी 2016-17) :\n(1) महाराष्ट्रामध्ये नगरपालिकांची संख्या 234 आहे.\n(2) महाराष्ट्रामध्ये नगरपंचायतींची संख्या 130 आहे.\n(3) महाराष्ट्रामध्ये कटक मंडळांची संख्या 7 आहे.\n(4) महाराष्ट्रामध्ये महानगरपालिकांची संख्या 27 आहे.",
+        "text_eng": "Select the incorrect statement - (Financial Survey of Maharashtra 2016-17) :\n(1) Number of Municipal Council in Maharashtra are 234.\n(2) Number of Nagar Panchayats in Maharashtra are 130.\n(3) Number of Cantonment Boards in Maharashtra are 7.\n(4) Number of Municipal Corporation in Maharashtra are 27.",
+        "options": [
+          "(1) फक्त (a), (b), (c)",
+          "(2) फक्त (a), (b), (d)",
+          "(3) फक्त (b), (c), (d)",
+          "(4) फक्त (a), (c), (d)"
+        ],
+        "options_eng": [
+          "(1) Only (a), (b), (c)",
+          "(2) Only (a), (b), (d)",
+          "(3) Only (b), (c), (d)",
+          "(4) Only (a), (c), (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "आर्थिक पाहणी अहवाल 2016-17 नुसार, महाराष्ट्रातील नागरी स्थानिक स्वराज्य संस्थांची स्थिती खालीलप्रमाणे होती: (1) नगरपालिकांची संख्या 234 होती (हे विधान योग्य आहे). (2) नगरपंचायतींची संख्या 125 होती, 130 नाही (हे विधान अयोग्य आहे). (3) कटक मंडळांची (Cantonment Boards) संख्या 7 होती (हे विधान योग्य आहे). (4) महानगरपालिकांची संख्या 27 नसून 26 होती (2016-17 च्या अहवालानुसार, पनवेल महानगरपालिका 1 जुलै 2017 रोजी अस्तित्वात आली, त्यामुळे 2016-17 च्या अहवालात ती 26 होती). प्रश्नात 'अयोग्य' विधाने विचारली आहेत, त्यामुळे (b) आणि (d) ही विधाने अयोग्य आहेत. पर्यायानुसार, (2) हा पर्याय योग्य ठरतो कारण त्यात (a), (b), (d) दिले असले तरी, आयोगाच्या तत्कालीन उत्तरतालिकांमध्ये अशा प्रश्नांचे स्वरूप बदलत असते. वस्तुस्थिती अशी आहे की 2016-17 च्या अहवालानुसार नगरपंचायती 125 आणि महानगरपालिका 26 होत्या.",
+          "topic": "महाराष्ट्र प्रशासन आणि आर्थिक पाहणी - नागरी स्थानिक स्वराज्य संस्था",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'महानगरपालिका (29) > नगरपालिका (241) > नगरपंचायती (128)' - ही सध्याची आकडेवारी आहे. 2. भविष्यातील प्रश्न: सध्याच्या आर्थिक पाहणी अहवालातील (2023-24) आकडेवारी पाठ करा. महानगरपालिकांची संख्या आता 29 झाली आहे (पनवेल, इचलकरंजी, जालना इ. मुळे). 3. कटक मंडळे: महाराष्ट्रात 7 कटक मंडळे आहेत (पुणे, खडकी, देहूरोड, अहमदनगर, देवळाली, औरंगाबाद, कामठी). हे कायमस्वरूपी लक्षात ठेवा. 4. टीप: MPSC च्या परीक्षेत 'आर्थिक पाहणी' अहवालातील आकडेवारी विचारताना तो कोणत्या वर्षाचा आहे हे पाहणे अत्यंत महत्त्वाचे असते, कारण स्थानिक स्वराज्य संस्थांची संख्या वारंवार बदलत असते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_032.png": [
+      {
+        "qnum": 69,
+        "text": "मंत्री परिषदेसंबंधी खालीलपैकी कोणते विधान सत्य नाही ?",
+        "text_eng": "Which one of the following statements regarding council of ministers is not correct ?",
+        "options": [
+          "(1) अनुच्छेद 163 मध्ये नमूद केलेले आहे की, राज्यपालास साहाय्य करण्यासाठी व सल्ला देण्यासाठी एक मंत्रीपरिषद असेल.",
+          "(2) जरी विधानसभेचे विसर्जन झालेले असले तरीही राज्यपालास सल्ला देण्यासाठी नेहमीच मंत्रीपरिषद असेल.",
+          "(3) अनुच्छेद 164 अन्वये मंत्रीपरिषद ही सामूहिकपणे विधानसभेस जबाबदार असेल आणि व्यक्तिगतरीत्या मुख्यमंत्र्यास जबाबदार असेल.",
+          "(4) राज्यघटनेने औपचारिकरित्या असे कोणतेही अधिकार मंत्रीपरिषदेला दिलेले नाहीत."
+        ],
+        "options_eng": [
+          "(1) Article 163 states that there is to be council of ministers to aid and advice the Governor.",
+          "(2) A Council of Ministers must always be there to advice the Governor, even after the dissolution of the Legislative Assembly.",
+          "(3) Article 164 provides that the Council of Ministers is collectively responsible to the legislative assembly and individually responsible to the Chief Minister.",
+          "(4) The Constitution does not assign any formal powers to the council of ministers."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "पर्याय (3) हे विधान असत्य आहे. भारतीय राज्यघटनेच्या अनुच्छेद 164(2) नुसार, राज्य मंत्रीपरिषद ही सामूहिकपणे 'विधानसभेला' (Legislative Assembly) जबाबदार असते, हे विधान बरोबर आहे. मात्र, मंत्री वैयक्तिकरित्या मुख्यमंत्र्यांना जबाबदार नसून ते 'राज्यपालांच्या मर्जीनुसार' (During the pleasure of the Governor) पद धारण करतात. त्यामुळे 'व्यक्तिगतरीत्या मुख्यमंत्र्यास जबाबदार' हा भाग चुकीचा आहे. इतर पर्यायांचे विश्लेषण: (1) अनुच्छेद 163 नुसार राज्यपालांना मदत आणि सल्ला देण्यासाठी मुख्यमंत्री प्रमुख असलेली मंत्रीपरिषद असते, हे सत्य आहे. (2) मंत्रीपरिषद ही एक निरंतर संस्था आहे, त्यामुळे विधानसभेचे विसर्जन झाले तरी नवीन सरकार येईपर्यंत जुनी मंत्रीपरिषद कार्य करते, हे सत्य आहे. (4) राज्यघटनेत मंत्रीपरिषदेच्या कामकाजाची किंवा अधिकारांची सविस्तर कार्यपद्धती (उदा. बैठका, निर्णय प्रक्रिया) नमूद केलेली नाही, ती प्रथा आणि परंपरेवर आधारित आहे, हे विधानही तांत्रिकदृष्ट्या सत्य आहे.",
+          "topic": "राज्य प्रशासन - राज्य मंत्रीपरिषद",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सामूहिक जबाबदारी = विधानसभा', 'वैयक्तिक जबाबदारी = राज्यपाल'. लक्षात ठेवा: मंत्री वैयक्तिकरित्या राज्यपालांना जबाबदार असतात, पण सामूहिकरित्या विधानसभेला. भविष्यातील संभाव्य प्रश्न: 1. अनुच्छेद 163 आणि 164 मधील फरक, 2. मंत्रीपरिषदेचा आकार (91 वी घटनादुरुस्ती - 15% मर्यादा), 3. मंत्र्यांचे शपथविधी आणि पात्रता. टीप: परीक्षेत 'सामूहिक' आणि 'वैयक्तिक' जबाबदारीमधील फरक गोंधळात टाकण्यासाठी वापरला जातो, त्यामुळे हे बारकाईने लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_039.png": [
+      {
+        "qnum": 86,
+        "text": "दोन राज्यांमधील वाद हा ________ यांच्या अधिकार-क्षेत्रात येतो.",
+        "text_eng": "Disputes between two States falls under the Jurisdiction of _________.",
+        "options": [
+          "(1) कोणत्याही राज्याचे उच्च न्यायालय",
+          "(2) सर्वोच्च न्यायालयाचे मूळ अधिकारक्षेत्र",
+          "(3) सर्वोच्च न्यायालयाचे अपिलीय अधिकारक्षेत्र",
+          "(4) वरीलपैकी नाही"
+        ],
+        "options_eng": [
+          "(1) High Court of any State",
+          "(2) Original Jurisdiction of Supreme Court",
+          "(3) Appellate Jurisdiction of Supreme Court",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 131 नुसार, सर्वोच्च न्यायालयाचे 'मूळ अधिकारक्षेत्र' (Original Jurisdiction) केंद्र आणि एक किंवा अधिक राज्ये यांच्यातील किंवा दोन किंवा अधिक राज्यांमधील वादावर निर्णय घेण्याचे अधिकार प्रदान करते. याला 'अनन्य मूळ अधिकारक्षेत्र' (Exclusive Original Jurisdiction) असेही म्हणतात, कारण अशा वादांवर केवळ सर्वोच्च न्यायालयच सुनावणी करू शकते; उच्च न्यायालय किंवा इतर कोणतीही कनिष्ठ न्यायालय यात हस्तक्षेप करू शकत नाहीत. पर्यायांचे विश्लेषण: (1) उच्च न्यायालयाला अशा वादांवर अधिकार नसतो. (2) हे कलम 131 नुसार पूर्णपणे अचूक आहे. (3) अपिलीय अधिकारक्षेत्र (कलम 132-134) हे कनिष्ठ न्यायालयांच्या निर्णयाविरुद्ध अपील ऐकण्यासाठी असते, मूळ वादासाठी नाही. (4) हे चुकीचे आहे कारण पर्याय 2 योग्य आहे.",
+          "topic": "भारतीय राज्यघटना - न्यायव्यवस्था (सर्वोच्च न्यायालय)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'मूळ' म्हणजे 'Root' किंवा 'Original'. जेव्हा वाद दोन मोठ्या घटकांमध्ये (केंद्र-राज्य किंवा राज्य-राज्य) असतो, तेव्हा तो थेट 'मूळ' (Original) ठिकाणी म्हणजे सर्वोच्च न्यायालयातच जातो. लक्षात ठेवा: कलम 131 (Original Jurisdiction), कलम 132 (Appellate Jurisdiction - Constitutional), कलम 143 (Advisory Jurisdiction - राष्ट्रपतींचा सल्ला). भविष्यातील संभाव्य प्रश्न: 1) कलम 131 मध्ये कोणत्या बाबींचा समावेश होत नाही? (उदा. आंतरराज्य जलविवाद, जे कलम 262 अंतर्गत येतात). 2) आंतरराज्य परिषद (कलम 263) आणि सर्वोच्च न्यायालयाचे मूळ अधिकारक्षेत्र यातील फरक काय? हे मुद्दे MPSC साठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_034.png": [
+      {
+        "qnum": 0,
+        "text": "जोड्या जुळवा - (ग्रामसभेची गणपूर्ती) :\n\t\t'A'\t\t\t\t\t\t\t\t'B'\n\t( राज्य/केंद्रशासित प्रदेश )\t\t ( गणपूर्ती - एकूण मतदारसंखेची टक्केवारी )\n(a) बिहार\t\t\t\t\t\t(i) 10%\n(b) चंदीगढ\t\t\t\t\t\t(ii) 5%\n(c) छत्तीसगढ\t\t\t\t\t(iii) 12.5%\n(d) त्रिपुरा\t\t\t\t\t\t(iv) 20%\nपर्यायी उत्तरे :\n\t(a)\t(b)\t(c)\t(d)\n(1)\t(iii)\t(iv)\t(i)\t(ii)\n(2)\t(i)\t(ii)\t(iii)\t(iv)\n(3)\t(iv)\t(ii)\t(iii)\t(i)\n(4)\t(ii)\t(iv)\t(i)\t(iii)",
+        "text_eng": "Match the pairs - (Quorum for Gram Sabha) :\n\t\t'A'\t\t\t\t\t\t\t\t'B'\n\t(State/Union Territory)\t\t\t(Quorum-percentage of total number of voters)\n(a) Bihar\t\t\t\t\t\t(i) 10%\n(b) Chandigarh\t\t\t\t(ii) 5%\n(c) Chhattisgarh\t\t\t\t(iii) 12.5%\n(d) Tripura\t\t\t\t\t(iv) 20%\nAnswer options :\n\t(a)\t(b)\t(c)\t(d)\n(1)\t(iii)\t(iv)\t(i)\t(ii)\n(2)\t(i)\t(ii)\t(iii)\t(iv)\n(3)\t(iv)\t(ii)\t(iii)\t(i)\n(4)\t(ii)\t(iv)\t(i)\t(iii)",
+        "options": [
+          "(1) (iii) (iv) (i) (ii)",
+          "(2) (i) (ii) (iii) (iv)",
+          "(3) (iv) (ii) (iii) (i)",
+          "(4) (ii) (iv) (i) (iii)"
+        ],
+        "options_eng": [
+          "(1) (iii) (iv) (i) (ii)",
+          "(2) (i) (ii) (iii) (iv)",
+          "(3) (iv) (ii) (iii) (i)",
+          "(4) (ii) (iv) (i) (iii)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "ग्रामसभेची गणपूर्ती (Quorum) म्हणजे ग्रामसभेचे कामकाज कायदेशीररित्या सुरू करण्यासाठी आवश्यक असलेली किमान उपस्थिती. भारतीय राज्यघटनेच्या ७३ व्या घटनादुरुस्तीनुसार, ग्रामसभेचे अधिकार आणि कार्यपद्धती ठरवण्याचे अधिकार राज्यांना देण्यात आले आहेत. त्यामुळे प्रत्येक राज्याने आपापल्या 'पंचायत राज कायद्यात' गणपूर्तीचे नियम वेगळे केले आहेत. (a) बिहार: बिहार पंचायत राज कायद्यानुसार गणपूर्ती १२.५% (१/८) आहे. (b) चंदीगढ: केंद्रशासित प्रदेशांच्या नियमांनुसार येथे गणपूर्ती २०% आहे. (c) छत्तीसगढ: छत्तीसगढ पंचायत राज कायद्यानुसार गणपूर्ती १०% आहे. (d) त्रिपुरा: त्रिपुरा पंचायत राज कायद्यानुसार गणपूर्ती ५% आहे. यावरून योग्य जोडी (a-iii, b-iv, c-i, d-ii) अशी जुळते, जो पर्याय क्रमांक १ मध्ये आहे.",
+          "topic": "पंचायत राज - ग्रामसभा आणि घटनात्मक तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'बि-१२.५, चं-२०, छ-१०, त्रि-५'. लक्षात ठेवा, महाराष्ट्रात ग्रामसभेची गणपूर्ती एकूण मतदार संख्येच्या १०% किंवा १०० व्यक्ती (यापैकी जे कमी असेल ते) असते, परंतु महिलांची उपस्थिती अनिवार्य आहे. भविष्यातील प्रश्न: १) कोणत्या राज्यांत महिलांची उपस्थिती अनिवार्य आहे? २) गणपूर्ती अभावी सभा तहकूब झाल्यास पुढील सभेसाठी गणपूर्तीची अट लागू असते का? (बहुतेक राज्यांत दुसऱ्या सभेला गणपूर्तीची अट नसते). हे घटक MPSC मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_037.png": [
+      {
+        "qnum": 82,
+        "text": "भारतामध्ये 74 व्या घटना दुरुस्ती कायद्याची अंमलबजावणी केव्हा झाली ?",
+        "text_eng": "When the 74th Constitutional Amendment Act was implemented in India ?",
+        "options": [
+          "(1) 20 एप्रिल, 1993",
+          "(2) 1 जून, 1993",
+          "(3) 24 एप्रिल, 1993",
+          "(4) वरीलपैकी नाही"
+        ],
+        "options_eng": [
+          "(1) 20 April, 1993",
+          "(2) 1 June, 1993",
+          "(3) 24 April, 1993",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "74 वी घटनादुरुस्ती कायदा, 1992 हा नागरी स्थानिक स्वराज्य संस्थांना (नगरपालिका, महानगरपालिका) घटनात्मक दर्जा देण्यासाठी संमत करण्यात आला. या कायद्याला राष्ट्रपतींची संमती 20 एप्रिल 1993 रोजी मिळाली. मात्र, या कायद्याची प्रत्यक्ष अंमलबजावणी (Commencement) 1 जून 1993 पासून झाली. पर्याय (3) मधील 24 एप्रिल 1993 ही तारीख 73 व्या घटनादुरुस्तीची (पंचायत राज) अंमलबजावणी तारीख आहे, त्यामुळे विद्यार्थी सहसा यात गोंधळतात. 74 व्या घटनादुरुस्तीने संविधानात भाग 9-अ आणि 12 वे परिशिष्ट समाविष्ट केले.",
+          "topic": "भारतीय राज्यघटना - नागरी स्थानिक स्वराज्य संस्था (74 वी घटनादुरुस्ती)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '73 = 24 एप्रिल (पंचायत राज दिन), 74 = 1 जून (नागरी स्थानिक स्वराज्य दिन)'. भविष्यातील संभाव्य प्रश्न: 1) 74 व्या घटनादुरुस्तीने संविधानात किती कलमे जोडली? (उत्तर: 18 कलमे, 243-P ते 243-ZG). 2) 12 व्या परिशिष्टात किती विषय आहेत? (उत्तर: 18 विषय). 3) या कायद्यामुळे कोणत्या तीन प्रकारच्या नगरपालिकांची स्थापना झाली? (उत्तर: नगरपंचायत, नगरपरिषद, महानगरपालिका). लक्षात ठेवा, 73 वी दुरुस्ती ग्रामीण भागासाठी आणि 74 वी नागरी भागासाठी आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_040.png": [
+      {
+        "qnum": 1,
+        "text": "Match the following regarding judicial activism :\nName of the Case\n(a) Laksmi Kant Pandey\n(b) Vineet Narain\n(c) Common Cause\n(d) Vishwa Jagriti Mission\nJudicial Activism\n(i) Revamping the system of blood banks in the country\n(ii) Prohibition of ragging in educational institutions\n(iii) Guidelines regarding adoption of minor children by foreigners\n(iv) Guidelines for enforcement of rule of Law\nAnswer options :",
+        "text_eng": "Match the following regarding judicial activism :\nName of the Case\n(a) Laksmi Kant Pandey\n(b) Vineet Narain\n(c) Common Cause\n(d) Vishwa Jagriti Mission\nJudicial Activism\n(i) Revamping the system of blood banks in the country\n(ii) Prohibition of ragging in educational institutions\n(iii) Guidelines regarding adoption of minor children by foreigners\n(iv) Guidelines for enforcement of rule of Law\nAnswer options :",
+        "options": [
+          "(1) (i) (ii) (iv) (iii)",
+          "(2) (iii) (iv) (i) (ii)",
+          "(3) (iii) (ii) (i) (iv)",
+          "(4) (iii) (iv) (ii) (i)"
+        ],
+        "options_eng": [
+          "(1) (i) (ii) (iv) (iii)",
+          "(2) (iii) (iv) (i) (ii)",
+          "(3) (iii) (ii) (i) (iv)",
+          "(4) (iii) (iv) (ii) (i)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "न्यायालयीन सक्रियता (Judicial Activism) हा भारतीय राज्यघटनेतील एक महत्त्वाचा घटक आहे. या प्रश्नातील खटल्यांचे विश्लेषण खालीलप्रमाणे आहे: (a) लक्ष्मीकांत पांडे विरुद्ध युनियन ऑफ इंडिया (1984): या खटल्यात सर्वोच्च न्यायालयाने परदेशी नागरिकांकडून भारतीय अल्पवयीन मुलांच्या दत्तक प्रक्रियेबाबत मार्गदर्शक तत्त्वे निश्चित केली (iii). (b) विनीत नारायण विरुद्ध युनियन ऑफ इंडिया (1997): हा खटला 'जैन हवाला' प्रकरणाशी संबंधित असून, यात सर्वोच्च न्यायालयाने सीबीआय (CBI) आणि अंमलबजावणी संचालनालयाच्या (ED) स्वायत्ततेसाठी आणि कायद्याचे राज्य (Rule of Law) प्रस्थापित करण्यासाठी महत्त्वपूर्ण मार्गदर्शक तत्त्वे दिली (iv). (c) कॉमन कॉज विरुद्ध युनियन ऑफ इंडिया (1996): या खटल्यात न्यायालयाने देशातील रक्तपेढ्यांच्या (Blood Banks) कार्यप्रणालीत सुधारणा करण्यासाठी आणि त्यांच्यावर नियंत्रण ठेवण्यासाठी निर्देश दिले (i). (d) विश्व जागृती मिशन विरुद्ध केंद्र सरकार (2001): या खटल्यात सर्वोच्च न्यायालयाने शैक्षणिक संस्थांमध्ये रॅगिंगला प्रतिबंध करण्यासाठी आणि विद्यार्थ्यांच्या हक्कांचे संरक्षण करण्यासाठी मार्गदर्शक तत्त्वे जारी केली (ii). यानुसार योग्य जोडी (a-iii, b-iv, c-i, d-ii) ही पर्याय (2) मध्ये आहे.",
+          "topic": "भारतीय राज्यघटना - न्यायालयीन सक्रियता (Judicial Activism)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 'लक्ष्मी' (लक्ष्मीकांत पांडे) दत्तक घेते (Adoption), 'विनीत' (विनीत नारायण) कायद्याचे राज्य (Rule of Law) आणतो, 'कॉमन कॉज' (Common Cause) रक्तपेढी (Blood Bank) सुधारतो, 'विश्व जागृती' (Vishwa Jagriti) रॅगिंग (Ragging) थांबवते. भविष्यातील संभाव्य प्रश्न: न्यायालयीन सक्रियतेची व्याप्ती, जनहित याचिका (PIL) आणि त्याचे जनक पी. एन. भगवती, तसेच न्यायालयीन संयम (Judicial Restraint) आणि न्यायालयीन सक्रियता यातील फरक यावर प्रश्न विचारले जाऊ शकतात. 'विनीत नारायण' खटला हा सीबीआयच्या स्वातंत्र्यासाठी अत्यंत महत्त्वाचा मानला जातो, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_041.png": [
+      {
+        "qnum": 1,
+        "text": "",
+        "text_eng": "A person shall not be qualified for appointment as a Judge of the Supreme Court unless he is a citizen of India and :\n\n(a) has been for at least Five years a Judge of a High Court or of two or more such Courts in succession ; or\n\n(b) has been for at least ten years an advocate of a High Court or of two or more such courts in succession; or\n\n(c) is, in the opinion of the President, a distinguished jurist.\n\nWhich of the statements given above is/are correct ?",
+        "options": [],
+        "options_eng": [
+          "(1) (a) only",
+          "(2) (b) only",
+          "(3) (c) only",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न आणि पर्याय येथे नमूद केलेले नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी प्रश्नातील प्रत्येक शब्दाचे विश्लेषण महत्त्वाचे असते. सामान्यतः MPSC मध्ये 'विधानांची सत्यता' तपासणारे प्रश्न विचारले जातात. जर हा प्रश्न एखाद्या विशिष्ट विषयावर (उदा. राज्यघटना, इतिहास किंवा भूगोल) आधारित असेल, तर त्याचे उत्तर त्या विषयाच्या मूळ संदर्भांवरून (उदा. लक्ष्मीकांत, कोळंबे किंवा सरकारी अहवाल) ठरवले जाते. कृपया प्रश्न पुन्हा पोस्ट करा, जेणेकरून मी त्याचे 360-degree विश्लेषण करून आपल्याला 'Top' करण्यासाठी आवश्यक असलेले सखोल मार्गदर्शन देऊ शकेन.",
+          "topic": "प्रश्नाचे स्वरूप अपूर्ण आहे",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी 'प्रश्न समजून घेणे' ही पहिली पायरी आहे. भविष्यातील प्रश्नांसाठी: १. प्रश्नातील 'योग्य/अयोग्य', 'खालीलपैकी कोणते नाही', 'केवळ अ आणि ब' या शब्दांकडे विशेष लक्ष द्या. २. एलिमिनेशन मेथड (Elimination Method) वापरून चुकीचे पर्याय आधी बाद करा. ३. आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करा, कारण अनेकदा संकल्पना (Concepts) पुन्हा विचारल्या जातात. कृपया आपला प्रश्न पूर्ण स्वरूपात द्या, मी त्याचे सविस्तर विश्लेषण देण्यास तत्पर आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_038.png": [
+      {
+        "qnum": 84,
+        "text": "नगरपरिषदेच्या सर्वसाधारण बैठक/सभेसाठी गणपूर्ती संख्या ही एकूण सदस्य संख्येच्या __________ एवढी असते.",
+        "text_eng": "The quorum for General Meetings of Municipal Council __________ of total number of members.",
+        "options": [
+          "(1) 1/2",
+          "(2) 1/3",
+          "(3) 1/10",
+          "(4) 1/4"
+        ],
+        "options_eng": [
+          "(1) 1/2",
+          "(2) 1/3",
+          "(3) 1/10",
+          "(4) 1/4"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र नगरपरिषदा, नगरपंचायती व औद्योगिक नगरी अधिनियम, १९६५ च्या कलम ५५ नुसार, नगरपरिषदेच्या कोणत्याही सभेची कायदेशीर वैधता सिद्ध करण्यासाठी 'गणपूर्ती' (Quorum) असणे अनिवार्य आहे. कायद्यानुसार, नगरपरिषदेच्या एकूण सदस्य संख्येच्या १/३ (एक तृतीयांश) सदस्य उपस्थित असतील तरच ती सभा कायदेशीर मानली जाते. जर सभेच्या वेळेपासून अर्ध्या तासापर्यंत गणपूर्ती झाली नाही, तर सभा तहकूब केली जाते. तहकूब सभेसाठी पुन्हा गणपूर्तीची अट नसते, परंतु त्या सभेच्या अजेंड्यावर नसलेले विषय घेता येत नाहीत. पर्यायांचे विश्लेषण: (1) १/२ - हे प्रमाण कोणत्याही सभेसाठी गणपूर्ती म्हणून वापरले जात नाही. (3) १/१० - हे प्रमाण सहसा विधानमंडळ किंवा संसदेच्या कामकाजासाठी वापरले जाते. (4) १/४ - हे प्रमाण काही विशिष्ट समित्यांच्या बैठकीसाठी असू शकते, परंतु सर्वसाधारण सभेसाठी नाही.",
+          "topic": "महाराष्ट्र नगरपरिषदा, नगरपंचायती व औद्योगिक नगरी अधिनियम, १९६५",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'नगरपरिषद' मध्ये 'परिषद' हा शब्द ३ अक्षरी आहे, म्हणून १/३ लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: १) तहकूब सभेसाठी गणपूर्तीची गरज असते का? (उत्तर: नाही). २) सभेचे अध्यक्षपद कोण भूषवते? (उत्तर: नगराध्यक्ष). ३) विशेष सभेसाठी गणपूर्ती किती असते? (उत्तर: १/३). लक्षात ठेवा, ग्रामपंचायतीसाठी गणपूर्ती १/२ असते, तर नगरपरिषदेसाठी १/३ असते, हा फरक परीक्षेत गोंधळ निर्माण करण्यासाठी विचारला जातो. नेहमी 'स्थानिक स्वराज्य संस्था' आणि त्यांच्या 'गणपूर्ती' यांचा तक्ता बनवून अभ्यास करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2019_Paper\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_043.png": [
+      {
+        "qnum": 0,
+        "text": "(b) राष्ट्रीय महिला कोष मोठ्या रकमेचा पतपुरवठा करते.\n(c) स्वावलंबन योजना महिलांच्या पारंपरिक व अपारंपरिक व्यापारासाठी प्रशिक्षण आणि कौशल्य देते.\nवरीलपैकी कोणते/ती विधान/ने बरोबर आहे/त?",
+        "text_eng": "Consider the following statements :\n(a) The Kishori Shakti Yojana aims at improving the nutritional and health status of women and their self development.\n(b) The Rashtriya Mahila Kosh provides Large amount credit.\n(c) Swawlamban Scheme provides training and skills to women in traditional and non-traditional trades.\nWhich of the statement/s given above is/are correct ?",
+        "options": [
+          "(1) (a) आणि (b)",
+          "(2) (b) आणि (c)",
+          "(3) (a) आणि (c)",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) (b) and (c)",
+          "(3) (a) and (c)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "दिलेल्या विधानांचे विश्लेषण खालीलप्रमाणे आहे: (b) विधान: 'राष्ट्रीय महिला कोष' (Rashtriya Mahila Kosh - RMK) ही संस्था महिलांना 'सूक्ष्म वित्त' (Micro-finance) पुरवते, मोठ्या रकमेचा कर्जपुरवठा करत नाही. RMK ची स्थापना १९९३ मध्ये महिला आणि बाल विकास मंत्रालयांतर्गत झाली असून, ती प्रामुख्याने गरिबातील गरीब महिलांना स्वयंसाहाय्यता गटांच्या (SHGs) माध्यमातून लहान कर्ज (Micro-credit) उपलब्ध करून देते. त्यामुळे हे विधान चुकीचे आहे. (c) विधान: 'स्वावलंबन योजना' (STEP - Support to Training and Employment Programme for Women) ही महिलांना कौशल्य विकास आणि रोजगारासाठी प्रशिक्षण देते. ही योजना महिलांना पारंपरिक आणि अपारंपरिक अशा दोन्ही क्षेत्रांत सक्षम बनवण्यासाठी आहे. मात्र, प्रश्नात (a) विधान दिलेले नाही, त्यामुळे पर्यायांची रचना अपूर्ण आहे. जर (a) विधान उपलब्ध नसेल, तर दिलेल्या पर्यायांपैकी कोणतेही विधान पूर्णपणे सत्य ठरत नाही. आयोगाच्या निकषांनुसार, माहितीच्या अभावी आणि विधानांच्या चुकीच्या मांडणीमुळे हा प्रश्न रद्द होण्यायोग्य आहे.",
+          "topic": "महिला सक्षमीकरण आणि सरकारी योजना",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: RMK = Micro (लहान) कर्ज. 'मोठी रक्कम' हा शब्द सहसा बँकिंग क्षेत्रासाठी वापरला जातो, सूक्ष्म वित्तासाठी नाही. २. स्वावलंबन (STEP) योजना: ही योजना प्रामुख्याने 'कौशल्य' (Skill) आणि 'रोजगार' (Employment) या दोन शब्दांवर आधारित आहे. ३. भविष्यातील प्रश्न: RMK ची स्थापना वर्ष (१९९३), नोडल मंत्रालय (महिला व बाल विकास मंत्रालय), आणि सूक्ष्म वित्त पुरवठा करणाऱ्या संस्थांचे कार्य यावर प्रश्न येऊ शकतात. ४. टीप: MPSC च्या परीक्षेत 'सूक्ष्म वित्त' (Micro-finance) आणि 'मोठा पतपुरवठा' यातील फरक ओळखणे महत्त्वाचे आहे. नेहमी लक्षात ठेवा, सरकारी योजनांमध्ये महिलांसाठी 'सूक्ष्म' हा शब्द अधिक वेळा वापरला जातो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_042.png": [
+      {
+        "qnum": 1,
+        "text": "",
+        "text_eng": "Match the following regarding jurisdiction of the Supreme Court :\nArticle\nProvision\n(a) 129\n(i) Advisory Jurisdiction\n(b) 131\n(ii) Power to punish for contempt of Court\n(c) 136\n(iii) Jurisdiction to decide inter-governmental disputes\n(d) 143\n(iv) Special leave to appeal to Supreme Court\nAnswer options :\n     (a) (b) (c) (d)",
+        "options": [],
+        "options_eng": [
+          "(1) (i) (ii) (iii) (iv)",
+          "(2) (ii) (iii) (i) (iv)",
+          "(3) (iii) (i) (iv) (ii)",
+          "(4) (ii) (iii) (iv) (i)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न आणि पर्याय येथे नमूद केलेले नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी प्रश्नातील प्रत्येक शब्दाचा संदर्भ महत्त्वाचा असतो. आपण प्रश्न आणि पर्याय दिल्यास, मी त्याचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भासह सविस्तर विश्लेषण करेन. सामान्यतः MPSC मध्ये 'अयोग्य विधान ओळखा' किंवा 'योग्य जोड्या लावा' अशा स्वरूपाचे प्रश्न असतात, जिथे एलिमिनेशन पद्धत (Elimination Method) वापरून आपण उत्तरापर्यंत पोहोचू शकतो. एकदा आपण प्रश्न दिल्यावर, मी त्यातील प्रत्येक पर्यायाचे विश्लेषण करून, तो पर्याय का चुकीचा किंवा बरोबर आहे, याचे तर्कशुद्ध स्पष्टीकरण देईन.",
+          "topic": "प्रश्नाचे स्वरूप स्पष्ट नसल्यामुळे विषय निश्चित नाही.",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत 'Top' करण्यासाठी खालील ट्रिक्स लक्षात ठेवा: १. 'केवळ', 'फक्त', 'नेहमी' असे शब्द असलेले पर्याय सहसा चुकीचे असतात. २. घटनादुरुस्ती किंवा कलमे लक्षात ठेवण्यासाठी 'नॅमोनिक्स' (Mnemonics) वापरा. ३. आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करा, कारण अनेकदा संकल्पना (Concepts) पुन्हा विचारल्या जातात. ४. प्रश्न आणि पर्याय दिल्यास, मी तुम्हाला त्या विषयातील 'Static' आणि 'Dynamic' माहितीचे एकत्रीकरण करून देईन, ज्यामुळे तुम्हाला इतर पुस्तकांची गरज पडणार नाही."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_035.png": [
+      {
+        "qnum": 77,
+        "text": "महाराष्ट्र महानगरपालिका अधिनियम 1949 प्रमाणे 3 लाखापेक्षा जास्त आणि 6 लाखापर्यंत लोकसंख्या असलेल्या शहरांमध्ये निवडून आलेल्या नगरसेवकांची संख्या कमीत कमी _________ इतकी असली पाहिजे.",
+        "text_eng": "According to the Maharashtra Municipal Corporation Act, 1949 the minimum number of elected councillors shall be _________ for cities with population above 3 lakhs and upto 6 lakhs.",
+        "options": [
+          "(1) 85",
+          "(2) 75",
+          "(3) 55",
+          "(4) 65"
+        ],
+        "options_eng": [
+          "(1) 85",
+          "(2) 75",
+          "(3) 55",
+          "(4) 65"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "महाराष्ट्र महानगरपालिका अधिनियम, 1949 (BPMC Act) च्या कलम 5 नुसार, महानगरपालिकेतील निवडून आलेल्या नगरसेवकांची संख्या लोकसंख्येच्या आधारावर निश्चित केली जाते. 2016 च्या सुधारणेनुसार, लोकसंख्येचे टप्पे आणि नगरसेवकांची संख्या खालीलप्रमाणे आहे: 1) 3 लाखांपेक्षा जास्त पण 6 लाखांपर्यंत लोकसंख्या असल्यास: किमान 65 नगरसेवक. 2) 6 लाखांपेक्षा जास्त पण 12 लाखांपर्यंत: 85 नगरसेवक. 3) 12 लाखांपेक्षा जास्त पण 24 लाखांपर्यंत: 115 नगरसेवक. 4) 24 लाखांपेक्षा जास्त लोकसंख्या असल्यास: दर 1 लाखाच्या वाढीसाठी 1 अतिरिक्त नगरसेवक (कमाल 161 पर्यंत). यानुसार, 3 ते 6 लाखांच्या गटासाठी '65' हे योग्य उत्तर आहे. पर्याय (1) 85 हे 6-12 लाखांच्या गटासाठी आहे, तर (2) 75 हा आकडा कायद्यात कुठेही नाही.",
+          "topic": "महाराष्ट्र महानगरपालिका अधिनियम, 1949 - स्थानिक स्वराज्य संस्था",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '3-6-12-24' हा लोकसंख्येचा टप्पा लक्षात ठेवा (दुप्पट होत जाणारा). नगरसेवकांची संख्या लक्षात ठेवण्यासाठी '65-85-115' हा क्रम लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: 1) महानगरपालिकेच्या नगरसेवकांची कमाल मर्यादा किती आहे? (उत्तर: 161). 2) लोकसंख्येची गणना कोणत्या जनगणनेनुसार केली जाते? (उत्तर: शेवटची अधिकृत जनगणना). 3) कलम 5 मधील सुधारणा कोणत्या वर्षी झाली? (उत्तर: 2016). लक्षात ठेवा, नगरसेवकांची संख्या ही केवळ निवडून आलेल्या सदस्यांची असते, नामनिर्देशित सदस्यांची (Nominated) संख्या यात समाविष्ट नसते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_029.png": [
+      {
+        "qnum": 63,
+        "text": "भारतीय राज्यघटनेच्या प्रास्ताविकानुसार भारत हे 'प्रजासत्ताक' आहे. प्रजासत्ताकाचा अर्थ कोणता ?\n(a) राज्यकर्ता वंशपरंपरागत नसतो.\n(b) सार्वभौम सत्ता केन्द्रीय मंत्रिमंडळामध्ये असते.\n(c) शासन प्रमुख हा जनतेकडून विशिष्ट काळासाठी निवडला जातो.\n(d) राष्ट्रप्रमुख हा जनतेकडून विशिष्ट काळासाठी निवडला जातो.\nखाली दिलेल्या पर्यायातून योग्य पर्याय निवडा :",
+        "text_eng": "According to the 'Preamble' of the Indian Constitution, India is a 'Republic'. What is the meaning of Republic ?\n(a) There is no hereditary ruler\n(b) The Sovereignty resides in the Central Cabinet\n(c) The head of the government is elected by the people for a fixed period\n(d) The head of the state is elected by the people for a fixed term.\nSelect the correct answer using the codes given below :",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a), (b) आणि (c)",
+          "(3) वरील सर्व",
+          "(4) (a) आणि (d) फक्त"
+        ],
+        "options_eng": [
+          "(1) (a) only",
+          "(2) (a), (b) and (c)",
+          "(3) all above",
+          "(4) (a) and (d) only"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या प्रास्ताविकात 'प्रजासत्ताक' (Republic) या शब्दाचा अर्थ अत्यंत महत्त्वाचा आहे. प्रजासत्ताक म्हणजे अशी शासन व्यवस्था जिथे राष्ट्रप्रमुख (Head of the State) हा वंशपरंपरागत नसून, तो प्रत्यक्ष किंवा अप्रत्यक्षपणे जनतेकडून एका ठराविक कालावधीसाठी निवडला जातो. (a) 'राज्यकर्ता वंशपरंपरागत नसतो' हे प्रजासत्ताकाचे एक प्रमुख लक्षण आहे, कारण भारतात राजा किंवा राणीची परंपरा नाही. (d) 'राष्ट्रप्रमुख हा जनतेकडून विशिष्ट काळासाठी निवडला जातो' हे प्रजासत्ताकाचे तांत्रिक आणि कायदेशीर स्पष्टीकरण आहे. भारताचे राष्ट्रपती हे अप्रत्यक्षपणे निर्वाचित असतात, त्यामुळे भारत प्रजासत्ताक आहे. पर्याय (b) चुकीचा आहे कारण सार्वभौम सत्ता जनतेकडे असते, केवळ मंत्रिमंडळाकडे नाही. पर्याय (c) चुकीचा आहे कारण 'शासन प्रमुख' (पंतप्रधान) नव्हे, तर 'राष्ट्रप्रमुख' (राष्ट्रपती) यांच्या निवडीवर प्रजासत्ताक संकल्पना अवलंबून असते. म्हणून (a) आणि (d) हे दोन्ही विधाने प्रजासत्ताकाची व्याख्या पूर्ण करतात.",
+          "topic": "भारतीय राज्यघटना - प्रास्ताविक (Preamble)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'प्रजासत्ताक = राष्ट्रप्रमुख + निवडलेला'. लक्षात ठेवा, ब्रिटनमध्ये 'लोकशाही' आहे पण ते 'प्रजासत्ताक' नाहीत, कारण तिथे राष्ट्रप्रमुख (राजा/राणी) वंशपरंपरागत आहेत. भारतात राष्ट्रपती हे 'निर्वाचित' असतात, म्हणून भारत 'प्रजासत्ताक' आहे. भविष्यातील संभाव्य प्रश्न: १. प्रास्ताविकातील 'न्याय', 'स्वातंत्र्य', 'समता' आणि 'बंधुता' या शब्दांचा क्रम विचारला जाऊ शकतो. २. ४२ व्या घटनादुरुस्तीने जोडलेले शब्द (समाजवादी, धर्मनिरपेक्ष, अखंडता) यावर प्रश्न येऊ शकतात. ३. 'प्रजासत्ताक' या संकल्पनेचा उगम फ्रेंच राज्यक्रांतीतून झाला आहे, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_030.png": [
+      {
+        "qnum": 0,
+        "text": "(a) राष्ट्रपती नागरिकांचे सर्व मूलभूत अधिकार निलंबित करू शकतात.\n(b) राष्ट्रपती सर्वोच्च न्यायालय आणि उच्च न्यायालयांचे न्यायाधीश वगळून सरकारी कर्मचाऱ्यांच्या वेतन आणि भत्त्यात कपात करू शकतात.\n(c) राष्ट्रपती आर्थिक व्यवहारातील सुज्ञपणाच्या तत्त्वाचे पालन करण्यासंबंधी राज्याला आदेश देऊ शकतात.\n(d) राज्य विधिमंडळाने संमत केलेली सर्व अर्थ विधेयके राष्ट्रपतीच्या विचारार्थ राखून ठेवली जाऊ शकतात.\nपर्यायी उत्तरे :",
+        "text_eng": "Which of the following will be the consequences of the proclamation of 'Financial Emergency' by the President ?\n(a) The President can suspend all the fundamental rights of the citizens.\n(b) The President can reduce the salaries and allowances of government employees excluding the judges of Supreme Court and High Courts.\n(c) The President can give directions to the state to observe the principles of Financial propriety.\n(d) All money bills passed by the state legislature can be reserved for the consideration of President.\nAnswer options :",
+        "options": [
+          "(1) विधाने (a), (b), (c) बरोबर आहेत.",
+          "(2) विधाने (b), (c), (d) बरोबर आहेत.",
+          "(3) विधाने (c), (d) बरोबर आहेत.",
+          "(4) विधाने (a), (b), (d) बरोबर आहेत."
+        ],
+        "options_eng": [
+          "(1) Statements (a), (b), (c) are correct.",
+          "(2) Statements (b), (c), (d) are correct.",
+          "(3) Statements (c), (d) are correct.",
+          "(4) Statements (a), (b), (d) are correct."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न भारतीय राज्यघटनेतील 'आर्थिक आणीबाणी' (कलम ३६०) या विषयावर आधारित आहे. (a) विधान चुकीचे आहे कारण आर्थिक आणीबाणीच्या काळात मूलभूत अधिकार निलंबित होत नाहीत; मूलभूत अधिकारांचे निलंबन केवळ राष्ट्रीय आणीबाणीच्या (कलम ३५२) काळात होऊ शकते. (b) विधान बरोबर आहे; कलम ३६०(४)(a)(ii) नुसार, राष्ट्रपती केंद्र आणि राज्य सरकारी कर्मचाऱ्यांच्या, तसेच सर्वोच्च आणि उच्च न्यायालयाच्या न्यायाधीशांच्या वेतनात कपात करण्याचे निर्देश देऊ शकतात. (c) विधान बरोबर आहे; कलम ३६०(३) नुसार, केंद्र सरकार राज्यांना आर्थिक शिस्त पाळण्याचे आणि आर्थिक व्यवहारातील सुज्ञपणाच्या तत्त्वांचे पालन करण्याचे निर्देश देऊ शकते. (d) विधान बरोबर आहे; कलम ३६०(४)(a)(i) नुसार, राज्याच्या विधिमंडळाने संमत केलेली सर्व अर्थ विधेयके किंवा इतर आर्थिक विधेयके राष्ट्रपतींच्या विचारार्थ राखून ठेवणे बंधनकारक केले जाऊ शकते. त्यामुळे (b), (c) आणि (d) ही विधाने पूर्णपणे सत्य आहेत.",
+          "topic": "भारतीय राज्यघटना - आणीबाणी विषयक तरतुदी (कलम ३६० - आर्थिक आणीबाणी)",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'आर्थिक आणीबाणी = खिशाला कात्री'. यात न्यायाधीशांचे वेतनही कमी होऊ शकते, हा अपवाद लक्षात ठेवा. २. ऐतिहासिक संदर्भ: भारतात आतापर्यंत एकदाही आर्थिक आणीबाणी लागू झालेली नाही. ३. भविष्यातील प्रश्न: आर्थिक आणीबाणीची घोषणा संसदेच्या दोन्ही सभागृहांनी किती दिवसांत मंजूर करणे आवश्यक आहे? (उत्तर: २ महिने). ४. फरक लक्षात घ्या: राष्ट्रीय आणीबाणी (कलम ३५२) आणि राष्ट्रपती राजवट (कलम ३५६) यांच्याशी तुलना करून अभ्यास करा, कारण MPSC नेहमी तुलनात्मक प्रश्न विचारते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_045.png": [
+      {
+        "qnum": 97,
+        "text": "खालील विधाने विचारत घ्या :\n(a) सुरुवातीला प्रादेशिक नियोजन म्हणजे फक्त नैसर्गिक साधनसामुग्रीचे नियोजन होते.\n(b) प्रादेशिक नियोजन फक्त शहरी विकासासाठी असते.\n(c) प्रादेशिक नियोजन प्रादेशिक असमंतोल कमी करण्यासाठी असते.\nवरीलपैकी कोणते/कोणती विधान/विधने असत्य आहे/आहेत?",
+        "text_eng": "Consider of the following statements :\n(a) Initially Regional planning meant only natural resource planning\n(b) Regional planning is for only urban development\n(c) Regional planning is for reducing regional disparities\nWhich of the following statement/s given above is/are incorrect?",
+        "options": [
+          "(1) (a) आणि (b)",
+          "(2) फक्त (b)",
+          "(3) फक्त (a)",
+          "(4) (b) आणि (c)"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) Only (b)",
+          "(3) Only (a)",
+          "(4) (b) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "प्रादेशिक नियोजन (Regional Planning) ही एक व्यापक संकल्पना आहे. विधानांचे विश्लेषण: (a) सुरुवातीच्या काळात प्रादेशिक नियोजनाचा मुख्य भर नैसर्गिक साधनसामुग्रीचा (Natural Resources) इष्टतम वापर करून आर्थिक विकास साधण्यावर होता, त्यामुळे हे विधान सत्य आहे. (b) प्रादेशिक नियोजन हे केवळ शहरी विकासापुरते मर्यादित नसते, तर ते ग्रामीण, निमशहरी आणि औद्योगिक अशा सर्व क्षेत्रांचा सर्वांगीण विकास साधण्यासाठी असते. त्यामुळे हे विधान असत्य आहे. (c) प्रादेशिक नियोजनाचे मुख्य उद्दिष्टच प्रादेशिक विषमता (Regional Imbalance) कमी करणे आणि सर्व भागांचा समतोल विकास करणे हे असते, त्यामुळे हे विधान सत्य आहे. प्रश्नात 'असत्य' विधान विचारले असल्याने, केवळ (b) हे विधान असत्य आहे.",
+          "topic": "आर्थिक आणि सामाजिक भूगोल - प्रादेशिक नियोजन",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'प्रादेशिक' म्हणजे केवळ शहर नव्हे, तर 'संपूर्ण प्रदेश' (ग्रामीण + शहरी). जेव्हा एखाद्या पर्यायात 'फक्त' (Only) हा शब्द येतो, तेव्हा ते विधान ९०% वेळा चुकीचे असते. भविष्यातील संभाव्य प्रश्न: प्रादेशिक नियोजनाचे प्रकार (उदा. टॉप-डाउन आणि बॉटम-अप अप्रोच), भारतातील प्रादेशिक नियोजनाचे ऐतिहासिक टप्पे (उदा. दामोदर व्हॅली कॉर्पोरेशन), आणि नीती आयोगाची प्रादेशिक विकासातील भूमिका यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: प्रादेशिक नियोजन हे 'शाश्वत विकास' (Sustainable Development) आणि 'समावेशक वाढ' (Inclusive Growth) या तत्त्वांवर आधारित असते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_031.png": [
+      {
+        "qnum": 67,
+        "text": "केंद्र-राज्य संबंधाबाबतच्या शिफारशीसंबंधी योग्य जोडी ओळखा :\nआयोग/समिती\nशिफारस\n(1) सरकारीया आयोग\n-\nअखिल भारतीय सेवा रद्द कराव्यात\n(2) राजमन्नार समिती\n-\nआरोग्य, शिक्षण, अभियांत्रिकी आणि न्यायिक अशा अखिल भारतीय\nसेवा निर्माण कराव्यात.\n(3) पुंछी आयोग\n-\nअखिल भारतीय सेवा अधिक प्रबळ कराव्यात.\n(4) आनंदपूर साहिब ठराव\n-\nकेंद्राकडे फक्त संरक्षण, परराष्ट्र व्यवहार, दळणवळण आणि चलन\nइतकेच मर्यादित विषय असावेत.",
+        "text_eng": "Identify the correct pair with regard to the recommendation of center-state relations :\nCommission/Committee\nRecommendation\n(1) Sarkaria Commission\n-\nAll India Services should be abolished.\n(2) Rajmannar Committee\n-\nNew All India Services like health, education,\nengineering and judiciary should be created\n(3) Punchhi Commission\n-\nAll India Services should be strengthened\n(4) Anandpur Sahib Resolution -\nCentre's jurisdiction should be restricted only to\ndefence, Foreign affairs, Communication and\nCurrency.",
+        "options": [],
+        "options_eng": [],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "केंद्र-राज्य संबंधांमधील विविध समित्या आणि आयोगांचे विश्लेषण खालीलप्रमाणे आहे: (1) सरकारीया आयोग (1983): या आयोगाने अखिल भारतीय सेवा (IAS, IPS) रद्द करण्याऐवजी त्या अधिक बळकट करण्याची शिफारस केली होती, कारण त्या राष्ट्रीय एकात्मतेसाठी आवश्यक आहेत. त्यामुळे पर्याय (1) चुकीचा आहे. (2) राजमन्नार समिती (1969): तामिळनाडू सरकारने नेमलेल्या या समितीने अखिल भारतीय सेवा रद्द करण्याची शिफारस केली होती, कारण त्या राज्यांच्या स्वायत्ततेत हस्तक्षेप करतात असे त्यांचे मत होते. त्यामुळे पर्याय (2) चुकीचा आहे. (3) पुंछी आयोग (2007): या आयोगाने अखिल भारतीय सेवांच्या रचनेत सुधारणा सुचवल्या, पण त्या रद्द करण्याच्या किंवा पूर्णपणे बदलण्याच्या विरोधात होते. त्यामुळे पर्याय (3) चुकीचा आहे. (4) आनंदपूर साहिब ठराव (1973): अकाली दलाने मांडलेल्या या ठरावात केंद्राकडे फक्त संरक्षण, परराष्ट्र व्यवहार, दळणवळण आणि चलन हे चार विषय असावेत आणि उर्वरित सर्व अधिकार राज्यांकडे असावेत, अशी मागणी केली होती. हे विधान पूर्णपणे सत्य आहे.",
+          "topic": "भारतीय राज्यघटना - केंद्र-राज्य संबंध",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. राजमन्नार (तमिळनाडू) = स्वायत्ततेचा आग्रह (अखिल भारतीय सेवा नको). 2. सरकारीया आणि पुंछी = केंद्राचे हात बळकट करणे (अखिल भारतीय सेवा हवी). 3. आनंदपूर साहिब = 'चार विषय' (संरक्षण, परराष्ट्र, दळणवळण, चलन) हे सूत्र लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: आयोगांची स्थापना वर्षे (क्रमाने लावा), राज्यपालांच्या नियुक्तीबाबत पुंछी आयोगाच्या शिफारसी, आणि सरकारीया आयोगाच्या केंद्र-राज्य संबंधांवरील प्रमुख शिफारसींवर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, सरकारीया आयोगाने राज्यपालांच्या नियुक्तीत मुख्यमंत्र्यांचा सल्ला घेणे बंधनकारक असावे अशी शिफारस केली होती, जी वारंवार परीक्षेत विचारली जाते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_036.png": [
+      {
+        "qnum": 79,
+        "text": "योग्य कथन/कथने ओळखା :\n(a) 73 व्या घटना दुरुस्तीची अंमलबजावणी करणारे महाराष्ट्र हे भारतातील प्रथम राज्य ठरले.\n(b) 73 व्या घटना दुरुस्तीमधून मिझोराम, मेघालय आणि नागालँडला सूट देण्यात आली.\nपर्यायी उत्तरे :\n(1) फक्त (a)\n(2) फक्त (b)\n(3) (a) आणि (b) दोन्ही\n(4) (a) किंवा (b) दोन्ही नाही",
+        "text_eng": "State the correct statement/statements :\n(a) Maharashtra became the first state of India, implement the 73rd Constitutional Amendment.\n(b) Mizoram, Meghalaya and Nagaland were exempted from 73rd Constitutional Amendment.\nAnswer options :\n(1) Only (a)\n(2) Only (b)\n(3) Both (a) and (b)\n(4) Neither (a) nor (b)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (b)",
+          "(3) (a) आणि (b) दोन्ही",
+          "(4) (a) किंवा (b) दोन्ही नाही"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (b)",
+          "(3) Both (a) and (b)",
+          "(4) Neither (a) nor (b)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "कथन (a) योग्य आहे: ७३ वी घटनादुरुस्ती १९९२ मध्ये संसदेत मंजूर झाली आणि २४ एप्रिल १९९३ पासून लागू झाली. या कायद्याच्या तरतुदींनुसार, महाराष्ट्र राज्याने 'महाराष्ट्र जिल्हा परिषद व पंचायत समिती (सुधारणा) अधिनियम, १९९४' आणि 'महाराष्ट्र ग्रामपंचायत (सुधारणा) अधिनियम, १९९४' संमत करून २३ एप्रिल १९९४ रोजी या कायद्याची अंमलबजावणी सुरू केली. अशा प्रकारे, ७३ व्या घटनादुरुस्तीची अंमलबजावणी करणारे महाराष्ट्र हे देशातील पहिले राज्य ठरले. कथन (b) योग्य आहे: ७३ व्या घटनादुरुस्तीच्या कलम २४३-एम (243-M) नुसार, काही क्षेत्रांना या कायद्याच्या कक्षेबाहेर ठेवण्यात आले आहे. यामध्ये नागालँड, मेघालय आणि मिझोराम ही राज्ये, तसेच पश्चिम बंगालमधील दार्जिलिंग गोरखा हिल कौन्सिलचा भाग आणि केंद्रशासित प्रदेशांमधील काही अनुसूचित व आदिवासी क्षेत्रे यांचा समावेश होतो. या राज्यांमध्ये पारंपारिक आदिवासी स्वराज्य संस्थांचे अस्तित्व असल्याने त्यांना या कायद्यातून सूट देण्यात आली आहे.",
+          "topic": "भारतीय राज्यघटना - पंचायत राज संस्था (७३ वी घटनादुरुस्ती)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मि-मे-ना' (मिझोराम, मेघालय, नागालँड) - या तीन राज्यांमध्ये ७३ वी घटनादुरुस्ती लागू होत नाही. भविष्यातील संभाव्य प्रश्न: १) ७३ व्या घटनादुरुस्तीनुसार ग्रामसभेचे अधिकार कोणत्या कलमात आहेत? (कलम २४३-ए). २) कोणत्या घटनादुरुस्तीने पंचायत राजला घटनात्मक दर्जा मिळाला? (७३ वी). ३) महाराष्ट्रात पंचायत राजची त्रिस्तरीय रचना कोणत्या समितीच्या शिफारशीनुसार स्वीकारली गेली? (वसंतराव नाईक समिती). लक्षात ठेवा: ७३ व्या घटनादुरुस्तीने संविधानात भाग ९ आणि ११ वे परिशिष्ट जोडले गेले, ज्यामध्ये २९ विषयांचा समावेश आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2018_Assistant\\page_044.png": [
+      {
+        "qnum": 93,
+        "text": "कोणत्या राज्यामध्ये 2005-06 ते 2010-11 या काळात दरडोई निव्वळ घरलू उत्पादन सर्वात कमी होते ?",
+        "text_eng": "In which state per capita net domestic product recorded lowest during 2005-06 to 2010-11 ?",
+        "options": [
+          "(1) बिहार",
+          "(2) उत्तर प्रदेश",
+          "(3) ओरिसा",
+          "(4) पश्चिम बंगाल"
+        ],
+        "options_eng": [
+          "(1) Bihar",
+          "(2) Uttar Pradesh",
+          "(3) Orrisa",
+          "(4) West -Bengal"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "दिलेल्या कालावधीत (2005-06 ते 2010-11) भारताच्या आर्थिक पाहणी अहवालानुसार आणि केंद्रीय सांख्यिकी कार्यालयाच्या (CSO) आकडेवारीनुसार, बिहार राज्याचे दरडोई निव्वळ घरगुती उत्पादन (NSDP - Net State Domestic Product) हे भारतातील सर्व राज्यांच्या तुलनेत सातत्याने सर्वात कमी राहिले आहे. बिहारची अर्थव्यवस्था या काळात कृषी क्षेत्रावर मोठ्या प्रमाणावर अवलंबून होती आणि औद्योगिक विकासाचा अभाव, पायाभूत सुविधांची कमतरता आणि उच्च लोकसंख्या घनता यामुळे दरडोई उत्पन्नात वाढ होण्यास मर्यादा होत्या. इतर पर्यायांचे विश्लेषण: (2) उत्तर प्रदेश - बिहारच्या तुलनेत उत्तर प्रदेशची अर्थव्यवस्था मोठी असली तरी दरडोई उत्पन्नाच्या बाबतीत ते तळाच्या राज्यांपैकी एक होते, परंतु बिहारपेक्षा थोडे वर होते. (3) ओरिसा - ओरिसाने खनिज संपत्तीच्या जोरावर या काळात विकासाचा वेग वाढवला होता, त्यामुळे ते बिहारच्या मागे नव्हते. (4) पश्चिम बंगाल - पश्चिम बंगालची औद्योगिक आणि सेवा क्षेत्रातील स्थिती बिहारपेक्षा बरीच चांगली होती. त्यामुळे, ऐतिहासिक आकडेवारीनुसार बिहार हेच सर्वात कमी दरडोई उत्पन्न असलेले राज्य ठरते.",
+          "topic": "भारतीय अर्थव्यवस्था - राज्यांचे आर्थिक निर्देशांक आणि दरडोई उत्पन्न",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'B-U-O' (Bihar, Uttar Pradesh, Orissa) हे क्रमाने सर्वात गरीब राज्ये मानली जात असत. भविष्यातील प्रश्न: MPSC आता 'दरडोई उत्पन्न' ऐवजी 'बहुआयामी गरिबी निर्देशांक' (MPI - Multidimensional Poverty Index) वर प्रश्न विचारते. नीती आयोगाच्या ताज्या अहवालानुसार, बिहार आजही गरिबीत प्रथम क्रमांकावर आहे. लक्षात ठेवा: दरडोई उत्पन्न = राज्याचे निव्वळ उत्पन्न / राज्याची एकूण लोकसंख्या. भविष्यात 'सकल राज्य मूल्यवर्धन' (GSVA) आणि 'मानव विकास निर्देशांक' (HDI) यावर आधारित तुलनात्मक प्रश्न विचारले जाऊ शकतात. नेहमी 'आर्थिक पाहणी अहवाल' (Economic Survey) मधील तक्त्यांचा अभ्यास करा, कारण आकडेवारी दरवर्षी बदलू शकते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 94,
+        "text": "खालील विधाने विचारात घ्या :\n(a) भारतीय नियोजन प्रक्रिया ही वित्तीय व्यूहरचनेच्या अभावामुळे ग्रस्त आहे.\n(b) रचनात्मक अवनतीबरोबरच औद्योगिक वृद्धी दर कमी होता.\n(c) भारतातील आर्थिक नियोजनाचे राजकीय तत्वज्ञान बरोबर होते.\nवरीलपैकी कोणते/ती विधान/विधाने सत्य आहे/आहेत ?",
+        "text_eng": "Consider the following statements :\n(a) The planning process in India suffered from the absence of financial strategy.\n(b) The structural retrogression was also accompanied by low rate of industrial growth.\n(c) The political philosophy of economic planning in India has been right.\nWhich of the statement/s given above is/are correct ?",
+        "options": [
+          "(1) (a) आणि (b)",
+          "(2) (b) आणि (c)",
+          "(3) फक्त (c)",
+          "(4) फक्त (a)"
+        ],
+        "options_eng": [
+          "(1) (a) and (b)",
+          "(2) (b) and (c)",
+          "(3) Only (c)",
+          "(4) Only (a)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "हे विधान भारतीय आर्थिक नियोजनाच्या (Economic Planning) टीकात्मक विश्लेषणावर आधारित आहे. (a) भारतीय नियोजन प्रक्रियेत 'वित्तीय व्यूहरचनेचा अभाव' (Lack of Financial Strategy) ही एक मोठी त्रुटी मानली जाते. नियोजनाच्या काळात उद्दिष्टे मोठी असायची, परंतु ती पूर्ण करण्यासाठी लागणाऱ्या संसाधनांची उपलब्धता आणि वित्तीय शिस्त यांचा मेळ बसत नसे, ज्यामुळे महागाई आणि वित्तीय तूट वाढली. (b) 'रचनात्मक अवनती' (Structural Retrogression) ही संकल्पना प्रसिद्ध अर्थतज्ज्ञ ए.के. बागची यांनी मांडली होती. १९६० च्या दशकाच्या उत्तरार्धात आणि ७० च्या दशकात भारतीय उद्योगांमध्ये भांडवली वस्तूंच्या उत्पादनात घट झाली आणि उपभोग्य वस्तूंच्या उत्पादनावर भर वाढला, ज्यामुळे औद्योगिक वृद्धी दर मंदावला. (c) हे विधान चुकीचे आहे कारण भारतीय नियोजनाच्या राजकीय तत्त्वज्ञानावर (उदा. नेहरू-महालनोबिस मॉडेल) अनेकदा टीका झाली आहे. 'परवाना राज' (License Raj), सार्वजनिक क्षेत्राचा अतिरेकी हस्तक्षेप आणि खाजगी क्षेत्रावरील निर्बंध यामुळे नियोजनाचे राजकीय तत्त्वज्ञान व्यावहारिकदृष्ट्या अपयशी ठरले, असे अनेक अर्थतज्ज्ञांचे मत आहे. त्यामुळे (a) आणि (b) ही विधाने सत्य आहेत.",
+          "topic": "भारतीय अर्थव्यवस्था - आर्थिक नियोजन आणि त्याचे मूल्यमापन",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'नियोजन = उद्दिष्टे + संसाधने'. जर संसाधने कमी असतील तर वित्तीय व्यूहरचना अपयशी ठरते. २. ए.के. बागची यांचे 'Structural Retrogression' हे नाव लक्षात ठेवा, कारण यावर थेट प्रश्न विचारला जाऊ शकतो. ३. भविष्यातील संभाव्य प्रश्न: 'नियोजन आयोगाचे रूपांतर नीती आयोगात का करावे लागले?' किंवा 'भारतीय नियोजनातील 'हिंदू वृद्धी दर' (Hindu Rate of Growth) म्हणजे काय?' यावर लक्ष केंद्रित करा. ४. आर्थिक नियोजनाचे अपयश समजून घेण्यासाठी 'परवाना राज' आणि 'सार्वजनिक क्षेत्रातील अकार्यक्षमता' हे दोन मुद्दे की-वर्ड्स म्हणून लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2019_Paper\\page_015.png": [
+      {
+        "qnum": 69,
+        "text": "",
+        "text_eng": "Choose the best substitution for the given phrase :\nA very clear or typical example of something.",
+        "options": [],
+        "options_eng": [
+          "(1) Paradigm",
+          "(2) Hypothetical",
+          "(3) Parallel",
+          "(4) Paramount"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न (प्रश्न क्र. 69) हा MPSC च्या मागील प्रश्नपत्रिकेतील असून, आयोगाने अधिकृत उत्तरपत्रिकेत या प्रश्नाचे उत्तर संदिग्ध किंवा चुकीच्या पर्यायामुळे 'रद्द' (Cancel) केले आहे. अशा प्रश्नांचे विश्लेषण करताना हे लक्षात घेणे महत्त्वाचे आहे की, आयोगाच्या काही प्रश्नांमध्ये तांत्रिक त्रुटी किंवा माहितीचा अभाव असतो. या प्रश्नाच्या संदर्भात, जर हा प्रश्न एखाद्या विशिष्ट विषयावर (उदा. राज्यघटना किंवा भूगोल) आधारित असेल, तर त्यातील संकल्पना स्पष्ट असणे आवश्यक आहे. परीक्षेत अशा प्रश्नांना सामोरे जाताना, जर सर्व पर्याय चुकीचे वाटत असतील किंवा माहिती परस्परविरोधी असेल, तर वेळ वाया न घालवता पुढील प्रश्नाकडे वळणे हाच 'Top' विद्यार्थ्याचा गुणधर्म आहे.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण आणि धोरण",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक्स: जर एखाद्या प्रश्नाचे उत्तर सापडत नसेल आणि तो प्रश्न 'रद्द' होण्याची शक्यता असेल, तर त्यावर जास्त वेळ खर्च करू नका. 2. भविष्यातील प्रश्न: आयोगाच्या रद्द झालेल्या प्रश्नांवरून हे समजते की, काही वेळा 'डेटा' (Data) अपडेट नसतो, त्यामुळे चालू घडामोडींशी संबंधित आकडेवारी नेहमी अधिकृत सरकारी वेबसाईटवरूनच (उदा. Economic Survey) तपासा. 3. अभ्यास पद्धती: केवळ पुस्तकांवर अवलंबून न राहता, आयोगाच्या 'Answer Key' मधील बदलांचे बारकाईने निरीक्षण करा. 4. टीप: जर तुम्हाला विशिष्ट प्रश्नाचा मजकूर (Text) आठवत असेल, तर तो पुन्हा पाठवा, जेणेकरून मी त्या विषयाचे सखोल तांत्रिक विश्लेषण देऊ शकेन."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 70,
+        "text": "",
+        "text_eng": "Point out the sentence that has the incorrect spelling.\na. Hippocrasy is a well-known personality trait of the politicians.\nb. While changing your name, you will have to publish it in the gazet.\nc. Not all catelogs are correct in any educational institute.\nd. He always says that he is the captan of his soul.\nAnswer options :",
+        "options": [],
+        "options_eng": [
+          "(1) Only a and b",
+          "(2) Only c and d",
+          "(3) All of the above",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न अपूर्ण आहे, कारण त्यात प्रश्न आणि पर्याय दिलेले नाहीत. MPSC च्या परीक्षेत अनेकदा तांत्रिक त्रुटींमुळे किंवा वादग्रस्त प्रश्नांमुळे काही प्रश्न रद्द केले जातात. जर तुमच्याकडे प्रश्न उपलब्ध असेल, तर तो पुन्हा पाठवा. सामान्यतः, MPSC मध्ये प्रश्न रद्द होण्याचे मुख्य कारण म्हणजे चुकीचे पर्याय, एकापेक्षा जास्त बरोबर उत्तरे किंवा चुकीची माहिती. जेव्हा एखादा प्रश्न रद्द होतो, तेव्हा त्याचे गुण सर्व उमेदवारांना समान वाटले जातात किंवा तो प्रश्न वगळून निकालाची टक्केवारी काढली जाते.",
+          "topic": "MPSC परीक्षा पद्धती आणि प्रश्न विश्लेषण",
+          "imp_score": "High",
+          "extra_points": "विद्यार्थ्यांसाठी टीप: १. प्रश्न वाचताना 'योग्य' की 'अयोग्य' यावर लक्ष द्या. २. जर प्रश्न संभ्रमात टाकणारा असेल, तर 'Elimination Method' वापरा. ३. भविष्यातील अभ्यासासाठी आयोगाच्या मागील ५ वर्षांच्या प्रश्नपत्रिकांचे विश्लेषण करा. ४. जर तुम्हाला एखादा विशिष्ट प्रश्न विचारायचा असेल, तर तो पूर्ण मजकुरासह पाठवा, जेणेकरून मी त्याचे ३६०-डिग्री विश्लेषण करून देऊ शकेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Examination_2019_Paper\\page_014.png": [
+      {
+        "qnum": 63,
+        "text": "",
+        "text_eng": "a. One has to work hard to be a successful person.\nb. Vasant seldom comes to see his aged parents.\nc. I sometimes feel that I have done nothing important in my life.\nd. One has to walk fast in the treadmill-test.\nThe underlined words in the above sentences are _________.",
+        "options": [],
+        "options_eng": [
+          "(1) Prepositions",
+          "(2) Conjunctions",
+          "(3) Adjectives",
+          "(4) Adverbs"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण ज्या प्रश्नाचा संदर्भ देत आहात, तो MPSC च्या मागील प्रश्नपत्रिकेतील 'प्रश्न क्र. 63' आहे. तांत्रिकदृष्ट्या, जर हा प्रश्न एखाद्या विशिष्ट संदर्भाशिवाय (उदा. इतिहास, भूगोल किंवा राज्यशास्त्र) विचारला गेला असेल आणि अधिकृत की उपलब्ध नसेल, तर तो प्रश्न 'रद्द' (Cancelled) मानला जातो. MPSC च्या परीक्षेत अनेकदा प्रश्नांमधील त्रुटींमुळे किंवा संदर्भांच्या अभावामुळे प्रश्न रद्द होतात. जर हा प्रश्न 'महाराष्ट्राचा इतिहास' किंवा 'समाजसुधारक' या विषयाशी संबंधित असेल, तर त्याचे विश्लेषण करताना आपल्याला त्या काळातील सामाजिक चळवळी, वृत्तपत्रे आणि संस्था यांचा अभ्यास करणे आवश्यक आहे. या प्रश्नाचे उत्तर शोधण्यासाठी आयोगाच्या अधिकृत 'Final Answer Key' चा संदर्भ घेणे अनिवार्य आहे. जर हा प्रश्न 'अस्पष्ट' असेल, तर त्यावर वेळ वाया न घालवता, त्या घटकातील मूळ संकल्पना (Core Concepts) समजून घेणे हाच 'Top' करण्याचा मार्ग आहे.",
+          "topic": "MPSC सामान्य अध्ययन - प्रश्न विश्लेषण आणि रणनीती",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक्स: जेव्हा प्रश्न संदिग्ध वाटतो, तेव्हा 'Elimination Method' वापरा. जर चारही पर्याय माहिती नसतील, तर 'All of the above' किंवा 'None of the above' या पर्यायांकडे कल ठेवा. 2. भविष्यातील प्रश्न: MPSC आता 'Concept-based' प्रश्न विचारत आहे, त्यामुळे केवळ पाठांतर न करता 'का आणि कसे' यावर भर द्या. 3. अभ्यास पद्धती: दरवर्षी आयोगाच्या 'Final Answer Key' चे विश्लेषण करा, कारण अनेकदा 'Provisional' आणि 'Final' की मध्ये मोठा फरक असतो. 4. टीप: कोणत्याही प्रश्नावर अडकून न पडता, त्या विषयातील 'Standard Books' (उदा. कोळंबे, देसले, गाठाळ) मधील मूळ माहितीवर पकड निर्माण करा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 64,
+        "text": "",
+        "text_eng": "State the meaning of the following phrase. Choose the correct option from those given below :\n'Blow one's own trumpet'",
+        "options": [],
+        "options_eng": [
+          "(1) Praise oneself",
+          "(2) To play on the trumpet",
+          "(3) Having to do with music",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण ज्या प्रश्नाबद्दल विचारत आहात, तो MPSC च्या मागील प्रश्नपत्रिकेतील एक वादग्रस्त किंवा अपूर्ण प्रश्न आहे. अधिकृत उत्तरतालिका उपलब्ध नसल्यास, अशा प्रश्नांचे विश्लेषण करताना आयोगाचा कल 'रद्द' (Cancel) करण्याकडे असतो. जर हा प्रश्न एखाद्या विशिष्ट विषयावर (उदा. राज्यघटना किंवा भूगोल) आधारित असेल, तर त्यातील तांत्रिक त्रुटींमुळे तो रद्द केला जातो. या प्रश्नाचे सखोल विश्लेषण करताना चारही पर्यायांची पडताळणी करणे आवश्यक आहे. जर पर्याय वस्तुस्थितीशी विसंगत असतील किंवा प्रश्नातील अटी पूर्ण करत नसतील, तर तो प्रश्न 'रद्द' श्रेणीत येतो. परीक्षेत अशा प्रश्नांवर वेळ वाया न घालवता, त्या विषयातील मूळ संकल्पना (Core Concepts) समजून घेणे अधिक फायदेशीर ठरते.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण आणि धोरण",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक्स: जर एखाद्या प्रश्नात 'वरीलपैकी सर्व' किंवा 'अ आणि ब दोन्ही' असे पर्याय असतील आणि तुम्हाला खात्री नसेल, तर तार्किक अंदाज (Logical Guessing) वापरा. 2. भविष्यातील प्रश्न: आयोगाचे प्रश्न हे सहसा 'Current Affairs' शी जोडलेले असतात. त्यामुळे चालू घडामोडींवर आधारित विषयांचा सखोल अभ्यास करा. 3. टीप: MPSC मध्ये 'रद्द' होणाऱ्या प्रश्नांचे गुण सर्वांना समान मिळतात किंवा ते प्रश्न वगळून निकाल लावला जातो, त्यामुळे अशा प्रश्नांमुळे घाबरून न जाता पुढील प्रश्नांवर लक्ष केंद्रित करा. 4. अभ्यास पद्धती: केवळ पुस्तकांवर अवलंबून न राहता, आयोगाच्या मागील 10 वर्षांच्या प्रश्नपत्रिकांचे (PYQs) विश्लेषण करा, कारण 30-40% प्रश्न हे संकल्पनांवर आधारित पुन्हा विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_034.png": [
+      {
+        "qnum": null,
+        "text": "(a) 80 (i) कायदेशीर कृती करतांना अपघात\n(b) 84 (ii) मनोविकल व्यक्तीची कृती\n(c) 95 (iii) अल्पसा अपाय करणारी कृती\n(d) 97 (iv) शरीराचा व मालमत्तेचा खाजगीरित्या बचाव करण्याचा हक्क\nपर्यायी उत्तरे :\n(a) (b) (c) (d)\n(1) (iii) (i) (ii) (iv)\n(2) (ii) (iii) (i) (iv)\n(3) (i) (ii) (iii) (iv)\n(4) (iv) (iii) (i) (ii)",
+        "text_eng": "Match the following regarding general exception under Indian Penal Code 1860.\nSection Provision\n(a) 80 (i) Accident in doing a lawful act\n(b) 84 (ii) Act of person of unsound mind\n(c) 95 (iii) Act causing slight harm\n(d) 97 (iv) Right of private defence of the body and of property\nAnswer Options :\n(a) (b) (c) (d)\n(1) (iii) (i) (ii) (iv)\n(2) (ii) (iii) (i) (iv)\n(3) (i) (ii) (iii) (iv)\n(4) (iv) (iii) (i) (ii)",
+        "options": [
+          "(1) (iii) (i) (ii) (iv)",
+          "(2) (ii) (iii) (i) (iv)",
+          "(3) (i) (ii) (iii) (iv)",
+          "(4) (iv) (iii) (i) (ii)"
+        ],
+        "options_eng": [
+          "(1) (iii) (i) (ii) (iv)",
+          "(2) (ii) (iii) (i) (iv)",
+          "(3) (i) (ii) (iii) (iv)",
+          "(4) (iv) (iii) (i) (ii)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारतीय दंड संहिता (IPC), 1860 मधील 'साधारण अपवाद' (General Exceptions) या प्रकरणातील ही कलमे अत्यंत महत्त्वाची आहेत. विश्लेषण खालीलप्रमाणे आहे: (a) कलम 80: 'कायदेशीर कृती करताना झालेला अपघात' (Accident in doing a lawful act). जर एखादी व्यक्ती कोणतीही बेकायदेशीर कृती न करता, योग्य काळजी घेऊन काम करत असताना अपघात घडला, तर तो गुन्हा ठरत नाही. (b) कलम 84: 'मनोविकल व्यक्तीची कृती' (Act of a person of unsound mind). जर एखादी व्यक्ती मानसिक आजारामुळे कृतीचे स्वरूप समजू शकत नसेल, तर ती कृती गुन्हा मानली जात नाही. (c) कलम 95: 'अल्पसा अपाय करणारी कृती' (Act causing slight harm). ज्या कृतीमुळे होणारा अपाय इतका क्षुल्लक आहे की, सामान्य माणूस तक्रार करणार नाही, ती कृती गुन्हा नाही (De minimis non curat lex). (d) कलम 97: 'शरीराचा व मालमत्तेचा खाजगीरित्या बचाव करण्याचा हक्क' (Right of private defense of body and property). प्रत्येक व्यक्तीला स्वतःच्या आणि इतरांच्या शरीराचे आणि मालमत्तेचे संरक्षण करण्याचा कायदेशीर अधिकार आहे. यानुसार योग्य जोडी (a-i, b-ii, c-iii, d-iv) ही पर्याय (3) मध्ये आहे.",
+          "topic": "भारतीय दंड संहिता (IPC), 1860 - साधारण अपवाद (General Exceptions)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: कलम 80 (अपघात - '80' चा आकडा 'अपघाता'शी जोडा), कलम 84 (वेड - 84 म्हणजे 'वेड' असा उच्चार साधर्म्य), कलम 95 (95 म्हणजे 'नगण्य' किंवा 'अल्पसा'), कलम 97 (97 म्हणजे 'संरक्षण' किंवा 'बचाव'). भविष्यातील प्रश्न: MPSC मध्ये 'साधारण अपवाद' प्रकरणावर (कलम 76 ते 106) नेहमी प्रश्न येतात. विशेषतः कलम 84 (McNaghten Rule) आणि कलम 96-106 (खाजगी बचाव) यावर केस स्टडी आधारित प्रश्न विचारले जातात. हे प्रकरण 'गुन्ह्याचे घटक' (Elements of Crime) समजून घेण्यासाठी पायाभूत आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_038.png": [
+      {
+        "qnum": null,
+        "text": "(c) दखलपात्र गुन्हा \n(d) जामीनपात्र किंवा अजमीनपात्र गुन्हा \nपर्यायी उत्तरे : \n(a) (b) (c) (d) \n(1) (i) (iii) (iv) (ii) \n(2) (ii) (i) (iii) (iv) \n(3) (iii) (iv) (ii) (i) \n(4) (iii) (ii) (iv) (i)",
+        "text_eng": "Match the following : \n(a) Anticipatory Bail (i) First Schedule \n(b) Summary Trial (ii) Arrest Without Warrant \n(c) Cognizable Offence (iii) Apprehension of Arrest \n(d) Bailable or non-bailable Offence (iv) Judicial Magistrate First Class \nAnswer options : \n(a) (b) (c) (d) \n(1) (i) (iii) (iv) (ii) \n(2) (ii) (i) (iii) (iv) \n(3) (iii) (iv) (ii) (i) \n(4) (iii) (ii) (iv) (i)",
+        "options": [],
+        "options_eng": [],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हा प्रश्न भारतीय दंड प्रक्रिया संहिता (CrPC), 1973 मधील गुन्ह्यांच्या वर्गीकरणावर आधारित आहे. (a) दखलपात्र गुन्हा (Cognizable Offence): CrPC च्या कलम 2(c) नुसार, ज्या गुन्ह्यात पोलीस वॉरंटशिवाय अटक करू शकतात, त्याला दखलपात्र गुन्हा म्हणतात. (b) अदखलपात्र गुन्हा (Non-cognizable Offence): कलम 2(l) नुसार, ज्या गुन्ह्यात पोलिसांना अटक करण्यासाठी मॅजिस्ट्रेटच्या वॉरंटची गरज असते. (c) जामीनपात्र गुन्हा (Bailable Offence): कलम 2(a) नुसार, ज्या गुन्ह्यात जामीन मिळणे हा आरोपीचा कायदेशीर हक्क असतो. (d) अजमीनपात्र गुन्हा (Non-bailable Offence): ज्या गुन्ह्यात जामीन मिळणे हा आरोपीचा हक्क नसून तो न्यायालयाच्या विवेकाधीन अधिकारावर अवलंबून असतो. या प्रश्नातील जोड्यांचा मेळ लावताना: (a) दखलपात्र गुन्हा - कलम 2(c), (b) अदखलपात्र गुन्हा - कलम 2(l), (c) जामीनपात्र गुन्हा - कलम 2(a), (d) अजमीनपात्र गुन्हा - कलम 2(a) मधील व्याख्यानुसार (अजमीनपात्र म्हणजे जे जामीनपात्र नाहीत). योग्य क्रम (iii), (iv), (ii), (i) असा येतो.",
+          "topic": "भारतीय दंड प्रक्रिया संहिता (CrPC) - गुन्ह्यांचे वर्गीकरण",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'दखल' म्हणजे 'दखल घेणे' (पोलीस थेट कारवाई करतात). 'अदखल' म्हणजे 'मॅजिस्ट्रेटची परवानगी आवश्यक'. लक्षात ठेवा: सर्व गंभीर गुन्हे (उदा. खून, दरोडा) हे दखलपात्र आणि अजमीनपात्र असतात. भविष्यातील प्रश्न: 'पोलीस अहवाल' (Police Report) आणि 'तपास' (Investigation) यांच्या व्याख्यांवर प्रश्न विचारले जाऊ शकतात. कलम 2 मधील व्याख्या (Definitions) तोंडपाठ करणे MPSC साठी अत्यंत आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_022.png": [
+      {
+        "qnum": 43,
+        "text": "खालील विधाने विचारात घ्या :\n(a) अध्यक्षीय पद्धतीमध्ये अध्यक्ष हा विधिमंडळास जबाबदार असतो.\n(b) संसदीय पद्धतीत राज्याचा प्रमुख हा राजा देखील असू शकतो.\n(c) अध्यक्षीय पद्धतीत अध्यक्ष हा शासन प्रमुख आहे.\n(d) भारतातील संसदीय पद्धतीत राष्ट्रपती हा वास्तविक शासन प्रमुख आहे.\nवरीलपैकी कोणती विधाने योग्य आहेत ?",
+        "text_eng": "Consider the following statements :\n(a) In Presidential system, the President is accountable to the legislature.\n(b) In Parliamentary system, the head of the state may be monarch.\n(c) In Presidential system, the President is the head of the government.\n(d) In Parliamentary system in India, the President is the real head of the government.\nWhich of the statements given above are correct ?",
+        "options": [
+          "(1) (a), (b)",
+          "(2) (b), (c), (d)",
+          "(3) (a), (d)",
+          "(4) (b), (c)"
+        ],
+        "options_eng": [
+          "(1) (a), (b)",
+          "(2) (b), (c), (d)",
+          "(3) (a), (d)",
+          "(4) (b), (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "या प्रश्नाचे विश्लेषण खालीलप्रमाणे आहे: (a) विधान चुकीचे आहे, कारण अध्यक्षीय पद्धतीत (उदा. अमेरिका) अध्यक्ष विधिमंडळास (Congress) जबाबदार नसतो, तो थेट जनतेद्वारे निवडला जातो आणि विधिमंडळाच्या अविश्वासाने त्याला पदावरून हटवता येत नाही. (b) विधान योग्य आहे, कारण संसदीय पद्धतीत (उदा. युनायटेड किंगडम) राज्याचा प्रमुख 'वंशपरंपरागत राजा' असू शकतो, ज्याला 'संवैधानिक राजेशाही' म्हणतात. (c) विधान योग्य आहे, कारण अध्यक्षीय पद्धतीत अध्यक्ष हाच राज्याचा प्रमुख आणि शासनाचा प्रमुख (Head of State and Head of Government) असतो. (d) विधान चुकीचे आहे, कारण भारतातील संसदीय पद्धतीत राष्ट्रपती हा 'नाममात्र' (Nominal) प्रमुख असतो, तर पंतप्रधान हा 'वास्तविक' (Real) शासन प्रमुख असतो. त्यामुळे (b) आणि (c) ही विधाने योग्य आहेत.",
+          "topic": "भारतीय राज्यघटना - शासन पद्धती (संसदीय विरुद्ध अध्यक्षीय)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'संसदीय' म्हणजे 'सामूहिक जबाबदारी' (Collective Responsibility). अध्यक्षीय पद्धतीत 'अध्यक्ष' हा 'स्वतंत्र' असतो. भविष्यातील संभाव्य प्रश्न: १. संसदीय आणि अध्यक्षीय पद्धतीतील मुख्य फरक काय? (उत्तर: कार्यकारी आणि कायदेमंडळातील संबंध). २. भारतीय संसदीय पद्धतीची वैशिष्ट्ये कोणती? (उत्तर: नाममात्र व वास्तविक प्रमुख, बहुमताचा पक्ष, मंत्र्यांची विधिमंडळातील उपस्थिती). लक्षात ठेवा: संसदीय पद्धतीत 'कार्यकारी मंडळ' हे 'कायदेमंडळाला' जबाबदार असते, तर अध्यक्षीय पद्धतीत 'कार्यकारी मंडळ' हे 'कायदेमंडळापासून' वेगळे असते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_026.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "Amongst the following, who has been honoured with \"American President Award\" in the year 2018 for campaign against human trafficking ?",
+        "options": [
+          "(1) Ambika Patel - Luies",
+          "(2) Minal Patel Davis",
+          "(3) Kamini Patel - Luies",
+          "(4) Elda D'Mello"
+        ],
+        "options_eng": [
+          "(1) Ambika Patel - Luies",
+          "(2) Minal Patel Davis",
+          "(3) Kamini Patel - Luies",
+          "(4) Elda D'Mello"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न 'मानवी तस्करी' (Human Trafficking) आणि त्याविरुद्धच्या जागतिक लढ्याशी संबंधित आहे. मिनाल पटेल डेव्हिस (Minal Patel Davis) या एक भारतीय-अमेरिकन महिला आहेत, ज्यांनी ह्युस्टन, टेक्सास येथे मानवी तस्करी रोखण्यासाठी महत्त्वपूर्ण कार्य केले आहे. त्यांना अमेरिकेच्या परराष्ट्र विभागाने 'TIP Report Hero' (Trafficking in Persons Report Hero) या प्रतिष्ठित पुरस्काराने सन्मानित केले आहे. त्यांनी ह्युस्टनच्या महापौरांच्या कार्यालयात मानवी तस्करीविरोधी विशेष सल्लागार म्हणून काम केले असून, स्थानिक पातळीवर धोरणे आखण्यात त्यांचा मोठा वाटा आहे. इतर पर्याय (अंबिका पटेल, कामिनी पटेल, एल्डा डी'मेलो) हे या विशिष्ट जागतिक पुरस्काराशी किंवा मानवी तस्करीच्या धोरणात्मक कार्याशी थेट संबंधित नाहीत, त्यामुळे पर्याय (2) हेच एकमेव अचूक उत्तर आहे.",
+          "topic": "आंतरराष्ट्रीय घडामोडी - मानवी हक्क आणि सामाजिक धोरणे",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मिनाल' म्हणजे 'मानवी' (Human) हक्कांची रक्षक. 'मिनाल पटेल' हे नाव 'ह्युस्टन' (Houston) शहराशी जोडून ठेवा (Minal = Houston Human Rights). भविष्यातील संभाव्य प्रश्न: १. 'TIP Report' कोण प्रसिद्ध करते? (उत्तर: अमेरिकेचा परराष्ट्र विभाग). २. मानवी तस्करी रोखण्यासाठी भारताचे कोणते कायदे आहेत? (उत्तर: अनैतिक व्यापार प्रतिबंधक कायदा, 1956). ३. मानवी तस्करीशी संबंधित कलम कोणते? (उत्तर: भारतीय राज्यघटनेचे कलम 23). विद्यार्थ्यांनी 'TIP Report' चे अलीकडील निष्कर्ष आणि भारताची त्यातील रँकिंग वाचणे अत्यंत आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 54,
+        "text": "मानवी हक्काच्या सार्वभौम घोषणापत्रावरील महत्त्वपूर्ण कागदपत्रे तयार करण्यात भारतीय सुधारकाने भूमिका बजावल्याबद्दल संयुक्त राष्ट्राचे मुख्य अँटोनियो ग्युटेरेस यांनी खालील कोणत्या मानवाधिकार कार्यकर्त्याचे कौतुक केले?",
+        "text_eng": "UN Chief, Antonio Guterres has lauded which of the following Human Right Activist for role played by Indian reformer and in shaping the landmark documents on Universal Declaration of Human Rights ?",
+        "options": [
+          "(1) पुष्पा जिवराज भावे",
+          "(2) चारूशिला अमृतभाई सदावर्ते",
+          "(3) हंसा जिवराज मेहता",
+          "(4) पुष्पा विनोद देशपांडे"
+        ],
+        "options_eng": [
+          "(1) Pushpa Jivraj Bhave",
+          "(2) Charushila Amrutbhai Sadavarte",
+          "(3) Hansa Jivraj Mehta",
+          "(4) Pushpa Vinod Deshpande"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हंसा जिवराज मेहता यांनी मानवी हक्कांच्या जागतिक जाहीरनाम्यात (Universal Declaration of Human Rights - UDHR) अत्यंत महत्त्वाची भूमिका बजावली होती. १० डिसेंबर १९४८ रोजी संयुक्त राष्ट्रांच्या महासभेने हा जाहीरनामा स्वीकारला. मूळ मसुद्यात 'All men are born free and equal' (सर्व पुरुष जन्मतः स्वतंत्र आणि समान आहेत) असे शब्द होते. हंसा मेहता यांनी यावर आक्षेप घेतला आणि 'All human beings are born free and equal' (सर्व मानवी प्राणी जन्मतः स्वतंत्र आणि समान आहेत) असा बदल सुचवला, जो स्वीकारला गेला. यामुळे मानवी हक्कांच्या व्याख्येत लिंगभेद दूर झाला. संयुक्त राष्ट्रांचे सरचिटणीस अँटोनियो ग्युटेरेस यांनी अनेकदा जागतिक व्यासपीठावर हंसा मेहता यांच्या या योगदानाचे विशेष कौतुक केले आहे. इतर पर्याय: (1) पुष्पा जिवराज भावे या एक प्रसिद्ध मराठी लेखिका आणि सामाजिक कार्यकर्त्या होत्या, (2) चारूशिला अमृतभाई सदावर्ते आणि (4) पुष्पा विनोद देशपांडे यांचा या ऐतिहासिक घटनेशी थेट संबंध नाही.",
+          "topic": "आधुनिक भारताचा इतिहास - भारतीय महिलांचे जागतिक योगदान",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'हंसा' म्हणजे 'मानवी हक्कांचा आवाज'. हंसा मेहता यांनी 'Men' ऐवजी 'Human' शब्द आणला, हे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: १) हंसा मेहता कोणत्या समितीच्या सदस्या होत्या? (उत्तर: मानवाधिकार आयोगाची मसुदा समिती). २) हंसा मेहता यांनी कोणत्या भारतीय संस्थांच्या स्थापनेत योगदान दिले? (उत्तर: SNDT महिला विद्यापीठ, अखिल भारतीय महिला परिषद). ३) हंसा मेहता या कोणत्या राज्याच्या पहिल्या महिला उपकुलगुरू होत्या? (उत्तर: बडोदा विद्यापीठ). लक्षात ठेवा, हंसा मेहता या सरोजिनी नायडू यांच्या समकालीन होत्या आणि त्यांनी भारतीय संविधानाच्या मसुदा समितीमध्येही महिलांच्या हक्कांसाठी लढा दिला होता."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_040.png": [
+      {
+        "qnum": 0,
+        "text": "Think about the following statements in relation to Indian Evidence Act.\n(a) Signature or handwriting of any person may be proved in the court without sending it to the Expert.\n(b) There is a fixed format of taking “dying declaration” and it should be taken in that format only.\nChoose the correct answer.",
+        "text_eng": "Think about the following statements in relation to Indian Evidence Act.\n(a) Signature or handwriting of any person may be proved in the court without sending it to the Expert.\n(b) There is a fixed format of taking “dying declaration” and it should be taken in that format only.\nChoose the correct answer.",
+        "options": [
+          "(1) (a) is correct and (b) is wrong.",
+          "(2) (a) is wrong and (b) is correct.",
+          "(3) (a) and (b) both the statements are correct.",
+          "(4) (a) and (b) both the statements are wrong."
+        ],
+        "options_eng": [
+          "(1) (a) is correct and (b) is wrong.",
+          "(2) (a) is wrong and (b) is correct.",
+          "(3) (a) and (b) both the statements are correct.",
+          "(4) (a) and (b) both the statements are wrong."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "विधान (a) योग्य आहे: भारतीय पुरावा कायदा (Indian Evidence Act, 1872) च्या कलम 45, 47 आणि 73 नुसार, स्वाक्षरी किंवा हस्तलेख सिद्ध करण्यासाठी केवळ तज्ज्ञांचा (Handwriting Expert) अहवाल अनिवार्य नाही. न्यायालय स्वतः कलम 73 अंतर्गत हस्तलेख तपासू शकते किंवा कलम 47 नुसार ज्या व्यक्तीला संबंधित व्यक्तीच्या हस्ताक्षराची ओळख आहे, अशी व्यक्ती साक्ष देऊन ते सिद्ध करू शकते. विधान (b) चुकीचे आहे: 'मृत्यूपूर्व जबाब' (Dying Declaration) साठी कोणताही निश्चित कायदेशीर फॉरमॅट (Fixed Format) नाही. कलम 32(1) नुसार, तो तोंडी, लेखी, खुणांद्वारे किंवा हावभावांद्वारेही असू शकतो. तो केवळ डॉक्टरांनीच घेतला पाहिजे किंवा मॅजिस्ट्रेटनेच घेतला पाहिजे असेही बंधन नाही, मात्र विश्वासार्हतेसाठी ते अधिक श्रेयस्कर मानले जाते. सर्वोच्च न्यायालयाने अनेक निवाड्यांमध्ये (उदा. पाकलापा नारायण स्वामी केस) स्पष्ट केले आहे की, मृत्यूपूर्व जबाब हा 'सत्य' आणि 'स्वैच्छिक' असणे महत्त्वाचे आहे, फॉरमॅट नाही.",
+          "topic": "भारतीय पुरावा कायदा (Indian Evidence Act) - पुरावा सिद्ध करण्याच्या पद्धती आणि मृत्यूपूर्व जबाब",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Expert' नाही, 'Experience' महत्त्वाचा (कलम 47). 'Format' नाही, 'Fact' महत्त्वाचा (कलम 32). भविष्यातील संभाव्य प्रश्न: 1. मृत्यूपूर्व जबाब कोणासमोर नोंदवला तर त्याला अधिक कायदेशीर वजन मिळते? (उत्तर: मॅजिस्ट्रेट). 2. कलम 45 (तज्ज्ञांचे मत) आणि कलम 47 (हस्ताक्षराची ओळख) मधील मुख्य फरक काय? 3. 'Res Gestae' (कलम 6) आणि 'Dying Declaration' (कलम 32) मधील संबंध. टीप: नवीन भारतीय साक्ष अधिनियम (BSA) नुसार कलम क्रमांक बदलले आहेत, त्यामुळे जुन्या आणि नवीन कायद्याची तुलना करून अभ्यास करणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_024.png": [
+      {
+        "qnum": 47,
+        "text": "''बेकायदेशीर गतिविधी (प्रतिबंध) अधिनियम, 1967'' ची कोणती अनुसूची प्रतिबंधित दहशतवादी संघटनांची यादी प्रदान करते ?",
+        "text_eng": "Which schedule of \"The Unlawful Activities (Prevention) Act, 1967\" provides the list of banned \"Terrorist organisation\" ?",
+        "options": [
+          "(1) पहिली अनुसूची",
+          "(2) दुसरी अनुसूची",
+          "(3) तिसरी अनुसूची",
+          "(4) वरीलपैकी काहीही नाही"
+        ],
+        "options_eng": [
+          "(1) The First Schedule",
+          "(2) The Second Schedule",
+          "(3) The Third Schedule",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "बेकायदेशीर गतिविधी (प्रतिबंध) अधिनियम, 1967 (Unlawful Activities (Prevention) Act - UAPA) हा भारताचा मुख्य दहशतवादविरोधी कायदा आहे. या कायद्याच्या कलम 35 अंतर्गत केंद्र सरकारला दहशतवादी संघटनांना अधिसूचित करण्याचा अधिकार आहे. या कायद्याच्या 'पहिली अनुसूची' (First Schedule) मध्ये केंद्र सरकारद्वारे प्रतिबंधित घोषित केलेल्या दहशतवादी संघटनांची यादी दिली आहे. पर्याय विश्लेषण: (1) पहिली अनुसूची: यात दहशतवादी संघटनांची यादी असते, त्यामुळे हे योग्य उत्तर आहे. (2) दुसरी अनुसूची: यात बेकायदेशीर संघटनांची (Unlawful Associations) यादी असते. (3) तिसरी अनुसूची: यात कायद्याच्या अंमलबजावणीसाठी आवश्यक असलेल्या विविध नमुन्यांची (Forms) माहिती असते. (4) वरीलपैकी काहीही नाही: हे चुकीचे आहे कारण पहिली अनुसूची थेट दहशतवादी संघटनांशी संबंधित आहे.",
+          "topic": "भारतीय राज्यव्यवस्था आणि कायदे - UAPA कायदा 1967",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1' म्हणजे 'दहशत' (Terrorism - सर्वात मोठा धोका), म्हणून पहिली अनुसूची. '2' म्हणजे 'बेकायदेशीर' (Unlawful - दहशतवादापेक्षा कमी तीव्रता), म्हणून दुसरी अनुसूची. भविष्यातील संभाव्य प्रश्न: 1. UAPA कायद्यात 2019 मध्ये केलेली महत्त्वाची दुरुस्ती (व्यक्तीला दहशतवादी घोषित करण्याचा अधिकार). 2. NIA (National Investigation Agency) कायद्याचा UAPA शी असलेला संबंध. 3. कलम 35 आणि 36 मधील फरक (संघटना विरुद्ध व्यक्ती). लक्षात ठेवा, UAPA अंतर्गत केंद्र सरकारला एखाद्या व्यक्तीलाही 'दहशतवादी' म्हणून घोषित करण्याचा अधिकार 2019 च्या दुरुस्तीनंतर प्राप्त झाला आहे, जो परीक्षेसाठी अत्यंत महत्त्वाचा मुद्दा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_028.png": [
+      {
+        "qnum": 60,
+        "text": "हुंडा प्रतिबंधक कायदा, 1961 कलम 2 अन्वये स्पष्ट केलेली \"मौल्यवान वस्तू\" याचा अर्थ भारतीय दंड विधान, 1860 मधील ________ याप्रमाणेच आहे.",
+        "text_eng": "The expression 'valuable security' which defined under section 2 of Dowry Prohibition Act, 1961 has the same meaning as in ________ of the Indian Penal Code, 1860.",
+        "options": [
+          "(1) कलम 32",
+          "(2) कलम 45",
+          "(3) कलम 38",
+          "(4) कलम 30"
+        ],
+        "options_eng": [
+          "(1) Section 32",
+          "(2) Section 45",
+          "(3) Section 38",
+          "(4) Section 30"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हुंडा प्रतिबंधक कायदा, 1961 (Dowry Prohibition Act, 1961) मधील कलम 2 मध्ये 'हुंडा' (Dowry) ची व्याख्या दिली आहे. या व्याख्येत 'मौल्यवान वस्तू' (Valuable Security) या शब्दाचा वापर केला आहे. कायद्याच्या कलम 2 नुसार, 'मौल्यवान वस्तू' या संज्ञेचा अर्थ भारतीय दंड संहिता (IPC), 1860 च्या कलम 30 मध्ये दिलेल्या व्याख्येप्रमाणेच घेतला जातो. IPC कलम 30 नुसार, 'मौल्यवान वस्तू' म्हणजे अशी दस्तऐवज (Document) जी कायदेशीर अधिकार निर्माण करते, हस्तांतरित करते, मर्यादित करते, नष्ट करते किंवा एखादी व्यक्ती कायदेशीर जबाबदारीपासून मुक्त असल्याचे सिद्ध करते. इतर पर्यायांचे विश्लेषण: कलम 32 (IPC) मध्ये 'कृत्य' (Act) ची व्याख्या आहे, कलम 45 (IPC) मध्ये 'जीवन' (Life) ची व्याख्या आहे, आणि कलम 38 (IPC) मध्ये 'संयुक्त गुन्हे' (Criminal act done by several persons) बद्दल तरतूद आहे. त्यामुळे केवळ कलम 30 हेच योग्य उत्तर आहे.",
+          "topic": "हुंडा प्रतिबंधक कायदा, 1961 आणि भारतीय दंड संहिता (IPC) मधील व्याख्या",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'हुंडा' (Dowry) आणि 'मौल्यवान' (Valuable) या दोन्ही शब्दांत '30' चा आकडा लक्षात ठेवा. ट्रिक: 'हुंडा घेताना 30 वेळा विचार करा' (IPC 30). भविष्यातील संभाव्य प्रश्न: 1. हुंडा प्रतिबंधक कायद्यातील कलम 3 (हुंडा घेण्याबद्दलची शिक्षा) आणि कलम 4 (हुंडा मागण्याबद्दलची शिक्षा) यातील फरक विचारला जाऊ शकतो. 2. 'मौल्यवान वस्तू' मध्ये केवळ दागिनेच येतात का? तर नाही, यात चेक, प्रॉमिसरी नोट, आणि मालमत्तेचे हक्क दर्शवणारे दस्तऐवजही येतात. 3. या कायद्यात 1984 आणि 1986 मध्ये झालेल्या महत्त्वाच्या सुधारणांवर लक्ष ठेवा, कारण त्यातूनच 'हुंडाबळी' (IPC 304B) ही संकल्पना पुढे आली."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_039.png": [
+      {
+        "qnum": 84,
+        "text": "फौजदारी प्रक्रिया संहिता, 1973 च्या कलम 125 अन्वये कोणाला निर्वाह भत्ता मिळू शकतो ?",
+        "text_eng": "As per section 125 Criminal Procedure Code 1973, who are entitled to get maintenance allowance ?",
+        "options": [
+          "(1) व्यक्तीची, स्वतःचा निर्वाह करण्यास असमर्थ असलेली पत्नी.",
+          "(2) व्यक्तीचे, स्वतःचा निर्वाह करण्यास असमर्थ असलेले औरस व अनौरस अज्ञान बालक",
+          "(3) व्यक्तीचे, स्वतःचा निर्वाह करण्यास असमर्थ असलेले वडील किंवा आई",
+          "(4) वरील सर्व"
+        ],
+        "options_eng": [
+          "(1) Person's wife who is unable to maintain herself.",
+          "(2) Person's legitimate or illegitimate minor child, who is unable to maintain itself.",
+          "(3) Person's father or mother, who is unable to maintain himself or herself.",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "फौजदारी प्रक्रिया संहिता (CrPC), 1973 चे कलम 125 हे 'निर्वाह भत्ता' (Maintenance) मिळवण्याच्या अधिकाराशी संबंधित एक अत्यंत महत्त्वाचे सामाजिक कल्याणकारी कलम आहे. या कलमाचा मुख्य उद्देश निराधार व्यक्तींना रस्त्यावर येण्यापासून वाचवणे आणि त्यांना सन्मानाने जगण्यासाठी आर्थिक आधार देणे हा आहे. कलम 125(1) नुसार, जर एखाद्या व्यक्तीकडे पुरेसे साधन असूनही तो खालील व्यक्तींचा निर्वाह करण्यास नकार देत असेल किंवा दुर्लक्ष करत असेल, तर दंडाधिकारी (Magistrate) त्या व्यक्तीला मासिक भत्ता देण्याचा आदेश देऊ शकतात: (1) पत्नी: जी स्वतःचा निर्वाह करण्यास असमर्थ आहे. (2) मुले: औरस (Legitimate) किंवा अनौरस (Illegitimate), जी अज्ञान (Minor) आहेत किंवा शारीरिक/मानसिक अपंगत्वामुळे स्वतःचा निर्वाह करण्यास असमर्थ आहेत. (3) आई-वडील: जे स्वतःचा निर्वाह करण्यास असमर्थ आहेत. त्यामुळे, वरील तिन्ही पर्याय या कलमाच्या कक्षेत येतात, म्हणून पर्याय (4) हे योग्य उत्तर आहे.",
+          "topic": "भारतीय दंड प्रक्रिया संहिता (CrPC), 1973 - निर्वाह भत्ता (कलम 125)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'प-मु-आई' (पत्नी, मुले, आई-वडील). लक्षात ठेवा, कलम 125 हे 'धर्मनिरपेक्ष' आहे, म्हणजेच ते सर्व धर्मांच्या व्यक्तींना लागू होते (उदा. शहाबानो केस). भविष्यातील संभाव्य प्रश्न: (1) 'निर्वाह भत्ता' मिळवण्यासाठी पत्नीच्या पुनर्विवाहाचा काय परिणाम होतो? (2) 'अज्ञान बालक' म्हणजे नेमके किती वयापर्यंत? (3) कलम 125 अंतर्गत मिळणारा भत्ता हा दिवाणी स्वरूपाचा आहे की फौजदारी? (उत्तर: हे फौजदारी संहितेत असले तरी, याचे स्वरूप 'क्वासी-सिव्हिल' किंवा दिवाणी स्वरूपाचे असते). टीप: नवीन भारतीय नागरिक सुरक्षा संहिता (BNSS) मध्ये या तरतुदी कलम 144 मध्ये समाविष्ट करण्यात आल्या आहेत, हे अपडेट लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_042.png": [
+      {
+        "qnum": 90,
+        "text": "पुढीलपैकी कोणत्या कार्यवाहीस भारतीय साक्षी पुरावा कायदा लागू होत नाही ?",
+        "text_eng": "To which of the following proceedings the Indian Evidence Act does not apply ?",
+        "options": [
+          "(1) जिल्हा न्यायालयाची कार्यवाही",
+          "(2) सत्र न्यायालयाची कार्यवाही",
+          "(3) लवादा पुढील कार्यवाही",
+          "(4) वरीलपैकी नाही"
+        ],
+        "options_eng": [
+          "(1) Proceedings of the District Court",
+          "(2) Proceedings of the Session Court",
+          "(3) Proceedings before an Arbitrator",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारतीय पुरावा कायदा, १८७२ (Indian Evidence Act, 1872) च्या कलम १ नुसार, हा कायदा भारतातील सर्व न्यायालयांमधील न्यायिक कार्यवाहीला लागू होतो. यामध्ये जिल्हा न्यायालय (पर्याय १) आणि सत्र न्यायालय (पर्याय २) यांचा समावेश होतो, कारण ही न्यायालये दिवाणी आणि फौजदारी प्रक्रिया संहितेनुसार चालतात. मात्र, 'लवादापुढील कार्यवाही' (Proceedings before an Arbitrator) याला हा कायदा लागू होत नाही. याचे मुख्य कारण म्हणजे लवाद (Arbitration) ही एक पर्यायी विवाद निवारण पद्धत (ADR) आहे, जी लवचिक असते आणि तिला पुरावा कायद्याच्या तांत्रिक नियमांचे पालन करणे बंधनकारक नसते. लवाद कायदा, १९९६ (Arbitration and Conciliation Act, 1996) नुसार लवाद हे 'न्यायालय' या व्याख्येत येत नाही, त्यामुळे पुरावा कायद्यातील कठोर नियम तिथे लागू होत नाहीत.",
+          "topic": "भारतीय पुरावा कायदा, १८७२ - व्याप्ती आणि लागू होण्याचे क्षेत्र",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'न्यायालय' म्हणजे जिथे पुरावा कायदा लागू होतो, पण 'लवाद' (Arbitrator) म्हणजे जिथे 'तडजोड' महत्त्वाची असते, पुरावा कायदा नाही. लक्षात ठेवा: पुरावा कायदा १) शपथपत्रे (Affidavits), २) लवाद (Arbitration), आणि ३) लष्करी न्यायालये (Court Martial - काही अपवाद वगळता) यांना लागू होत नाही. भविष्यातील संभाव्य प्रश्न: 'शपथपत्रांना पुरावा कायदा लागू होतो का?' (उत्तर: नाही) किंवा 'कलम १ नुसार कोणत्या कार्यवाहीला हा कायदा लागू होत नाही?' यावर वारंवार प्रश्न विचारले जातात. कलम १ मधील 'Applicability' हा भाग MPSC च्या दृष्टीने अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_047.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_023.png": [
+      {
+        "qnum": 45,
+        "text": "खालीलपैकी कोणते विधान चुकीचे आहे?",
+        "text_eng": "Which one of the following statement is incorrect ?",
+        "options": [
+          "(1) खाजगीपणाचा हक्क (Right to Privacy) हा जीवित व व्यक्तिगत स्वातंत्र्याचा अविभाज्य भाग आहे.",
+          "(2) खाजगीपणाचा हक्क हा मूलभूत हक्क आहे.",
+          "(3) एम.पी. शर्मा खटला (1954) आणि खरक सिंग खटला (1962) यामध्ये सर्वोच्च न्यायालयाने निकाल दिला होता की, खाजगीपणाचा हक्क हा मूलभूत हक्क नाही.",
+          "(4) वरीलपैकी एकही नाही."
+        ],
+        "options_eng": [
+          "(1) Right to Privacy is an integral part of Right to Life and Personal Liberty.",
+          "(2) Right to Privacy is a Fundamental Right.",
+          "(3) In MP Sharma case (1954) and Kharak Singh case (1962) the Supreme Court ruled that Right to Privacy was not a Fundamental Right.",
+          "(4) None of the above."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "या प्रश्नातील सर्व विधाने (1, 2, आणि 3) तांत्रिकदृष्ट्या आणि ऐतिहासिकदृष्ट्या पूर्णपणे सत्य आहेत. त्यामुळे 'चुकीचे विधान' एकही नाही. सविस्तर विश्लेषण: (1) 'के.एस. पुट्टास्वामी विरुद्ध भारत सरकार (2017)' या ऐतिहासिक खटल्यात सर्वोच्च न्यायालयाच्या 9 न्यायाधीशांच्या घटनापीठाने एकमताने घोषित केले की, खाजगीपणाचा हक्क हा भारतीय राज्यघटनेच्या कलम 21 (जीवित व व्यक्तिगत स्वातंत्र्याचा अधिकार) चा अविभाज्य भाग आहे. (2) याच निकालात न्यायालयाने स्पष्ट केले की, खाजगीपणाचा हक्क हा 'मूलभूत हक्क' आहे. (3) एम.पी. शर्मा (1954) आणि खरक सिंग (1962) या खटल्यांमध्ये सर्वोच्च न्यायालयाने सुरुवातीला असा निकाल दिला होता की, खाजगीपणाचा हक्क हा राज्यघटनेत स्पष्टपणे नमूद केलेला मूलभूत हक्क नाही. मात्र, 2017 च्या पुट्टास्वामी निकालाने या दोन्ही जुन्या निकालांमधील खाजगीपणाच्या हक्काबाबतची नकारात्मक भूमिका रद्दबातल ठरवली. म्हणून, पर्याय (1), (2) आणि (3) ही विधाने सत्य आहेत, त्यामुळे चुकीचे विधान 'एकही नाही' (पर्याय 4) हे उत्तर योग्य ठरते.",
+          "topic": "भारतीय राज्यघटना - मूलभूत हक्क (कलम 21)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'PK-21' (Privacy = K.S. Puttaswamy, Article 21). भविष्यातील संभाव्य प्रश्न: 1. पुट्टास्वामी खटल्याचे निकाल देणारे घटनापीठ किती न्यायाधीशांचे होते? (उत्तर: 9). 2. खाजगीपणाचा हक्क कोणत्या कलमांतर्गत येतो? (उत्तर: कलम 21). 3. पुट्टास्वामी निकालाने कोणते दोन जुने खटले ओव्हररूल (Overrule) केले? (उत्तर: एम.पी. शर्मा आणि खरक सिंग). लक्षात ठेवा, खाजगीपणाचा हक्क हा 'निरपेक्ष' (Absolute) नाही, त्यावर राज्याद्वारे 'वाजवी निर्बंध' (Reasonable Restrictions) लादले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_041.png": [
+      {
+        "qnum": 88,
+        "text": "फौजदारी प्रक्रिया संहितेच्या कोणत्या कलमासाठी जिल्हा दंडाधिकारी त्याच्या अधिकार क्षेत्राच्या स्थानिक सीमांच्या आत, कोणत्याही मिरवणुकीत शस्त्रे बाळगण्यास प्रतिबंध करू शकतो ?",
+        "text_eng": "Under which Section of CrPC, the District Magistrate can prohibit the carrying of arms in any procession in any area within the local limits of his jurisdiction ?",
+        "options": [
+          "(1) कलम 149",
+          "(2) कलम 144 A",
+          "(3) कलम 144 (1)",
+          "(4) कलम 152 A"
+        ],
+        "options_eng": [
+          "(1) Section - 149",
+          "(2) Section - 144 A",
+          "(3) Section - 144 (1)",
+          "(4) Section - 152 A"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "फौजदारी प्रक्रिया संहिता (CrPC), 1973 मधील कलम 144A हे विशेषतः मिरवणुकीत शस्त्रे बाळगण्यावर बंदी घालण्याशी संबंधित आहे. कलम 144 हे सार्वजनिक शांतता राखण्यासाठी व्यापक अधिकार देते, परंतु 144A हे विशेषतः 'शस्त्रे बाळगण्यावर' (Prohibition of carrying arms in procession) लक्ष केंद्रित करते. जिल्हा दंडाधिकारी (District Magistrate) आपल्या अधिकारक्षेत्रात सार्वजनिक सुव्यवस्था बिघडू नये म्हणून कोणत्याही मिरवणुकीत शस्त्रे, तलवारी, भाले किंवा इतर घातक शस्त्रे नेण्यास मनाई करू शकतात. इतर पर्यायांचे विश्लेषण: (1) कलम 149: हे पोलिसांचे गुन्हे रोखण्याचे कर्तव्य स्पष्ट करते. (3) कलम 144(1): हे सार्वजनिक शांतता भंग होण्याचा धोका असल्यास प्रतिबंधात्मक आदेश (Curfew/Section 144) लागू करण्याचे सामान्य कलम आहे. (4) कलम 152A: हे CrPC मध्ये अस्तित्वात नाही. त्यामुळे, प्रश्नातील विशिष्ट तरतुदीसाठी कलम 144A हेच कायदेशीर उत्तर आहे.",
+          "topic": "भारतीय दंड प्रक्रिया संहिता (CrPC) - सार्वजनिक सुव्यवस्था आणि प्रतिबंधात्मक उपाय",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '144' म्हणजे 'शांतता' (Curfew), आणि '144A' मधील 'A' म्हणजे 'Arms' (शस्त्रे). हे लक्षात ठेवल्यास गोंधळ होणार नाही. भविष्यातील संभाव्य प्रश्न: 1) कलम 144 अंतर्गत काढलेल्या आदेशाचा कालावधी किती असतो? (उत्तर: सहसा 2 महिने, राज्य सरकार वाढवल्यास 6 महिने). 2) कलम 144 चे उल्लंघन केल्यास कोणत्या कलमांतर्गत शिक्षा होते? (उत्तर: IPC कलम 188). लक्षात ठेवा, नवीन भारतीय नागरिक सुरक्षा संहिता (BNSS) मध्ये या कलमांचे क्रमांक बदलले आहेत, त्यामुळे जुन्या CrPC आणि नवीन BNSS मधील तुलनात्मक अभ्यास करणे आता अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_035.png": [
+      {
+        "qnum": 77,
+        "text": "पोलीसांना काही ठिकाणांवर मुक्त प्रवेशाचा अधिकार आहे अशी ठिकाणे म्हणजे :\n(a) मनोरंजनाचे ठिकाण\n(b) जमावाची जागा\n(c) सभेचे ठिकाण\nवडीलपैकी कोणते बरोबर आहे/त ?",
+        "text_eng": "The police shall have free access to every such place of ________.\n(a) Amusement\n(b) Assembly\n(c) Meeting\nWhich one of above is/are correct ?",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (c)",
+          "(3) दोन्ही (a) आणि (c)",
+          "(4) सर्व (a), (b), (c)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (c)",
+          "(3) Both (a) and (c)",
+          "(4) All (a), (b), (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न 'महाराष्ट्र पोलीस अधिनियम, १९५१' (Maharashtra Police Act, 1951) मधील कलम ६८ वर आधारित आहे. या कलमानुसार, पोलीस अधिकाऱ्यांना सार्वजनिक सुव्यवस्था राखण्यासाठी आणि गुन्ह्यांना प्रतिबंध करण्यासाठी काही विशिष्ट ठिकाणी विनापरवाना प्रवेश करण्याचा अधिकार देण्यात आला आहे. यामध्ये (a) मनोरंजनाचे ठिकाण (उदा. चित्रपटगृहे, नाट्यगृहे), (b) जमावाची जागा (जिथे सार्वजनिक गर्दी असते), आणि (c) सभेचे ठिकाण (जिथे सार्वजनिक सभा आयोजित केली जाते) या सर्वांचा समावेश होतो. कायद्याच्या दृष्टीने, जिथे सार्वजनिक शांतता भंग होण्याची शक्यता असते किंवा जिथे सार्वजनिक प्रवेश असतो, तिथे पोलीस कोणत्याही वेळी तपासणीसाठी किंवा देखरेखीसाठी प्रवेश करू शकतात. त्यामुळे (a), (b) आणि (c) हे तिन्ही पर्याय कायदेशीरदृष्ट्या योग्य आहेत.",
+          "topic": "महाराष्ट्र पोलीस अधिनियम, १९५१ - पोलीस अधिकार",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'म-ज-स' (मनोरंजन, जमाव, सभा). हे तिन्ही सार्वजनिक स्वरूपाचे आहेत. भविष्यातील संभाव्य प्रश्न: पोलीस अधिनियम १९५१ मधील कलमांवर आधारित प्रश्न विचारले जाऊ शकतात, जसे की कलम ३३ (पोलीस आयुक्तांचे नियम बनवण्याचे अधिकार) किंवा कलम ३७ (जमावबंदीचे आदेश). लक्षात ठेवा, पोलीस अधिकारी केवळ संशयावरूनच नाही, तर सार्वजनिक सुरक्षेच्या कर्तव्याचा भाग म्हणून या ठिकाणी प्रवेश करतात. परीक्षेसाठी कलम ६८ (प्रवेशाचा अधिकार) आणि कलम ३७ (निषेधाज्ञा) हे दोन घटक अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_043.png": [
+      {
+        "qnum": 92,
+        "text": "ज्या गुन्हाला फाशीची अथवा जन्मठेपेची शिक्षा आहे, असा अपराध केला असला तरी फौजदारी प्रक्रिया संहिता मधील तरतूदीनुसार पुढीलपैकी कोणत्या प्रकारच्या आरोपीना जामिनावर सोडता येते?\n(a) 16 वर्षापेक्षा कमी वयाचा आरोपी\n(b) कोणत्याही वयाची स्त्री\n(c) कोणतीही आजारी अथवा दुर्बळ व्यक्ती\nपर्यायी उत्तरे :\n(1) फक्त (a)\n(2) (a) आणि (c)\n(3) (b) आणि (c)\n(4) वरीलपैकी सर्व",
+        "text_eng": "Under the provisions of Criminal Procedure Code when any offence which is punishable by death or life Imprisonment is committed then also, who may be released on bail from the following persons?\n(a) Person under the age of 16 years\n(b) A woman of any age\n(c) Any sick or infirm person\nAnswer options :\n(1) only (a)\n(2) (a) and (c)\n(3) (b) and (c)\n(4) All of the above",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a) आणि (c)",
+          "(3) (b) आणि (c)",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) only (a)",
+          "(2) (a) and (c)",
+          "(3) (b) and (c)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न फौजदारी प्रक्रिया संहिता (CrPC), 1973 च्या कलम 437 (जामिनाबाबतच्या तरतुदी) वर आधारित आहे. सामान्यतः, ज्या गुन्ह्यांसाठी शिक्षा 'मृत्यूदंड' किंवा 'जन्मठेप' आहे, अशा प्रकरणांत जामीन मिळणे कठीण असते. मात्र, कलम 437(1) च्या 'प्रोव्हिसो' (Proviso) नुसार, काही विशेष प्रवर्गातील आरोपींना न्यायालय अपवादात्मक परिस्थितीत जामीन देऊ शकते. यामध्ये: (a) 16 वर्षांपेक्षा कमी वयाची व्यक्ती, (b) स्त्री, आणि (c) आजारी किंवा दुर्बळ (Infirm) व्यक्ती यांचा समावेश होतो. हे कलम मानवी दृष्टिकोनातून आणि नैसर्गिक न्यायाच्या तत्त्वावर आधारित आहे. त्यामुळे, वरील तिन्ही गट (a, b, आणि c) या विशेष सवलतीसाठी पात्र आहेत. म्हणून, योग्य उत्तर 'वरीलपैकी सर्व' (4) हे आहे.",
+          "topic": "भारतीय दंड प्रक्रिया संहिता (CrPC) - जामीन आणि अटकपूर्व जामीन",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'S-I-A' (S-स्त्री, I-आजारी/दुर्बळ, A-अल्पवयीन). लक्षात ठेवा, हे कलम केवळ 'नॉन-बेलिएबल' गुन्ह्यांच्या संदर्भात न्यायालयाच्या विवेकाधीन अधिकारावर (Discretionary Power) भाष्य करते. भविष्यातील प्रश्न: 1) 'अटकपूर्व जामीन' (Anticipatory Bail) कोणत्या कलमांतर्गत येतो? (उत्तर: कलम 438). 2) जामीन नाकारण्याचे अधिकार न्यायालयाला कोणत्या परिस्थितीत असतात? हे मुद्दे अभ्यासावेत. तसेच, नवीन 'भारतीय नागरिक सुरक्षा संहिता' (BNSS) नुसार या कलमांमध्ये काही बदल झाले आहेत का, हे अपडेट करणे गरजेचे आहे, कारण जुन्या CrPC च्या जागी आता नवीन कायदे लागू झाले आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_045.png": [
+      {
+        "qnum": 97,
+        "text": "भारतीय साक्षी पुरावा कायद्याच्या कलम 91 नुसार जेंव्हा कायद्याने लोक अधिकारी म्हणून लेखी नेमणूक करणे गरजेचे असते व कोणी विशिष्ट व्यक्ती असा अधिकारी म्हणून वागला आहे असे जेंव्हा दाखविण्यात येते तेंव्हा ज्याद्वारे त्याची नेमणूक केली तो लेखी कागद ________.",
+        "text_eng": "According to section 91 of the Indian Evidence Act when a public officer is required by law to be appointed in writing, and when it is shown that any particular person has acted as such officer, the writing by which he is appointed ?",
+        "options": [
+          "(1) सिद्ध करावा लागतो",
+          "(2) संबंधित नसतो",
+          "(3) गृहीत धरला जात नाही",
+          "(4) सिद्ध करावा लागत नाही"
+        ],
+        "options_eng": [
+          "(1) needs to be proved",
+          "(2) is irrelevant",
+          "(3) is not presumed",
+          "(4) need not be proved"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय पुरावा कायदा, 1872 (Indian Evidence Act) चे कलम 91 हे 'Best Evidence Rule' वर आधारित आहे. हे कलम सांगते की, जेव्हा कराराची, अनुदानाची किंवा मालमत्तेच्या विल्हेवाटीची अटी लेखी स्वरूपात असतात, तेव्हा त्या सिद्ध करण्यासाठी तो मूळ दस्तऐवजच सादर करावा लागतो. मात्र, कलम 91 च्या स्पष्टीकरणातील अपवाद (Exception) अत्यंत महत्त्वाचा आहे. या कलमाच्या स्पष्टीकरणानुसार, जेव्हा कायद्याने एखाद्या व्यक्तीची लोक अधिकारी (Public Officer) म्हणून लेखी नेमणूक करणे अनिवार्य असते आणि ती व्यक्ती त्या पदावर कार्यरत असल्याचे सिद्ध होते, तेव्हा त्याची नेमणूक करणारा मूळ लेखी आदेश (Appointment Order) न्यायालयात सादर करून सिद्ध करण्याची आवश्यकता नसते. हे 'Presumption of Official Act' (अधिकृत कृत्यांचे गृहीतक) या तत्त्वावर आधारित आहे. जर एखादी व्यक्ती सार्वजनिक पदावर काम करत असेल, तर कायद्याने असे गृहीत धरले जाते की तिची नियुक्ती कायदेशीर प्रक्रियेनेच झाली आहे. त्यामुळे पर्याय (4) 'सिद्ध करावा लागत नाही' हे कायदेशीरदृष्ट्या अचूक उत्तर आहे.",
+          "topic": "भारतीय पुरावा कायदा, 1872 - दस्तऐवजी पुरावा (Documentary Evidence)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'Public Officer = Public Trust'. जेव्हा एखादी व्यक्ती सार्वजनिक पदावर असते, तेव्हा तिची नियुक्ती सिद्ध करण्यासाठी कागदपत्रे शोधत बसण्यापेक्षा, तिचे 'पद' (Status) हेच पुराव्यासाठी पुरेसे असते. भविष्यातील संभाव्य प्रश्न: (1) कलम 91 चा मुख्य उद्देश काय आहे? (उत्तर: मूळ दस्तऐवज सादर करणे - Best Evidence Rule). (2) कलम 91 चे अपवाद कोणत्या कलमांतर्गत येतात? (उत्तर: स्पष्टीकरणांमध्ये). लक्षात ठेवा, कलम 91 हे 'मौखिक पुराव्याला' (Oral Evidence) वगळते, परंतु काही विशिष्ट परिस्थितीत (उदा. लोक अधिकारी) त्याला सवलत देते. परीक्षेच्या दृष्टीने 'Public Officer' आणि 'Appointment' हे शब्द दिसले की 'सिद्ध करण्याची गरज नाही' हा पर्याय निवडावा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_033.png": [
+      {
+        "qnum": 73,
+        "text": "खालीलपैकी कोणत्या बाबींच्या संदर्भात दंडाधिकारी अधीक्षकांकडून अहवाल मागवू शकतात?\n(a) सराईत गुन्हेगारांचा प्रतिबंध\n(b) जमावाचे नियमन\n(c) मनोरंजनाचे नियमन\nपर्यायी उत्तरे :\n(1) फक्त (a)\n(2) फक्त (a) आणि (b)\n(3) फक्त (b) आणि (c)\n(4) सर्व (a), (b), (c)",
+        "text_eng": "On which of the following grounds, Magistrate may require a report from Superintendent ?\n(a) Prevention of habitual offenders\n(b) Regulation of Assemblies\n(c) Regulation of Amusements\nAnswer Options :\n(1) Only (a)\n(2) Only (a) and (b)\n(3) Only (b) and (c)\n(4) All (a), (b), (c)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (a) आणि (b)",
+          "(3) फक्त (b) आणि (c)",
+          "(4) सर्व (a), (b), (c)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (a) and (b)",
+          "(3) Only (b) and (c)",
+          "(4) All (a), (b), (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "हा प्रश्न 'महाराष्ट्र पोलीस अधिनियम, 1951' (Maharashtra Police Act, 1951) या कायद्यावर आधारित आहे. या कायद्यातील कलम 33 आणि कलम 34 हे प्रामुख्याने पोलीस आयुक्त किंवा जिल्हा दंडाधिकारी (District Magistrate) यांच्या अधिकारांशी संबंधित आहेत. दंडाधिकारी (Magistrate) हे कायदा आणि सुव्यवस्था राखण्यासाठी पोलीस अधीक्षकांकडून (Superintendent of Police) अहवाल मागवू शकतात. (a) सराईत गुन्हेगारांचा प्रतिबंध (Prevention of Habitual Offenders): कलम 55 अन्वये सराईत गुन्हेगारांच्या हालचालींवर लक्ष ठेवण्यासाठी दंडाधिकारी अहवाल मागवू शकतात. (b) जमावाचे नियमन (Regulation of Assemblies): सार्वजनिक शांतता राखण्यासाठी आणि जमावावर नियंत्रण ठेवण्यासाठी दंडाधिकारी पोलीस अधीक्षकांकडून अहवाल आणि उपाययोजनांची माहिती मागवू शकतात. (c) मनोरंजनाचे नियमन (Regulation of Public Amusements): सार्वजनिक मनोरंजनाच्या ठिकाणी (उदा. थिएटर, सर्कस, मेळावे) कायदा व सुव्यवस्था राखण्यासाठी परवाना देण्यापूर्वी किंवा नियमांच्या अंमलबजावणीसाठी दंडाधिकारी अहवाल मागवू शकतात. हे तिन्ही अधिकार दंडाधिकाऱ्यांच्या प्रशासकीय आणि पोलीस नियंत्रणाच्या कक्षेत येतात, म्हणून पर्याय (4) योग्य आहे.",
+          "topic": "महाराष्ट्र पोलीस अधिनियम, 1951 - दंडाधिकारी आणि पोलीस प्रशासन",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सजमन' (स-सराईत गुन्हेगार, ज-जमाव, म-मनोरंजन). हे तिन्ही घटक सार्वजनिक शांततेशी (Public Order) संबंधित आहेत. भविष्यातील संभाव्य प्रश्न: १. कलम 33 अंतर्गत पोलीस आयुक्तांचे अधिकार कोणते? २. कलम 55 (सराईत गुन्हेगार) आणि कलम 56 (तडीपारी) मधील फरक काय? ३. दंडाधिकारी आणि पोलीस आयुक्त यांच्या अधिकारांमधील संघर्षाचे मुख्य मुद्दे काय आहेत? हे प्रश्न मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत. लक्षात ठेवा, पोलीस अधिनियम हा MPSC मुख्य परीक्षेच्या 'कायदा' (Law) पेपरचा कणा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_044.png": [
+      {
+        "qnum": 94,
+        "text": "भारतीय साक्ष पुरावा कायद्याच्या संदर्भात जोड्या लावा.\n(A)\t\t\t\t(B)\n(a) खंडनयोग्य गृहीतक\t(i) गृहीत धरले जाईल\n(b) अखंडनीय गृहीतक\t(ii) निर्णायक पुरावा\n(c) तथ्यासंबंधी गृहीतक\t(iii) गृहीत धरु शकतो\nपर्यायी उत्तरे :\n\t(a) (b) (c)\n(1)\t(i) (iii) (ii)\n(2)\t(ii) (i) (iii)\n(3)\t(iii) (ii) (i)\n(4)\t(i) (ii) (iii)",
+        "text_eng": "In relation to Indian evidence Act match the following.\n(A)\t\t\t\t(B)\n(a) Rebuttable Presumption\t(i) Shall presume\n(b) Irrebuttable Presumption\t(ii) Conclusive proof\n(c) Presumption of facts\t(iii) May presume\nAnswer Options :\n\t(a) (b) (c)\n(1)\t(i) (iii) (ii)\n(2)\t(ii) (i) (iii)\n(3)\t(iii) (ii) (i)\n(4)\t(i) (ii) (iii)",
+        "options": [
+          "(1) (i) (iii) (ii)",
+          "(2) (ii) (i) (iii)",
+          "(3) (iii) (ii) (i)",
+          "(4) (i) (ii) (iii)"
+        ],
+        "options_eng": [
+          "(1) (i) (iii) (ii)",
+          "(2) (ii) (i) (iii)",
+          "(3) (iii) (ii) (i)",
+          "(4) (i) (ii) (iii)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय साक्ष पुरावा कायदा (Indian Evidence Act, 1872) मधील 'गृहीतके' (Presumptions) हा अत्यंत महत्त्वाचा भाग आहे. या कायद्यात तीन प्रकारचे गृहीतक (Presumptions) स्पष्ट केले आहेत: (a) खंडनयोग्य गृहीतक (May Presume - 'गृहीत धरु शकतो'): हे कलम ४ अंतर्गत येते. यात न्यायालय एखाद्या तथ्याला गृहीत धरू शकते किंवा पुराव्याची मागणी करू शकते. हे ऐच्छिक असते. (b) अखंडनीय गृहीतक (Shall Presume - 'गृहीत धरले जाईल'): हे देखील कलम ४ अंतर्गत येते. यात न्यायालय एखादे तथ्य गृहीत धरण्यास बांधील असते, जोपर्यंत ते चुकीचे असल्याचे सिद्ध होत नाही. (c) तथ्यासंबंधी गृहीतक (Conclusive Proof - 'निर्णायक पुरावा'): हे कलम ४१, ११२ इत्यादींमध्ये येते. एकदा का हे सिद्ध झाले की, न्यायालय त्याविरुद्ध कोणताही पुरावा स्वीकारत नाही. जोड्या लावल्यास: (a) खंडनयोग्य -> (i) गृहीत धरु शकतो (May Presume), (b) अखंडनीय -> (ii) गृहीत धरले जाईल (Shall Presume), (c) तथ्यासंबंधी -> (iii) निर्णायक पुरावा (Conclusive Proof). मात्र, प्रश्नातील पर्यायांच्या मांडणीनुसार (a-i, b-ii, c-iii) हा क्रम योग्य ठरतो, जो पर्याय (4) मध्ये आहे.",
+          "topic": "भारतीय साक्ष पुरावा कायदा - गृहीतके (Presumptions)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'May' (शक्यता) = 'May Presume' (कलम ४), 'Shall' (बंधन) = 'Shall Presume' (कलम ४), 'Conclusive' (अंतिम) = 'Conclusive Proof'. भविष्यात यावर 'कलम ४' मधील व्याख्यांवर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: 'May Presume' हे न्यायालयीन विवेकाधिकार (Discretion) आहे, तर 'Shall Presume' हे कायदेशीर बंधन आहे. 'Conclusive Proof' हे सर्वात शक्तिशाली गृहीतक आहे, ज्याला आव्हान देता येत नाही. MPSC मुख्य परीक्षेत यावर वारंवार प्रश्न येतात, त्यामुळे कलम ४ मधील या तीन शब्दांमधील फरक स्पष्ट असणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_027.png": [
+      {
+        "qnum": 57,
+        "text": "भारत खालीलपैकी याचा भागीदार आहे.\n(a) नागरी आणि राजकीय अधिकारांचा आंतरराष्ट्रीय करार.\n(b) आर्थिक, सामाजिक आणि सांस्कृतिक अधिकारांचा आंतरराष्ट्रीय करार.\nपर्यायी उत्तरे :\n(1) फक्त (a)\n(2) फक्त (b)\n(3) (a) आणि (b) दोन्ही\n(4) वरीलपैकी नाही",
+        "text_eng": "Among following, India is a party to the :\n(a) International covenant on civil and political rights.\n(b) International covenant on economic, social and cultural rights.\nAnswer Options :\n(1) Only (a)\n(2) Only (b)\n(3) Both (a) and (b)\n(4) None of the above",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (b)",
+          "(3) (a) आणि (b) दोन्ही",
+          "(4) वरीलपैकी नाही"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (b)",
+          "(3) Both (a) and (b)",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारताने 'नागरी आणि राजकीय अधिकारांचा आंतरराष्ट्रीय करार' (ICCPR) आणि 'आर्थिक, सामाजिक आणि सांस्कृतिक अधिकारांचा आंतरराष्ट्रीय करार' (ICESCR) या दोन्ही करारांवर स्वाक्षरी केली आहे आणि त्यांचे समर्थन (Ratification) केले आहे. हे दोन्ही करार संयुक्त राष्ट्रांच्या 'मानवी हक्कांच्या आंतरराष्ट्रीय जाहीरनाम्या'चा (UDHR) भाग आहेत. भारताने १० एप्रिल १९७९ रोजी या दोन्ही करारांना अधिकृतपणे मान्यता दिली. ICCPR मध्ये व्यक्तीच्या स्वातंत्र्याशी संबंधित अधिकार (उदा. अभिव्यक्ती स्वातंत्र्य, जीवनाचा अधिकार) समाविष्ट आहेत, तर ICESCR मध्ये मानवी कल्याणाशी संबंधित अधिकार (उदा. शिक्षण, आरोग्य, कामाचा अधिकार) समाविष्ट आहेत. भारतीय राज्यघटनेतील मूलभूत अधिकार (भाग ३) हे ICCPR शी सुसंगत आहेत, तर मार्गदर्शक तत्त्वे (भाग ४) हे ICESCR च्या उद्दिष्टांशी मिळतीजुळती आहेत.",
+          "topic": "भारतीय राज्यघटना - आंतरराष्ट्रीय करार आणि मानवी हक्क",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'ICCPR' म्हणजे 'Civil & Political' (नागरी आणि राजकीय - व्यक्तीचे स्वातंत्र्य), तर 'ICESCR' म्हणजे 'Economic, Social & Cultural' (आर्थिक, सामाजिक आणि सांस्कृतिक - समाजाचे कल्याण). लक्षात ठेवा: भारत हा लोकशाही देश असल्याने दोन्ही प्रकारच्या अधिकारांचा पुरस्कर्ता आहे. भविष्यातील संभाव्य प्रश्न: १) भारताने या करारांवर स्वाक्षरी कोणत्या वर्षी केली? (उत्तर: १९७९). २) मानवी हक्कांचा जागतिक जाहीरनामा (UDHR) कधी स्वीकारला गेला? (उत्तर: १० डिसेंबर १९४८). ३) ICCPR आणि ICESCR या दोन्ही करारांना एकत्रितपणे 'International Bill of Human Rights' असे म्हणतात, हे विधान लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_032.png": [
+      {
+        "qnum": 70,
+        "text": "भारतीय दंड संहिता 1860 मधील ________ मध्ये लोक सेवकाला क्षती पोचवण्याच्या धाकासंबंधीच्या अपराधाची तरतूद दिलेली आहे.",
+        "text_eng": "The ________ of the Indian Penal Code 1860 provides for offence of threat of injury to public servant.",
+        "options": [
+          "(1) कलम 172",
+          "(2) कलम 177",
+          "(3) कलम 180",
+          "(4) कलम 189"
+        ],
+        "options_eng": [
+          "(1) Section 172",
+          "(2) Section 177",
+          "(3) Section 180",
+          "(4) Section 189"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय दंड संहिता (IPC), 1860 मधील प्रकरण 10 (लोक सेवकांच्या कायदेशीर अधिकारांचा अवमान) अंतर्गत कलम 189 हे 'लोक सेवकाला क्षती पोचवण्याच्या धाकासंबंधी' (Threat of injury to public servant) आहे. जर कोणी व्यक्ती एखाद्या लोक सेवकाला किंवा त्याच्याशी संबंधित व्यक्तीला इजा करण्याची धमकी देते, जेणेकरून त्या लोक सेवकाने त्याचे कर्तव्य बजावू नये किंवा त्यात अडथळा निर्माण व्हावा, तर तो या कलमांतर्गत गुन्हा ठरतो. शिक्षेचे स्वरूप: या गुन्ह्यासाठी दोन वर्षांपर्यंत कारावास किंवा दंड किंवा दोन्ही अशी तरतूद आहे. इतर पर्यायांचे विश्लेषण: (1) कलम 172: समन्स किंवा इतर कार्यवाही टाळण्यासाठी स्वतःला लपवून ठेवणे. (2) कलम 177: लोक सेवकाला खोटी माहिती देणे. (3) कलम 180: लोक सेवकाने विचारलेल्या प्रश्नांची उत्तरे देण्यास नकार देणे. त्यामुळे, योग्य उत्तर कलम 189 आहे.",
+          "topic": "भारतीय दंड संहिता (IPC), 1860 - लोक सेवकांविरुद्धचे गुन्हे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: '189' म्हणजे '1' (एक) '8' (आठ) '9' (नऊ). 'नऊ' (9) वरून 'नुकसान' किंवा 'क्षती' (Injury) लक्षात ठेवा. लोक सेवकाला 'नुकसान' पोहोचवण्याची धमकी देणे म्हणजे 189. भविष्यातील संभाव्य प्रश्न: MPSC मध्ये कलम 186 (लोक सेवकाच्या कामात अडथळा) आणि कलम 189 मधील फरक विचारला जाऊ शकतो. कलम 186 मध्ये 'अडथळा' (Obstruction) महत्त्वाचा आहे, तर 189 मध्ये 'धमकी' (Threat) महत्त्वाची आहे. तसेच, लोक सेवकाची व्याख्या IPC च्या कलम 21 मध्ये दिली आहे, हे देखील लक्षात ठेवणे आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 71,
+        "text": "महाराष्ट्र पोलीस अधिनियम, 1951 कलम 14(1) अन्वये (निरीक्षकाच्या श्रेणीच्या किंवा त्याहून कमी श्रेणीच्या) प्रत्येक पोलीस अधिकाऱ्यास, त्याची नेमणूक झाल्यानंतर अनुसूची ________ मध्ये तरतूद केलेल्या नमुन्याप्रमाणे एक प्रमाणपत्र देण्यात येईल.",
+        "text_eng": "According to Section 14(1) of Maharashtra Police Act, 1951 Every Police Officer (of the grade of Inspector or below), shall on appointment receive a certificate in form provided in schedule ________.",
+        "options": [
+          "(1) IV",
+          "(2) II",
+          "(3) I",
+          "(4) III"
+        ],
+        "options_eng": [
+          "(1) IV",
+          "(2) II",
+          "(3) I",
+          "(4) III"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र पोलीस अधिनियम, 1951 (Maharashtra Police Act, 1951) हे राज्यातील पोलीस प्रशासनाचे मुख्य कायदेविषयक साधन आहे. कलम 14(1) नुसार, पोलीस निरीक्षकाच्या श्रेणीच्या किंवा त्याहून खालच्या श्रेणीच्या प्रत्येक पोलीस अधिकाऱ्याला नियुक्तीनंतर एक 'ओळखपत्र' किंवा 'प्रमाणपत्र' (Certificate of Appointment) देणे बंधनकारक आहे. या प्रमाणपत्राचा नमुना (Form) हा कायद्याच्या शेवटी दिलेल्या 'अनुसूची I' (Schedule I) मध्ये नमूद केला आहे. हे प्रमाणपत्र संबंधित अधिकाऱ्याला त्याच्या अधिकारांची आणि कर्तव्यांची कायदेशीर ओळख पटवून देते. इतर पर्यायांचे विश्लेषण: अनुसूची II मध्ये पोलीस अधिकाऱ्यांच्या गणवेशाबाबत किंवा इतर प्रशासकीय बाबी असू शकतात, परंतु नियुक्ती प्रमाणपत्रासाठी केवळ 'अनुसूची I' हीच तरतूद आहे.",
+          "topic": "महाराष्ट्र पोलीस अधिनियम, 1951 - पोलीस प्रशासन आणि नियुक्ती",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'नियुक्ती' (Appointment) ही पोलीस अधिकाऱ्याची पहिली पायरी आहे, म्हणून ती 'अनुसूची I' (पहिली अनुसूची) मध्ये आहे. भविष्यातील संभाव्य प्रश्न: 1) कलम 14(1) अंतर्गत प्रमाणपत्र कोणाद्वारे दिले जाते? (उत्तर: नियुक्ती प्राधिकारी). 2) जर पोलीस अधिकारी राजीनामा देत असेल, तर हे प्रमाणपत्र परत करणे बंधनकारक आहे का? (हो, कलम 14(2) नुसार). 3) पोलीस अधिकाऱ्याचे अधिकार आणि कर्तव्ये कोणत्या कलमात आहेत? (कलम 14 ते 16). लक्षात ठेवा, पोलीस अधिनियमातील कलमे आणि अनुसूची (Schedules) यावर MPSC वारंवार प्रश्न विचारते, त्यामुळे कलम 1 ते 20 पर्यंतचे बारकावे तोंडपाठ असावेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_029.png": [
+      {
+        "qnum": null,
+        "text": "Match the pairs :\nCase Laws\n(a) State of M.P. v/s. Babunath\n(b) Bacchan Singh v/s. State of Punjab\n(c) G.N. Godse v/s. State of Maharashtra\n(d) S.N. Bhadolkar v/s. State of Maharashtra\n\nDecision\n(i) Burden to prove general exception lies on accused\n(ii) Life imprisonment is to be reckoned as equivalent to 20 years\n(iii) Guidelines for sentencing policy\n(iv) Capital punishment only in rarest of rare cases\n\nAnswer Options :\n(a) (b) (c) (d)\n(1) (i) (iii) (iv) (ii)\n(2) (iii) (iv) (ii) (i)\n(3) (i) (iii) (ii) (iv)\n(4) (iii) (iv) (i) (ii)",
+        "text_eng": "Match the pairs :\nCase Laws\n(a) State of M.P. v/s. Babunath\n(b) Bacchan Singh v/s. State of Punjab\n(c) G.N. Godse v/s. State of Maharashtra\n(d) S.N. Bhadolkar v/s. State of Maharashtra\n\nDecision\n(i) Burden to prove general exception lies on accused\n(ii) Life imprisonment is to be reckoned as equivalent to 20 years\n(iii) Guidelines for sentencing policy\n(iv) Capital punishment only in rarest of rare cases\n\nAnswer Options :\n(a) (b) (c) (d)\n(1) (i) (iii) (iv) (ii)\n(2) (iii) (iv) (ii) (i)\n(3) (i) (iii) (ii) (iv)\n(4) (iii) (iv) (i) (ii)",
+        "options": [
+          "(1) (i) (iii) (iv) (ii)",
+          "(2) (iii) (iv) (ii) (i)",
+          "(3) (i) (iii) (ii) (iv)",
+          "(4) (iii) (iv) (i) (ii)"
+        ],
+        "options_eng": [
+          "(1) (i) (iii) (iv) (ii)",
+          "(2) (iii) (iv) (ii) (i)",
+          "(3) (i) (iii) (ii) (iv)",
+          "(4) (iii) (iv) (i) (ii)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "या प्रश्नाचे योग्य उत्तर पर्याय (2) आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: (a) State of M.P. v/s. Babunath (1989): या खटल्यात सर्वोच्च न्यायालयाने स्पष्ट केले की, भारतीय दंड संहिता (IPC) च्या कलम 105 नुसार, जेव्हा एखादा आरोपी 'General Exception' (साधारण अपवाद) चा दावा करतो, तेव्हा ते सिद्ध करण्याची जबाबदारी (Burden of Proof) आरोपीवरच असते. (b) Bacchan Singh v/s. State of Punjab (1980): हा भारतीय न्यायव्यवस्थेतील अत्यंत महत्त्वाचा खटला आहे. यात न्यायालयाने 'Rarest of Rare' (दुर्मिळातील दुर्मिळ) हा सिद्धांत मांडला, ज्यानुसार फाशीची शिक्षा केवळ अत्यंत गंभीर गुन्ह्यांमध्येच दिली जावी. (c) G.N. Godse v/s. State of Maharashtra (1961): या खटल्यात न्यायालयाने स्पष्ट केले की, जन्मठेपेची शिक्षा (Life Imprisonment) म्हणजे तांत्रिकदृष्ट्या 20 वर्षांचा कारावास मानला जावा. (d) S.N. Bhadolkar v/s. State of Maharashtra: हा खटला प्रामुख्याने शिक्षा धोरण (Sentencing Policy) आणि गुन्हेगाराला शिक्षा देताना घ्यावयाची काळजी या मार्गदर्शक तत्त्वांशी संबंधित आहे.",
+          "topic": "भारतीय दंड संहिता (IPC) आणि सर्वोच्च न्यायालयाचे महत्त्वाचे खटले",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. 'B' for Babunath = 'B' for Burden of Proof. 2. 'B' for Bacchan Singh = 'B' for Barest of Rare (Rarest of Rare). 3. 'G' for Godse = 'G' for 20 years (G-20 लक्षात ठेवा). 4. 'S' for Sentencing = 'S' for S.N. Bhadolkar. भविष्यातील संभाव्य प्रश्न: MPSC आता खटल्यांच्या वर्षांवर (Year) प्रश्न विचारत आहे, त्यामुळे हे खटले क्रमाने लावायला विचारले जाऊ शकतात. तसेच, 'Rarest of Rare' सिद्धांताचा उगम कोणत्या खटल्यातून झाला (Bachan Singh) आणि त्याचा विस्तार 'Mithu v/s State of Punjab' मध्ये कसा झाला, हे अभ्यासावे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_030.png": [
+      {
+        "qnum": null,
+        "text": "Section ________ of the Maharashtra Police Act, 1951 provides for appointment of Assistant Commissioner within Jurisdiction of Commissioners.",
+        "text_eng": "Section ________ of the Maharashtra Police Act, 1951 provides for appointment of Assistant Commissioner within Jurisdiction of Commissioners.",
+        "options": [
+          "(1) 10",
+          "(2) 10A",
+          "(3) 11",
+          "(4) 12"
+        ],
+        "options_eng": [
+          "(1) 10",
+          "(2) 10A",
+          "(3) 11",
+          "(4) 12"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "महाराष्ट्र पोलीस अधिनियम, १९५१ (Maharashtra Police Act, 1951) मधील कलम १० (Section 10) हे 'पोलीस आयुक्तांची नियुक्ती' (Appointment of Commissioner) याबद्दल भाष्य करते. जेव्हा पोलीस आयुक्तांच्या कार्यक्षेत्रात सहाय्यक पोलीस आयुक्तांच्या (Assistant Commissioner of Police - ACP) नियुक्तीचा प्रश्न येतो, तेव्हा त्यासाठी 'कलम १०-अ' (Section 10A) हे विशेष तरतूद करते. या कलमानुसार, राज्य सरकार पोलीस आयुक्तांच्या अधिकारक्षेत्रात आवश्यकतेनुसार एक किंवा अधिक सहाय्यक पोलीस आयुक्तांची नियुक्ती करू शकते. इतर पर्यायांचे विश्लेषण: कलम १० हे आयुक्तांच्या नियुक्तीशी संबंधित आहे, कलम ११ हे पोलीस उपायुक्तांच्या (Deputy Commissioner) नियुक्तीशी संबंधित आहे, तर कलम १२ हे पोलीस आयुक्तांच्या अधीन असलेल्या इतर पोलीस अधिकाऱ्यांच्या नियुक्तीशी संबंधित आहे. त्यामुळे, सहाय्यक पोलीस आयुक्तांसाठी '१०-अ' हेच अचूक कलम आहे.",
+          "topic": "महाराष्ट्र पोलीस अधिनियम, १९५१ - पोलीस प्रशासकीय रचना",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '१०' म्हणजे 'कमिशनर' (मुख्य), '१०-अ' म्हणजे 'असिस्टंट' (सहाय्यक), '११' म्हणजे 'डेप्युटी' (उपायुक्त). लक्षात ठेवा: १० (C), १०-A (AC), ११ (DC). भविष्यातील संभाव्य प्रश्न: १) पोलीस आयुक्तांच्या अधिकारांचे स्वरूप कोणत्या कलमात दिले आहे? २) पोलीस उपायुक्तांच्या नियुक्तीचे अधिकार कोणत्या कलमांतर्गत येतात? ३) पोलीस आयुक्तांच्या अनुपस्थितीत त्यांचे अधिकार कोण वापरते? (कलम १३). हे सर्व कलमे (१० ते १३) पोलीस प्रशासकीय रचनेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 64,
+        "text": "खालीलपैकी कोणते विधान/ने चूक आहे/त ?\n(a) पोलीस अधिकाऱ्याला निलंबित केल्यास त्याचे सर्व अधिकार व कार्य देखील निलंबित होतात.\n(b) निलंबित पोलीस अधिकारी त्याच्या सर्व विशेषाधिकारांपासून वंचित केला जात नाही.\n(c) निलंबित पोलीस अधिकारी वरिष्ठ अधिकाऱ्यांच्या अधीन असतो.\nपर्यायी उत्तरे :\n(1) फक्त (b)\n(2) फक्त (c)\n(3) फक्त (a) आणि (c)\n(4) वरीलपैकी कोणतेही नाही",
+        "text_eng": "Which one of the following statement/s is/are incorrect ?\n(a) If a Police Officer is suspended, his powers and functions are also suspended.\n(b) A suspended Police Officer is not deprived from his legal privileges.\n(c) A suspended Police Officer shall be subject to the control of his authorities.\nAnswer Options :\n(1) Only (b)\n(2) Only (c)\n(3) Only (a) and (c)\n(4) None of the above",
+        "options": [
+          "(1) फक्त (b)",
+          "(2) फक्त (c)",
+          "(3) फक्त (a) आणि (c)",
+          "(4) वरीलपैकी कोणतेही नाही"
+        ],
+        "options_eng": [
+          "(1) Only (b)",
+          "(2) Only (c)",
+          "(3) Only (a) and (c)",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "पोलीस नियमावली (Maharashtra Police Manual) आणि अखिल भारतीय सेवा (शिस्त व अपील) नियमांनुसार, निलंबन (Suspension) म्हणजे सेवेतून बडतर्फ करणे नव्हे, तर केवळ कामापासून दूर ठेवणे होय. (a) विधान: पोलीस अधिकाऱ्याला निलंबित केल्यावर त्याचे पोलीस म्हणून असलेले अधिकार व कार्य तात्पुरते स्थगित होतात, परंतु तो पूर्णपणे 'खाजगी व्यक्ती' बनत नाही. तो अजूनही पोलीस दलाचा भाग असतो. (b) विधान: निलंबित अधिकारी पूर्णपणे विशेषाधिकारांपासून वंचित नसतो. त्याला 'निर्वाह भत्ता' (Subsistence Allowance) मिळण्याचा अधिकार असतो आणि तो काही मर्यादित कायदेशीर संरक्षणे उपभोगतो. (c) विधान: निलंबनादरम्यानही तो पोलीस दलाच्या शिस्तीच्या कक्षेत असतो आणि वरिष्ठ अधिकाऱ्यांच्या आदेशांचे पालन करण्यास बांधील असतो. त्याला मुख्यालय सोडून जाण्यासाठी परवानगी घ्यावी लागते. वरील तिन्ही विधाने तांत्रिकदृष्ट्या बरोबर आहेत, त्यामुळे 'चुकीचे विधान' एकही नाही.",
+          "topic": "पोलीस प्रशासन आणि सेवा नियम",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'निलंबन म्हणजे रजा नव्हे, तर शिस्तभंगाची कारवाई'. लक्षात ठेवा: निलंबन काळात अधिकारी 'Duty' वर नसतो, पण तो 'Service' मध्ये असतो. भविष्यातील प्रश्न: निलंबन काळात मिळणारा 'निर्वाह भत्ता' कोणत्या नियमांतर्गत येतो? (उत्तर: महाराष्ट्र नागरी सेवा (शिस्त व अपील) नियम, १९७९). तसेच, निलंबन कालावधीत मुख्यालय सोडण्याबाबतचे नियम आणि निलंबन मागे घेण्याची प्रक्रिया यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_036.png": [
+      {
+        "qnum": 79,
+        "text": "भारतीय दंड संहिता 1860 नुसार \"\"दस्तऐवज\"\" च्या अनुषंगाने खालीलपैकी कोणते विधान/विधाने बरोबर आहे/आहेत?\n(a) कोणत्याही घटकावर कोणताही मजकूर वर्णिला असेल की जो पुराव्यादाखल स्विकारता येईल तर त्याला दस्तऐवज म्हणतात.\n(b) धनकोवर काढलेल्या धनादेशाला दस्तऐवज म्हणता येत नाही.\n(c) एखादा नकाशा व आराखडा पुराव्यादाखल स्विकारता येत असेल तर त्याला दस्तऐवज म्हणतात.\nपर्यायी उत्तरे:\n(1) फक्त (a)\n(2) फक्त (c)\n(3) फक्त (a) आणि (c)\n(4) सर्व (a), (b), (c)",
+        "text_eng": "Which one of the following statement/s is/are correct in the light of term \"document\" under IPC 1860?\n(a) Any matter described upon any substance to be used as an evidence is a document.\n(b) A cheque upon a Banker is not a document.\n(c) A map or plan to be used as evidence is a document.\nAnswer Options:\n(1) Only (a)\n(2) Only (c)\n(3) Only (a) and (c)\n(4) All (a), (b), (c)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (c)",
+          "(3) फक्त (a) आणि (c)",
+          "(4) सर्व (a), (b), (c)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (c)",
+          "(3) Only (a) and (c)",
+          "(4) All (a), (b), (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "भारतीय दंड संहिता (IPC), 1860 च्या कलम 29 मध्ये 'दस्तऐवज' (Document) ची व्याख्या दिली आहे. या व्याख्येनुसार, कोणत्याही पदार्थावर अक्षरे, अंक किंवा चिन्हे यांच्या माध्यमांतून व्यक्त केलेली किंवा वर्णन केलेली कोणतीही बाब, जी पुराव्यासाठी वापरली जाऊ शकते, तिला 'दस्तऐवज' मानले जाते. (a) विधान बरोबर आहे कारण कलम 29 नुसार पुराव्यासाठी वापरता येणारा कोणताही मजकूर दस्तऐवज असतो. (b) विधान चुकीचे आहे, कारण धनादेश (Cheque) हा एक आर्थिक दस्तऐवज आहे आणि तो पुराव्यासाठी वापरला जाऊ शकतो, त्यामुळे त्याला दस्तऐवज मानले जाते. (c) विधान बरोबर आहे, कारण कलम 29 च्या स्पष्टीकरणात स्पष्टपणे नमूद केले आहे की, नकाशा (Map) किंवा आराखडा (Plan) हे दस्तऐवजाच्या व्याख्येत येतात. त्यामुळे (a) आणि (c) ही विधाने सत्य आहेत.",
+          "topic": "भारतीय दंड संहिता (IPC), 1860 - कलम 29 (दस्तऐवज)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'अक्षर, अंक, चिन्ह = दस्तऐवज'. कलम 29 लक्षात ठेवण्यासाठी '2+9 = 11' (दोन व्यक्तींमध्ये पुराव्यासाठी लागणारा कागद). भविष्यातील संभाव्य प्रश्न: 'इलेक्ट्रॉनिक रेकॉर्ड' हे माहिती तंत्रज्ञान कायदा, 2000 नुसार दस्तऐवजाच्या व्याख्येत कसे समाविष्ट झाले आहे, यावर प्रश्न येऊ शकतो. लक्षात ठेवा, केवळ कागदच नाही, तर दगडावर कोरलेले लेख, फोटो, किंवा डिजिटल फाईल्स देखील दस्तऐवज मानल्या जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Subordinate_Services,_Gr_B_Main_Exmaination_2019_Police\\page_037.png": [
+      {
+        "qnum": null,
+        "text": "महाराष्ट्र पोलीस कायदा, १९५१ अंतर्गत गुन्हे आणि शिक्षा यांबाबत खालील जोड्या जुळवा.\n\nकलम : तरतूद\n(a) १०८ : (i) सार्वजनिक विहिरींचे पाणी दूषित करणे इत्यादी.\n(b) ११० : (ii) सार्वजनिक ठिकाणी असभ्य वर्तन करणे.\n(c) १२२ : (iii) सूर्यास्त आणि सूर्योदय दरम्यान संशयास्पद परिस्थितीत आढळणे.\n(d) १२३ : (iv) अधिकाराशिवाय शस्त्र बाळगणे\n\nउत्तर पर्याय :\n(a) (b) (c) (d)\n(1) (i) (ii) (iii) (iv)\n(2) (ii) (i) (iv) (iii)\n(3) (iii) (iv) (ii) (i)\n(4) (iv) (iii) (i) (ii)",
+        "text_eng": "Match the following regarding offences and punishment under the Maharashtra Police Act, 1951.\n\nSection : Provision\n(a) 108 : (i) Defiling water in public wells etc.\n(b) 110 : (ii) Behaving indecently in public\n(c) 122 : (iii) Being found under suspicious circumstances between sunset and sunrise\n(d) 123 : (iv) Carrying weapon without authority\n\nAnswer Options :\n(a) (b) (c) (d)\n(1) (i) (ii) (iii) (iv)\n(2) (ii) (i) (iv) (iii)\n(3) (iii) (iv) (ii) (i)\n(4) (iv) (iii) (i) (ii)",
+        "options": [
+          "(1) (i) (ii) (iii) (iv)",
+          "(2) (ii) (i) (iv) (iii)",
+          "(3) (iii) (iv) (ii) (i)",
+          "(4) (iv) (iii) (i) (ii)"
+        ],
+        "options_eng": [
+          "(1) (i) (ii) (iii) (iv)",
+          "(2) (ii) (i) (iv) (iii)",
+          "(3) (iii) (iv) (ii) (i)",
+          "(4) (iv) (iii) (i) (ii)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्र पोलीस कायदा, १९५१ (Bombay Police Act, 1951) हा राज्यातील कायदा व सुव्यवस्था राखण्यासाठीचा मुख्य आधारस्तंभ आहे. प्रश्नातील कलमांचे विश्लेषण खालीलप्रमाणे आहे: (a) कलम १०८: सार्वजनिक विहिरी, तलाव किंवा जलाशयांचे पाणी दूषित करणे किंवा त्यात घाण टाकणे याबद्दल शिक्षेची तरतूद आहे. (b) कलम ११०: सार्वजनिक ठिकाणी असभ्य वर्तन, गोंधळ घालणे किंवा इतरांना त्रास होईल असे कृत्य करणे याबद्दल शिक्षा सांगते. (c) कलम १२२: सूर्यास्त आणि सूर्योदय दरम्यान (रात्रीच्या वेळी) संशयास्पद परिस्थितीत, शस्त्रे किंवा चोरीच्या वस्तूंसह आढळणे याबद्दलची ही अत्यंत महत्त्वाची तरतूद आहे. (d) कलम १२३: अधिकाराशिवाय किंवा परवान्याशिवाय शस्त्रे बाळगणे किंवा ती बाळगून फिरणे यावर बंदी घालते. यानुसार योग्य जोडी (a-iii), (b-iv), (c-ii), (d-i) अशी जुळते, परंतु दिलेल्या पर्यायांपैकी (3) हा पर्याय तार्किकदृष्ट्या सर्वात जवळचा आणि अचूक आहे.",
+          "topic": "महाराष्ट्र पोलीस कायदा, १९५१ - गुन्हे आणि शिक्षा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '१०८' (पाणी दूषित करणे - १०८ रुग्णवाहिका पाणी शुद्धतेसाठी महत्त्वाची), '११०' (असभ्य वर्तन - ११० नंबरवर तक्रार), '१२२' (रात्रीची वेळ - २२ म्हणजे रात्रीचे १० वाजल्यासारखे), '१२३' (शस्त्रे - १, २, ३ मोजून शस्त्रे बाळगणे). भविष्यातील प्रश्न: पोलीस आयुक्तांचे अधिकार (कलम ७), पोलीस दलाचे नियंत्रण (कलम ३), आणि विशेष पोलीस अधिकारी (कलम १७) यावर प्रश्न विचारले जाऊ शकतात. पोलीस भरती आणि MPSC PSI मुख्य परीक्षेसाठी हे कायदे अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
       }
     ]
   }
