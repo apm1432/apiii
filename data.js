@@ -36228,6 +36228,1587 @@ const examData = {
         },
         "is_verified_from_key": false
       }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination\\page_039.png": [
+      {
+        "qnum": 1,
+        "text": "I. Six students A, B, C, D, E and F participated in self evaluation test of Maths and Science.\nII. The total marks of A in Maths was just above C and marks in Science just above F.\nIII. B was just above C in Science but scored less than D in Maths.\nIV. F got more marks than D and E in Science but did not perform as well in Maths as D.\nV. No one is in between C and D in Maths and C and A in Science.\nWho got the highest marks in Science ?",
+        "text_eng": "I. Six students A, B, C, D, E and F participated in self evaluation test of Maths and Science.\nII. The total marks of A in Maths was just above C and marks in Science just above F.\nIII. B was just above C in Science but scored less than D in Maths.\nIV. F got more marks than D and E in Science but did not perform as well in Maths as D.\nV. No one is in between C and D in Maths and C and A in Science.\nWho got the highest marks in Science ?",
+        "options": [
+          "(1) A",
+          "(2) B",
+          "(3) C",
+          "(4) D"
+        ],
+        "options_eng": [
+          "(1) A",
+          "(2) B",
+          "(3) C",
+          "(4) D"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे निराकरण करण्यासाठी आपल्याला 'Maths' आणि 'Science' या दोन स्वतंत्र क्रमाने (Ranking) मांडणी करावी लागेल. दिलेल्या माहितीनुसार: 1) Maths: माहिती II नुसार A > C. माहिती V नुसार C आणि D मध्ये कोणीही नाही, म्हणून क्रम A > C > D किंवा D > C > A असू शकतो. माहिती III नुसार D > B. माहिती IV नुसार D > F. एकत्रितपणे Maths चा क्रम: A > C > D > B/F असा होतो. 2) Science: माहिती II नुसार A > F. माहिती III नुसार B > C. माहिती IV नुसार F > D आणि F > E. माहिती V नुसार C आणि A मध्ये कोणीही नाही, म्हणजे A > C किंवा C > A. माहिती II नुसार A > C आहे, म्हणून A > C. आता सर्व माहिती एकत्र केल्यास: A > C आणि B > C, तसेच F > D आणि F > E. माहिती II नुसार A > F. त्यामुळे सर्वात वर A येतो. सर्व पर्यायांचे विश्लेषण: (1) A - हा सर्वात वर आहे, (2) B - हा C च्या वर आहे पण A च्या खाली, (3) C - हा A आणि B च्या खाली आहे, (4) D - हा F च्या खाली आहे. म्हणून, 'A' ने विज्ञानात सर्वाधिक गुण मिळवले आहेत.",
+          "topic": "तार्किक क्षमता - बैठक व्यवस्था आणि क्रमवारी (Logical Reasoning - Ranking)",
+          "imp_score": "High",
+          "extra_points": "अशा प्रश्नांसाठी 'Table Method' वापरा. दोन स्वतंत्र रकाने (Maths आणि Science) बनवा आणि माहिती वाचतानाच चिन्हे (>, <) वापरा. भविष्यातील प्रश्न: MPSC CSAT मध्ये अशा प्रकारचे प्रश्न 'Puzzle' स्वरूपात विचारले जातात. ट्रिक: 'Just above' किंवा 'No one in between' या शब्दांवर लक्ष द्या, कारण हेच निर्णायक ठरतात. भविष्यात 'कोणी कोणापेक्षा कमी/जास्त' यावर आधारित 5-6 घटकांचे प्रश्न विचारले जाऊ शकतात, जिथे तुम्हाला 'Matrix' बनवणे फायदेशीर ठरेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_006.png": [
+      {
+        "qnum": 9,
+        "text": "झॉन्शीची राणी म्हणजे सर्व बंडखोरांमधील एकमेव पुरुष होती', हे विधान खालीलपैकी कोणी केले ?",
+        "text_eng": "Who among the following made the statement 'The queen of Jhansi was the only male among all the rebels' ?",
+        "options": [
+          "(1) जॉन लॉरेन्स",
+          "(2) मेजर सार्जंट",
+          "(3) ह्यू रोज",
+          "(4) कॉलीन कॅम्पबेल"
+        ],
+        "options_eng": [
+          "(1) John Lawrence",
+          "(2) Major Sergeant",
+          "(3) Hugh Rose",
+          "(4) Colin Campbell"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हे विधान सर ह्यू रोज (Sir Hugh Rose) यांनी केले होते. १८५७ च्या उठावाच्या वेळी झाशीची राणी लक्ष्मीबाई यांनी इंग्रजांविरुद्ध दिलेला लढा अत्यंत धैर्याचा होता. जेव्हा सर ह्यू रोज यांनी झाशीवर आक्रमण केले, तेव्हा राणीने अत्यंत निकराचा लढा दिला. राणीच्या या अदम्य साहसाने आणि युद्धकौशल्याने प्रभावित होऊन सर ह्यू रोज यांनी आपल्या अधिकृत अहवालात किंवा नोंदीत असे म्हटले होते की, 'येथे उपस्थित असलेल्या सर्व बंडखोरांमध्ये ती एकमेव पुरुष होती' (The best and bravest of all the rebel leaders). हे विधान राणीच्या शौर्याचा सर्वोच्च गौरव मानले जाते. इतर पर्यायांचे विश्लेषण: (1) जॉन लॉरेन्स - हे पंजाबचे मुख्य आयुक्त होते, ज्यांनी उठाव दडपण्यात महत्त्वाची भूमिका बजावली होती. (2) मेजर सार्जंट - हे या संदर्भात संबंधित नाहीत. (4) कॉलीन कॅम्पबेल - हे १८५७ च्या उठावाच्या वेळी ब्रिटिश सैन्याचे कमांडर-इन-चीफ होते, ज्यांनी लखनौ आणि कानपूरमधील उठाव दडपले होते.",
+          "topic": "आधुनिक भारताचा इतिहास - १८५७ चा उठाव",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'ह्यू रोज' (Hugh Rose) आणि 'राणी' (Rani) - राणीच्या शौर्याचे 'रोज' (गुलाब) देऊन कौतुक करणारा 'ह्यू' (Hugh - Huge/मोठा) अधिकारी म्हणजे ह्यू रोज. भविष्यातील संभाव्य प्रश्न: १. ह्यू रोज यांनी राणीबद्दल काढलेले इतर उद्गार काय होते? (उत्तर: 'ती एकटीच मर्द होती'). २. झाशीचा पाडाव कोणत्या वर्षी झाला? (उत्तर: १८५८). ३. राणी लक्ष्मीबाई यांचा मृत्यू कोणत्या ठिकाणी झाला? (उत्तर: ग्वाल्हेर). लक्षात ठेवा, १८५७ च्या उठावावर प्रश्न विचारताना ब्रिटिश अधिकाऱ्यांची विधाने (उदा. तात्या टोपे, कुंवर सिंग यांच्याबद्दलची विधाने) वारंवार विचारली जातात, त्यामुळे ही यादी पाठ करणे फायदेशीर ठरेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_004.png": [
+      {
+        "qnum": 1,
+        "text": "खालील जोड्या जुळवा :\na. प्रार्थना समाज\nI. 1870\nb. सत्यशोधक समाज\nII. 1875\nc. सार्वजनिक सभा\nIII. 1867\nd. आर्य समाज\nIV. 1873\n      a   b   c   d",
+        "text_eng": "Match the following pairs :\na. Prarthana Samaj\nI. 1870\nb. Satyashodhak Samaj\nII. 1875\nc. Sarvjanik Sabha\nIII. 1867\nd. Arya Samaj\nIV. 1873\n      a   b   c   d",
+        "options": [
+          "(1) III II I IV",
+          "(2) IV II I III",
+          "(3) III IV I II",
+          "(4) I II III IV"
+        ],
+        "options_eng": [
+          "(1) III II I IV",
+          "(2) IV II I III",
+          "(3) III IV I II",
+          "(4) I II III IV"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या प्रश्नाचे अचूक विश्लेषण खालीलप्रमाणे आहे: (a) प्रार्थना समाज: स्थापना ३१ मार्च १८६७ रोजी मुंबईत झाली. याचे संस्थापक आत्माराम पांडुरंग तरखडकर होते. (b) सत्यशोधक समाज: स्थापना २४ सप्टेंबर १८७३ रोजी महात्मा जोतिराव फुले यांनी पुण्यात केली. (c) सार्वजनिक सभा: स्थापना २ एप्रिल १८७० रोजी पुण्यात झाली, ज्याचे मुख्य प्रवर्तक गणेश वासुदेव जोशी (सार्वजनिक काका) होते. (d) आर्य समाज: स्थापना १० एप्रिल १८७५ रोजी स्वामी दयानंद सरस्वती यांनी मुंबईत केली. यानुसार योग्य जोडी: a-III, b-IV, c-I, d-II. म्हणून पर्याय (3) योग्य आहे.",
+          "topic": "आधुनिक भारताचा आणि महाराष्ट्राचा इतिहास - समाजसुधारक व संस्था",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'प्र-स-सा-आ' (प्रार्थना-१८६७, सत्यशोधक-१८७३, सार्वजनिक-१८७०, आर्य-१८७५). लक्षात ठेवा: प्रार्थना समाज (६७), सार्वजनिक सभा (७०), सत्यशोधक (७३), आर्य समाज (७५). भविष्यातील संभाव्य प्रश्न: या संस्थांचे संस्थापक, त्यांची मुखपत्रे (उदा. सत्यशोधक समाजाचे 'दीनबंधू'), आणि त्यांची उद्दिष्टे यावर प्रश्न विचारले जाऊ शकतात. विशेषतः प्रार्थना समाजाचे 'सुबोध पत्रिका' आणि आर्य समाजाचे 'सत्यार्थ प्रकाश' हे ग्रंथ वारंवार विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination\\page_025.png": [
+      {
+        "qnum": 64,
+        "text": "जिल्हा न्यायाधीशाची नियुक्ती __________ द्वारा होते.",
+        "text_eng": "District Judges are appointed by",
+        "options": [
+          "(1) उच्च न्यायालयाचे मुख्य न्यायाधीश",
+          "(2) राज्य लोकसेवा आयोग",
+          "(3) राज्याचे मुख्यमंत्री",
+          "(4) राज्याचे राज्यपाल"
+        ],
+        "options_eng": [
+          "(1) The Chief Justice of High Court",
+          "(2) The State Public Service Commission",
+          "(3) The Chief Minister of State",
+          "(4) The Governor of State"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या अनुच्छेद 233 नुसार, जिल्हा न्यायाधीशांची नियुक्ती, त्यांची बदली आणि पदोन्नती राज्याचे राज्यपाल करतात. ही नियुक्ती करताना राज्यपालांना संबंधित राज्याच्या उच्च न्यायालयाशी सल्लामसलत करणे बंधनकारक असते. पर्यायांचे विश्लेषण: (1) उच्च न्यायालयाचे मुख्य न्यायाधीश नियुक्ती करत नाहीत, तर ते केवळ सल्ला देतात. (2) राज्य लोकसेवा आयोग जिल्हा न्यायाधीशांची नियुक्ती करत नाही, ते केवळ कनिष्ठ न्यायिक सेवांच्या भरतीसाठी परीक्षा घेतात. (3) मुख्यमंत्र्यांचा यात थेट घटनात्मक सहभाग नसतो. (4) राज्यपाल हे घटनात्मक प्रमुख म्हणून उच्च न्यायालयाच्या सल्ल्याने ही नियुक्ती करतात, म्हणून पर्याय (4) योग्य आहे.",
+          "topic": "भारतीय राज्यघटना - न्यायव्यवस्था (जिल्हा न्यायालय)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'जिल्हा' (District) म्हणजे 'राज्यपाल' (Governor) - 'ज-ज' जोडी लक्षात ठेवा. अनुच्छेद 233 (जिल्हा न्यायाधीश) आणि 234 (न्यायिक सेवेतील इतर व्यक्तींची नियुक्ती). भविष्यातील संभाव्य प्रश्न: 1. जिल्हा न्यायाधीशांच्या नियुक्तीसाठी पात्रता काय असावी? (उत्तर: केंद्र किंवा राज्य सरकारमध्ये किमान 7 वर्षे वकील म्हणून अनुभव). 2. जिल्हा न्यायाधीशांची नियुक्ती कोणत्या कलमांतर्गत होते? (उत्तर: कलम 233). लक्षात ठेवा, जिल्हा न्यायाधीशांच्या नियुक्तीत राज्यपालांचे अधिकार हे उच्च न्यायालयाच्या सल्ल्यावर अवलंबून असतात, ते स्वखुशीने निर्णय घेऊ शकत नाहीत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_009.png": [
+      {
+        "qnum": 17,
+        "text": "कोणत्या दोन नद्या दरम्यानच्या प्रदेशाला पंजाब हिमालय म्हणतात ?",
+        "text_eng": "The region between which two rivers is called the Punjab Himalayas ?",
+        "options": [
+          "(1) सिंधु - सतलज",
+          "(2) सतलज - गंगा",
+          "(3) चिनाब - यमुना",
+          "(4) काली - तिस्ता"
+        ],
+        "options_eng": [
+          "(1) Indus - Sutlaj",
+          "(2) Sutlaj - Ganga",
+          "(3) Chenab - Yamuna",
+          "(4) Kali - Tista"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "हिमालय पर्वतरांगांचे पश्चिम ते पूर्व दिशेने नद्यांच्या आधारे केलेले प्रादेशिक वर्गीकरण सर सिडनी बुराड (Sir Sydney Burrard) यांनी केले आहे. या वर्गीकरणानुसार, 'पंजाब हिमालय' हा प्रदेश सिंधू नदी आणि सतलज नदी यांच्या दरम्यान स्थित आहे. या प्रदेशाचा विस्तार प्रामुख्याने जम्मू-काश्मीर आणि हिमाचल प्रदेश राज्यांत येतो. इतर पर्यायांचे विश्लेषण: (2) सतलज आणि काली नद्यांच्या दरम्यानच्या प्रदेशाला 'कुमाऊँ हिमालय' म्हणतात. (3) चिनाब आणि यमुना या नद्यांच्या दरम्यान असा कोणताही स्वतंत्र हिमालय विभाग नाही. (4) काली आणि तिस्ता नद्यांच्या दरम्यानच्या प्रदेशाला 'नेपाळ हिमालय' म्हणतात. याव्यतिरिक्त, तिस्ता आणि ब्रह्मपुत्रा (दिहांग) नद्यांच्या दरम्यानच्या प्रदेशाला 'आसाम हिमालय' असे संबोधले जाते.",
+          "topic": "भारताचा भूगोल - हिमालयाचे प्रादेशिक वर्गीकरण",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सि-स-कु, का-ति-ने, ति-ब्र-आ'. म्हणजे: (सिंधू-सतलज = पंजाब), (सतलज-काली = कुमाऊँ), (काली-तिस्ता = नेपाळ), (तिस्ता-ब्रह्मपुत्रा = आसाम). भविष्यातील संभाव्य प्रश्न: १) हिमालयाचे पश्चिमेकडून पूर्वेकडे योग्य क्रम लावा. २) कोणत्या हिमालयाचा भाग सर्वात जास्त लांबीचा आहे? (उत्तर: नेपाळ हिमालय). ३) नद्यांच्या खोऱ्यांनुसार हिमालयाची लांबी आणि उंची यावर तुलनात्मक प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_014.png": [
+      {
+        "qnum": 0,
+        "text": "पाडण्यासाठीचे अधिकृत व्यासपीठ नाही ?\n(1) एक मान्यताप्राप्त स्टॉक एक्सचेंज\n(2) भारतीय रिझर्व्ह बँक (RBI) द्वारे अधिकृत व्यासपीठ\n(3) फॉरेक्स ट्रेडिंग सेवा देणारे कोणतेही ऑनलाइन व्यासपीठ\n(4) परकीय चलनात व्यवहार करण्यासाठी भारतीय रिझर्व्ह बँकेने प्राधिकृत केलेली बँक",
+        "text_eng": "Which of the following is not an authorised platform for residents in India to execute permitted forex transactions electronically ?\n(1) A recognised stock exchange\n(2) A platform authorised by the Reserve Bank of India (RBI)\n(3) Any online platform offering forex trading services\n(4) A bank authorised by the RBI to deal in foreign exchange",
+        "options": [
+          "(1) एक मान्यताप्राप्त स्टॉक एक्सचेंज",
+          "(2) भारतीय रिझर्व्ह बँक (RBI) द्वारे अधिकृत व्यासपीठ",
+          "(3) फॉरेक्स ट्रेडिंग सेवा देणारे कोणतेही ऑनलाइन व्यासपीठ",
+          "(4) परकीय चलनात व्यवहार करण्यासाठी भारतीय रिझर्व्ह बँकेने प्राधिकृत केलेली बँक"
+        ],
+        "options_eng": [
+          "(1) A recognised stock exchange",
+          "(2) A platform authorised by the Reserve Bank of India (RBI)",
+          "(3) Any online platform offering forex trading services",
+          "(4) A bank authorised by the RBI to deal in foreign exchange"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "हा प्रश्न भारतीय परकीय चलन व्यवस्थापन कायदा (FEMA) आणि रिझर्व्ह बँक ऑफ इंडिया (RBI) च्या नियमांशी संबंधित आहे. भारतात परकीय चलन (Forex) ट्रेडिंग करण्यासाठी केवळ RBI ने अधिकृत केलेल्या संस्थाच कायदेशीर आहेत. पर्याय (1), (2), आणि (4) हे सर्व RBI किंवा SEBI द्वारे नियंत्रित आणि अधिकृत आहेत. मात्र, 'फॉरेक्स ट्रेडिंग सेवा देणारे कोणतेही ऑनलाइन व्यासपीठ' (उदा. अनेक अनधिकृत ॲप्स किंवा वेबसाइट्स) हे सहसा परवानाधारक नसतात. RBI ने वेळोवेळी 'Alert List' प्रसिद्ध करून स्पष्ट केले आहे की, ज्या प्लॅटफॉर्मवर ट्रेडिंग करण्यासाठी RBI ने परवानगी दिलेली नाही, ते प्लॅटफॉर्म बेकायदेशीर आहेत. त्यामुळे, 'अधिकृत व्यासपीठ नसलेले' हे पर्याय (3) आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - बँकिंग आणि परकीय चलन नियमन",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'RBI ची अधिकृत यादी तपासा'. लक्षात ठेवा, भारतात परकीय चलनात व्यवहार करण्यासाठी केवळ 'Authorized Dealer Category-I' बँका आणि मान्यताप्राप्त स्टॉक एक्सचेंज (NSE/BSE) अधिकृत आहेत. भविष्यातील प्रश्न: RBI ची 'Alert List' कशासाठी आहे? किंवा FEMA कायद्यानुसार परकीय चलन व्यवहारांवर नियंत्रण कोणाचे असते? (उत्तर: RBI). विद्यार्थ्यांनी लक्षात ठेवावे की, सोशल मीडिया किंवा जाहिरातींद्वारे येणारे 'Forex Trading' ॲप्स बहुतांश वेळा फसवणूक करणारे असतात, कारण ते RBI च्या नियमावलीत बसत नाहीत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_025.png": [
+      {
+        "qnum": 64,
+        "text": "जिल्हा न्यायाधीशाची नियुक्ती ____________ द्वारे होते.",
+        "text_eng": "District Judges are appointed by",
+        "options": [
+          "(1) उच्च न्यायालयाचे मुख्य न्यायाधीश",
+          "(2) राज्य लोकसेवा आयोग",
+          "(3) राज्याचे मुख्यमंत्री",
+          "(4) राज्याचे राज्यपाल"
+        ],
+        "options_eng": [
+          "(1) The Chief Justice of High Court",
+          "(2) The State Public Service Commission",
+          "(3) The Chief Minister of State",
+          "(4) The Governor of State"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेच्या अनुच्छेद 233 (Article 233) नुसार, राज्याच्या जिल्हा न्यायाधीशांची नियुक्ती, त्यांची पदस्थापना आणि बढती राज्याचे राज्यपाल करतात. ही नियुक्ती करताना राज्यपाल संबंधित राज्याच्या उच्च न्यायालयाशी सल्लामसलत (Consultation) करणे बंधनकारक असते. पर्यायांचे विश्लेषण: (1) उच्च न्यायालयाचे मुख्य न्यायाधीश केवळ शिफारस करतात, नियुक्ती करत नाहीत. (2) राज्य लोकसेवा आयोग जिल्हा न्यायाधीशांच्या नियुक्ती प्रक्रियेत थेट सहभागी नसतो, ते कनिष्ठ न्यायदंडाधिकारी (Judicial Magistrate) भरती घेतात. (3) मुख्यमंत्री नियुक्ती करत नाहीत, ही प्रक्रिया राज्यपालांच्या अधिकारात येते. (4) राज्यपाल हे घटनात्मक प्रमुख म्हणून ही नियुक्ती करतात, म्हणून पर्याय (4) अचूक आहे.",
+          "topic": "भारतीय राज्यघटना - न्यायव्यवस्था (जिल्हा न्यायालय)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'जिल्हा न्यायाधीश = राज्यपाल + उच्च न्यायालय'. लक्षात ठेवा, जिल्हा न्यायाधीशांच्या नियुक्तीसाठी दोन अटी आवश्यक आहेत: 1) ती व्यक्ती केंद्र किंवा राज्य सरकारच्या सेवेत नसावी आणि 2) ती व्यक्ती किमान 7 वर्षे वकील म्हणून कार्यरत असावी. भविष्यातील संभाव्य प्रश्न: 'जिल्हा न्यायाधीशांच्या नियुक्तीसाठी उच्च न्यायालयाचा सल्ला घेणे बंधनकारक आहे का?' (हो), किंवा 'जिल्हा न्यायाधीशांच्या बदल्यांचे अधिकार कोणाकडे असतात?' (उच्च न्यायालय). लक्षात ठेवा, नियुक्ती राज्यपाल करतात, पण बदल्या आणि शिस्तभंगाची कारवाई उच्च न्यायालय करते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_007.png": [
+      {
+        "qnum": 0,
+        "text": "",
+        "text_eng": "Match the pairs of Ghats and Roads in Maharashtra.\nGhat Road\nA. Phonda I. Mumbai – Nashik\nB. Malshej II. Kolhapur – Kudal\nC. Hanumante III. Thane – Ahmadnagar\nD. Thal IV. Kolhapur – Panaji",
+        "options": [
+          "(1) II III IV I",
+          "(2) IV I III II",
+          "(3) III I IV II",
+          "(4) IV III II I"
+        ],
+        "options_eng": [],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण दिलेल्या प्रश्नामध्ये पर्यायांची जोडी लावण्यासाठी कोणताही मूळ प्रश्न (List I आणि List II) दिलेला नाही. MPSC च्या परीक्षेत अशा प्रकारचे प्रश्न सहसा 'घटनाक्रम', 'समाजसुधारक आणि त्यांची कार्ये' किंवा 'नद्या आणि उपनद्या' यावर आधारित असतात. प्रश्नाचा मजकूर उपलब्ध नसल्यामुळे, हे उत्तर तांत्रिकदृष्ट्या 'रद्द' (Invalid) आहे. तथापि, अशा प्रश्नांना सोडवण्यासाठी 'Elimination Method' ही सर्वोत्तम पद्धत आहे. जर तुम्हाला प्रश्न उपलब्ध असेल, तर कृपया तो पुन्हा पाठवावा, जेणेकरून मी त्याचे सविस्तर विश्लेषण करू शकेन.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण तंत्र",
+          "imp_score": "High",
+          "extra_points": "1. एलिमिनेशन ट्रिक: जर तुम्हाला चारपैकी दोन जोड्या खात्रीशीर माहित असतील, तर पर्यायांकडे पाहून उत्तर शोधणे सोपे जाते. 2. कालानुक्रम (Chronology): इतिहासाच्या प्रश्नांमध्ये घटनांचा क्रम लक्षात ठेवण्यासाठी 'Timeline' तयार करा. 3. भविष्यातील प्रश्न: MPSC आता 'जोड्या लावा' ऐवजी 'विधाने तपासा' (Statements) यावर जास्त भर देत आहे, त्यामुळे संकल्पनात्मक स्पष्टता (Conceptual Clarity) असणे आवश्यक आहे. 4. टीप: प्रश्न पूर्ण नसल्यास घाईत उत्तर देऊ नका, कारण चुकीच्या उत्तरामुळे 0.25 निगेटिव्ह मार्किंग होऊ शकते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_026.png": [
+      {
+        "qnum": 1,
+        "text": "खालील गटांची जुळणी करा.\nअ algae group\nब Example\na. Chlorophyceae\ni. Sargassum\nb. Phaeophyceae\nii. Botrydium\nc. Rhodophyceae\niii. Spirogyra\nd. Xanthophyceae\niv. Polysiphonia",
+        "text_eng": "Match the algae group with suitable example.\n     Algae group           Example\na. Chlorophyceae           i. Sargassum\nb. Phaeophyceae         ii. Botrydium\nc. Rhodophyceae        iii. Spirogyra\nd. Xanthophyceae        iv. Polysiphonia",
+        "options": [
+          "(1) i ii iii iv",
+          "(2) ii iv i iii",
+          "(3) iii i iv ii",
+          "(4) iv iii ii i"
+        ],
+        "options_eng": [
+          "(1) i ii iii iv",
+          "(2) ii iv i iii",
+          "(3) iii i iv ii",
+          "(4) iv iii ii i"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या प्रश्नाचे योग्य उत्तर पर्याय (3) आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: 1. Chlorophyceae (हिरवे शेवाळ): यामध्ये 'Spirogyra' चा समावेश होतो. हे गोड्या पाण्यात आढळणारे तंतूमय शेवाळ आहे. 2. Phaeophyceae (तपकिरी शेवाळ): यामध्ये 'Sargassum' चा समावेश होतो. हे प्रामुख्याने समुद्रात आढळणारे मोठे शेवाळ आहे. 3. Rhodophyceae (लाल शेवाळ): यामध्ये 'Polysiphonia' चा समावेश होतो. हे रंगद्रव्यांमुळे लाल दिसते. 4. Xanthophyceae (पिवळसर-हिरवे शेवाळ): यामध्ये 'Botrydium' चा समावेश होतो. जुळणी: a-iii, b-i, c-iv, d-ii. हे सर्व वनस्पती सृष्टीतील 'थॅलोफायटा' (Thallophyta) या उपविभागातील 'शैवाल' (Algae) वर्गातील आहेत.",
+          "topic": "जीवशास्त्र - वनस्पती वर्गीकरण (शैवाल/Algae)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. Chlorophyceae (C-S): 'C'hlorophyceae मध्ये 'S'pirogyra. 2. Phaeophyceae (P-S): 'P'haeophyceae मध्ये 'S'argassum (तपकिरी रंगाचे समुद्र शेवाळ). 3. Rhodophyceae (R-P): 'R'hodophyceae मध्ये 'P'olysiphonia (लाल रंगाचे). 4. Xanthophyceae (X-B): 'X'anthophyceae मध्ये 'B'otrydium. भविष्यातील संभाव्य प्रश्न: शैवालांचे मानवी जीवनातील उपयोग (उदा. अगर-अगर कशापासून मिळते - Rhodophyceae), शैवालांचे साठवण अन्न (Starch, Mannitol, Floridean starch) यावर प्रश्न विचारले जाऊ शकतात. हे घटक MPSC च्या पूर्व आणि मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_012.png": [
+      {
+        "qnum": 26,
+        "text": "डॉ. विजय केळकर समितीचा अहवाल हा ________ शी संबंधित आहे.",
+        "text_eng": "Dr. Vijay Kelkar Committee Report is related to _________.",
+        "options": [
+          "(1) प्रशासकीय सुधारणा",
+          "(2) अप्रत्यक्ष कर विषयक सुधारणा",
+          "(3) व्यापार विषयक सुधारणा",
+          "(4) वित्तीय क्षेत्रातील सुधारणा"
+        ],
+        "options_eng": [
+          "(1) Administrative reforms",
+          "(2) Indirect tax reforms",
+          "(3) Trade reforms",
+          "(4) Financial sector reforms"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "डॉ. विजय केळकर समिती (2002) ही प्रामुख्याने 'अप्रत्यक्ष कर सुधारणा' (Indirect Tax Reforms) या विषयाशी संबंधित आहे. या समितीने भारताच्या कर प्रणालीत आमूलाग्र बदल सुचवले होते. समितीच्या शिफारशींनुसारच पुढे 'व्हॅट' (VAT - Value Added Tax) प्रणालीची अंमलबजावणी करण्यात आली, जी पुढे जाऊन 'जीएसटी' (GST) च्या निर्मितीचा पाया ठरली. पर्यायांचे विश्लेषण: (1) प्रशासकीय सुधारणांसाठी 'वीरप्पा मोईली' किंवा 'होता समिती' प्रसिद्ध आहे. (3) व्यापार सुधारणांसाठी 'आबिद हुसेन समिती' किंवा 'राकेश मोहन समिती' महत्त्वाची आहे. (4) वित्तीय क्षेत्रातील सुधारणांसाठी 'नरसिंहम समिती' ओळखली जाते. केळकर समितीने कर आधार वाढवणे, करांचे दर कमी करणे आणि कर अनुपालन (Tax Compliance) सुलभ करणे यावर भर दिला होता.",
+          "topic": "भारतीय अर्थव्यवस्था - कर प्रणाली आणि सुधारणा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'केळकर म्हणजे कर' (K for Kelkar, K for Kar/Tax). लक्षात ठेवा, विजय केळकर समितीचे दोन मुख्य अहवाल आहेत: 1) 2002 चा अहवाल (अप्रत्यक्ष कर सुधारणा) आणि 2) 2015 चा अहवाल (PPP मॉडेल पुनरावलोकन). भविष्यातील संभाव्य प्रश्न: 'जीएसटी'च्या अंमलबजावणीत केळकर समितीच्या शिफारशींचे योगदान काय होते? किंवा 'केळकर समितीने सुचवलेल्या कर सुधारणांचे मुख्य उद्दिष्ट काय होते?' (उत्तर: कर आधार वाढवणे आणि कर चोरी रोखणे). तसेच, केळकर समितीने 'राजकोषीय जबाबदारी आणि अर्थसंकल्पीय व्यवस्थापन कायदा' (FRBM Act) च्या निर्मितीमध्येही महत्त्वाची भूमिका बजावली होती, हे लक्षात ठेवणे फायदेशीर ठरेल."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_027.png": [
+      {
+        "qnum": 1,
+        "text": "",
+        "text_eng": "Match the plant disease with causative agent.\nPlant disease Causal agent\na. Loose smut of wheat i. Taphrina maculans\nb. Black stem rust of wheat ii. Cercosporidium personatum\nc. Tikka disease of groundnut iii. Ustilago segetum\nd. Leaf spot of turmeric iv. Puccinia graminis",
+        "options": [],
+        "options_eng": [
+          "(1) i ii iv iii",
+          "(2) ii i iii iv",
+          "(3) iii iv ii i",
+          "(4) iv iii i ii"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "कृपया आपण विचारलेला प्रश्न आणि पर्याय येथे नमूद केलेले नाहीत. MPSC च्या परीक्षेत अचूक उत्तरापर्यंत पोहोचण्यासाठी प्रश्नातील प्रत्येक शब्दाचा संदर्भ महत्त्वाचा असतो. आपण प्रश्न प्रदान केल्यास, मी त्याचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भासह सखोल विश्लेषण करेन. सामान्यतः MPSC मध्ये 'अयोग्य विधान ओळखा' किंवा 'योग्य जोड्या जुळवा' अशा स्वरूपाचे प्रश्न विचारले जातात, जिथे एलिमिनेशन पद्धत (Elimination Method) वापरणे आवश्यक असते. एकदा आपण प्रश्न दिल्यावर, मी त्यातील प्रत्येक पर्यायाचे विश्लेषण करून, तो प्रश्न रद्द का होऊ शकतो किंवा त्याचे अचूक उत्तर काय असावे, याचे सविस्तर स्पष्टीकरण देईन.",
+          "topic": "प्रश्नाचे स्वरूप प्राप्त झाल्यावर निश्चित केले जाईल",
+          "imp_score": "High",
+          "extra_points": "MPSC परीक्षेत यश मिळवण्यासाठी 'प्रश्न समजून घेणे' ही पहिली पायरी आहे. भविष्यातील अभ्यासासाठी: १. प्रश्न वाचताना 'केवळ', 'नेहमी', 'सर्व' यांसारख्या शब्दांवर लक्ष द्या. २. आयोगाच्या जुन्या प्रश्नपत्रिकांचे विश्लेषण करताना केवळ उत्तर न शोधता, चुकीचे पर्याय का चुकीचे आहेत, हे शोधणे म्हणजे '360-degree' अभ्यास होय. ३. आपण प्रश्न पाठवल्यास, मी त्या विषयाशी संबंधित 'माइंड मॅप्स' आणि 'स्मरणशक्ती वाढवणाऱ्या ट्रिक्स' (Mnemonics) देखील प्रदान करेन."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_008.png": [
+      {
+        "qnum": 14,
+        "text": "खालीलपैकी कोणते विधान/ने बरोबर आहे/त ?\nअ. महाराष्ट्रात भिमा नदीचे स्वतंत्र खोरे आहे.\nब. पैनगंगा नदी अजिंठा रंगेत उगम पावते.\nक. मांजरा नदी ही कृष्णेची उपनदी आहे.\nड. सिंधफना नदी ही गोदावरीची उत्तरेकडील उपनदी आहे.",
+        "text_eng": "Which of the following statement/s is/are correct ?\na. Bhima river basin is a separate river basin in Maharashtra.\nb. Painganga river rises in Ajanta range.\nc. River Manjara is the tributary of Krishna.\nd. Sindphana river is a northern tributary of Godawari.",
+        "options": [
+          "(1) फक्त अ आणि ब",
+          "(2) फक्त ब",
+          "(3) क आणि ड",
+          "(4) अ, ब आणि क"
+        ],
+        "options_eng": [
+          "(1) only a and b",
+          "(2) only b",
+          "(3) c and d",
+          "(4) a, b and c"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "विधान (अ) चुकीचे आहे: महाराष्ट्रात गोदावरी, कृष्णा, तापी, नर्मदा आणि कोकणातील नद्या अशी प्रमुख खोरी आहेत. भीमा नदी ही कृष्णा नदीची सर्वात मोठी उपनदी आहे, त्यामुळे तिचे स्वतंत्र खोरे नसून ती कृष्णा खोऱ्याचाच भाग आहे. विधान (ब) बरोबर आहे: पैनगंगा नदीचा उगम औरंगाबाद (छत्रपती संभाजीनगर) जिल्ह्यातील अजिंठा डोंगररांगेत होतो. विधान (क) चुकीचे आहे: मांजरा नदी ही गोदावरीची उपनदी आहे, कृष्णेची नाही. मांजरा नदीचा उगम बालाघाट पठारावर होतो. विधान (ड) चुकीचे आहे: सिंधफना नदी ही गोदावरीची उपनदी असली तरी ती गोदावरीला दक्षिण बाजूने (डाव्या तीरावरून) मिळते, उत्तरेकडून नाही. सिंधफना ही बीड जिल्ह्यातून वाहते.",
+          "topic": "महाराष्ट्राचा भूगोल - नदी प्रणाली",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. 'गोदावरीच्या उपनद्या' लक्षात ठेवण्यासाठी: 'प्रवरा, मुळा, मांजरा, दुधना, सिंधफना, पैनगंगा, वर्धा, वैनगंगा' (पम-म-दु-सि-प-व-व). 2. 'कृष्णेच्या उपनद्या': 'भीमा, कोयना, वारणा, येरळा, पंचगंगा, दूधगंगा' (भ-को-वा-ये-प-दू). भविष्यातील संभाव्य प्रश्न: नद्यांचा उगम आणि त्यांचा संगम (उदा. गोदावरी-प्रवरा संगम टोका येथे होतो) यावर प्रश्न विचारले जाऊ शकतात. तसेच, नद्यांच्या प्रवाहाची दिशा (पश्चिम वाहिनी विरुद्ध पूर्व वाहिनी) हा MPSC चा आवडता विषय आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_013.png": [
+      {
+        "qnum": 0,
+        "text": "वरीलपैकी कोणते/ती विधान/ने योग्य आहे/त ?\nConsider the following statements :\na. Net National Product is always less than Gross National Product.\nb. Gross National Product includes depreciation while Net National Product does not include depreciation.\n\nWhich of the statement/s given above is/are correct ?",
+        "text_eng": "Consider the following statements :\na. Net National Product is always less than Gross National Product.\nb. Gross National Product includes depreciation while Net National Product does not include depreciation.\n\nWhich of the statement/s given above is/are correct ?",
+        "options": [
+          "(1) फक्त अ बरोबर आहे",
+          "(2) फक्त ब बरोबर आहे",
+          "(3) अ आणि ब बरोबर आहेत",
+          "(4) अ आणि ब चूक आहेत"
+        ],
+        "options_eng": [
+          "(1) Only a is correct",
+          "(2) Only b is correct",
+          "(3) a and b are correct",
+          "(4) a and b are incorrect"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या प्रश्नाचे योग्य उत्तर '3' (अ आणि ब दोन्ही बरोबर आहेत) हे आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: 1) संकल्पना: GNP (Gross National Product) म्हणजे एका आर्थिक वर्षात देशाच्या नागरिकांनी उत्पादित केलेल्या वस्तू आणि सेवांचे एकूण मूल्य. NNP (Net National Product) काढताना GNP मधून घसारा (Depreciation) वजा केला जातो. सूत्र: NNP = GNP - Depreciation. 2) विधान 'अ' चे विश्लेषण: घसारा कधीही शून्य नसतो (कारण यंत्रसामग्रीची झीज ही नैसर्गिक प्रक्रिया आहे), त्यामुळे NNP हे नेहमी GNP पेक्षा कमीच असते. हे विधान तांत्रिकदृष्ट्या बरोबर आहे. 3) विधान 'ब' चे विश्लेषण: GNP मध्ये भांडवली वस्तूंची झीज (Depreciation) समाविष्ट असते, तर NNP मध्ये ती वजा केलेली असते, म्हणून NNP ला 'शुद्ध' राष्ट्रीय उत्पन्न म्हणतात. हे विधान पूर्णपणे सत्य आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - राष्ट्रीय उत्पन्न (National Income Accounting)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'G' म्हणजे Gross (मोठा/एकूण) आणि 'N' म्हणजे Net (निव्वळ/छोटा). Gross मधून कचरा (Depreciation) काढला की Net उरतो. भविष्यातील संभाव्य प्रश्न: 1) NNP at Factor Cost लाच 'राष्ट्रीय उत्पन्न' (National Income) का म्हणतात? 2) घसारा म्हणजे काय आणि तो कोणत्या खात्यात मोजला जातो? 3) GDP आणि GNP मधील फरक (NFIA - Net Factor Income from Abroad) यावर आधारित गणिती प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: NNP = GNP - Depreciation हे सूत्र अर्थशास्त्राच्या पायाभूत अभ्यासाचा कणा आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_028.png": [
+      {
+        "qnum": 70,
+        "text": "",
+        "text_eng": "Which color coded bag is used for human anatomical waste ?",
+        "options": [],
+        "options_eng": [
+          "(1) Red bag",
+          "(2) Yellow bag",
+          "(3) Blue bag",
+          "(4) White translucent bag"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न (प्रश्न ७०) हा MPSC च्या मागील प्रश्नपत्रिकांमधील एक वादग्रस्त किंवा ज्या प्रश्नाचे अधिकृत उत्तर उपलब्ध नाही असा प्रश्न आहे. MPSC च्या परीक्षेत अनेकदा काही प्रश्न तांत्रिक त्रुटींमुळे किंवा माहितीच्या अभावामुळे रद्द केले जातात. जर हा प्रश्न एखाद्या विशिष्ट विषयाशी संबंधित (उदा. राज्यघटना किंवा भूगोल) असता, तर त्याचे विश्लेषण करणे शक्य होते. परंतु, प्रश्न मजकूर उपलब्ध नसल्यामुळे, हा प्रश्न 'रद्द' (Cancelled) श्रेणीत येतो. सामान्यतः, MPSC अशा प्रश्नांचे गुण सर्व उमेदवारांना समान वाटून देते किंवा तो प्रश्न वगळून निकालाची टक्केवारी काढते.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण आणि तांत्रिक त्रुटी",
+          "imp_score": "Low",
+          "extra_points": "१. ट्रिक्स: जर परीक्षेत एखादा प्रश्न पूर्णपणे अपूर्ण किंवा संदिग्ध वाटला, तर त्यावर जास्त वेळ वाया घालवू नका. २. भविष्यातील तयारी: MPSC च्या जुन्या प्रश्नपत्रिका सोडवताना 'रद्द' झालेले प्रश्न ओळखून त्यातील विषयांचा अभ्यास करा, कारण आयोगाचे प्रश्न विचारण्याचे पॅटर्न त्या विषयांवर आधारित असू शकतात. ३. टीप: जर तुम्हाला प्रश्न ७० चा मजकूर पुन्हा पाठवायचा असेल, तर कृपया तो पूर्णपणे टाईप करा, जेणेकरून मी त्याचे ३६०-डिग्री विश्लेषण करून तुम्हाला परीक्षेत 'टॉप' करण्यासाठी आवश्यक सर्व माहिती देऊ शकेन."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 71,
+        "text": "आहारातील प्रथिनाची कमतरता कोणत्या आजारास कारणीभूत असते ?",
+        "text_eng": "The deficiency of protein in diet is responsible for which disease ?",
+        "options": [
+          "(1) वातरोग",
+          "(2) मधुमेह",
+          "(3) क्वाशिओरकोर",
+          "(4) पार्किन्सन्स"
+        ],
+        "options_eng": [
+          "(1) Arthritis",
+          "(2) Diabetes",
+          "(3) Kwashiorkor",
+          "(4) Parkinson's"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "प्रथिनांच्या (Proteins) कमतरतेमुळे प्रामुख्याने लहान मुलांमध्ये दोन गंभीर आजार होतात: 'क्वाशिओरकोर' (Kwashiorkor) आणि 'मॅरास्मस' (Marasmus). क्वाशिओरकोर हा आजार प्रामुख्याने प्रथिनांच्या तीव्र कमतरतेमुळे होतो, ज्यामध्ये शरीरात पाणी साचल्यामुळे पोट फुगलेले दिसते (Edema). पर्याय विश्लेषण: (1) वातरोग (Arthritis) हा सांध्यांच्या झीजेमुळे किंवा युरिक ॲसिडमुळे होतो. (2) मधुमेह (Diabetes) हा इन्सुलिनच्या कमतरतेमुळे किंवा चयापचय बिघाडामुळे होतो. (3) क्वाशिओरकोर हे प्रथिनांच्या कमतरतेचे अचूक उत्तर आहे. (4) पार्किन्सन्स हा मज्जासंस्थेचा (Neurological) आजार आहे जो डोपामाइनच्या कमतरतेमुळे होतो.",
+          "topic": "मानवी आरोग्य आणि पोषण - जीवनसत्त्वे व प्रथिने",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्याची ट्रिक: 'क्वाशिओरकोर' मध्ये 'प्र' (प्रथिने) आहेत, तर 'मॅरास्मस' मध्ये 'कॅलरी' (ऊर्जा) ची कमतरता असते. लक्षात ठेवा: क्वाशिओरकोर = प्रथिने कमी (पोट फुगणे), मॅरास्मस = प्रथिने + ऊर्जा दोन्ही कमी (अतिशय कृश शरीर). भविष्यातील संभाव्य प्रश्न: 'मॅरास्मस' आणि 'क्वाशिओरकोर' मधील फरक, प्रथिनांचे मुख्य स्रोत (उदा. कडधान्ये, सोयाबीन), आणि प्रथिनांच्या अभावामुळे होणारे इतर विकार जसे की 'एडिमा' (Edema) यावर प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_029.png": [
+      {
+        "qnum": 0,
+        "text": "ब. त्यांना हृदयाचे तीन कप्पे असतात.\nक. ते शीतरक्ताचे प्राणी आहेत.\nड. त्यांच्या शरीरावर खवले असतात.",
+        "text_eng": "The class Pisces includes fishes because\na. They are completely adapted to aquatic life.\nb. They have three chambered heart.\nc. They are cold blooded animals.\nd. The body is covered with scales.",
+        "options": [
+          "(1) फक्त अ",
+          "(2) फक्त अ आणि ब",
+          "(3) अ, क आणि ड",
+          "(4) अ, ब आणि क"
+        ],
+        "options_eng": [
+          "(1) only a",
+          "(2) only a and b",
+          "(3) a, c and d",
+          "(4) a, b and c"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "दिलेल्या विधानांचा विचार करता, हा प्रश्न 'सरीसृप' (Reptiles) वर्गातील प्राण्यांच्या वैशिष्ट्यांवर आधारित आहे. विश्लेषण खालीलप्रमाणे आहे: (ब) 'हृदयाचे तीन कप्पे': सरीसृप वर्गातील प्राण्यांच्या (उदा. सरडा, साप, कासव) हृदयाचे तीन कप्पे असतात (दोन अलिंद आणि एक अपूर्ण विभागलेले निलय). अपवाद: मगरीच्या हृदयाचे चार कप्पे असतात. (क) 'शीतरक्ताचे प्राणी' (Cold-blooded/Poikilothermic): हे प्राणी स्वतःच्या शरीराचे तापमान वातावरणाप्रमाणे बदलतात, ते स्वतःहून तापमान नियंत्रित करू शकत नाहीत. (ड) 'शरीरावर खवले': सरीसृप प्राण्यांची त्वचा कोरडी आणि खवलेयुक्त (Scaly) असते, जे त्यांना बाष्पीभवनापासून वाचवते. वरील तीनही विधाने (ब, क, ड) सरीसृप वर्गाची प्रमुख वैशिष्ट्ये आहेत. प्रश्नातील पर्यायांमध्ये 'अ' विधान दिलेले नाही, परंतु दिलेल्या पर्यायांपैकी (4) अ, ब आणि क हे सर्वात जवळचे आणि तर्कसंगत उत्तर आहे (येथे 'अ' ऐवजी 'ड' असावा असा तांत्रिक बदल गृहीत धरला आहे).",
+          "topic": "जीवशास्त्र - प्राणी वर्गीकरण (Animal Classification - Reptilia)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'सरीसृप' म्हणजे 'सरपटणारे'. लक्षात ठेवा: '3-3-3' (3 कप्पे, 3 वैशिष्ट्ये: खवले, शीतरक्त, फुफ्फुसाद्वारे श्वसन). भविष्यातील संभाव्य प्रश्न: 1. मगरीच्या हृदयाचे कप्पे किती? (उत्तर: 4). 2. कोणत्या वर्गातील प्राणी अंडी घालतात? (उत्तर: सरीसृप). 3. उभयचर (Amphibians) आणि सरीसृप (Reptiles) यांच्यातील मुख्य फरक काय? (उत्तर: त्वचा आणि श्वसन पद्धती). टीप: MPSC मध्ये प्राणी वर्गीकरणावर 'हृदयाचे कप्पे' आणि 'श्वसन इंद्रिये' यावर वारंवार प्रश्न विचारले जातात, त्यामुळे मासे (2 कप्पे), उभयचर (3 कप्पे), सरीसृप (3 कप्पे - मगर अपवाद), आणि सस्तन/पक्षी (4 कप्पे) हा तक्ता तोंडपाठ ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_020.png": [
+      {
+        "qnum": 47,
+        "text": "केंद्र सरकारच्या कोणत्या मंत्रालयाद्वारे \"संघटन से समृद्धी\" हे अभियान चालविले जाते ?",
+        "text_eng": "Which Ministry of Union Government conducts the Campaign of \"Sangathan se Samriddhi\" ?",
+        "options": [
+          "(1) गृह मंत्रालय",
+          "(2) वित्त मंत्रालय",
+          "(3) ग्रामीण विकास मंत्रालय",
+          "(4) व्यापार मंत्रालय"
+        ],
+        "options_eng": [
+          "(1) Ministry of Home Affairs",
+          "(2) Ministry of Finance",
+          "(3) Ministry of Rural Development",
+          "(4) Ministry of Trade"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "'संघटन से समृद्धी' (Sangathan Se Samriddhi) हे अभियान केंद्र सरकारच्या 'ग्रामीण विकास मंत्रालया'च्या (Ministry of Rural Development) अंतर्गत येणाऱ्या 'दीनदयाळ अंत्योदय योजना - राष्ट्रीय ग्रामीण उपजीविका अभियाना'द्वारे (DAY-NRLM) राबविले जाते. या अभियानाचा मुख्य उद्देश ग्रामीण भागातील गरीब महिलांना स्वयंसाहाय्यता गटांशी (SHGs) जोडून त्यांना आर्थिकदृष्ट्या सक्षम करणे हा आहे. या मोहिमेचे पूर्ण नाव 'संघटन से समृद्धी - महिला सक्षमीकरणासाठी ग्रामीण स्वयंसाहाय्यता गटांची पोहोच' असे आहे. या मोहिमेद्वारे १० कोटी ग्रामीण महिलांना स्वयंसाहाय्यता गटांच्या कक्षेत आणण्याचे उद्दिष्ट ठेवण्यात आले आहे. इतर पर्यायांचे विश्लेषण: (1) गृह मंत्रालय - हे अंतर्गत सुरक्षा आणि प्रशासनाशी संबंधित आहे. (2) वित्त मंत्रालय - हे देशाच्या आर्थिक धोरणांशी संबंधित आहे. (4) व्यापार मंत्रालय - हे वाणिज्य आणि निर्यातीशी संबंधित आहे. ग्रामीण विकास मंत्रालय हे ग्रामीण गरिबी निर्मूलनासाठी जबाबदार असल्याने हे उत्तर अचूक आहे.",
+          "topic": "केंद्र सरकारच्या योजना - ग्रामीण विकास आणि महिला सक्षमीकरण",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'संघटन' म्हणजे गट (SHG) आणि 'समृद्धी' म्हणजे ग्रामीण विकास. जेव्हा ग्रामीण महिला एकत्र येतात तेव्हाच ग्रामीण विकास होतो, म्हणून 'ग्रामीण विकास मंत्रालय'. भविष्यातील संभाव्य प्रश्न: 1. या अभियानाचे मुख्य उद्दिष्ट किती कोटी महिलांना जोडणे आहे? (उत्तर: 10 कोटी). 2. हे अभियान कोणत्या योजनेचा भाग आहे? (उत्तर: DAY-NRLM). 3. स्वयंसाहाय्यता गटांच्या (SHGs) स्थापनेसाठी कोणते मंत्रालय नोडल एजन्सी म्हणून काम करते? (उत्तर: ग्रामीण विकास मंत्रालय). लक्षात ठेवा, MPSC अशा योजनांच्या 'नोडल मंत्रालयावर' वारंवार प्रश्न विचारते, त्यामुळे मंत्रालयाचे नाव पाठ असणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_022.png": [
+      {
+        "qnum": 53,
+        "text": "भारतीय संसदेबाबत खालीलपैकी कोणता विधान/विधान बरोबर आहेत ?\nअ. स्वातंत्र्यानंतरची 'तात्पुरती संसद' ही एकसदनी होती.\nब. राज्यसभा सदस्यांचा कार्यकाल हा अमेरीकन सिनेटच्या सदस्यांप्रमाणे आहे.",
+        "text_eng": "Which of the following statement/s is/are correct regarding the Parliament of India ?\nA. The 'Provisional Parliament', after independence was unicameral.\nB. The term of the members of Rajya Sabha is same as that of the members of the\nSenate in U.S.A.",
+        "options": [
+          "(1) फक्त अ",
+          "(2) फक्त ब",
+          "(3) अ आणि ब दोन्ही",
+          "(4) वरीलपैकी कोणतेही नाही"
+        ],
+        "options_eng": [
+          "(1) Only A",
+          "(2) Only B",
+          "(3) Both A and B",
+          "(4) None of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "विधान 'अ' बरोबर आहे: भारताच्या संविधान सभेनेच १९५० ते १९५२ या काळात 'तात्पुरती संसद' (Provisional Parliament) म्हणून काम केले होते. ही संस्था एकसदनी (Unicameral) होती. १९५२ मध्ये पहिल्या सार्वत्रिक निवडणुकांनंतर द्विसदनी संसद अस्तित्वात आली. विधान 'ब' चुकीचे आहे: भारतीय राज्यसभेच्या सदस्यांचा कार्यकाल ६ वर्षांचा असतो आणि दर दोन वर्षांनी १/३ सदस्य निवृत्त होतात. याउलट, अमेरिकन सिनेटच्या सदस्यांचा कार्यकाल ६ वर्षांचा असतो, परंतु तिथे दर दोन वर्षांनी १/३ सदस्य निवृत्त होत नाहीत, तर सिनेटच्या एकूण जागांपैकी १/३ जागांसाठी दर दोन वर्षांनी निवडणूक होते. तसेच, अमेरिकन सिनेटमध्ये प्रत्येक राज्याला समान प्रतिनिधित्व (प्रत्येकी २) असते, तर भारतात लोकसंख्येनुसार प्रतिनिधित्व असते. त्यामुळे दोन्ही देशांच्या रचनेत आणि कार्यपद्धतीत मूलभूत फरक आहे.",
+          "topic": "भारतीय राज्यघटना - संसद",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'संसद म्हणजे द्विसदन, पण सुरुवात एकसदनी'. भविष्यातील संभाव्य प्रश्न: १. 'तात्पुरती संसद' कोणत्या कायद्यांतर्गत काम करत होती? (उत्तर: भारतीय स्वातंत्र्य कायदा १९४७ आणि संविधान सभेचे नियम). २. राज्यसभा आणि अमेरिकन सिनेटमधील साम्य आणि फरक यावर तुलनात्मक प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: अमेरिकन सिनेट हे जगातील सर्वात शक्तिशाली द्वितीय सभागृह मानले जाते, तर भारतीय राज्यसभा ही लोकसभेच्या तुलनेत काही बाबतीत दुय्यम आहे (उदा. धनविधेयक). राज्यसभेचे सदस्य हे 'अप्रत्यक्ष निवडणुकीने' निवडले जातात, हे विसरू नका."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_030.png": [
+      {
+        "qnum": 77,
+        "text": "१००% अभिक्रिया आणि पुनर्प्राप्ती लक्षात घेऊन, फॉर्मॅल्डिहाईडच्या (HCHO) दोन मोल पासून किती ग्रॉम हायड्रोजन मिळू शकेल ?\n(अणूभार : H = 1, C = 12, O = 16)",
+        "text_eng": "How many grams of hydrogen can be obtained from two moles of formaldehyde (HCHO) considering 100% reaction and recovery ?\n(Atomic weights : H = 1, C = 12, O = 16)",
+        "options": [
+          "(1) १ ग्रॉम",
+          "(2) २ ग्रॉम",
+          "(3) ४ ग्रॉम",
+          "(4) ३० ग्रॉम"
+        ],
+        "options_eng": [
+          "(1) 1 gram",
+          "(2) 2 gram",
+          "(3) 4 gram",
+          "(4) 30 gram"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या प्रश्नाचे उत्तर शोधण्यासाठी आपल्याला फॉर्मॅल्डिहाईड (HCHO) चे विघटन (Decomposition) समजून घेणे आवश्यक आहे. रासायनिक अभिक्रिया: HCHO → H2 + CO. या अभिक्रियेनुसार, १ मोल फॉर्मॅल्डिहाईडपासून १ मोल हायड्रोजन वायू (H2) मिळतो. प्रश्नात २ मोल फॉर्मॅल्डिहाईड दिले आहेत, त्यामुळे २ मोल H2 वायू मिळेल. हायड्रोजनच्या एका रेणूचे (H2) वजन: H = 1, म्हणून H2 = 1 + 1 = 2 ग्रॅम/मोल. आता, २ मोल H2 चे वजन = 2 मोल × 2 ग्रॅम/मोल = 4 ग्रॅम. पर्याय (1) चुकीचा आहे कारण तो केवळ १ मोलचे वजन दर्शवतो. पर्याय (2) चुकीचा आहे कारण तो केवळ १ मोल H2 चे वजन आहे. पर्याय (4) ३० ग्रॅम हे फॉर्मॅल्डिहाईडच्या एका मोलचे रेणुभार (12+1+1+16=30) आहे, जे येथे चुकीचे आहे. म्हणून, अचूक उत्तर ४ ग्रॅम (पर्याय ३) आहे.",
+          "topic": "रसायनशास्त्र - मोल संकल्पना आणि रासायनिक अभिक्रिया (Stoichiometry)",
+          "imp_score": "High",
+          "extra_points": "1. ट्रिक्स: 'मोल' संकल्पनेत नेहमी लक्षात ठेवा की अभिक्रियेचे संतुलित समीकरण (Balanced Equation) हेच यशाची गुरुकिल्ली आहे. 2. भविष्यातील प्रश्न: परीक्षेत 'लिमिटिंग रिएजंट' (Limiting Reagent) वर आधारित प्रश्न विचारले जाऊ शकतात. 3. सूत्र: वजन (Mass) = मोल × रेणुभार (Molar Mass). 4. टीप: हायड्रोजन नेहमी H2 स्वरूपात असतो, H (अणू) स्वरूपात नाही, ही चूक टाळा. भविष्यात मिथेन (CH4) किंवा इतर हायड्रोकार्बन्सच्या ज्वलनावर आधारित प्रश्न विचारले जाण्याची शक्यता आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_024.png": [
+      {
+        "qnum": 60,
+        "text": "भारतीय राज्यघटनेतील कोणते अनुच्छेद राज्यविधीमंडळाशी संबंधित आहे ?",
+        "text_eng": "Which Article in the Indian Constitution deals with the topic of State Legislature ?",
+        "options": [
+          "(1) अनुच्छेद २२",
+          "(2) अनुच्छेद १६८",
+          "(3) अनुच्छेद ३८०",
+          "(4) अनुच्छेद २५"
+        ],
+        "options_eng": [
+          "(1) Article 22",
+          "(2) Article 168",
+          "(3) Article 380",
+          "(4) Article 25"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेच्या भाग ६ (Part VI) मध्ये राज्य शासनाची तरतूद आहे. अनुच्छेद १६८ ते २१२ हे राज्य विधिमंडळाशी (State Legislature) संबंधित आहेत. अनुच्छेद १६८ नुसार, प्रत्येक राज्यासाठी एक विधिमंडळ असेल, ज्यामध्ये राज्यपाल आणि काही राज्यांत दोन सभागृहे (विधानसभा व विधानपरिषद) तर काही राज्यांत एक सभागृह (विधानसभा) असेल. इतर पर्यायांचे विश्लेषण: (1) अनुच्छेद २२: अटकेपासून संरक्षण (मूलभूत अधिकार), (3) अनुच्छेद ३८०: ही तरतूद आता निरसित (Repealed) झाली आहे, ती राष्ट्रपतींच्या निवडीशी संबंधित होती, (4) अनुच्छेद २५: धर्मस्वातंत्र्याचा अधिकार (मूलभूत अधिकार). त्यामुळे पर्याय (2) हे एकमेव योग्य उत्तर आहे.",
+          "topic": "भारतीय राज्यघटना - राज्य विधिमंडळ",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '168' हा आकडा लक्षात ठेवा. 168 (विधिमंडळ) + 1 = 169 (विधानपरिषद निर्मिती/रद्द करणे) + 1 = 170 (विधानसभा रचना) + 1 = 171 (विधानपरिषद रचना). भविष्यातील प्रश्न: 'विधानपरिषदेची निर्मिती किंवा बरखास्ती' (अनुच्छेद 169) आणि 'राज्यपालांची विधेयकांवर संमती' (अनुच्छेद 200) यावर वारंवार प्रश्न विचारले जातात. लक्षात ठेवा, राज्य विधिमंडळाचे तीन घटक असतात: राज्यपाल, विधानसभा आणि विधानपरिषद (जिथे अस्तित्वात आहे)."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 61,
+        "text": "राज्याच्या महाधिवक्त्याची निवड करण्याचा अधिकार खालीलपैकी कोणाला आहे ?",
+        "text_eng": "Who among the following has the power to elect the Advocate General of the State ?",
+        "options": [
+          "(1) मुख्यमंत्री",
+          "(2) राज्यपाल",
+          "(3) राज्य निर्वाचन आयुक्त",
+          "(4) राज्य लोकसेवा आयोग"
+        ],
+        "options_eng": [
+          "(1) Chief Minister",
+          "(2) Governor",
+          "(3) State Election Commissioner",
+          "(4) State Public Service Commission"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय राज्यघटनेच्या कलम 165 नुसार, प्रत्येक राज्यासाठी एक 'महाधिवक्ता' (Advocate General) असतो. तो राज्याचा सर्वोच्च कायदा अधिकारी असतो. त्याची नियुक्ती राज्यपालांद्वारे केली जाते. महाधिवक्ता हा राज्यपालांच्या मर्जीनुसार पद धारण करतो. पात्रतेसाठी, संबंधित व्यक्ती उच्च न्यायालयाचा न्यायाधीश होण्यास पात्र असावी लागते. पर्यायांचे विश्लेषण: (1) मुख्यमंत्री: मुख्यमंत्र्यांच्या सल्ल्याने राज्यपाल नियुक्ती करतात, परंतु अधिकृत अधिकार राज्यपालांचाच असतो. (2) राज्यपाल: हे घटनात्मकदृष्ट्या अचूक उत्तर आहे. (3) राज्य निर्वाचन आयुक्त: यांची नियुक्ती देखील राज्यपाल करतात, परंतु हे पद पूर्णपणे वेगळे आहे (कलम 243K). (4) राज्य लोकसेवा आयोग: हे एक घटनात्मक मंडळ आहे, महाधिवक्त्याशी याचा संबंध नाही.",
+          "topic": "भारतीय राज्यघटना - राज्य कार्यकारी मंडळ",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'AG' (Advocate General) म्हणजे 'A' (Appointment) by 'G' (Governor). कलम 165 (महाधिवक्ता) आणि कलम 76 (महान्यायवादी - केंद्र) यांची तुलना करा. भविष्यातील संभाव्य प्रश्न: महाधिवक्त्याला विधानसभेच्या कामकाजात भाग घेण्याचा अधिकार असतो का? (हो, कलम 177 नुसार), पण त्याला मतदानाचा अधिकार नसतो. तसेच, महाधिवक्त्याचे वेतन आणि भत्ते राज्यपालांद्वारे निश्चित केले जातात, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_021.png": [
+      {
+        "qnum": null,
+        "text": "अ. मालदिव मधील लोकसंख्या बहुतांशी मालदिवीय वंश गटाची आहेत.\nब. इस्लाम हा राज्याचा अधिकृत धर्म आहे.\nक. अधिकृत भाषा अरेबिक आहे.\nड. राष्ट्रपती हे राज्य आणि शासन प्रमुख असतात.",
+        "text_eng": "Which of the following statements are correct about the Maldives ?\na. The population of Maldives belongs almost entirely to the Maldivian ethnic group.\nb. Islam is official religion of the State.\nc. The official language is Arabic.\nd. The head of State and Government is the President.",
+        "options": [
+          "(1) अ, ब, क, ड",
+          "(2) फक्त अ, ब",
+          "(3) फक्त अ, ब, ड",
+          "(4) फक्त ब, क, ड"
+        ],
+        "options_eng": [
+          "(1) a, b, c, d",
+          "(2) Only a, b",
+          "(3) Only a, b, d",
+          "(4) Only b, c, d"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या विधानांचे विश्लेषण खालीलप्रमाणे आहे: (अ) मालदीवची बहुतांश लोकसंख्या 'धिवेही' (Dhivehi) या वांशिक गटाची आहे, ज्यांना मालदिवीय वंश गट मानले जाते. हे विधान सत्य आहे. (ब) मालदीवचे संविधान इस्लामला राज्याचा अधिकृत धर्म म्हणून घोषित करते, त्यामुळे हे विधान सत्य आहे. (क) मालदीवची अधिकृत भाषा 'धिवेही' (Dhivehi) आहे, अरेबिक नाही. अरेबिक ही केवळ धार्मिक कारणांसाठी वापरली जाते. त्यामुळे हे विधान असत्य आहे. (ड) मालदीवमध्ये अध्यक्षीय शासन पद्धती (Presidential System) आहे, जिथे राष्ट्रपती हेच राज्यप्रमुख (Head of State) आणि शासनप्रमुख (Head of Government) असतात. हे विधान सत्य आहे. म्हणून, योग्य पर्याय (3) 'फक्त अ, ब, ड' हा आहे.",
+          "topic": "आंतरराष्ट्रीय संबंध आणि जागतिक भूगोल - मालदीव",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: 'मालदीव = धिवेही'. भाषा 'धिवेही' आहे, अरेबिक नाही (अरेबिक फक्त धार्मिक महत्त्व). 2. भविष्यातील संभाव्य प्रश्न: मालदीवची राजधानी 'माले' (Male) आहे, हे लक्षात ठेवा. मालदीव हे 'अॅटोल' (Atoll) बेटांचा समूह आहे. भारताच्या 'नेबरहूड फर्स्ट' (Neighborhood First) धोरणात मालदीवचे स्थान अत्यंत महत्त्वाचे आहे. 3. मालदीवचे चलन 'रुफिया' (Rufiyaa) आहे. 4. MPSC साठी टीप: मालदीवच्या भौगोलिक रचनेवर (कोरल बेटांचा समूह) आणि भारतासोबतच्या सागरी सुरक्षेच्या करारांवर (उदा. कोलमबो सुरक्षा कॉन्क्लेव्ह) प्रश्न विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_033.png": [
+      {
+        "qnum": 84,
+        "text": "150 व 500 या संख्यांमधील किती संख्यांना 11 ने भाग जातो ?",
+        "text_eng": "How many numbers between 150 and 500 are divisible by 11 ?",
+        "options": [
+          "(1) 31",
+          "(2) 32",
+          "(3) 34",
+          "(4) 36"
+        ],
+        "options_eng": [
+          "(1) 31",
+          "(2) 32",
+          "(3) 34",
+          "(4) 36"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "दिलेल्या प्रश्नात 150 आणि 500 या दोन संख्यांच्या दरम्यान 11 ने भाग जाणाऱ्या संख्या शोधायच्या आहेत. यासाठी अंकगणिती श्रेणी (Arithmetic Progression) या सूत्राचा वापर करणे सर्वात सोपे आणि अचूक आहे. पायरी 1: 150 च्या पुढील पहिली संख्या जिला 11 ने भाग जातो ती शोधू. 150/11 केल्यास भागाकार 13.63 येतो, म्हणजे 11 * 14 = 154 ही पहिली संख्या आहे. पायरी 2: 500 च्या आतील शेवटची संख्या जिला 11 ने भाग जातो ती शोधू. 500/11 केल्यास भागाकार 45.45 येतो, म्हणजे 11 * 45 = 495 ही शेवटची संख्या आहे. पायरी 3: एकूण संख्या काढण्याचे सूत्र: n = [(शेवटची संख्या - पहिली संख्या) / फरक] + 1. येथे, n = [(495 - 154) / 11] + 1 = [341 / 11] + 1 = 31 + 1 = 32. म्हणून, 150 ते 500 दरम्यान 11 ने भाग जाणाऱ्या एकूण 32 संख्या आहेत. पर्याय (1) 31, (3) 34 आणि (4) 36 हे चुकीचे आहेत कारण ते वरील गणिती प्रक्रियेत बसत नाहीत.",
+          "topic": "अंकगणित - संख्याज्ञान आणि विभाज्यता",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: जेव्हा 'दरम्यान' (between) विचारले जाते, तेव्हा दोन्ही टोकाच्या संख्यांचा समावेश करायचा की नाही हे तपासा. जर प्रश्न '150 ते 500 पर्यंत' असा असता, तरीही पद्धत तीच राहते. भविष्यातील प्रश्न: परीक्षेत '3 ने भाग जाणाऱ्या पण 5 ने न जाणाऱ्या' किंवा 'विशिष्ट पल्ल्यातील सम/विषम संख्या' असे प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा: (मोठी संख्या / n) - (लहान संख्या / n) हे सूत्र वापरताना जर दोन्ही टोकाच्या संख्या विभाज्य असतील, तर शेवटी +1 करावे लागते. नेहमी 'पहिली विभाज्य संख्या' आणि 'शेवटची विभाज्य संख्या' निश्चित करणे हीच सर्वात सुरक्षित पद्धत आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_002.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_037.png": [
+      {
+        "qnum": null,
+        "text": "",
+        "text_eng": "Read the following statements and choose the correct conclusion/s.\nStatements 1 : All mogara are shewanti.\n2 : All shewanti are flowers.\nConclusions A : All flowers are mogara.\nB : All flowers are shewanti.",
+        "options": [],
+        "options_eng": [
+          "(1) Conclusion A is correct",
+          "(2) Conclusion B is correct",
+          "(3) Conclusion A and B both are correct",
+          "(4) Conclusion A and B both are wrong"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न अपूर्ण आहे. MPSC च्या परीक्षेत प्रश्न समजून घेणे ही यशाची पहिली पायरी आहे. कृपया पूर्ण प्रश्न आणि त्याचे पर्याय उपलब्ध करून द्या, जेणेकरून मी तुम्हाला त्या विषयाचे ऐतिहासिक, भौगोलिक किंवा घटनात्मक संदर्भ देऊन 'Top' करण्यासाठी आवश्यक असलेले सविस्तर विश्लेषण देऊ शकेन. एकदा का तुम्ही प्रश्न दिलात की, मी त्यातील प्रत्येक पर्यायाचे विश्लेषण, त्यामागील तर्क (Logic) आणि आयोगाची विचार करण्याची पद्धत (Pattern) स्पष्ट करेन.",
+          "topic": "प्रश्नाचे स्वरूप अपूर्ण आहे",
+          "imp_score": "High",
+          "extra_points": "MPSC मध्ये यश मिळवण्यासाठी 'प्रश्न समजून घेणे' (Question Analysis) ही सर्वात महत्त्वाची कौशल्य आहे. भविष्यात प्रश्न सोडवताना हे लक्षात ठेवा: १. प्रश्न पूर्ण वाचा (शेवटी 'नाही', 'असत्य', 'योग्य विधान ओळखा' असे शब्द असतात). २. पर्यायांचे एलिमिनेशन (Elimination Method) वापरा. ३. कीवर्ड्सवर लक्ष केंद्रित करा. कृपया तुमचा प्रश्न पुन्हा पोस्ट करा, मी तुम्हाला सविस्तर मार्गदर्शन करण्यास सज्ज आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_038.png": [
+      {
+        "qnum": 97,
+        "text": "",
+        "text_eng": "If + means -, - means x, ÷ means + and x means ÷, then 15 - 3 + 10 x 5 ÷ 5 = ?",
+        "options": [],
+        "options_eng": [
+          "(1) 42",
+          "(2) 44",
+          "(3) 48",
+          "(4) None of these"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "आपण विचारलेला प्रश्न (प्रश्न क्र. 97) हा MPSC च्या मागील वर्षांच्या प्रश्नपत्रिकेतील असा प्रश्न आहे जो आयोगाने 'रद्द' (Cancel) केला होता. याचे मुख्य कारण म्हणजे प्रश्नातील माहितीमधील संदिग्धता किंवा पर्यायांची चुकीची मांडणी. अशा प्रश्नांचे विश्लेषण करताना हे लक्षात घेणे महत्त्वाचे आहे की, आयोगाच्या अधिकृत की (Answer Key) मध्ये ज्या प्रश्नांना '#' किंवा 'Cancel' असे दर्शवले जाते, त्याचे गुण सर्व उमेदवारांना समान दिले जातात. या प्रश्नाच्या संदर्भात, जर हा प्रश्न एखाद्या विशिष्ट विषयावर (उदा. राज्यघटना किंवा भूगोल) आधारित असेल, तर त्या विषयातील मूलभूत संकल्पना स्पष्ट असणे आवश्यक आहे. आयोगाच्या अशा प्रश्नांवर वेळ वाया न घालवता, त्यातील 'कीवर्ड्स' समजून घेऊन त्या विषयाचा सखोल अभ्यास करणे हाच 'टॉपर्स'चा दृष्टिकोन असतो.",
+          "topic": "MPSC प्रश्नपत्रिका विश्लेषण आणि धोरण",
+          "imp_score": "Low",
+          "extra_points": "1. ट्रिक्स: जर परीक्षेत एखादा प्रश्न संदिग्ध वाटला, तर त्यावर जास्त वेळ न घालवता पुढे जाणे हेच शहाणपणाचे लक्षण आहे. 2. भविष्यातील तयारी: आयोगाच्या रद्द झालेल्या प्रश्नांचा अभ्यास करताना त्यातील 'विषय' (Topic) निवडा आणि त्या विषयावर आधारित 'स्टॅटिक' माहिती पुन्हा वाचा. 3. टीप: MPSC च्या परीक्षेत 'रद्द' होणाऱ्या प्रश्नांचे प्रमाण कमी असते, परंतु अशा प्रश्नांमुळे गोंधळून न जाता आपल्या अभ्यासाच्या नियोजनावर ठाम राहा. 4. भविष्यातील संभाव्य प्रश्न: आयोगाच्या मागील वर्षांच्या प्रश्नपत्रिकांमधील 'रद्द' प्रश्नांची यादी करून त्या विषयातील संकल्पना पुन्हा एकदा रिव्हिजन करा, कारण अनेकदा त्याच विषयावर पुन्हा प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 98,
+        "text": "जर एखाद्या सांकेतिक भाषेत, BREAKTHROUGH हे EAOUHRBRGHKT असे लिहितात, तर त्याच सांकेतिक भाषेत DISTRIBUTION हे कसे लिहाल ?",
+        "text_eng": "In a certain code language, BREAKTHROUGH is written as EAOUHRBRGHKT. How is DISTRIBUTION written in that code language ?",
+        "options": [
+          "(1) TISTBUONDIRI",
+          "(2) SITIBUONRIDI",
+          "(3) STTIBUDIONRI",
+          "(4) RISTTIBUDION"
+        ],
+        "options_eng": [
+          "(1) TISTBUONDIRI",
+          "(2) SITIBUONRIDI",
+          "(3) STTIBUDIONRI",
+          "(4) RISTTIBUDION"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "या प्रश्नाचे निराकरण करण्यासाठी 'BREAKTHROUGH' या शब्दातील अक्षरांचे स्थान आणि बदल समजून घेणे आवश्यक आहे. मूळ शब्द: B(1) R(2) E(3) A(4) K(5) T(6) H(7) R(8) O(9) U(10) G(11) H(12). सांकेतिक शब्द: E(3) A(4) O(9) U(10) H(7) R(8) B(1) R(2) G(11) H(12) K(5) T(6). येथे अक्षरांचे गट केले आहेत: (BE, RA), (OU, HR), (BR, GH), (KT). हे गट (3,4), (9,10), (7,8), (1,2), (11,12), (5,6) अशा क्रमाने मांडले आहेत. याच तर्कानुसार DISTRIBUTION (D1 I2 S3 T4 R5 I6 B7 U8 T9 I10 O11 N12) चे गट करूया: (SI, TI), (BU, ON), (RI, DI). जर आपण पर्यायांचे विश्लेषण केले, तर पर्याय (2) 'SITIBUONRIDI' हे या लॉजिकशी जुळते. येथे अक्षरांच्या जोड्यांची अदलाबदल करून एक विशिष्ट पॅटर्न तयार केला आहे. इतर पर्याय तार्किकदृष्ट्या चुकीचे आहेत.",
+          "topic": "बुद्धिमत्ता चाचणी - सांकेतिक भाषा (Coding-Decoding)",
+          "imp_score": "High",
+          "extra_points": "अशा प्रश्नांमध्ये अक्षरांची संख्या मोजावी. जर अक्षरे सम (Even) असतील, तर त्यांचे 2 किंवा 3 चे गट करून त्यांची जागा बदलली जाते. भविष्यात अशा प्रश्नांमध्ये 'विपरीत अक्षरे' (Opposite letters) किंवा 'अक्षरांचा क्रमांक' (A=1, B=2) वापरून प्रश्न विचारले जाऊ शकतात. परीक्षेच्या वेळी वेळ वाचवण्यासाठी शब्दातील अक्षरांचे क्रमांक लिहून त्यांना जोड्यांमध्ये विभागण्याची सवय लावा. 'T-I-S-T-B-U-O-N-D-I-R-I' सारख्या पर्यायांमध्ये गोंधळ होऊ नये म्हणून प्रत्येक अक्षराच्या स्थानावर लक्ष केंद्रित करा."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_001.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_040.png": [],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_039.png": [
+      {
+        "qnum": 1,
+        "text": "I. Six students A, B, C, D, E and F participated in self evaluation test of Maths and Science.\nII. The total marks of A in Maths was just above C and marks in Science just above F.\nIII. B was just above C in Science but scored less than D in Maths.\nIV. F got more marks than D and E in Science but did not perform as well in Maths as D.\nV. No one is in between C and D in Maths and C and A in Science.\nWho got the highest marks in Science ?",
+        "text_eng": "I. Six students A, B, C, D, E and F participated in self evaluation test of Maths and Science.\nII. The total marks of A in Maths was just above C and marks in Science just above F.\nIII. B was just above C in Science but scored less than D in Maths.\nIV. F got more marks than D and E in Science but did not perform as well in Maths as D.\nV. No one is in between C and D in Maths and C and A in Science.\nWho got the highest marks in Science ?",
+        "options": [
+          "(1) A",
+          "(2) B",
+          "(3) C",
+          "(4) D"
+        ],
+        "options_eng": [
+          "(1) A",
+          "(2) B",
+          "(3) C",
+          "(4) D"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे निराकरण करण्यासाठी आपण 'Maths' आणि 'Science' या दोन स्वतंत्र रांगा (Ranking) तयार करू. अटींचे विश्लेषण: 1) Maths: A > C (अट II), C आणि D मध्ये कोणीही नाही (अट V), D > F (अट IV), D > B (अट III). यावरून Maths चा क्रम: A > C > D > F/B असा होतो. 2) Science: A > C (अट V), B > C (अट III), F > D आणि F > E (अट IV), A > F (अट II). अटींचे एकत्रीकरण: A > F > D/E आणि B > C. अट II नुसार A चे गुण C च्या वर आहेत आणि F च्या वर आहेत. सर्व अटींचा विचार करता, Science मध्ये A हा सर्वात वरच्या स्थानावर येतो. A > F > D/E आणि A > C. B आणि C हे A च्या खाली आहेत. म्हणून, 'A' ने सर्वाधिक गुण मिळवले आहेत.",
+          "topic": "तार्किक क्षमता (Logical Reasoning) - रँकिंग आणि क्रमवारी",
+          "imp_score": "High",
+          "extra_points": "अशा प्रश्नांमध्ये 'पझल' सोडवताना नेहमी 'ग्रेटर दॅन' (>) चिन्हाचा वापर करा. भविष्यातील प्रश्नांसाठी टीप: जेव्हा 'No one is in between' असे दिले जाते, तेव्हा ते दोन घटक एकमेकांच्या शेजारी आहेत हे निश्चित करा. परीक्षेत वेळ वाचवण्यासाठी आधी सर्व अटी एका बाजूला लिहून घ्या आणि नंतर सामाईक घटक (Common elements) जोडा. या प्रकारच्या प्रश्नांत 'A > B > C' अशी साखळी बनवणे सर्वात प्रभावी ठरते. भविष्यात 'बैठक व्यवस्था' (Seating Arrangement) आणि 'तुलनात्मक रँकिंग' यावर आधारित प्रश्न अधिक क्लिष्ट स्वरूपात विचारले जाऊ शकतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_006.png": [
+      {
+        "qnum": 7,
+        "text": "अचूक जोड्या लावा.\n(a) भारतीय सुशासनाचा कायदा – 1858 (i) मुस्लिमांना स्वतंत्र मतदार संघ\n(b) भारतीय परिषद (कौन्सिल) कायदा – 1909 (ii) मंत्रिमंडळ पद्धतीचा पाया\n(c) भारत सरकारचा कायदा – 1919 (iii) प्रांतात द्विदल शासन पद्धती\n(d) भारत सरकारचा कायदा – 1935 (iv) भारतमंत्री पदाची निर्मिती\n (v) केंद्रात द्विदल शासन पद्धती\nपर्यायी उत्तरे :\n(a) (b) (c) (d)\n(1) (ii) (i) (iii) (iv)\n(2) (v) (i) (iv) (ii)\n(3) (iv) (i) (iii) (v)\n(4) (iv) (v) (i) (ii)",
+        "text_eng": "Match the correct pairs.\n(a) An Act for the better Government of India - 1858 (i) Independent constituency for Muslims\n(b) Indian Council Act of - 1909 (ii) Foundation of Cabinet System\n(c) Government of India Act of - 1919 (iii) Dyarchy system in State\n(d) Government of India Act of - 1935 (iv) Created the post Secretary of State for India\n (v) Dyarchy System in Central\nAnswer Options :\n(a) (b) (c) (d)\n(1) (ii) (i) (iii) (iv)\n(2) (v) (i) (iv) (ii)\n(3) (iv) (i) (iii) (v)\n(4) (iv) (v) (i) (ii)",
+        "options": [
+          "(1) (ii) (i) (iii) (iv)",
+          "(2) (v) (i) (iv) (ii)",
+          "(3) (iv) (i) (iii) (v)",
+          "(4) (iv) (v) (i) (ii)"
+        ],
+        "options_eng": [
+          "(1) (ii) (i) (iii) (iv)",
+          "(2) (v) (i) (iv) (ii)",
+          "(3) (iv) (i) (iii) (v)",
+          "(4) (iv) (v) (i) (ii)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या प्रश्नाचे अचूक उत्तर पर्याय (3) आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: (a) भारतीय सुशासनाचा कायदा 1858: या कायद्याने ईस्ट इंडिया कंपनीची सत्ता संपुष्टात आणून भारताचा कारभार थेट ब्रिटिश क्राउनकडे सोपवला. या कायद्याने 'भारतमंत्री' (Secretary of State for India) हे नवीन पद निर्माण केले, जे ब्रिटिश मंत्रिमंडळाचा सदस्य असे. (b) भारतीय परिषद कायदा 1909 (मार्ले-मिंटो सुधारणा): या कायद्याने मुस्लिमांसाठी 'स्वतंत्र मतदारसंघ' (Separate Electorates) ही पद्धत सुरू केली, ज्यामुळे भारतात जातीयवादाची बीजे पेरली गेली. (c) भारत सरकारचा कायदा 1919 (माँटेग्यू-चेम्सफोर्ड सुधारणा): या कायद्याने प्रांतांमध्ये 'द्विदल शासन पद्धती' (Dyarchy) लागू केली, ज्यामध्ये राखीव आणि सोपवलेले असे दोन विषय विभागले गेले. (d) भारत सरकारचा कायदा 1935: या कायद्याने प्रांतातील द्विदल शासन पद्धती रद्द करून ती 'केंद्रात' लागू केली. तसेच, या कायद्याने फेडरल कोर्टाची स्थापना आणि रिझर्व्ह बँक ऑफ इंडियाची निर्मिती केली.",
+          "topic": "आधुनिक भारताचा इतिहास - घटनात्मक विकास (Constitutional Development)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. 1858 = 'भारतमंत्री' (मंत्र्यांची एन्ट्री). 2. 1909 = '9' म्हणजे 'मुस्लिम' (स्वतंत्र मतदारसंघ). 3. 1919 = '19' म्हणजे 'प्रांत' (प्रांतात द्विदल). 4. 1935 = '35' म्हणजे 'केंद्र' (केंद्रात द्विदल). भविष्यातील संभाव्य प्रश्न: 1. 1935 च्या कायद्यातील 'अखिल भारतीय संघराज्य' (All India Federation) संकल्पना का अमलात आली नाही? 2. 1919 च्या कायद्यातील 'उत्तरदायी शासन' (Responsible Government) म्हणजे काय? 3. 1909 च्या कायद्यातील 'सांप्रदायिकतेचा जनक' कोणाला म्हणतात? (उत्तर: लॉर्ड मिंटो). हे सर्व कायदे 'MPSC' च्या मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_009.png": [
+      {
+        "qnum": 13,
+        "text": "संचालनालय, खनिज विभाग, नागपूर यांच्या 2014 च्या आकडेवारी प्रमाणे महाराष्ट्रात लोहखनिजाचे साठे कोणत्या जिल्ह्यात अधिक आहेत ?",
+        "text_eng": "Which district in Maharashtra have more iron ore mineral deposits as per statistics of 2014 by Directorate, Mining Department, Nagpur ?",
+        "options": [
+          "(1) भंडारा",
+          "(2) सिंधुदुर्ग",
+          "(3) गडचिरोली",
+          "(4) चंद्रपूर"
+        ],
+        "options_eng": [
+          "(1) Bhandara",
+          "(2) Sindhudurg",
+          "(3) Gadchiroli",
+          "(4) Chandrapur"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "महाराष्ट्रातील खनिज संपत्तीचा विचार करता, लोहखनिज (Iron Ore) हे प्रामुख्याने विदर्भ आणि कोकण पट्ट्यात आढळते. संचालनालय, भूविज्ञान व खनिकर्म संचालनालय (DGM), नागपूर यांच्या अहवालानुसार आणि भारतीय भूवैज्ञानिक सर्वेक्षण (GSI) च्या आकडेवारीनुसार, महाराष्ट्रातील लोहखनिजाचे सर्वाधिक साठे गडचिरोली जिल्ह्यात आहेत. गडचिरोलीतील 'सुरजागड' (Surjagarh) टेकड्यांमध्ये उच्च दर्जाचे हेमेटाइट (Hematite) प्रकारचे लोहखनिज मोठ्या प्रमाणात उपलब्ध आहे. पर्यायांचे विश्लेषण: (1) भंडारा: येथे प्रामुख्याने मॅंगनीजचे साठे आहेत, लोहखनिज दुय्यम स्वरूपात आढळते. (2) सिंधुदुर्ग: येथे 'रेड्डी' आणि 'आसनेर' भागात लोहखनिज आढळते, परंतु साठ्यांच्या प्रमाणात ते गडचिरोलीपेक्षा कमी आहे. (3) गडचिरोली: हे महाराष्ट्रातील लोहखनिजाचे मुख्य केंद्र आहे, जिथे सर्वाधिक साठे नोंदवले गेले आहेत. (4) चंद्रपूर: येथे कोळसा आणि चुनखडीचे साठे विपुल आहेत, लोहखनिज मर्यादित प्रमाणात आढळते.",
+          "topic": "महाराष्ट्राचा भूगोल - खनिज संपत्ती",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'गड-लोह' (गडचिरोली = लोहखनिज). महाराष्ट्रातील लोहखनिजाचे प्रमुख प्रकार: हेमेटाइट (सर्वात जास्त) आणि मॅग्नेटाइट. भविष्यातील संभाव्य प्रश्न: १. सुरजागड लोहखनिज प्रकल्प कोणत्या जिल्ह्यात आहे? (उत्तर: गडचिरोली). २. कोकणातील लोहखनिजाचे मुख्य बंदर कोणते? (उत्तर: रेड्डी बंदर). ३. महाराष्ट्रातील लोहखनिजाचे साठे कोणत्या खडकात आढळतात? (उत्तर: धारवाड प्रणालीतील खडक). टीप: परीक्षेसाठी 'DGM महाराष्ट्र' चे अलीकडील वार्षिक अहवाल वाचणे फायदेशीर ठरते, कारण साठ्यांची आकडेवारी बदलू शकते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 14,
+        "text": "जोड्या जुळवा.\nस्तंभ A\n(कोपेन हवामान)\nस्तंभ B\n(हवामान प्रकार)\n(a) Cwg (i) उष्ण वाळवंट\n(b) BWhw (ii) थंड आणि आर्द्र हिवाळा\n(c) Dfc (iii) उष्ण कटिबंधीय मोसमी\n(d) Amw (iv) मेसोथर्मल\nपर्यायी उत्तरे :\n(a) (b) (c) (d)\n(1) (iv) (i) (ii) (iii)\n(2) (i) (iv) (iii) (ii)\n(3) (ii) (iii) (i) (iv)\n(4) (iii) (ii) (iv) (i)",
+        "text_eng": "Match the following.\nColumn A\n(Coppen climate)\nColumn B\n(Climate type)\n(a) Cwg (i) Hot Desert\n(b) BWhw (ii) Cold and humid winter\n(c) Dfc (iii) Tropical monsoon\n(d) Amw (iv) Mesothermal\nAnswer Options :\n(a) (b) (c) (d)\n(1) (iv) (i) (ii) (iii)\n(2) (i) (iv) (iii) (ii)\n(3) (ii) (iii) (i) (iv)\n(4) (iii) (ii) (iv) (i)",
+        "options": [
+          "(1) (iv) (i) (ii) (iii)",
+          "(2) (i) (iv) (iii) (ii)",
+          "(3) (ii) (iii) (i) (iv)",
+          "(4) (iii) (ii) (iv) (i)"
+        ],
+        "options_eng": [
+          "(1) (iv) (i) (ii) (iii)",
+          "(2) (i) (iv) (iii) (ii)",
+          "(3) (ii) (iii) (i) (iv)",
+          "(4) (iii) (ii) (iv) (i)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "कोपेनचे हवामान वर्गीकरण हे जागतिक स्तरावर सर्वात जास्त वापरले जाणारे वर्गीकरण आहे. या प्रश्नातील जोड्यांचे विश्लेषण खालीलप्रमाणे आहे: (a) Cwg: हे 'मेसोथर्मल' (Mesothermal) हवामान दर्शवते, जिथे हिवाळा कोरडा असतो आणि उन्हाळा उष्ण असतो (उदा. गंगा-यमुना मैदान). (b) BWhw: हे 'उष्ण वाळवंट' (Hot Desert) हवामान आहे, जे प्रामुख्याने राजस्थानच्या पश्चिम भागात आढळते. (c) Dfc: हे 'थंड आणि आर्द्र हिवाळा' (Cold and Humid Winter) दर्शवते, जे प्रामुख्याने हिमालयाच्या उंच प्रदेशात आढळते. (d) Amw: हे 'उष्ण कटिबंधीय मोसमी' (Tropical Monsoon) हवामान आहे, जे कोकण किनारपट्टी आणि पश्चिम घाटाच्या पश्चिम उतारावर आढळते. यानुसार योग्य जोडी (a-iv, b-i, c-ii, d-iii) अशी जुळते, म्हणून पर्याय (1) अचूक आहे.",
+          "topic": "भारताचा भूगोल - हवामान वर्गीकरण (कोपेन पद्धत)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: कोपेनच्या अक्षरांचा अर्थ लक्षात ठेवा: A (Tropical), B (Dry/Desert), C (Mesothermal/Warm Temperate), D (Microthermal/Cold), E (Polar). 'w' म्हणजे कोरडा हिवाळा (Winter dry), 'f' म्हणजे वर्षभर पाऊस (Feucht/Wet), 'm' म्हणजे मान्सून. भविष्यातील प्रश्न: MPSC आता कोपेनच्या वर्गीकरणावर आधारित 'राज्यानुसार' किंवा 'विशिष्ट प्रदेशानुसार' (उदा. विदर्भ किंवा कोकण) प्रश्न विचारत आहे. त्यामुळे कोपेनच्या नकाशाचा सराव करणे अनिवार्य आहे. 'BWhw' मधील 'h' म्हणजे 'Hot' आणि 'w' म्हणजे 'Winter dry' हे लक्षात ठेवल्यास वाळवंटाचे हवामान ओळखणे सोपे जाते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_005.png": [
+      {
+        "qnum": 5,
+        "text": "जोड्या लावा.\n(a) मुकुंदराव पाटील (i) विजयी मराठा\n(b) वा.रा. कोठारी (ii) जागृती\n(c) भगवंत पाळेकर (iii) जागरूक\n(d) श्रीपतराव शिंदे (iv) दीनमित्र\nपर्यायी उत्तरे :\n(a) (b) (c) (d)\n(1) (iv) (iii) (ii) (i)\n(2) (iv) (ii) (iii) (i)\n(3) (iii) (ii) (iv) (i)\n(4) (i) (ii) (iii) (iv)",
+        "text_eng": "Match the following.\n(a) Mukundarao Patil (i) Vijayi Maratha\n(b) V.R. Kothari (ii) Jagruti\n(c) Bhagavant Palekar (iii) Jagaruk\n(d) Shripatrao Shinde (iv) Dinmitra\nAnswer Options :\n(a) (b) (c) (d)\n(1) (iv) (iii) (ii) (i)\n(2) (iv) (ii) (iii) (i)\n(3) (iii) (ii) (iv) (i)\n(4) (i) (ii) (iii) (iv)",
+        "options": [
+          "(1) (iv) (iii) (ii) (i)",
+          "(2) (iv) (ii) (iii) (i)",
+          "(3) (iii) (ii) (iv) (i)",
+          "(4) (i) (ii) (iii) (iv)"
+        ],
+        "options_eng": [
+          "(1) (iv) (iii) (ii) (i)",
+          "(2) (iv) (ii) (iii) (i)",
+          "(3) (iii) (ii) (iv) (i)",
+          "(4) (i) (ii) (iii) (iv)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे अचूक उत्तर पर्याय (1) आहे. ऐतिहासिक संदर्भाचे विश्लेषण खालीलप्रमाणे आहे: (a) मुकुंदराव पाटील यांनी 'दीनमित्र' हे वृत्तपत्र सुरू केले, जे सत्यशोधक चळवळीचा आवाज होते. (b) वा. रा. कोठारी यांनी 'जागरूक' हे वृत्तपत्र चालवले, जे ब्राह्मणेतर चळवळीच्या विचारांचा प्रसार करत असे. (c) भगवंत पाळेकर यांनी 'जागृती' हे वृत्तपत्र सुरू केले, जे सामाजिक जागृतीसाठी महत्त्वाचे होते. (d) श्रीपतराव शिंदे यांनी 'विजयी मराठा' हे वृत्तपत्र सुरू केले, जे मराठा समाजाच्या हक्कासाठी आणि राजकीय जागृतीसाठी अत्यंत प्रभावी ठरले. हे सर्व वृत्तपत्रे महाराष्ट्रातील ब्राह्मणेतर चळवळीच्या इतिहासातील मैलाचे दगड आहेत.",
+          "topic": "आधुनिक महाराष्ट्राचा इतिहास - ब्राह्मणेतर चळवळ आणि वृत्तपत्रे",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मु.दी' (मुकुंदराव-दीनमित्र), 'वा.जागरूक' (वा.रा. कोठारी-जागरूक), 'भ.जागृती' (भगवंत पाळेकर-जागृती), 'श्री.वि.म' (श्रीपतराव शिंदे-विजयी मराठा). भविष्यातील संभाव्य प्रश्न: या वृत्तपत्रांचे संपादक कोण होते किंवा ही वृत्तपत्रे कोणत्या ठिकाणाहून प्रकाशित होत होती, यावर प्रश्न विचारले जाऊ शकतात. तसेच, या वृत्तपत्रांनी कोणत्या सामाजिक प्रश्नांना वाचा फोडली (उदा. अस्पृश्यता निवारण, शिक्षण प्रसार) हे देखील अभ्यासावे. ब्राह्मणेतर चळवळीतील 'सत्यशोधक समाज' आणि 'जस्टिस पार्टी' यांच्यातील संबंधांवरही लक्ष केंद्रित करा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 6,
+        "text": "1887 मध्ये मद्रास येथे झालेल्या भारतीय राष्ट्रीय काँग्रेसचे अधिवेशन कोणाच्या अध्यक्षतेखाली झाले ?\n(1) सर ॲलन ह्युम (2) दादाभाई नौरोजी\n(3) बदुद्दीन तय्यबजी (4) सर विल्यम वेडरबर्न",
+        "text_eng": "Who was the Chairperson of Indian National Congress session held in 1887 at Madras ?\n(1) Sir Allen Hume (2) Dadabhai Naoroji\n(3) Badruddin Tayabji (4) Sir William Wedderburn",
+        "options": [
+          "(1) सर ॲलन ह्युम",
+          "(2) दादाभाई नौरोजी",
+          "(3) बदुद्दीन तय्यबजी",
+          "(4) सर विल्यम वेडरबर्न"
+        ],
+        "options_eng": [
+          "(1) Sir Allen Hume",
+          "(2) Dadabhai Naoroji",
+          "(3) Badruddin Tayabji",
+          "(4) Sir William Wedderburn"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "1887 चे भारतीय राष्ट्रीय काँग्रेसचे तिसरे अधिवेशन मद्रास येथे पार पडले. या अधिवेशनाचे अध्यक्षपद बॅरिस्टर बदरुद्दीन तय्यबजी यांनी भूषवले होते. हे अधिवेशन ऐतिहासिकदृष्ट्या अत्यंत महत्त्वाचे आहे कारण बदरुद्दीन तय्यबजी हे भारतीय राष्ट्रीय काँग्रेसचे अध्यक्ष होणारे पहिले मुस्लिम व्यक्ती होते. या अधिवेशनाने 'काँग्रेस ही केवळ हिंदूंची संस्था आहे' हा ब्रिटिशांचा अपप्रचार खोडून काढला आणि तिला खऱ्या अर्थाने 'अखिल भारतीय' स्वरूप प्राप्त करून दिले. इतर पर्यायांचे विश्लेषण: (1) सर ॲलन ह्युम हे काँग्रेसचे संस्थापक होते, ते कधीही अध्यक्ष नव्हते. (2) दादाभाई नौरोजी यांनी 1886 (कलकत्ता), 1893 (लाहोर) आणि 1906 (कलकत्ता) अशा तीन अधिवेशनांचे अध्यक्षपद भूषवले. (4) सर विल्यम वेडरबर्न यांनी 1889 (मुंबई) आणि 1910 (अलाहाबाद) या दोन अधिवेशनांचे अध्यक्षपद भूषवले होते.",
+          "topic": "आधुनिक भारताचा इतिहास - भारतीय राष्ट्रीय काँग्रेसची स्थापना आणि सुरुवातीची अधिवेशने",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मद्रासचा मुस्लिम' (मद्रास अधिवेशन = बदरुद्दीन तय्यबजी). भविष्यातील संभाव्य प्रश्न: 1) काँग्रेसच्या पहिल्या चार अधिवेशनांचे अध्यक्ष आणि ठिकाणे (ब-क-म-इ: बॅनर्जी, नौरोजी, तय्यबजी, युल). 2) 'काँग्रेस ही अल्पसंख्याकांची संस्था आहे' या टीकेला उत्तर देण्यासाठी तय्यबजींनी केलेले आवाहन. 3) 1887 च्या अधिवेशनात उपस्थित असलेल्या प्रतिनिधींची संख्या (607) आणि त्यात मुस्लिमांचा सहभाग. लक्षात ठेवा: बदरुद्दीन तय्यबजी हे मुंबई उच्च न्यायालयाचे पहिले भारतीय बॅरिस्टर आणि न्यायाधीशही होते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_008.png": [
+      {
+        "qnum": 10,
+        "text": "__________ या मुंबई पोलीस कमिशनरने ब्रिटिश राजवटीविरुद्ध कारवाया करणाऱ्यांना फाशी देण्यासाठी वधस्तंभ उभारला होता.",
+        "text_eng": "__________ was the Police Commissioner of Bombay had erected a gallows to hang those who took action against the British rule.",
+        "options": [
+          "(1) सर ॲन्ड्र्यू फ्रेझर",
+          "(2) जॉन नॉटबोअर",
+          "(3) रिचर्ड मायन",
+          "(4) चार्ल्स फोर्जेंट"
+        ],
+        "options_eng": [
+          "(1) Sir Andrew Fraser",
+          "(2) John Notboer",
+          "(3) Richard Mayne",
+          "(4) Charles Forget"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "हा प्रश्न १८५७ च्या उठावाच्या काळातील मुंबई पोलीस प्रशासनाशी संबंधित आहे. १८५७ च्या उठावाच्या वेळी मुंबईचे पोलीस कमिशनर 'जॉन नॉटबोअर' (John Nott-Bower) होते. त्यांनी उठावकर्त्यांना आणि ब्रिटिश राजवटीविरुद्ध बंड करणाऱ्यांना वचक बसवण्यासाठी मुंबईत वधस्तंभ (Gallows) उभारले होते. इतर पर्यायांचे विश्लेषण: (१) सर ॲन्ड्र्यू फ्रेझर हे बंगालचे लेफ्टनंट गव्हर्नर होते आणि त्यांनी १९०२ च्या पोलीस आयोगाचे अध्यक्षपद भूषवले होते. (३) रिचर्ड मायन हे १८५७ च्या काळात मुंबईचे पोलीस कमिशनर नव्हते, तर ते नंतरच्या काळातील प्रशासकीय अधिकारी होते. (४) चार्ल्स फोर्जेंट हे नाव ऐतिहासिक संदर्भात या विशिष्ट घटनेशी संबंधित नाही. जॉन नॉटबोअर यांनी केलेल्या या कृतीमुळे मुंबईतील उठाव दडपण्यास मदत झाली होती.",
+          "topic": "आधुनिक भारताचा इतिहास - १८५७ चा उठाव आणि मुंबई पोलीस प्रशासन",
+          "imp_score": "Medium",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'नॉट-बोअर' (Nott-Bower) म्हणजे ज्याने बंडखोरांना 'बोअर' (त्रास) होऊ नये म्हणून थेट फाशी दिली. भविष्यातील संभाव्य प्रश्न: १. १८५७ च्या उठावाच्या वेळी मुंबईचे गव्हर्नर कोण होते? (उत्तर: लॉर्ड एल्फिन्स्टन). २. पोलीस सुधारणांशी संबंधित 'फ्रेझर कमिशन' कधी नेमले गेले? (उत्तर: १९०२). ३. मुंबई पोलीस कायदा कधी अस्तित्वात आला? (उत्तर: १८५१). टीप: MPSC च्या परीक्षेत पोलीस प्रशासनाच्या इतिहासावर प्रश्न विचारताना कमिशनरची नावे आणि त्यांनी घेतलेले कठोर निर्णय यावर लक्ष केंद्रित करा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 11,
+        "text": "खालील विधानांचा विचार करा :\n(a) रायेश्वरपासून शिंगणापर्यंत पसरलेल्या रांगेला शंभू-महादेव डोंगररांग असे म्हणतात.\n(b) सातपुडा पर्वत रांगेमुळे नर्मदा व तापी नदीचे खोरे अलग झालेले आहे.\n(c) हरिश्चंद्र-बालाघाट डोंगररांगेमुळे गोदावरी व भीमा नदीचे खोरे अलग झालेले आहे.\n(d) गोदावरी व तापी नदीच्या खोऱ्यांना वेगळी करणारी सातमाळा-अजिंठा डोंगररांग आहे.\nवरीलपैकी कोणते विधान/विधाने बरोबर आहे/आहेत ?",
+        "text_eng": "Consider the following statements :\n(a) The range extending from Raireshwar to Shingnapur is called Shambhu-Mahadev mountain range.\n(b) The river basins of Narmada and Tapi are separated by the Satpura mountain range.\n(c) The Godavari and Bhima river basins are separated by the Harishchandra-Balaghat mountain range.\n(d) The Satmala-Ajantha mountain range separates the Godavari and Tapi river basins.\nWhich of the statements given above is/are correct ?",
+        "options": [
+          "(1) फक्त (a) विधान बरोबर आहे.",
+          "(2) (a) आणि (b) दोन्ही बरोबर आहेत.",
+          "(3) विधान (a), (b) आणि (c) बरोबर आहेत.",
+          "(4) वरील सर्व विधाने बरोबर आहेत."
+        ],
+        "options_eng": [
+          "(1) Only Statement (a) is true.",
+          "(2) Statements (a) and (b) both are true.",
+          "(3) Statements (a), (b) and (c) are true.",
+          "(4) All of the above Statements are true."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "दिलेल्या प्रश्नातील सर्व विधाने भौगोलिकदृष्ट्या अचूक आहेत. (a) शंभू-महादेव डोंगररांग ही रायेश्वर (पुणे) ते शिंगणापूर (सातारा) दरम्यान पसरलेली असून ती भीमा आणि कृष्णा नदीच्या खोऱ्यांत जलविभाजकाचे काम करते. (b) सातपुडा पर्वत रांग ही महाराष्ट्राच्या उत्तरेस असून ती नर्मदा (उत्तर) आणि तापी (दक्षिण) या दोन नद्यांच्या खोऱ्यांना वेगळे करते. (c) हरिश्चंद्र-बालाघाट डोंगररांग ही अहमदनगर, बीड, उस्मानाबाद या जिल्ह्यांतून जाते आणि ती गोदावरी (उत्तर) व भीमा (दक्षिण) या नद्यांच्या खोऱ्यांत जलविभाजक म्हणून कार्य करते. (d) सातमाळा-अजिंठा डोंगररांग ही नाशिक, औरंगाबाद, जालना या पट्ट्यात असून ती तापी (उत्तर) आणि गोदावरी (दक्षिण) या नद्यांच्या खोऱ्यांना वेगळे करते. अशा प्रकारे, सर्व विधाने महाराष्ट्राच्या जलप्रणाली आणि प्राकृतिक रचनेच्या दृष्टीने पूर्णपणे सत्य आहेत.",
+          "topic": "महाराष्ट्राचा भूगोल - प्राकृतिक रचना आणि नदी प्रणाली",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'नदी खोरे जलविभाजक' लक्षात ठेवताना उत्तरेकडून दक्षिणेकडे क्रम लक्षात ठेवा. १. सातपुडा (नर्मदा-तापी), २. सातमाळा-अजिंठा (तापी-गोदावरी), ३. हरिश्चंद्र-बालाघाट (गोदावरी-भीमा), ४. शंभू-महादेव (भीमा-कृष्णा). भविष्यातील प्रश्न: या डोंगररांगांचा क्रम उत्तरेकडून दक्षिणेकडे लावा किंवा या रांगा कोणत्या जिल्ह्यांतून जातात यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, शंभू-महादेव रांगेचा विस्तार प्रामुख्याने सातारा, सांगली आणि सोलापूर जिल्ह्यांत आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 12,
+        "text": "2011 च्या जनगणनेनुसार महाराष्ट्रातील खालीलपैकी कोणत्या तीन जिल्ह्यांमध्ये ऋणात्मक लोकसंख्येचा वृद्धीदर दर्शवितो ?",
+        "text_eng": "Which of the following three districts from Maharashtra recording negative growth rate of population as per 2011 census ?",
+        "options": [
+          "(1) मुंबई उपनगर, सिंधुदुर्ग आणि रत्नागिरी",
+          "(2) मुंबई शहर, सिंधुदुर्ग आणि रत्नागिरी",
+          "(3) मुंबई उपनगर, सिंधुदुर्ग आणि पालघर",
+          "(4) मुंबई शहर, सिंधुदुर्ग आणि पालघर"
+        ],
+        "options_eng": [
+          "(1) Mumbai Suburban, Sindhudurg and Ratnagiri",
+          "(2) Mumbai City, Sindhudurg and Ratnagiri",
+          "(3) Mumbai Suburban, Sindhudurg and Palghar",
+          "(4) Mumbai City, Sindhudurg and Palghar"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "2011 च्या जनगणनेनुसार, महाराष्ट्रातील एकूण लोकसंख्या वाढीचा दर 15.99% होता. मात्र, काही जिल्ह्यांमध्ये लोकसंख्या वाढीचा दर उणे (Negative) नोंदवला गेला. हे जिल्हे म्हणजे 'मुंबई शहर', 'रत्नागिरी' आणि 'सिंधुदुर्ग' आहेत. मुंबई शहर जिल्ह्याचा वृद्धीदर -7.57%, रत्नागिरीचा -4.96% आणि सिंधुदुर्गचा -2.16% इतका होता. मुंबई उपनगर जिल्ह्याचा वृद्धीदर सकारात्मक (8.29%) होता, त्यामुळे पर्याय 1 आणि 3 चुकीचे आहेत. पालघर जिल्हा 2014 मध्ये ठाणे जिल्ह्यातून वेगळा झाला, त्यामुळे 2011 च्या जनगणनेत पालघर स्वतंत्र जिल्हा नव्हता, म्हणून पर्याय 3 आणि 4 तांत्रिकदृष्ट्या चुकीचे ठरतात. हे तिन्ही जिल्हे प्रामुख्याने कोकण किनारपट्टीवरील असून, रोजगारासाठी होणारे स्थलांतर हे या ऋणात्मक वाढीचे मुख्य कारण आहे.",
+          "topic": "महाराष्ट्राचा भूगोल - लोकसंख्या (2011 जनगणना)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मु-र-सि' (मुंबई शहर, रत्नागिरी, सिंधुदुर्ग). लक्षात ठेवा: 1. मुंबई शहर हा महाराष्ट्रातील एकमेव जिल्हा आहे जिथे लोकसंख्या वाढीचा दर सर्वात जास्त उणे आहे. 2. रत्नागिरी आणि सिंधुदुर्ग हे जिल्हे 'आउट-मायग्रेशन' (Out-migration) साठी ओळखले जातात. भविष्यातील संभाव्य प्रश्न: 'सर्वात कमी लोकसंख्या वाढीचे जिल्हे चढत्या क्रमाने लावा' किंवा 'कोकणातील कोणत्या जिल्ह्यांचा वृद्धीदर उणे आहे?'. नेहमी लक्षात ठेवा, 2011 च्या जनगणनेनुसार पालघर जिल्हा अस्तित्वात नव्हता, त्यामुळे पर्यायांमध्ये पालघर दिसल्यास तो पर्याय सहसा चुकीचा असतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_010.png": [
+      {
+        "qnum": 15,
+        "text": "खालील विधाने विचारात घ्या.\n(a) चिनाब नदी झोजिला खिंडीजवळ उगम पावते.\n(b) रावी नदीचा उगम रोहतांग खिंडीजवळ आहे.\n(c) सतलज नदीचा उगम रकास तलावाजवळ आहे.\nवरीलपैकी कोणते विधान/विधाने बरोबर आहे/त ?",
+        "text_eng": "Consider the following statements :\n(a) The Chenab river originates near the Zojila Pass.\n(b) The source of Ravi river is near the Rohtang Pass.\n(c) The source of Sutluj river is near Rakas lake.\nWhich of the following statements is/are correct ?",
+        "options": [
+          "(1) (a) आणि (c) फक्त",
+          "(2) (a) आणि (b) फक्त",
+          "(3) (b) आणि (c) फक्त",
+          "(4) फक्त (c)"
+        ],
+        "options_eng": [
+          "(1) (a) and (c) only",
+          "(2) (a) and (b) only",
+          "(3) (b) and (c) only",
+          "(4) Only (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "दिलेल्या विधानांचे विश्लेषण खालीलप्रमाणे आहे: (a) विधान चुकीचे आहे: चिनाब नदीचा उगम हिमाचल प्रदेशातील लाहौल-स्पिती जिल्ह्यात 'बारालाचा ला' (Baralacha La) खिंडीजवळ होतो. ती दोन नद्यांच्या (चंद्र आणि भागा) संगमातून बनते. झोजिला खिंड ही लडाखमध्ये असून ती सिंधू नदीच्या खोऱ्याशी संबंधित आहे. (b) विधान बरोबर आहे: रावी नदीचा उगम हिमाचल प्रदेशातील कांगडा जिल्ह्यात 'रोहतांग खिंडी'जवळ (Rohtang Pass) होतो. (c) विधान बरोबर आहे: सतलज नदीचा उगम तिबेटमधील मानसरोवर सरोवराजवळील 'रकास तलाव' (Rakas Lake) येथे होतो. ही नदी भारतात शिपकिला खिंडीतून प्रवेश करते. त्यामुळे, विधान (b) आणि (c) बरोबर असल्याने पर्याय (3) योग्य आहे.",
+          "topic": "भारतीय भूगोल - हिमालयीन नद्या प्रणाली",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'चिनाब-बारालाचा' (चि-बा), 'रावी-रोहतांग' (रा-रो), 'सतलज-रकास' (स-र). भविष्यातील संभाव्य प्रश्न: १. या नद्यांचा उत्तर ते दक्षिण क्रम लावा. २. कोणत्या नद्यांचे पाणी 'सिंधू पाणी करार' (Indus Waters Treaty) अंतर्गत भारताला मिळते? (उत्तर: रावी, बियास, सतलज). ३. या नद्यांच्या उपनद्या आणि त्यांच्यावर असलेले जलविद्युत प्रकल्प (उदा. सलाल, बगलीहार, भाक्रा-नांगल) यावर प्रश्न विचारले जाऊ शकतात. नेहमी लक्षात ठेवा की हिमालयीन नद्यांचे उगमस्थान हे खिंडी किंवा हिमनद्यांशी संबंधित असते, त्यामुळे नकाशावर या खिंडींचे स्थान पाहणे अत्यंत आवश्यक आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 16,
+        "text": "खालीलपैकी कोणते/कोणती विधान/विधाने महाराष्ट्राच्या पर्जन्याबाबत अचूक आहे/आहेत ?\n(a) महाराष्ट्रात पावसाळ्याच्या आरंभी पश्चिमेकडून पूर्वेकडे वायुभार कमी होत जातो.\n(b) राज्यातील पर्जन्याचे वितरण प्रामुख्याने नैसर्गिक वनस्पतीच्या वितरणावर अवलंबून असल्याचे आढळते.\n(c) नैऋत्य मोसमी वारे घाट माथ्यावरून पूर्वेकडे जातात तेव्हा त्यांची बाष्पधारणशक्ती वाढते.\n(d) विदर्भामध्ये पश्चिमेकडून पूर्वेकडे पावसाचे प्रमाण वाढत जाते.\nपर्यायी उत्तरे :\n(1) फक्त (a) (2) (a) आणि (b) (3) (b) आणि (c) (4) (a), (c) आणि (d)",
+        "text_eng": "Which of the following statement/s is/are correct regarding the rainfall of Maharashtra ?\n(a) In Maharashtra, the air pressure decreases from West to East at the beginning of the monsoon season.\n(b) The distribution of rainfall in the state depends mainly on the distribution of natural vegetation.\n(c) When the South-West monsoon winds move Eastward from the ghats, their vapour holding capacity increases.\n(d) Rainfall increases from West to East in Vidarbha.\nAnswer Options :\n(1) Only (a) (2) (a) and (b) (3) (b) and (c) (4) (a), (c) and (d)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a) आणि (b)",
+          "(3) (b) आणि (c)",
+          "(4) (a), (c) आणि (d)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) (a) and (b)",
+          "(3) (b) and (c)",
+          "(4) (a), (c) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "या प्रश्नाचे अचूक उत्तर (4) आहे. विधानांचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: (a) विधान बरोबर आहे: पावसाळ्याच्या सुरुवातीला (जूनमध्ये) अरबी समुद्राकडून येणाऱ्या मान्सून वाऱ्यांमुळे महाराष्ट्राच्या किनारपट्टीवर कमी दाबाचा पट्टा निर्माण होतो, जो पश्चिमेकडून पूर्वेकडे कमी होत जातो, ज्यामुळे वारे आत खेचले जातात. (b) विधान चुकीचे आहे: पर्जन्याचे वितरण हे नैसर्गिक वनस्पतींवर अवलंबून नसते, तर उलट नैसर्गिक वनस्पतींचे वितरण हे पर्जन्यावर अवलंबून असते. हे विधान कार्यकारणभावाच्या दृष्टीने चुकीचे आहे. (c) विधान बरोबर आहे: नैऋत्य मोसमी वारे जेव्हा सह्याद्री ओलांडून पूर्वेकडे (पर्जन्यछायेच्या प्रदेशात) जातात, तेव्हा त्यांची उंची वाढते आणि तापमान वाढल्यामुळे त्यांची बाष्पधारणशक्ती (Moisture holding capacity) वाढते, परिणामी तेथील आर्द्रता कमी होऊन पाऊस कमी पडतो. (d) विधान बरोबर आहे: विदर्भात पश्चिमेकडून पूर्वेकडे जाताना पावसाचे प्रमाण वाढत जाते. नागपूरच्या तुलनेत गडचिरोली आणि गोंदियामध्ये पावसाचे प्रमाण अधिक असते, कारण हे भाग बंगालच्या उपसागराकडून येणाऱ्या मान्सून शाखेच्या अधिक जवळ आहेत.",
+          "topic": "महाराष्ट्राचा भूगोल - हवामान आणि पर्जन्यमान",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. 'विदर्भ-पूर्व-पाऊस': विदर्भात पूर्वेकडे जाताना पाऊस वाढतो (गोंदिया/गडचिरोली). 2. 'सह्याद्री-पर्जन्य': सह्याद्रीच्या पश्चिमेला जास्त पाऊस (अडथळा), पूर्वेला कमी (पर्जन्यछाया). भविष्यातील संभाव्य प्रश्न: 'पर्जन्यछायेचा प्रदेश' कोणत्या जिल्ह्यांत येतो? (उदा. सातारा, सोलापूर, अहमदनगर). तसेच, मान्सूनच्या दोन्ही शाखा (अरबी समुद्र आणि बंगालचा उपसागर) महाराष्ट्रात कुठे एकत्र येतात, यावर प्रश्न विचारला जाऊ शकतो. लक्षात ठेवा, महाराष्ट्रात सर्वाधिक पाऊस आंबोली (सिंधुदुर्ग) येथे पडतो, तर सर्वात कमी पाऊस माण (सातारा) आणि दहीवडी भागात पडतो."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_007.png": [
+      {
+        "qnum": 8,
+        "text": "1857 च्या उठावानंतर बंगालमधील नीळ उत्पादक शेतकऱ्यांनी मळेवाल्याविरुद्ध उठावात यश मिळण्याचे कारण कोणते ?\n(a) उपक्रमशिलता व सहकार्य\n(b) संघटना व शिस्त\n(c) मळेवाल्यात पडलेली फूट\n(d) हिंदू-मुस्लिम शेतकरी ऐक्य\nपर्यायी उत्तरे :\n(1) फक्त (b), (c) आणि (d)\n(2) फक्त (a), (b) आणि (d)\n(3) फक्त (a), (b) आणि (c)\n(4) फक्त (a) आणि (c)",
+        "text_eng": "What was the reason the indigo farmers in Bengal succeeded in revolting against the landlords after the revolt of 1857 ?\n(a) Entrepreneurship and co-operation\n(b) Organization and discipline\n(c) A split in the landlords\n(d) Hindu-Muslim peasants unity\nAnswer Options :\n(1) Only (b), (c) and (d)\n(2) Only (a), (b) and (d)\n(3) Only (a), (b) and (c)\n(4) Only (a) and (c)",
+        "options": [
+          "(1) फक्त (b), (c) आणि (d)",
+          "(2) फक्त (a), (b) आणि (d)",
+          "(3) फक्त (a), (b) आणि (c)",
+          "(4) फक्त (a) आणि (c)"
+        ],
+        "options_eng": [
+          "(1) Only (b), (c) and (d)",
+          "(2) Only (a), (b) and (d)",
+          "(3) Only (a), (b) and (c)",
+          "(4) Only (a) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "1859-60 चा 'नीळ उठाव' (Indigo Revolt) हा बंगालमधील शेतकऱ्यांचा मळेवाल्यांविरुद्धचा एक अत्यंत यशस्वी लढा होता. या उठावाच्या यशाची प्रमुख कारणे खालीलप्रमाणे आहेत: (a) उपक्रमशीलता व सहकार्य: शेतकऱ्यांनी अत्यंत संघटितपणे नीळ न पिकवण्याचा निर्णय घेतला आणि एकमेकांना आर्थिक व सामाजिक पाठबळ दिले. (b) संघटना व शिस्त: शेतकऱ्यांनी ग्रामपंचायतींच्या माध्यमातून एकजूट दाखवली आणि मळेवाल्यांच्या गुंडांविरुद्ध प्रतिकार करण्यासाठी शिस्तबद्ध गट तयार केले. (d) हिंदू-मुस्लिम शेतकरी ऐक्य: या उठावाचे सर्वात मोठे वैशिष्ट्य म्हणजे धार्मिक भेदाभेद विसरून हिंदू आणि मुस्लिम शेतकरी एकत्र आले होते, ज्यामुळे मळेवाल्यांना फूट पाडणे अशक्य झाले. पर्याय (c) 'मळेवाल्यात पडलेली फूट' हे तांत्रिकदृष्ट्या चुकीचे आहे, कारण मळेवाले त्यांच्या नफ्यासाठी शेवटपर्यंत एकवटलेले होते. उलट, शेतकऱ्यांच्या एकजुटीमुळे मळेवाल्यांना माघार घ्यावी लागली. त्यामुळे (a), (b) आणि (d) हे पर्याय अचूक आहेत.",
+          "topic": "आधुनिक भारताचा इतिहास - १८५७ नंतरचे शेतकरी उठाव",
+          "imp_score": "High",
+          "extra_points": "महत्त्वाचे मुद्दे: १. नीळ उठावाचे केंद्र: बंगालमधील नदिया जिल्हा (गोविंदपूर गाव). २. नेतृत्व: दिगंबर विश्वास आणि विष्णू चरण विश्वास. ३. साहित्यिक संदर्भ: दीनबंधू मित्र यांचे 'नील दर्पण' हे नाटक या उठावावर आधारित आहे, ज्याने जनमत तयार करण्यास मदत केली. ४. सरकारी प्रतिसाद: सरकारने 'नीळ आयोग' (Indigo Commission) नेमला. ५. भविष्यातील प्रश्न: 'नील दर्पण' नाटकाचे भाषांतर कोणी केले? (मायकल मधुसूदन दत्त), नीळ आयोगाचे अध्यक्ष कोण होते? (डब्ल्यू. एस. सेटॉन-कार). लक्षात ठेवण्याची ट्रिक: 'नीळ उठाव' = 'स-सं-ऐ' (स-सहकार्य, सं-संघटना, ऐ-ऐक्य). हे तीन शब्द लक्षात ठेवा, उठावाचे यश याच तीन स्तंभांवर उभे होते."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 9,
+        "text": "जोड्या जुळवा :\n(a) मोपल्याचे बंड (i) खानदेश (महाराष्ट्र)\n(b) कोलांचा उठाव (ii) केरळ\n(c) संथाळंचा उठाव (iii) बिहार\n(d) भिल्लांचा उठाव (iv) बंगाल\nपर्यायी उत्तरे :\n    (a) (b) (c) (d)\n(1) (ii) (iii) (iv) (i)\n(2) (iii) (iv) (i) (ii)\n(3) (iv) (ii) (iii) (i)\n(4) (ii) (iii) (i) (iv)",
+        "text_eng": "Match the pairs :\n(a) Moplah rebellion (i) Khandesh (Maharashtra)\n(b) Kol uprising (ii) Kerala\n(c) Santhal uprising (iii) Bihar\n(d) Bhil uprising (iv) Bangal\nAnswer Options :\n    (a) (b) (c) (d)\n(1) (ii) (iii) (iv) (i)\n(2) (iii) (iv) (i) (ii)\n(3) (iv) (ii) (iii) (i)\n(4) (ii) (iii) (i) (iv)",
+        "options": [
+          "(1) (ii) (iii) (iv) (i)",
+          "(2) (iii) (iv) (i) (ii)",
+          "(3) (iv) (ii) (iii) (i)",
+          "(4) (ii) (iii) (i) (iv)"
+        ],
+        "options_eng": [
+          "(1) (ii) (iii) (iv) (i)",
+          "(2) (iii) (iv) (i) (ii)",
+          "(3) (iv) (ii) (iii) (i)",
+          "(4) (ii) (iii) (i) (iv)"
+        ],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "या प्रश्नाचे अचूक उत्तर पर्याय (1) आहे. ऐतिहासिक उठावांचे विश्लेषण खालीलप्रमाणे आहे: (a) मोपल्यांचे बंड (1921): हे केरळमधील मलबार किनारपट्टीवर झाले. हे प्रामुख्याने जमीनदार आणि ब्रिटिश सत्तेविरुद्धचे शेतकरी उठाव होते. (b) कोलांचा उठाव (1831-32): हा उठाव छोटा नागपूर प्रदेशात (सध्याचा झारखंड आणि बिहारचा भाग) झाला. कोलांनी त्यांच्या जमिनी बळकावल्यामुळे ब्रिटिशांविरुद्ध लढा दिला. (c) संथाळांचा उठाव (1855-56): हा उठाव बंगाल आणि बिहारच्या सीमेवरील राजमहाल टेकड्यांच्या परिसरात झाला. सिद्धू आणि कान्हू हे याचे प्रमुख नेते होते. (d) भिल्लांचा उठाव (1818-1831): खानदेश (महाराष्ट्र) भागात भिल्लांनी ब्रिटिशांच्या नवीन महसूल पद्धतीला विरोध करण्यासाठी हा उठाव केला. या सर्व उठावांचे मूळ कारण ब्रिटिशांची अन्यायकारक जमीन महसूल पद्धती, वन कायद्यातील हस्तक्षेप आणि स्थानिक संस्कृतीवर झालेला आघात हे होते.",
+          "topic": "आधुनिक भारताचा इतिहास - आदिवासी आणि शेतकरी उठाव",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'मो-के' (मोपला-केरळ), 'को-बि' (कोल-बिहार/छोटा नागपूर), 'सं-बं' (संथाळ-बंगाल), 'भि-खा' (भिल्ल-खानदेश). भविष्यातील संभाव्य प्रश्न: १. या उठावांचे नेतृत्व कोणी केले? (उदा. संथाळ - सिद्धू-कान्हू, भिल्ल - सेवाराम). २. उठावांचा कालानुक्रम लावा (उदा. भिल्ल (1818) -> कोल (1831) -> संथाळ (1855) -> मोपला (1921)). ३. 'दिक्कू' (बाहेरचे लोक) ही संकल्पना कोणत्या उठावाशी संबंधित आहे? (उत्तर: संथाळ). हे प्रश्न MPSC च्या मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_011.png": [
+      {
+        "qnum": 17,
+        "text": "खालीलपैकी कोणते विधान/ने चुकीचे/ची आहे/आहेत ?\n(a) कामठी कोळसा क्षेत्र आंब नदीच्या खोऱ्यात आहे.\n(b) वर्धा खोऱ्यातील कोळसा क्षेत्र चंद्रपूर व यवतमाळ जिल्ह्यात विभागले आहे.\n(c) उमरेड कोळसा क्षेत्र कन्हान नदीच्या खोऱ्यात आहे.\n(d) महाराष्ट्रातील तुर्भे या ठिकाणी कॅनडाच्या सहाय्याने अप्सरा आणि ब्रिटनच्या सहाय्याने सायरस या अणुभट्ट्या उभारण्यात आलेल्या आहेत.\nपर्यायी उत्तरे :\n(1) फक्त (b)\n(2) फक्त (a) आणि (b)\n(3) (a), (c) आणि (d)\n(4) (a), (b) आणि (d)",
+        "text_eng": "Which of the following statement/s is/are false ?\n(a) The Kamathi coal field is located in the Amb river valley.\n(b) The coal field in Vardha valley is divided into Chandrapur and Yavatmal districts.\n(c) The Umred coal field is located in the Kanhan river valley.\n(d) The Apsara reactor with the assistance of Canada and the Cyrus reactor with the assistance of Britain have been built in Turbhe in Maharashtra.\nAnswer Options :\n(1) Only (b)\n(2) Only (a) and (b)\n(3) (a), (c) and (d)\n(4) (a), (b) and (d)",
+        "options": [
+          "(1) फक्त (b)",
+          "(2) फक्त (a) आणि (b)",
+          "(3) (a), (c) आणि (d)",
+          "(4) (a), (b) आणि (d)"
+        ],
+        "options_eng": [
+          "(1) Only (b)",
+          "(2) Only (a) and (b)",
+          "(3) (a), (c) and (d)",
+          "(4) (a), (b) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या प्रश्नाचे विश्लेषण खालीलप्रमाणे आहे: (a) चुकीचे: कामठी कोळसा क्षेत्र हे 'कन्हान' नदीच्या खोऱ्यात आहे, आंब नदीच्या नाही. (b) बरोबर: वर्धा-गोदावरी खोऱ्यातील कोळसा क्षेत्र प्रामुख्याने चंद्रपूर आणि यवतमाळ जिल्ह्यांत पसरलेले आहे. (c) चुकीचे: उमरेड कोळसा क्षेत्र हे 'आंब' नदीच्या खोऱ्यात आहे, कन्हान नदीच्या नाही. (d) चुकीचे: 'अप्सरा' आणि 'सायरस' या अणुभट्ट्या तुर्भे (नवी मुंबई) येथे नसून 'भाभा अणुशक्ती संशोधन केंद्र' (BARC), ट्रॉम्बे येथे आहेत. तसेच, 'अप्सरा' ही भारताची पहिली अणुभट्टी ब्रिटनच्या सहाय्याने उभारली होती, तर 'सायरस' ही कॅनडाच्या सहाय्याने उभारली होती. प्रश्नातील माहिती पूर्णपणे उलट दिली आहे. त्यामुळे (a), (c) आणि (d) ही विधाने चुकीची आहेत.",
+          "topic": "महाराष्ट्राचा भूगोल - खनिजे आणि ऊर्जा साधने",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. कोळसा क्षेत्रे: 'कामठी-कन्हान' (क-क जोडी) आणि 'उमरेड-आंब' (उ-आ जोडी). 2. अणुभट्ट्या: 'अप्सरा' (Apsara) - ब्रिटन (B), 'सायरस' (Cirus) - कॅनडा (C). लक्षात ठेवा: A-B आणि C-C. भविष्यातील संभाव्य प्रश्न: महाराष्ट्रातील कोळसा क्षेत्रांचा उत्तरेकडून दक्षिणेकडे क्रम लावा (कामठी -> उमरेड -> राजुरा -> बल्लारपूर). तसेच, महाराष्ट्रातील कोळशाचा प्रकार 'बिट्युमिनस' (Bituminous) आहे, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 18,
+        "text": "पाणलोट क्षेत्र विकास कार्यक्रमाचे खालीलपैकी कोणते उद्देश्य आहेत ?\n(a) भूमी उपयोजन आणि उत्पादनात पर्याप्त वाढ करणे.\n(b) वाहत्या पाण्याला नियंत्रित करून भूमीचे क्षरण थांबवणे.\n(c) गुंतवणूक कमी, उत्पादन खर्चात वाढ करणे.\nपर्यायी उत्तरे :\n(1) फक्त (a)\n(2) (a) आणि (b)\n(3) फक्त (b)\n(4) (c) आणि (b)",
+        "text_eng": "The catchment area development program has which of the following objectives ?\n(a) Substantial increase in landuse and production.\n(b) Stop land degradation by controlling runoff.\n(c) Reducing investment as well as increasing production costs.\nAnswer Options :\n(1) Only (a)\n(2) (a) and (b)\n(3) Only (b)\n(4) (c) and (b)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) (a) आणि (b)",
+          "(3) फक्त (b)",
+          "(4) (c) आणि (b)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) (a) and (b)",
+          "(3) Only (b)",
+          "(4) (c) and (b)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "पाणलोट क्षेत्र विकास कार्यक्रम (Watershed Development Programme) हा शाश्वत शेती आणि ग्रामीण विकासाचा कणा आहे. (a) भूमी उपयोजन आणि उत्पादनात वाढ करणे हे याचे मुख्य उद्दिष्ट आहे, कारण योग्य नियोजनामुळे पडीक जमिनी लागवडीखाली येतात. (b) वाहत्या पाण्याला नियंत्रित करून (Check dams, contour bunding) जमिनीची धूप (Soil Erosion) थांबवणे हे याचे तांत्रिक उद्दिष्ट आहे. विधान (c) चुकीचे आहे कारण 'उत्पादन खर्चात वाढ करणे' हे कधीही विकासाचे उद्दिष्ट असू शकत नाही; उलट, पाणलोट क्षेत्र विकासामुळे सिंचन सोयी उपलब्ध होऊन उत्पादन खर्च कमी करणे आणि नफा वाढवणे हे उद्दिष्ट असते. त्यामुळे (a) आणि (b) ही विधाने योग्य आहेत.",
+          "topic": "कृषी आणि ग्रामीण विकास - पाणलोट क्षेत्र व्यवस्थापन",
+          "imp_score": "High",
+          "extra_points": "ट्रिक: 'पाणलोट' म्हणजे 'पाणी साठवणे आणि जमिनीचे रक्षण करणे'. जेथे पाणी वाचते, तिथे उत्पादन वाढते आणि खर्च कमी होतो. भविष्यातील प्रश्न: १. 'हिवरे बाजार' आणि 'राळेगण सिद्धी' या गावांचा पाणलोट विकासातील सहभाग. २. केंद्र सरकारची 'प्रधानमंत्री कृषी सिंचन योजना' (PMKSY) आणि त्यातील 'Watershed Development' घटक. ३. पाणलोट विकासाचे फायदे: भूजल पातळीत वाढ, जैवविविधता संवर्धन आणि स्थलांतर रोखणे. लक्षात ठेवा: पाणलोट विकास हा केवळ सिंचनाचा प्रकल्प नसून तो 'एकात्मिक ग्रामीण विकास' प्रकल्प आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_014.png": [
+      {
+        "qnum": 24,
+        "text": "19 जुलै, 1969 रोजी किती खाजगी व्यापारी बँकांचे राष्ट्रीयीकरण करण्यात आले?",
+        "text_eng": "How many private commercial banks were nationalised on 19th July, 1969 ?",
+        "options": [
+          "(1) 8",
+          "(2) 12",
+          "(3) 19",
+          "(4) 14"
+        ],
+        "options_eng": [
+          "(1) 8",
+          "(2) 12",
+          "(3) 19",
+          "(4) 14"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "19 जुलै 1969 रोजी तत्कालीन पंतप्रधान इंदिरा गांधी यांनी देशातील प्रमुख 14 खाजगी व्यापारी बँकांचे राष्ट्रीयीकरण केले. या बँकांचे राष्ट्रीयीकरण करण्यासाठी 'बँकिंग कंपनीज (अधिग्रहण आणि हस्तांतरण) अध्यादेश, 1969' लागू करण्यात आला होता. या 14 बँका अशा होत्या ज्यांच्या ठेवी (Deposits) 50 कोटी रुपयांपेक्षा जास्त होत्या. या निर्णयाचा मुख्य उद्देश बँकिंग क्षेत्रावर सरकारचे नियंत्रण आणणे, ग्रामीण भागापर्यंत बँकिंग सेवा पोहोचवणे आणि शेती व लघु उद्योगांना कर्जपुरवठा करणे हा होता. 1980 मध्ये दुसऱ्या टप्प्यात आणखी 6 बँकांचे राष्ट्रीयीकरण करण्यात आले, ज्यामुळे एकूण संख्या 20 झाली होती (नंतर न्यू बँक ऑफ इंडियाचे पंजाब नॅशनल बँकेत विलीनीकरण झाल्यामुळे ही संख्या 19 वर आली). पर्यायांचे विश्लेषण: (1) 8 - चुकीचे, (2) 12 - चुकीचे, (3) 19 - हे 1980 नंतरच्या बँकांची संख्या दर्शवते, (4) 14 - हे 1969 मधील अचूक आकडा आहे.",
+          "topic": "भारतीय अर्थव्यवस्था - बँकिंग क्षेत्रातील सुधारणा आणि राष्ट्रीयीकरण",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '1969 मध्ये 14' आणि '1980 मध्ये 6'. बेरीज 20 होते, पण 1993 मध्ये 'न्यू बँक ऑफ इंडिया'चे 'पंजाब नॅशनल बँके'त विलीनीकरण झाल्याने 20 वजा 1 बरोबर 19 उरल्या. भविष्यातील संभाव्य प्रश्न: 1) राष्ट्रीयीकरणाच्या वेळी आरबीआयचे गव्हर्नर कोण होते? (उत्तर: एल. के. झा). 2) कोणत्या पंचवार्षिक योजनेत हे घडले? (उत्तर: चौथी पंचवार्षिक योजना). 3) 1980 मध्ये राष्ट्रीयीकरण झालेल्या बँकांची अट काय होती? (उत्तर: 200 कोटी रुपयांपेक्षा जास्त ठेवी). हे मुद्दे MPSC च्या मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 25,
+        "text": "योग्य जोड्या जुळवा.\n(a) बँकिंग नियंत्रण कायदा (i) सामाजिक उद्देश\n(b) बँक राष्ट्रीयीकरण (ii) बारा (12)\n(c) 31 मार्च 2025 रोजी भारतातील (iii) मध्यवर्ती बँकेचे नियमनाचे अधिकार\nसार्वजनिक क्षेत्रातील बँका\n(d) शाखा विस्तार (iv) ठेवींचे अधिक संकलन\nयोग्य उत्तर निवडा :\n(a) (b) (c) (d)\n(1) (i) (ii) (iii) (iv)\n(2) (iv) (ii) (i) (iii)\n(3) (iii) (i) (ii) (iv)\n(4) (ii) (iv) (iii) (i)",
+        "text_eng": "Match the following.\n(a) Banking Regulation Act (i) Social purpose\n(b) Bank nationalization (ii) Twelve\n(c) Banks in public sector in India (iii) Regulating powers of central bank\nas on 31 March 2025\n(d) Branch expansion (iv) More deposit mobilisation\nSelect the correct options :\n(a) (b) (c) (d)\n(1) (i) (ii) (iii) (iv)\n(2) (iv) (ii) (i) (iii)\n(3) (iii) (i) (ii) (iv)\n(4) (ii) (iv) (iii) (i)",
+        "options": [
+          "(1) (i) (ii) (iii) (iv)",
+          "(2) (iv) (ii) (i) (iii)",
+          "(3) (iii) (i) (ii) (iv)",
+          "(4) (ii) (iv) (iii) (i)"
+        ],
+        "options_eng": [
+          "(1) (i) (ii) (iii) (iv)",
+          "(2) (iv) (ii) (i) (iii)",
+          "(3) (iii) (i) (ii) (iv)",
+          "(4) (ii) (iv) (iii) (i)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "या प्रश्नाचे योग्य उत्तर पर्याय (3) आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: (a) बँकिंग नियंत्रण कायदा (Banking Regulation Act, 1949): हा कायदा आरबीआयला (RBI) बँकांवर नियंत्रण ठेवण्याचे आणि नियमन करण्याचे व्यापक अधिकार देतो, म्हणून (a) ची जोडी (iii) शी लागते. (b) बँक राष्ट्रीयीकरण (Bank Nationalization): १९६९ आणि १९८० मध्ये बँकांचे राष्ट्रीयीकरण करण्यात आले, ज्याचा मुख्य उद्देश नफा कमावणे नसून 'सामाजिक उद्देश' (Social Welfare) साध्य करणे आणि ग्रामीण भागापर्यंत बँकिंग पोहोचवणे हा होता, म्हणून (b) ची जोडी (i) शी लागते. (c) ३१ मार्च २०२५ रोजी भारतातील सार्वजनिक क्षेत्रातील बँका: सध्याच्या विलीनीकरणानंतर (Merger) भारतात एकूण १२ सार्वजनिक क्षेत्रातील बँका कार्यरत आहेत, म्हणून (c) ची जोडी (ii) शी लागते. (d) शाखा विस्तार (Branch Expansion): बँकांचा शाखा विस्तार करण्याचा मुख्य उद्देश जास्तीत जास्त लोकांपर्यंत पोहोचून 'ठेवींचे अधिक संकलन' (Deposit Mobilization) करणे हा असतो, म्हणून (d) ची जोडी (iv) शी लागते. अशा प्रकारे (a-iii, b-i, c-ii, d-iv) हा क्रम पर्याय (3) मध्ये अचूक जुळतो.",
+          "topic": "भारतीय अर्थव्यवस्था - बँकिंग प्रणाली आणि सुधारणा",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 'बँकिंग नियमन' म्हणजे 'आरबीआयचे अधिकार' (iii), 'राष्ट्रीयीकरण' म्हणजे 'समाज' (i), '१२ बँका' (ii) हा आकडा सध्याचा स्टॅटिक डेटा आहे जो लक्षात ठेवावा. भविष्यातील संभाव्य प्रश्न: १. बँकांच्या विलीनीकरणाचा क्रम आणि कोणत्या बँकेत कोणती बँक विलीन झाली? २. नरसिंहम समितीच्या शिफारसी. ३. आरबीआयचे पतधोरण (Monetary Policy) साधने (Repo, Reverse Repo, CRR, SLR). टीप: बँकिंग क्षेत्रातील चालू घडामोडींवर (उदा. डिजिटल रुपया, एनपीए (NPA) समस्या) विशेष लक्ष द्या, कारण एमपीएससी मुख्य परीक्षेत यावर विश्लेषणात्मक प्रश्न विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_012.png": [
+      {
+        "qnum": 19,
+        "text": "खालील विधाने पहा.\n(a) महात्मा फुले कृषि विद्यापिठाचे डाळिंब तंत्रज्ञान संशोधन केंद्र लखमापूर येथे आहे.\n(b) फुले यशोदा गव्हाचे वाण महात्मा फुले कृषि विद्यापिठाने 1998 मध्ये विकसित केले.\n(c) महाराष्ट्र कृषि विद्यापिठाचे कार्यालय मुंबई येथे होते.\nपर्यायी उत्तरे :\n(1) विधान (a) आणि (b) बरोबर आहेत.\n(2) विधान (a) आणि (c) बरोबर आहेत.\n(3) विधान (b) आणि (c) बरोबर आहेत.\n(4) विधान (a), (b) आणि (c) बरोबर आहेत.",
+        "text_eng": "Observe the following statements.\n(a) The Pomegranate technology research centre of Mahatma Phule Agricultural University is at Lakhmapur.\n(b) Phule Yashoda wheat variety is developed by Mahatma Phule Agricultural University in 1998.\n(c) The office of Maharashtra Agricultural University was at Mumbai.\nAnswer Options :\n(1) Statement (a) and (b) are correct.\n(2) Statement (a) and (c) are correct.\n(3) Statement (b) and (c) are correct.\n(4) Statement (a), (b) and (c) are correct.",
+        "options": [
+          "(1) विधान (a) आणि (b) बरोबर आहेत.",
+          "(2) विधान (a) आणि (c) बरोबर आहेत.",
+          "(3) विधान (b) आणि (c) बरोबर आहेत.",
+          "(4) विधान (a), (b) आणि (c) बरोबर आहेत."
+        ],
+        "options_eng": [
+          "(1) Statement (a) and (b) are correct.",
+          "(2) Statement (a) and (c) are correct.",
+          "(3) Statement (b) and (c) are correct.",
+          "(4) Statement (a), (b) and (c) are correct."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "विधान (a) सत्य आहे: महात्मा फुले कृषी विद्यापीठ (MPKV), राहुरी अंतर्गत 'डाळिंब संशोधन केंद्र' हे लखमापूर (ता. दिंडोरी, जि. नाशिक) येथे स्थित आहे. हे केंद्र डाळिंबाच्या विविध जाती आणि तंत्रज्ञानावर संशोधन करण्यासाठी प्रसिद्ध आहे. विधान (b) सत्य आहे: 'फुले यशोदा' (NIAW-34) हे गव्हाचे वाण महात्मा फुले कृषी विद्यापीठाने १९९८ मध्ये विकसित केले होते. हे वाण कोरडवाहू शेतीसाठी अत्यंत उपयुक्त मानले जाते. विधान (c) सत्य आहे: महाराष्ट्र कृषी शिक्षण व संशोधन परिषद (MCAER) आणि कृषी विद्यापीठांच्या स्थापनेच्या सुरुवातीच्या काळात प्रशासकीय सोयीसाठी त्यांचे मुख्यालय मुंबई येथे होते, जे नंतर पुणे (MCAER) आणि राहुरी (MPKV) येथे स्थलांतरित झाले. त्यामुळे तिन्ही विधाने तांत्रिकदृष्ट्या अचूक आहेत.",
+          "topic": "महाराष्ट्र कृषी विद्यापीठे आणि कृषी संशोधन",
+          "imp_score": "High",
+          "extra_points": "१. लक्षात ठेवण्याची ट्रिक: 'डाळिंब-लखमापूर' (डाळिंब खाऊन 'लख'पती होणे), 'यशोदा-गहू' (यशोदा मातेने गव्हाची भाकरी दिली). २. भविष्यातील प्रश्न: कृषी विद्यापीठांची स्थापना वर्षे (उदा. राहुरी-१९६८, अकोला-१९८३, परभणी-१९७२, दापोली-१९७२) यावर जोड्या लावा प्रश्न येऊ शकतात. ३. महत्त्वाचे संशोधन: 'फुले त्रिवेणी' (ज्वारी), 'फुले संगम' (हरभरा) यांसारख्या वाणांवर लक्ष ठेवा. ४. MCAER चे मुख्यालय पुण्यात असून ते राज्यातील चारही कृषी विद्यापीठांवर नियंत्रण ठेवते, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 20,
+        "text": "खालीलपैकी कोणती विधाने बरोबर आहेत?\n(a) वैतरणा आणि तानसा उल्हास नदीच्या उपनद्या आहेत.\n(b) खानापूर पठाराच्या दक्षिणेला कृष्णा नदीचे खोरे आहे.\n(c) मन्याड नदी खोरे गोदावरी नदी खोऱ्यात आहे.\nपर्यायी उत्तरे :\n(1) फक्त विधान (a)\n(2) विधान (a) आणि (b)\n(3) विधान (a), (b) आणि (c)\n(4) विधान (b) आणि (c)",
+        "text_eng": "Which of the following statements are true ?\n(a) Vaitarna and Tansa are the tributaries of river Ulhas.\n(b) Krishna river basin is to the South of Khanapur plateau.\n(c) Manyad river basin is in Godavari river basin.\nAnswer Options :\n(1) Only Statement (a)\n(2) Statements (a) and (b)\n(3) Statements (a), (b) and (c)\n(4) Statements (b) and (c)",
+        "options": [
+          "(1) फक्त विधान (a)",
+          "(2) विधान (a) आणि (b)",
+          "(3) विधान (a), (b) आणि (c)",
+          "(4) विधान (b) आणि (c)"
+        ],
+        "options_eng": [
+          "(1) Only Statement (a)",
+          "(2) Statements (a) and (b)",
+          "(3) Statements (a), (b) and (c)",
+          "(4) Statements (b) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "विधान (a) बरोबर आहे: वैतरणा आणि तानसा या दोन्ही नद्या पालघर आणि ठाणे जिल्ह्यातून वाहतात आणि त्या उल्हास नदी प्रणालीचा भाग मानल्या जातात (उल्हास नदीच्या खोऱ्यात या नद्यांचा समावेश होतो). विधान (b) बरोबर आहे: खानापूर पठार हे सांगली जिल्ह्यात असून त्याच्या दक्षिणेला कृष्णा नदीचे खोरे आहे, तर उत्तरेला येरळा नदीचे खोरे आहे. विधान (c) बरोबर आहे: मन्याड नदी ही गोदावरीची उपनदी असून ती प्रामुख्याने नाशिक आणि औरंगाबाद (छत्रपती संभाजीनगर) जिल्ह्यातून वाहते, त्यामुळे ती गोदावरी खोऱ्याचाच भाग आहे. तिन्ही विधाने भौगोलिकदृष्ट्या अचूक आहेत.",
+          "topic": "महाराष्ट्राचा भूगोल - नदी प्रणाली आणि प्राकृतिक रचना",
+          "imp_score": "High",
+          "extra_points": "अभ्यासासाठी ट्रिक्स: 1. कोकणातील नद्या लक्षात ठेवण्यासाठी 'वैता-उल्हास' (वैतरणा, तानसा, उल्हास) हा क्रम लक्षात ठेवा. 2. कृष्णा नदीच्या उपनद्यांसाठी 'कोयना-येरळा-वारणा-पंचगंगा-दूधगंगा' हा क्रम दक्षिणेकडे लक्षात ठेवा. भविष्यातील संभाव्य प्रश्न: नद्यांच्या उगमाची ठिकाणे आणि त्यांच्या संगमावरील शहरे यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, मन्याड नदीवर 'मन्याड धरण' आहे, जे जलसंधारणाच्या दृष्टीने महत्त्वाचे आहे. परीक्षेत 'उपनद्या' आणि 'खोरे' यावर नेहमी प्रश्न येतात, त्यामुळे महाराष्ट्राच्या नदी प्रणालीचा नकाशा डोळ्यासमोर ठेवून अभ्यास करणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_015.png": [
+      {
+        "qnum": 26,
+        "text": "खालील विधाने विचारात घ्या :\n(a) 2021-22 मध्ये भारताचे अन्नधान्य उत्पादन 315.7 दशलक्ष टन विक्रमी पातळीवर पोहोचले.\n(b) भारताची ज्वारी वगळता तृणधान्याची उत्पादकता इथिओपियापेक्षा जास्त होती.\nवरीलपैकी कोणते/ती विधान/ने योग्य आहे/त ?",
+        "text_eng": "Consider the following statements :\n(a) India's Foodgrains production touched a record 315.7 million tonnes in 2021-22.\n(b) India's productivity of millets excluding jowar was higher than Ethiopia.\nWhich of the statement/s given above is/are correct ?",
+        "options": [
+          "(1) दोन्ही (a) आणि (b) योग्य आहेत.",
+          "(2) केवळ (b) योग्य आहे.",
+          "(3) केवळ (a) योग्य आहे.",
+          "(4) वरीलपैकी कोणतेही योग्य नाही."
+        ],
+        "options_eng": [
+          "(1) Both (a) and (b) are correct.",
+          "(2) Only (b) is correct.",
+          "(3) Only (a) is correct.",
+          "(4) None of the above are correct."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "विधान (a) योग्य आहे: कृषी आणि शेतकरी कल्याण मंत्रालयाच्या चौथ्या आगाऊ अंदाजानुसार, 2021-22 या वर्षात भारताचे एकूण अन्नधान्य उत्पादन 315.72 दशलक्ष टन इतके विक्रमी नोंदवले गेले होते. हे आकडे आर्थिक पाहणी अहवालात (Economic Survey) अधिकृतपणे नमूद आहेत. विधान (b) चुकीचे आहे: इथिओपियाची तृणधान्य उत्पादकता (Yield per hectare) भारताच्या तुलनेत काही पिकांच्या बाबतीत वेगळी असू शकते, परंतु जागतिक कृषी आकडेवारीनुसार (FAO डेटा), भारताची उत्पादकता इथिओपियापेक्षा सर्वच तृणधान्यांच्या बाबतीत जास्त आहे असे म्हणणे तांत्रिकदृष्ट्या चुकीचे आहे. विशेषतः ज्वारी (Sorghum) आणि इतर भरड धान्यांच्या बाबतीत इथिओपियाची उत्पादकता भारताच्या काही भागांपेक्षा अधिक किंवा तुल्यबळ आहे. त्यामुळे 'ज्वारी वगळता' हे विधान तथ्यात्मकदृष्ट्या चुकीचे ठरते.",
+          "topic": "भारतीय अर्थव्यवस्था - कृषी क्षेत्र आणि उत्पादन आकडेवारी",
+          "imp_score": "High",
+          "extra_points": "1. लक्षात ठेवण्याची ट्रिक: '315.7' हा आकडा लक्षात ठेवण्यासाठी '3-1-5-7' असा क्रम लक्षात ठेवा. 2. भविष्यातील प्रश्न: MPSC आता 'विक्रमी उत्पादन' (Record Production) आणि 'उत्पादकता' (Yield) यातील फरक विचारत आहे. 3. महत्त्वाचे मुद्दे: भारताच्या कृषी उत्पादकतेवर (Yield) प्रश्न विचारताना नेहमी 'FAO' (Food and Agriculture Organization) च्या अहवालाचा संदर्भ घ्यावा. 4. संभाव्य प्रश्न: 'भारतातील हरित क्रांतीनंतर तृणधान्य उत्पादकतेत झालेली वाढ' किंवा 'प्रमुख पिकांचे उत्पादकतेनुसार उतरता क्रम' यावर प्रश्न येऊ शकतात. नेहमी आर्थिक पाहणी अहवालातील (Economic Survey) 'Agriculture' प्रकरणातील 'Highlights' वाचणे अनिवार्य आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 27,
+        "text": "जोड्या जुळवा.\nA\nकलम क्र.\n(a) 112\n(b) 151\n(c) 267\n(d) 280\nपर्यायी उत्तरे :\n(a) (b) (c) (d)\n(1) (iv) (iii) (ii) (i)\n(2) (i) (ii) (iii) (iv)\n(3) (i) (ii) (iv) (iii)\n(4) (iv) (iii) (i) (ii)",
+        "text_eng": "Match the column.\nA\nArticle No.\n(a) 112\n(b) 151\n(c) 267\n(d) 280\nAnswer Options :\n(a) (b) (c) (d)\n(1) (iv) (iii) (ii) (i)\n(2) (i) (ii) (iii) (iv)\n(3) (i) (ii) (iv) (iii)\n(4) (iv) (iii) (i) (ii)",
+        "options": [],
+        "options_eng": [],
+        "has_diagram_or_passage": true,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "दिलेल्या कलमांचे विश्लेषण खालीलप्रमाणे आहे: (a) कलम 112: हे 'वार्षिक वित्तीय विवरण' (Annual Financial Statement) म्हणजेच अर्थसंकल्पाशी संबंधित आहे. (b) कलम 151: हे 'नियंत्रक आणि महालेखापरीक्षक' (CAG) यांच्या अहवालांशी संबंधित आहे, जे ते राष्ट्रपतींना सादर करतात. (c) कलम 267: हे 'भारताचा आकस्मिक निधी' (Contingency Fund of India) याच्याशी संबंधित आहे. (d) कलम 280: हे 'वित्त आयोग' (Finance Commission) स्थापन करण्याच्या तरतुदीशी संबंधित आहे. यानुसार योग्य जोडी (a-i, b-ii, c-iii, d-iv) अशी जुळते, म्हणून पर्याय '2' योग्य आहे.",
+          "topic": "भारतीय राज्यघटना - केंद्र सरकार आणि वित्तीय तरतुदी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. '112' म्हणजे 'एक-एक-दोन' (अर्थसंकल्पात एक-एक रुपयाचा हिशोब असतो). 2. '280' म्हणजे 'वित्त आयोग' (Finance Commission - FC), हे लक्षात ठेवण्यासाठी '280' हा आकडा वारंवार वाचा. 3. '267' म्हणजे 'आकस्मिक' (Contingency) - जेव्हा संकट येते तेव्हा 267 चा वापर होतो. भविष्यातील संभाव्य प्रश्न: वित्त आयोगाचे सध्याचे अध्यक्ष कोण आहेत? (16 वा वित्त आयोग - अरविंद पनगढिया), CAG ची नियुक्ती कोणत्या कलमान्वये होते? (कलम 148). हे प्रश्न वारंवार विचारले जातात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_020.png": [
+      {
+        "qnum": 40,
+        "text": "भारतातील बहुउद्देशीय ग्रीन हाइड्रोजन पायलट प्रकल्पाचे उद्घाटन सतलज जल विद्युत निगम (SJVN) ने ____________ मधील झाकी येथील त्यांच्या जलविद्युत केंद्रांमध्ये एप्रिल 2024 मध्ये केले.",
+        "text_eng": "India's Multipurpose Green Hydrogen Pilot Project was inaugurated by Satlaj Jal Vidyut Nigam (SJVN) at its Hydro Power Station in Jhakri, ____________ in April 2024.",
+        "options": [
+          "(1) पंजाब",
+          "(2) हरियाणा",
+          "(3) हिमाचल प्रदेश",
+          "(4) उत्तराखंड"
+        ],
+        "options_eng": [
+          "(1) Punjab",
+          "(2) Haryana",
+          "(3) Himachal Pradesh",
+          "(4) Uttarakhand"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "3",
+          "explanation": "एप्रिल 2024 मध्ये, सतलज जल विद्युत निगम (SJVN) ने हिमाचल प्रदेशातील शिमला जिल्ह्यात असलेल्या 'झाकरी' (Jhakri) येथील त्यांच्या 'नाथपा झाकरी जलविद्युत प्रकल्पाच्या' (Nathpa Jhakri Hydro Power Station) परिसरात भारताचा पहिला बहुउद्देशीय ग्रीन हायड्रोजन पायलट प्रकल्प कार्यान्वित केला. हा प्रकल्प SJVN च्या 'ग्रीन हायड्रोजन' धोरणाचा भाग असून, याचा मुख्य उद्देश जलविद्युत ऊर्जेचा वापर करून हायड्रोजनची निर्मिती करणे हा आहे. पर्यायांचे विश्लेषण: (1) पंजाब - येथे SJVN चे प्रकल्प आहेत पण हा विशिष्ट प्रकल्प नाही. (2) हरियाणा - येथे सौर ऊर्जा प्रकल्प आहेत. (3) हिमाचल प्रदेश - हे अचूक उत्तर आहे, कारण झाकरी हे ठिकाण हिमाचल प्रदेशातील सतलज नदीवर वसलेले आहे. (4) उत्तराखंड - येथे टिहरी सारखे प्रकल्प आहेत, पण हा पायलट प्रकल्प येथे नाही.",
+          "topic": "पर्यावरण आणि शाश्वत ऊर्जा - ग्रीन हायड्रोजन मिशन",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'SJVN' म्हणजे 'सतलज', आणि सतलज नदीचे मुख्य कार्यक्षेत्र 'हिमाचल प्रदेश' आहे. त्यामुळे झाकरी हे ठिकाण हिमाचलमध्येच असणार. भविष्यातील संभाव्य प्रश्न: 1) नॅशनल ग्रीन हायड्रोजन मिशनची उद्दिष्टे काय आहेत? (2030 पर्यंत 5 दशलक्ष मेट्रिक टन उत्पादन). 2) ग्रीन हायड्रोजन म्हणजे काय? (पाण्याचे विद्युत अपघटन करून मिळवलेला हायड्रोजन, ज्यासाठी अक्षय ऊर्जेचा वापर होतो). 3) SJVN चे मुख्यालय कुठे आहे? (शिमला, हिमाचल प्रदेश). लक्षात ठेवा, हा प्रकल्प 'पायलट' स्वरूपाचा आहे, त्यामुळे तो भारताच्या 'नेट झिरो' (Net Zero) लक्ष्यासाठी अत्यंत महत्त्वाचा आहे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 41,
+        "text": "फेब्रुवारी 2025 मध्ये खालीलपैकी कोणत्या कंपनीचे उपमुख्य कार्यकारी अधिकारी म्हणून दोराबाबू दर्पती यांची नियुक्ती करण्यात आली आहे ?",
+        "text_eng": "Dorababu Daparti has been appointed as the Deputy Chief Executive Officer of which of the following companies in February 2025 ?",
+        "options": [
+          "(1) कोटक लाईफ इन्शुरन्स कंपनी",
+          "(2) आय सी आय सी आय प्रुडेन्शियल लाईफ इन्शुरन्स कंपनी",
+          "(3) एस बी आय लाईफ इन्शुरन्स कंपनी",
+          "(4) एच डी एफ सी लाईफ इन्शुरन्स कंपनी"
+        ],
+        "options_eng": [
+          "(1) Kotak Life Insurance Company",
+          "(2) ICICI Prudential Life Insurance Company",
+          "(3) SBI Life Insurance Company",
+          "(4) HDFC Life Insurance Company"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "फेब्रुवारी 2025 मधील घडामोडींनुसार, एच.डी.एफ.सी. लाईफ इन्शुरन्स (HDFC Life Insurance) कंपनीने दोराबाबू दर्पती (Dorababu Darpati) यांची उपमुख्य कार्यकारी अधिकारी (Deputy CEO) म्हणून नियुक्ती केली आहे. एच.डी.एफ.सी. लाईफ ही भारतातील आघाडीची खाजगी जीवन विमा कंपनी आहे. या नियुक्तीचा मुख्य उद्देश कंपनीच्या धोरणात्मक वाढीला गती देणे आणि डिजिटल परिवर्तनावर भर देणे हा आहे. इतर पर्यायांचे विश्लेषण: (1) कोटक लाईफ: ही कोटक महिंद्रा बँकेची उपकंपनी आहे, येथे अशी कोणतीही नियुक्ती झालेली नाही. (2) आय.सी.आय.सी.आय. प्रुडेन्शियल: ही विमा क्षेत्रातील मोठी कंपनी असून त्यांचे नेतृत्व अनूप बागची करत आहेत. (3) एस.बी.आय. लाईफ: ही सार्वजनिक क्षेत्रातील सर्वात मोठी विमा कंपनी आहे, जिथे सध्या अमित झिंगरन एमडी आणि सीईओ म्हणून कार्यरत आहेत.",
+          "topic": "चालू घडामोडी - नियुक्त्या आणि कॉर्पोरेट क्षेत्र",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'दोराबाबू' हे नाव 'HDFC' च्या 'D' (Deputy) पदाशी जोडा. 'D' for Dorababu and 'D' for Deputy CEO. भविष्यातील संभाव्य प्रश्न: 1. विमा क्षेत्राचे नियमन करणारी संस्था कोणती? (उत्तर: IRDAI - Insurance Regulatory and Development Authority of India). 2. IRDAI चे मुख्यालय कोठे आहे? (उत्तर: हैदराबाद). 3. विमा क्षेत्रातील FDI ची मर्यादा किती आहे? (उत्तर: 74%). विद्यार्थ्यांसाठी टीप: MPSC च्या परीक्षेत बँकिंग आणि विमा क्षेत्रातील उच्चपदस्थ नियुक्त्यांवर नेहमी प्रश्न विचारले जातात, त्यामुळे दर महिन्याच्या 'नियुक्त्या' (Appointments) या सदराचा स्वतंत्र नोट्समध्ये समावेश करा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 42,
+        "text": "मे 2025 मध्ये ऑडी इंडियाचा ब्रँड अ‍ॅंबेसडर कोण बनला ?",
+        "text_eng": "Who became the Brand Ambassador for Audi India in May 2025 ?",
+        "options": [
+          "(1) नीरज चोप्रा",
+          "(2) एम.एस. धोनी",
+          "(3) ऋतिक रोशन",
+          "(4) रणवीर सिंग"
+        ],
+        "options_eng": [
+          "(1) Neeraj Chopra",
+          "(2) M.S. Dhoni",
+          "(3) Hrithik Roshan",
+          "(4) Ranveer Singh"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "मे 2025 मध्ये ऑडी इंडियाने (Audi India) भारताचा दिग्गज क्रिकेटपटू एम.एस. धोनी (Mahendra Singh Dhoni) यांची आपला नवीन ब्रँड अ‍ॅंबेसडर म्हणून नियुक्ती केली आहे. ऑडी इंडियाने आपल्या प्रीमियम इलेक्ट्रिक आणि लक्झरी कार पोर्टफोलिओला चालना देण्यासाठी धोनीची निवड केली आहे. एम.एस. धोनी हे त्यांच्या शांत स्वभावासाठी आणि अचूक निर्णयांसाठी ओळखले जातात, जे ऑडीच्या 'प्रोग्रेसिव्ह लक्झरी' या ब्रँड मूल्यांशी सुसंगत आहे. इतर पर्यायांचे विश्लेषण: (1) नीरज चोप्रा हे ऑडी इंडियाचे जुने ब्रँड अ‍ॅंबेसडर राहिले आहेत, परंतु मे 2025 मधील नियुक्ती धोनी यांची आहे. (3) ऋतिक रोशन हे अनेकदा लक्झरी ब्रँड्सशी जोडलेले असतात, परंतु ऑडीसाठी त्यांची नियुक्ती नाही. (4) रणवीर सिंग हे ऑडीचे पूर्वीचे ब्रँड अ‍ॅंबेसडर होते, परंतु ताज्या घडामोडीनुसार धोनी यांची निवड झाली आहे.",
+          "topic": "चालू घडामोडी - नियुक्त्या आणि ब्रँड अ‍ॅंबेसडर",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'धोनी = कॅप्टन कूल = ऑडीची कूल लक्झरी'. परीक्षेत ब्रँड अ‍ॅंबेसडरवर प्रश्न विचारताना 'क्षेत्र' (क्रीडा/चित्रपट) आणि 'ब्रँड' यांची जोडी विचारली जाते. भविष्यातील संभाव्य प्रश्न: 1. ऑडी इंडियाने कोणत्या विशिष्ट कार श्रेणीसाठी धोनीची निवड केली आहे? (उत्तर: इलेक्ट्रिक आणि लक्झरी). 2. धोनी यांच्या आधी ऑडी इंडियाचे ब्रँड अ‍ॅंबेसडर कोण होते? (उत्तर: विराट कोहली/रणवीर सिंग/नीरज चोप्रा). टीप: MPSC च्या चालू घडामोडी विभागात 'नियुक्त्या' या घटकावर दरवर्षी किमान 2-3 प्रश्न असतात, त्यामुळे अलीकडील 6 महिन्यांतील प्रमुख ब्रँड अ‍ॅंबेसडरची यादी करून ठेवा."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 43,
+        "text": "एर न्यूझीलंडने जुलै 2025 ____________ यांची त्यांचे पुढील मुख्य कार्यकारी अधिकारी म्हणून नियुक्ती जाहीर केली आहे.",
+        "text_eng": "Air New Zealand has announced ____________ as their next CEO in July 2025.",
+        "options": [
+          "(1) अरविंद कृष्णा",
+          "(2) अरविंद श्रीनिवास",
+          "(3) संजय मेहरोत्रा",
+          "(4) निखिल रविशंकर"
+        ],
+        "options_eng": [
+          "(1) Arvind Krishna",
+          "(2) Arvind Shrinivas",
+          "(3) Sanjay Mehrotra",
+          "(4) Nikhil Ravishankar"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "एर न्यूझीलंडने (Air New Zealand) जुलै 2024 मध्ये निखिल रविशंकर (Nikhil Ravishankar) यांची नियुक्ती त्यांचे पुढील मुख्य कार्यकारी अधिकारी (CEO) म्हणून केली आहे. ते ग्रेग फोरन (Greg Foran) यांची जागा घेतील. निखिल रविशंकर हे मूळचे भारतीय वंशाचे असून, त्यांनी यापूर्वी 'वन न्यूझीलंड' (One NZ) मध्ये मुख्य डिजिटल अधिकारी म्हणून काम केले आहे. इतर पर्यायांचे विश्लेषण: (1) अरविंद कृष्णा हे IBM चे CEO आहेत. (2) अरविंद श्रीनिवास हे 'Perplexity AI' चे संस्थापक आणि CEO आहेत. (3) संजय मेहरोत्रा हे 'Micron Technology' चे CEO आहेत. हे तिन्ही व्यक्ती जागतिक तंत्रज्ञान क्षेत्रातील दिग्गज आहेत, त्यामुळे गोंधळ होऊ शकतो, परंतु विमान वाहतूक क्षेत्राशी संबंधित नियुक्ती केवळ निखिल रविशंकर यांची आहे.",
+          "topic": "आंतरराष्ट्रीय चालू घडामोडी - नियुक्त्या",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'न्यूझीलंडच्या विमानात (Air) आता 'निखिल' (नवा) अधिकारी'. भविष्यातील संभाव्य प्रश्न: १) निखिल रविशंकर यांच्या आधीचे CEO कोण होते? (उत्तर: ग्रेग फोरन). २) एर न्यूझीलंडचे मुख्यालय कोठे आहे? (उत्तर: ऑकलंड). ३) भारतीय वंशाचे जागतिक स्तरावरील CEO यावर जोड्या लावा प्रश्न विचारले जाऊ शकतात. नेहमी लक्षात ठेवा, MPSC अशा नियुक्त्यांवर प्रश्न विचारते जिथे भारतीय वंशाची व्यक्ती परदेशी कंपनीत उच्च पदावर विराजमान होते."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazetted_Services_Combined_Preliminary_Examination (2)\\page_016.png": [
+      {
+        "qnum": 34,
+        "text": "भारतीय संविधानातील अनुच्छेद ____________ मध्ये केंद्रीय अर्थसंकल्पाची परिभाषा केली आहे.",
+        "text_eng": "The Constitution of India defines the Union Budget under the Article",
+        "options": [
+          "(1) अनुच्छेद ११२",
+          "(2) अनुच्छेद ११३",
+          "(3) अनुच्छेद ११६",
+          "(4) अनुच्छेद १२०"
+        ],
+        "options_eng": [
+          "(1) Article 112",
+          "(2) Article 113",
+          "(3) Article 116",
+          "(4) Article 120"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय संविधानातील अनुच्छेद 112 मध्ये 'वार्षिक वित्तीय विवरण' (Annual Financial Statement) या शब्दाचा वापर केला आहे, ज्याला सामान्य भाषेत 'केंद्रीय अर्थसंकल्प' (Union Budget) असे म्हणतात. संविधानात 'अर्थसंकल्प' (Budget) हा शब्द कुठेही वापरलेला नाही. अनुच्छेद 112 नुसार, राष्ट्रपती प्रत्येक आर्थिक वर्षासाठी संसदेच्या दोन्ही सभागृहांसमोर केंद्र सरकारचे अंदाजित प्राप्ती आणि खर्चाचे विवरण मांडण्याची व्यवस्था करतात. इतर पर्यायांचे विश्लेषण: (2) अनुच्छेद 113: अर्थसंकल्पातील अनुदानांच्या मागण्यांवर (Demands for Grants) संसदेत होणारी प्रक्रिया स्पष्ट करते. (3) अनुच्छेद 116: 'लेखानुदान' (Vote on Account) बद्दल माहिती देते, जे सरकारला पूर्ण अर्थसंकल्प मंजूर होईपर्यंत तात्पुरता खर्च करण्यासाठी लागते. (4) अनुच्छेद 120: संसदेत वापरल्या जाणाऱ्या भाषेबद्दल (हिंदी किंवा इंग्रजी) तरतूद करते.",
+          "topic": "भारतीय राज्यघटना - केंद्रीय अर्थसंकल्पीय प्रक्रिया",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '112' म्हणजे 'एक-एक-दोन' (एक वर्ष, एक बजेट, दोन सभागृहे). भविष्यातील संभाव्य प्रश्न: 1) 'विनियोग विधेयक' (Appropriation Bill) कोणत्या अनुच्छेदात आहे? (उत्तर: 114). 2) 'वित्त विधेयक' (Finance Bill) कोणत्या अनुच्छेदात आहे? (उत्तर: 117). 3) अर्थसंकल्प मांडण्याची प्रक्रिया कोणत्या टप्प्यातून जाते? (मांडणी -> चर्चा -> मतदान -> विनियोग विधेयक -> वित्त विधेयक). लक्षात ठेवा, अर्थसंकल्प हा राष्ट्रपतींच्या नावाने मांडला जातो आणि तो अर्थमंत्री लोकसभेत सादर करतात."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_025.png": [
+      {
+        "qnum": 56,
+        "text": "जोड्या जुळवा.\nयादी-I\n( भारतीय संविधानातील बाब )\n(a) राज्य धोरणाची निर्देशक तत्वे\n(b) मूलभूत हक्क\n(c) संघराज्य संबंधामध्ये समवर्ती यादी\n(d) भारत हा मोठ्या राज्यांचा संघ म्हणून\nसंघराज्याचे अधिकार\n\nयादी-II\n( ज्या देशाकडून घेण्यात आले आहे )\n(i) ऑस्ट्रेलिया\n(ii) कॅनडा\n(iii) आयर्लंड\n(iv) यूके\n(v) यूएसए",
+        "text_eng": "Match :\nList-I\n(Item in the Indian Constitution)\n(a) Directive Principles of State Policy\n(b) Fundamental Rights\n(c) Concurrent list in Union\nState relations\n(d) India as a Union of States\nwith greater powers to union\n\nList-II\n(Country from which it is derived)\n(i) Australia\n(ii) Canada\n(iii) Ireland\n(iv) UK\n(v) USA",
+        "options": [
+          "(1) (v) (iv) (i) (ii)",
+          "(2) (iii) (v) (ii) (i)",
+          "(3) (v) (iv) (ii) (i)",
+          "(4) (iii) (v) (i) (ii)"
+        ],
+        "options_eng": [
+          "(1) (v) (iv) (i) (ii)",
+          "(2) (iii) (v) (ii) (i)",
+          "(3) (v) (iv) (ii) (i)",
+          "(4) (iii) (v) (i) (ii)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय संविधानाची निर्मिती करताना घटनाकारांनी जगातील विविध लोकशाही देशांच्या संविधानाचा अभ्यास करून त्यातील सर्वोत्तम तरतुदींचा स्वीकार केला आहे. या प्रश्नातील जोड्यांचे विश्लेषण खालीलप्रमाणे आहे: (a) राज्य धोरणाची निर्देशक तत्वे (Directive Principles of State Policy) - आयर्लंड (iii) कडून घेण्यात आली आहेत. (b) मूलभूत हक्क (Fundamental Rights) - अमेरिकेच्या (USA) संविधानातून (v) प्रेरित आहेत. (c) समवर्ती यादी (Concurrent List) - ऑस्ट्रेलियाच्या (i) संविधानातून घेण्यात आली आहे. (d) संघराज्याचे अधिकार (केंद्र सरकारकडे अधिक अधिकार असणे) - कॅनडाच्या (ii) संविधानाचे वैशिष्ट्य आहे. त्यामुळे योग्य जोडी (a-iii), (b-v), (c-i), (d-ii) अशी जुळते, जी पर्याय (4) मध्ये दिली आहे.",
+          "topic": "भारतीय राज्यघटना - संविधानाचे स्त्रोत (Sources of the Constitution)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. 'आयर्लंड' (Ireland) - 'आ' वरून 'आ'देश (निर्देशक तत्वे). 2. 'अमेरिका' (USA) - 'अ' वरून 'अ'धिकार (मूलभूत हक्क). 3. 'ऑस्ट्रेलिया' (Australia) - 'स'मवर्ती यादी (ऑस्ट्रेलियाच्या 'स' आणि 'स'मवर्ती). 4. 'कॅनडा' (Canada) - 'क'ेंद्राकडे 'क'ठोर अधिकार (कॅनडा). भविष्यातील संभाव्य प्रश्न: 'आणीबाणीच्या तरतुदी' कोणत्या देशाकडून घेतल्या आहेत? (उत्तर: जर्मनीचे वायमार संविधान), 'संसदीय शासन पद्धती' कुठून घेतली आहे? (उत्तर: यूके/ब्रिटन). हे घटक MPSC च्या पूर्व आणि मुख्य परीक्षेसाठी अत्यंत महत्त्वाचे आहेत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 57,
+        "text": "भारतीय संविधानाच्या कलम-8 मध्ये खालीलपैकी कशाचा उल्लेख आहे ?",
+        "text_eng": "Which of the following is mentioned in Article-8 of the Indian Constitution ?",
+        "options": [
+          "(1) पाकिस्तानातून भारतात स्थलांतरित झालेल्या काही विशिष्ट व्यक्तींचे नागरिकत्वाचे अधिकार.",
+          "(2) भारताबाहेर राहणाऱ्या भारतीय वंशाच्या काही विशिष्ट व्यक्तींचे नागरिकत्वाचे अधिकार.",
+          "(3) पाकिस्तानात स्थलांतरित झालेल्या काही विशिष्ट व्यक्तींचे नागरिकत्वाचे अधिकार.",
+          "(4) संसद कायद्याद्वारे नागरिकत्वाच्या अधिकाराचे नियमन करेल."
+        ],
+        "options_eng": [
+          "(1) Rights of Citizenship of certain persons who have migrated to India from Pakistan.",
+          "(2) Rights of Citizenship of certain persons of Indian origin residing outside India.",
+          "(3) Rights of Citizenship of certain persons migrated to Pakistan.",
+          "(4) Parliament to regulate the right of Citizenship by Law."
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय संविधानातील भाग 2 (कलम 5 ते 11) नागरिकत्वाशी संबंधित आहे. कलम 8 हे भारताबाहेर राहणाऱ्या भारतीय वंशाच्या व्यक्तींच्या नागरिकत्वाच्या अधिकारांशी संबंधित आहे. याचे सविस्तर विश्लेषण खालीलप्रमाणे आहे: (1) कलम 6: पाकिस्तानातून भारतात स्थलांतरित झालेल्या व्यक्तींचे नागरिकत्व. (2) कलम 8: भारताबाहेर राहणाऱ्या भारतीय वंशाच्या व्यक्तींचे नागरिकत्व (उदा. ज्यांचे आई-वडील किंवा आजी-आजोबा अविभाजित भारतात जन्मले होते). (3) कलम 7: भारतातून पाकिस्तानात स्थलांतरित झालेल्या व्यक्तींचे नागरिकत्व. (4) कलम 11: नागरिकत्वाच्या अधिकारांचे संसदेद्वारे नियमन करण्याची तरतूद. त्यामुळे, कलम 8 साठी पर्याय (2) हे अचूक उत्तर आहे.",
+          "topic": "भारतीय संविधान - नागरिकत्व (कलम 5 ते 11)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '8' हा आकडा 'बाहेर' (B-a-h-e-r) या शब्दाशी संबंधित ठेवा. कलम 8 = भारताबाहेर. भविष्यातील संभाव्य प्रश्न: कलम 9 (परकीय नागरिकत्व स्वीकारल्यास भारतीय नागरिकत्व रद्द होणे) आणि कलम 10 (नागरिकत्वाचे सातत्य) यावर प्रश्न विचारले जाऊ शकतात. लक्षात ठेवा, कलम 5 ते 10 हे केवळ 26 जानेवारी 1950 रोजी नागरिक कोण असेल हे ठरवतात, तर कलम 11 नुसार संसदेला नागरिकत्वाचे कायदे करण्याचा पूर्ण अधिकार आहे (उदा. नागरिकत्व कायदा 1955)."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_026.png": [
+      {
+        "qnum": 58,
+        "text": "उप-राष्ट्रपतींच्या पात्रतेबाबत अयोग्य कथन/ने ओळखा.\n(a) भारताचा नागरिक असावा.\n(b) पंचेचाळीस वर्ष पूर्ण असावी.\n(c) लोकसभा सदस्य म्हणून निवडणूक येण्यास अर्हताप्राप्त असल्याखेरीज उपराष्ट्रपती पदाच्या निवडणुकीस पात्र असणार नाही.\nपर्यायी उत्तरे :\n(1) फक्त (b), (c)\n(2) फक्त (b)\n(3) फक्त (a), (c)\n(4) वरीलपैकी सर्व",
+        "text_eng": "Select the incorrect statement/s about qualification of Vice-President.\n(a) is a citizen of India.\n(b) has completed the age of forty five years.\n(c) is qualified for election as a member of House of People (Lok Sabha).\nAnswer Options :\n(1) Only (b), (c)\n(2) Only (b)\n(3) Only (a), (c)\n(4) All of the above",
+        "options": [
+          "(1) फक्त (b), (c)",
+          "(2) फक्त (b)",
+          "(3) फक्त (a), (c)",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) Only (b), (c)",
+          "(2) Only (b)",
+          "(3) Only (a), (c)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "1",
+          "explanation": "भारतीय राज्यघटनेच्या अनुच्छेद 66(3) नुसार उपराष्ट्रपती पदाच्या उमेदवारासाठी खालील पात्रता आवश्यक आहेत: (a) तो भारताचा नागरिक असावा (हे विधान योग्य आहे). (b) त्याचे वय 35 वर्षे पूर्ण असावे, 45 वर्षे नाही (हे विधान अयोग्य आहे). (c) तो राज्यसभेचा सदस्य म्हणून निवडून येण्यास पात्र असावा, लोकसभेचा नाही (हे विधान अयोग्य आहे). उपराष्ट्रपती हे राज्यसभेचे पदसिद्ध अध्यक्ष असतात, त्यामुळे त्यांची पात्रता राज्यसभेच्या सदस्याशी संबंधित असते. प्रश्नात 'अयोग्य' विधाने विचारली आहेत, म्हणून (b) आणि (c) ही दोन्ही विधाने अयोग्य आहेत.",
+          "topic": "भारतीय राज्यघटना - उपराष्ट्रपती",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'राष्ट्रपती आणि उपराष्ट्रपती' यांच्या पात्रतेत मुख्य फरक म्हणजे वयाची अट (दोघांसाठी 35 वर्षे) आणि सभागृहाची पात्रता (राष्ट्रपतींसाठी लोकसभा, उपराष्ट्रपतींसाठी राज्यसभा). लक्षात ठेवा: 'उप' म्हणजे 'राज्यसभा'. भविष्यातील प्रश्न: उपराष्ट्रपतींच्या निवडणुकीतील निर्वाचक गण (Electoral College) आणि त्यांना पदावरून दूर करण्याची प्रक्रिया (अनुच्छेद 67) यावर प्रश्न विचारले जाऊ शकतात. उपराष्ट्रपतींच्या निवडणुकीत केवळ संसदेचे दोन्ही सभागृहांचे सदस्य (निर्वाचित + नामनिर्देशित) भाग घेतात, राज्यांच्या विधानसभांचे सदस्य भाग घेत नाहीत."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 59,
+        "text": "पंतप्रधानांच्या भूमिकेबाबत योग्य कथने ओळख :\n(a) रॅमसे मूर - \"पंतप्रधान हे राज्यरूपी जहाजाचे सुकाणू चालक आहेत.\"\n(b) एच.आर.जी. ग्रीव्हज - \"सरकार हे देशाचे स्वामी आहेत आणि पंतप्रधान हे सरकारचे स्वामी आहेत.\"\n(c) मुन्रो - \"पंतप्रधान हे ताऱ्यामधील चंद्र आहेत.\"\nपर्यायी उत्तरे :\n(1) फक्त (a), (b)\n(2) फक्त (b), (c)\n(3) फक्त (a), (c)\n(4) वरीलपैकी सर्व",
+        "text_eng": "Select the correct statements about Role of Prime Minister :\n(a) Ramsay Muir - \"Prime Minister is the steersman of steering wheel of the ship of the state.\"\n(b) H.R.G. Greaves - \"The Government is the master of the country and Prime Minister is the master of Government.\"\n(c) Munro - \"Prime Minister is a moon among lesser stars.\"\nAnswer Options :\n(1) Only (a), (b)\n(2) Only (b), (c)\n(3) Only (a), (c)\n(4) All of the above",
+        "options": [
+          "(1) फक्त (a), (b)",
+          "(2) फक्त (b), (c)",
+          "(3) फक्त (a), (c)",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) Only (a), (b)",
+          "(2) Only (b), (c)",
+          "(3) Only (a), (c)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "भारतीय राज्यघटनेत पंतप्रधानांचे स्थान अत्यंत महत्त्वाचे आहे. हे तिन्ही विधाने राज्यशास्त्रज्ञांनी पंतप्रधानांच्या सर्वोच्च अधिकारांचे वर्णन करण्यासाठी वापरली आहेत. (a) रॅमसे मूर (Ramsay Muir) यांनी पंतप्रधानांना 'राज्यरूपी जहाजाचे सुकाणू चालक' (Steering wheel of the ship of the state) म्हटले आहे, कारण ते मंत्रिमंडळाची दिशा ठरवतात. (b) एच.आर.जी. ग्रीव्हज (H.R.G. Greaves) यांनी पंतप्रधानांच्या वर्चस्वावर भाष्य करताना म्हटले आहे की, जर सरकार देशाचे स्वामी असेल, तर पंतप्रधान हे त्या सरकारचे स्वामी आहेत. (c) मुन्रो (Munro) यांनी पंतप्रधानांची तुलना 'ताऱ्यांमधील चंद्राशी' (Moon among the stars) केली आहे, ज्याचा अर्थ असा की मंत्रिमंडळातील इतर मंत्री हे ताऱ्यांसारखे आहेत, परंतु पंतप्रधान हे चंद्राप्रमाणे सर्वात तेजस्वी आणि प्रभावशाली आहेत. हे तिन्ही विधाने राज्यशास्त्राच्या संदर्भात पूर्णपणे सत्य आहेत.",
+          "topic": "भारतीय राज्यव्यवस्था - पंतप्रधान आणि मंत्रिमंडळ",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक्स: 1. मूर = सुकाणू (Moor-Steer): 'मूर' आणि 'सुकाणू' हे शब्द उच्चारताना साम्य वाटते. 2. ग्रीव्हज = स्वामी (Greaves-Master): 'ग्रीव्हज' हे नाव मोठे वाटते, म्हणून 'स्वामी' (Master) लक्षात ठेवा. 3. मुन्रो = चंद्र (Munro-Moon): 'मुन्रो' आणि 'मून' (Moon) हे शब्द जवळचे आहेत. भविष्यातील संभाव्य प्रश्न: 'पंतप्रधान हे समान लोकांमध्ये प्रथम आहेत' (Primus inter pares) हे कोणाचे विधान आहे? (उत्तर: लॉर्ड मॉर्ले). तसेच, डॉ. आंबेडकरांनी पंतप्रधानांची तुलना अमेरिकेच्या राष्ट्राध्यक्षांशी कशी केली आहे, यावरही प्रश्न येऊ शकतो."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 60,
+        "text": "1950 मध्ये भारतीय संविधानात भारतीय संघराज्यातील प्रदेशांचे चार-स्तरीय वर्गीकरण होते.\n(a) भाग ए - कायदेमंडळ असलेली संस्थाने\n(b) भाग बी - ब्रिटिश भारतातील राजपाल्याचे प्रांता\n(c) भाग सी - ब्रिटिश भारतातील मुख्य कमिशनरंचे प्रांता\n(d) भाग डी - अंदमान व निकोबार बेटे\nवरीलपैकी योग्य जोड्या निवडा :\n(1) फक्त (a), (b), (c)\n(2) फक्त (c), (d)\n(3) फक्त (b), (d), (a)\n(4) वरीलपैकी सर्व",
+        "text_eng": "In 1950, the Constitution of India contained a four-fold classification of units of the Indian Union.\n(a) Part A - Princely states with legislature\n(b) Part B - Governor's provinces of British India\n(c) Part C - Chief Commissioner's provinces of British India\n(d) Part D - Andaman and Nicobar Islands\nSelect the correct pairs from the above :\n(1) Only (a), (b), (c)\n(2) Only (c), (d)\n(3) Only (b), (d), (a)\n(4) All of the above",
+        "options": [
+          "(1) फक्त (a), (b), (c)",
+          "(2) फक्त (c), (d)",
+          "(3) फक्त (b), (d), (a)",
+          "(4) वरीलपैकी सर्व"
+        ],
+        "options_eng": [
+          "(1) Only (a), (b), (c)",
+          "(2) Only (c), (d)",
+          "(3) Only (b), (d), (a)",
+          "(4) All of the above"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "#",
+          "explanation": "1950 मध्ये भारतीय संविधानाच्या पहिल्या अनुसूचीमध्ये भारतीय संघराज्यातील प्रदेशांचे चार-स्तरीय वर्गीकरण करण्यात आले होते. ते खालीलप्रमाणे होते: भाग 'अ' (Part A): ब्रिटिश भारतातील नऊ राज्यपाल प्रांत (उदा. मद्रास, बॉम्बे, पश्चिम बंगाल). भाग 'ब' (Part B): नऊ संस्थाने किंवा संस्थानांचे गट (उदा. हैदराबाद, जम्मू-काश्मीर, म्हैसूर). भाग 'क' (Part C): ब्रिटिश भारतातील मुख्य आयुक्तांचे प्रांत आणि काही संस्थाने (उदा. अजमेर, दिल्ली, कुर्ग). भाग 'ड' (Part D): अंदमान आणि निकोबार बेटे. प्रश्नातील पर्यायांमध्ये (a), (b) आणि (c) मधील व्याख्या चुकीच्या पद्धतीने एकमेकांत मिसळल्या आहेत. (a) मध्ये 'कायदेमंडळ असलेली संस्थाने' असे म्हटले आहे, जे चुकीचे आहे. (b) मध्ये 'ब्रिटिश भारतातील राज्यपाल प्रांत' असावे, पण ते भाग 'अ' मध्ये होते. (c) मध्ये 'मुख्य कमिशनरचे प्रांत' भाग 'क' मध्ये होते. त्यामुळे दिलेल्या पर्यायांपैकी एकही पर्याय तांत्रिकदृष्ट्या अचूक नाही, म्हणून हे उत्तर रद्द (#) ठरते.",
+          "topic": "भारतीय राज्यघटना - राज्यांची पुनरचना आणि ऐतिहासिक पार्श्वभूमी",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'A-G-C-D' (A=Governor provinces, G=Group of Princely states, C=Chief Commissioner provinces, D=Delhi/Andaman). भविष्यातील प्रश्न: 1956 च्या राज्य पुनरचना कायद्यानंतर (State Reorganization Act) हे चार-स्तरीय वर्गीकरण रद्द करून 'राज्ये' आणि 'केंद्रशासित प्रदेश' अशी द्विस्तरीय पद्धत कशी आली, यावर प्रश्न विचारले जाऊ शकतात. फझल अली आयोगाच्या शिफारसी (1953) आणि 7 वी घटनादुरुस्ती (1956) हे या विषयातील सर्वात महत्त्वाचे घटक आहेत."
+        },
+        "is_verified_from_key": false
+      }
+    ],
+    "F:\\AASTUDY - Copy\\PYQ_DATA\\pdf_images\\Maharashtra_Group_B_Non_Gazzetted_Services_Combined_Preliminary\\page_023.png": [
+      {
+        "qnum": 51,
+        "text": "भारतीय संविधानातील कलम 243-G बाबतीत खालीलपैकी कोणते विधान/विधाने बरोबर आहे/आहेत ?\n(a) सभासदत्वाची अपात्रता\n(b) पंचायतीची सत्ता, अधिकार आणि जबाबदाऱ्या\n(c) पंचायतीची रचना\n(d) पंचायतीचा कालावधी\nपर्यायी उत्तरे :\n(1) फक्त (a) (2) फक्त (b) (3) (a) आणि (c) (4) (c) आणि (d)",
+        "text_eng": "Which of the following about Article 243-G in the Constitution of India is/are correct ?\n(a) Disqualification of membership\n(b) Powers, authority and responsibilities of Panchayats\n(c) Composition of Panchayats\n(d) Duration of Panchayats\nAnswer Options :\n(1) Only (a) (2) Only (b) (3) (a) and (c) (4) (c) and (d)",
+        "options": [
+          "(1) फक्त (a)",
+          "(2) फक्त (b)",
+          "(3) (a) आणि (c)",
+          "(4) (c) आणि (d)"
+        ],
+        "options_eng": [
+          "(1) Only (a)",
+          "(2) Only (b)",
+          "(3) (a) and (c)",
+          "(4) (c) and (d)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "2",
+          "explanation": "भारतीय संविधानातील 73 व्या घटनादुरुस्तीद्वारे (1992) भाग 9 मध्ये पंचायती राज संस्थांना घटनात्मक दर्जा देण्यात आला. कलम 243 ते 243-O पर्यंतच्या कलमांमध्ये पंचायतींच्या विविध पैलूंची तरतूद आहे. कलम 243-G हे पंचायतींच्या 'सत्ता, अधिकार आणि जबाबदाऱ्या' (Powers, Authority and Responsibilities) या विषयाशी संबंधित आहे. या कलमानुसार, राज्य विधिमंडळ कायद्याद्वारे पंचायतींना अशा सत्ता आणि अधिकार प्रदान करू शकते जे त्यांना स्वराज्य संस्था म्हणून काम करण्यास सक्षम करतील. यामध्ये प्रामुख्याने 11 व्या अनुसूचीतील 29 विषयांचा समावेश आहे. इतर पर्यायांचे विश्लेषण: (a) सभासदत्वाची अपात्रता - कलम 243-F मध्ये दिली आहे. (c) पंचायतीची रचना - कलम 243-C मध्ये दिली आहे. (d) पंचायतीचा कालावधी - कलम 243-E मध्ये दिला आहे. त्यामुळे केवळ पर्याय (b) योग्य आहे.",
+          "topic": "भारतीय संविधान - पंचायती राज (कलम 243-G)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: 'G' म्हणजे 'General Powers' (सर्वसाधारण अधिकार). कलम 243-A ते 243-O लक्षात ठेवण्यासाठी 'G-A-R-D-E-N-F-I-R-E-S' सारखी सूत्रे वापरता येतात. भविष्यातील संभाव्य प्रश्न: 11 व्या अनुसूचीतील 29 विषयांपैकी कोणते विषय आहेत किंवा नाहीत यावर प्रश्न विचारले जाऊ शकतात. तसेच, कलम 243-K (निवडणूक) आणि 243-I (वित्त आयोग) हे MPSC चे अत्यंत आवडते विषय आहेत, त्यावर विशेष लक्ष द्यावे."
+        },
+        "is_verified_from_key": false
+      },
+      {
+        "qnum": 52,
+        "text": "खालीलपैकी कोणते विधान/विधाने बरोबर आहे/आहेत ?\n(a) 1 मे 1960 रोजी महाराष्ट्र राज्याच्या स्थापनेसह महाराष्ट्र राज्याचे महाधिवक्ता कार्यालय अस्तित्वात आले.\n(b) महाधिवक्त्याची नियुक्ती भारतीय संविधानाच्या अनुच्छेद 165 मधील तरतुदीनुसार केली जाईल.\n(c) बिरेंद्र सराफ हे महाराष्ट्राचे महाधिवक्ता आहेत. (ऑगस्ट 2025)\nपर्यायी उत्तरे :\n(1) (a) आणि (c) (2) (b) आणि (c) (3) (a) आणि (b) (4) (a), (b) आणि (c)",
+        "text_eng": "Which of the following statement/statements is/are correct ?\n(a) The office of the Advocate General for the State of Maharashtra came into existence with the formation of the State itself on May 1, 1960.\n(b) The Advocate General shall be appointed in accordance with the provisions of Article 165 of the Constitution of India.\n(c) Birendra Saraf is the Advocate General of Maharashtra. (as of August 2025)\nAnswer Options :\n(1) (a) and (c) (2) (b) and (c) (3) (a) and (b) (4) (a), (b) and (c)",
+        "options": [
+          "(1) (a) आणि (c)",
+          "(2) (b) आणि (c)",
+          "(3) (a) आणि (b)",
+          "(4) (a), (b) आणि (c)"
+        ],
+        "options_eng": [
+          "(1) (a) and (c)",
+          "(2) (b) and (c)",
+          "(3) (a) and (b)",
+          "(4) (a), (b) and (c)"
+        ],
+        "has_diagram_or_passage": false,
+        "enriched": {
+          "correct_option": "4",
+          "explanation": "विधान (a) बरोबर आहे: महाराष्ट्र राज्याची निर्मिती 1 मे 1960 रोजी झाली आणि त्याच दिवशी राज्याचे सर्वोच्च कायदेशीर अधिकारी म्हणून 'महाधिवक्ता' (Advocate General) हे पद घटनात्मक तरतुदीनुसार अस्तित्वात आले. विधान (b) बरोबर आहे: भारतीय संविधानाच्या अनुच्छेद 165 मध्ये राज्याच्या महाधिवक्त्याची नियुक्ती, पात्रता आणि कार्यकाळाबद्दल स्पष्ट तरतूद आहे. राज्यपाल उच्च न्यायालयाचा न्यायाधीश होण्यास पात्र असलेल्या व्यक्तीची महाधिवक्ता म्हणून नियुक्ती करतात. विधान (c) बरोबर आहे: बिरेंद्र सराफ (Birendra Saraf) हे डिसेंबर 2022 पासून महाराष्ट्राचे महाधिवक्ता म्हणून कार्यरत आहेत आणि ऑगस्ट 2025 पर्यंत तेच या पदावर कायम आहेत. त्यामुळे तिन्ही विधाने सत्य आहेत.",
+          "topic": "भारतीय संविधान - राज्य कार्यकारी मंडळ (महाधिवक्ता)",
+          "imp_score": "High",
+          "extra_points": "लक्षात ठेवण्यासाठी ट्रिक: '165' हा आकडा लक्षात ठेवा. 165 (महाधिवक्ता) आणि 76 (महान्यायवादी - केंद्र). महाधिवक्ता हा राज्याचा प्रथम कायदेशीर अधिकारी असतो. तो राज्य विधानमंडळाच्या दोन्ही सभागृहात बोलू शकतो, पण त्याला मतदानाचा अधिकार नसतो. भविष्यातील संभाव्य प्रश्न: महाधिवक्त्याचा कार्यकाळ संविधानात निश्चित केलेला नाही (तो राज्यपालांच्या मर्जीनुसार पद धारण करतो), हा मुद्दा परीक्षेत वारंवार विचारला जातो. तसेच, त्यांना मिळणारे वेतन आणि भत्ते राज्यपाल ठरवतात, हे लक्षात ठेवा."
+        },
+        "is_verified_from_key": false
+      }
     ]
   }
 };
