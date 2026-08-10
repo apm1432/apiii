@@ -42,14 +42,26 @@ function getSortedFolders() {
 function init() {
     // Build grouped data first
     const rawData = examData.data || examData;
+    const mapping = examData.mapping || {};
+    
     for (const filePath in rawData) {
         const parts = filePath.split(/[\\/]/);
         if (parts.length >= 2) {
-            const folder = parts[parts.length - 2];
-            if (!groupedData[folder]) groupedData[folder] = [];
+            const rawFolder = parts[parts.length - 2];
+            
+            // Clean up windows duplicate suffix like " (3)" to help mapping
+            const cleanFolder = rawFolder.replace(/\s\(\d+\)$/, '');
+            
+            // Get official display name
+            let displayFolder = mapping[rawFolder] || mapping[cleanFolder] || cleanFolder;
+            if (displayFolder.endsWith('.pdf')) {
+                displayFolder = displayFolder.replace('.pdf', '');
+            }
+
+            if (!groupedData[displayFolder]) groupedData[displayFolder] = [];
             
             rawData[filePath].forEach(q => {
-                groupedData[folder].push({ ...q, _originalFilePath: filePath });
+                groupedData[displayFolder].push({ ...q, _originalFilePath: filePath });
             });
         }
     }
@@ -152,11 +164,8 @@ function renderSidebar() {
             }
         }
         
-        // Use mapping for official name, or folder if mapping unavailable
-        let officialName = mapping[folder] || folder;
-        if (officialName.endsWith('.pdf')) {
-            officialName = officialName.replace('.pdf', '');
-        }
+        // No need for mapping lookup, folder is already the official name
+        let officialName = folder;
 
         const div = document.createElement('div');
         div.className = 'filter-item';
@@ -184,11 +193,7 @@ function selectExam(folder) {
         if (el.innerHTML.includes(folder.toUpperCase())) el.classList.add('active');
     });
 
-    const mapping = examData.mapping || {};
-    let officialName = mapping[folder] || folder;
-    if (officialName.endsWith('.pdf')) {
-        officialName = officialName.replace('.pdf', '');
-    }
+    let officialName = folder;
     
     const totalQs = groupedData[folder] ? groupedData[folder].length : 0;
 
@@ -275,7 +280,10 @@ function renderQuestions(folder) {
                 <span class="q-badge">Question ${q.qnum}</span>
                 ${relativeImagePath ? `<button class="btn" style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="openImageModal('${relativeImagePath}')">🖼️ View Original Page</button>` : ''}
             </div>
-            <div class="q-text">${q.text}</div>
+            <div class="q-text">
+                ${q.text || ''}
+                ${q.text_eng ? '<br><br><span style="color: #64748b; font-size: 0.9em;">' + q.text_eng + '</span>' : ''}
+            </div>
             ${cancelledWarning}
             ${optionsHtml}
             <div class="explanation-box ${isAnswered ? 'show' : ''}" id="exp-${q.qnum}">
