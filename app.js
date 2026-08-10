@@ -7,6 +7,23 @@ const state = {
     answeredQuestions: 0
 };
 
+// --- Anti-Piracy Measures ---
+// Disable right-click
+document.addEventListener('contextmenu', event => event.preventDefault());
+// Disable keyboard shortcuts for copy and inspect element
+document.addEventListener('keydown', event => {
+    if (
+        (event.ctrlKey && (event.key === 'c' || event.key === 'C')) || // Ctrl+C
+        (event.ctrlKey && event.shiftKey && (event.key === 'i' || event.key === 'I')) || // Ctrl+Shift+I
+        (event.ctrlKey && (event.key === 'u' || event.key === 'U')) || // Ctrl+U (View Source)
+        event.key === 'F12' // F12
+    ) {
+        event.preventDefault();
+        return false;
+    }
+});
+// -----------------------------
+
 let groupedData = {};
 
 function getSortedFolders() {
