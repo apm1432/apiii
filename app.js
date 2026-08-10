@@ -272,7 +272,7 @@ function renderQuestions(folder) {
         let relativeImagePath = "";
         const parts = originalFilePath.split(/pdf_images[\\/]/i);
         if (parts.length > 1) {
-            relativeImagePath = `../PYQ_DATA/pdf_images/${parts[1].replace(/\\/g, '/')}`;
+            relativeImagePath = `../PYQ_DATA/pdf_images/${parts[1].replace(/\\/g, '/')}`.replace(/\.json$/i, '.png');
         }
 
         qCard.innerHTML = `
