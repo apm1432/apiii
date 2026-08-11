@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { JWT_SECRET } = require('../middleware/auth');
+const { assignSmtpToUser, sendEmail } = require('../utils/smtpService');
 
 // REGISTER
 router.post('/register', async (req, res) => {
@@ -30,6 +31,32 @@ router.post('/register', async (req, res) => {
         });
 
         await newUser.save();
+
+        // Send Welcome Email
+        try {
+            const smtpUser = assignSmtpToUser();
+            const subject = "Welcome to MPSC PYQ Tracker!";
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #2563eb; text-align: center;">Welcome to MPSC PYQ Tracker</h2>
+                    <p>Hello,</p>
+                    <p>Thank you for registering on <strong>MPSC PYQ Tracker</strong>. You have taken the first step towards a structured and focused preparation!</p>
+                    <p>Log in to access thousands of previous year questions with detailed explanations.</p>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <a href="https://apiii-apm1432.koyeb.app" style="background-color: #2563eb; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold;">Login Now</a>
+                    </div>
+                    <p style="margin-top: 20px; font-size: 12px; color: #777;">If you did not create this account, please ignore this email.</p>
+                </div>
+            `;
+            const text = "Welcome to MPSC PYQ Tracker! Thank you for registering.";
+            
+            // Fire and forget (don't block registration response)
+            sendEmail(smtpUser, email, subject, text, html).catch(err => {
+                console.error("Failed to send welcome email:", err.message);
+            });
+        } catch (emailErr) {
+            console.error("Email setup failed:", emailErr);
+        }
 
         res.json({ success: true, message: 'Registration successful! Please login.' });
     } catch (err) {

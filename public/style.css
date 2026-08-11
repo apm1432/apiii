@@ -284,3 +284,36 @@ header {
     .pricing-cards { flex-direction: column; }
     .view-section { height: calc(100vh - 100px); }
 }
+
+/* Test Filters */
+.test-filters {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--card-border);
+}
+.filter-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-sm);
+}
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    background: var(--bg-color);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+/* Scroll adjustments */
+@media (max-height: 800px) {
+    .view-section { height: calc(100vh - 100px); }
+}

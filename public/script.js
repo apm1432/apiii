@@ -158,17 +158,20 @@ async function loadDashboard() {
             // data.data is grouped by Year
             data.data.forEach(yearGroup => {
                 const yearExam = yearGroup._id;
-                yearGroup.exams.forEach(exam => {
-                    const card = document.createElement('div');
-                    card.className = 'exam-card';
-                    card.innerHTML = `
-                        <h3>${yearExam || 'Unknown Exam'}</h3>
-                        <p>${exam.subject}</p>
-                        <span class="meta">${exam.count} Questions</span>
-                    `;
-                    card.onclick = () => openTest(yearExam, exam.subject);
-                    grid.appendChild(card);
-                });
+                
+                // Calculate total questions across all subjects
+                const totalQuestions = yearGroup.exams.reduce((sum, exam) => sum + exam.count, 0);
+                
+                const card = document.createElement('div');
+                card.className = 'exam-card';
+                card.innerHTML = `
+                    <h3>${yearExam || 'Unknown Exam'}</h3>
+                    <p>${yearGroup.exams.length} Subjects Included</p>
+                    <span class="meta">${totalQuestions} Total Questions</span>
+                `;
+                // Pass only yearExam, meaning "load full exam"
+                card.onclick = () => openTest(yearExam);
+                grid.appendChild(card);
             });
             if (data.data.length === 0) {
                 grid.innerHTML = '<p style="color:var(--text-secondary);">No exams found in database.</p>';
@@ -185,7 +188,7 @@ async function loadDashboard() {
 let currentQuestions = [];
 let currentQIndex = 0;
 
-async function openTest(yearExam, subject) {
+async function openTest(yearExam) {
     // Attempt to load questions
     try {
         const res = await fetch('/api/questions', {
@@ -194,7 +197,7 @@ async function openTest(yearExam, subject) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({ year_exam: yearExam, subject })
+            body: JSON.stringify({ year_exam: yearExam })
         });
         
         const data = await res.json();
@@ -212,18 +215,17 @@ async function openTest(yearExam, subject) {
                 return;
             }
             
-            // Set breadcrumbs
-            document.getElementById('crumb-year').innerText = yearExam || 'Exam';
-            document.getElementById('crumb-exam').innerText = ''; // Removed
-            document.getElementById('crumb-subject').innerText = subject;
+            document.getElementById('test-title').innerText = `${yearExam}`;
+            
+            // Render Filters
+            renderSubjectFilters();
+            
+            // Initially show all
+            filterQuestions(null, null);
 
             showSection('test-section');
-            
-            // Init both modes
-            currentQIndex = 0;
-            renderQuizQuestion(currentQIndex);
-            renderFullPaper();
-            switchMode('quiz');
+            // Default to Full Paper Mode
+            switchMode('full');
         } else {
             alert(data.message || 'Error fetching questions.');
         }
@@ -232,9 +234,9 @@ async function openTest(yearExam, subject) {
     }
 }
 
-function renderQuizQuestion(index) {
+function renderQuizQuestion(index, questions = currentQuestions) {
     const qContainer = document.getElementById('quiz-question-container');
-    const q = currentQuestions[index];
+    const q = questions[index];
     if (!q) return;
 
     let html = `
@@ -265,16 +267,121 @@ function renderQuizQuestion(index) {
     `;
 
     qContainer.innerHTML = html;
-    document.getElementById('quiz-progress-text').innerText = `${index + 1} / ${currentQuestions.length}`;
+    document.getElementById('quiz-progress-text').innerText = `${index + 1} / ${questions.length}`;
 }
 
-function renderFullPaper() {
+// ====== FILTER LOGIC ======
+let activeSubject = null;
+let activeTopic = null;
+
+function renderSubjectFilters() {
+    const subjectContainer = document.getElementById('subject-filters');
+    const topicContainer = document.getElementById('topic-filters');
+    if (!subjectContainer) return;
+    subjectContainer.innerHTML = '';
+    topicContainer.innerHTML = '';
+    topicContainer.classList.add('hidden'); // Hide topics initially
+
+    // Extract unique subjects
+    const subjects = [...new Set(currentQuestions.map(q => q.subject).filter(Boolean))];
+    
+    // Add "All Subjects" button
+    const btnAll = document.createElement('button');
+    btnAll.className = 'filter-btn active';
+    btnAll.innerText = 'All Subjects';
+    btnAll.onclick = () => {
+        document.querySelectorAll('#subject-filters .filter-btn').forEach(b => b.classList.remove('active'));
+        btnAll.classList.add('active');
+        activeSubject = null;
+        topicContainer.classList.add('hidden');
+        filterQuestions(null, null);
+    };
+    subjectContainer.appendChild(btnAll);
+
+    // Add specific subjects
+    subjects.forEach(sub => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.innerText = sub;
+        btn.onclick = () => {
+            document.querySelectorAll('#subject-filters .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeSubject = sub;
+            renderTopicFilters(sub);
+            filterQuestions(sub, null);
+        };
+        subjectContainer.appendChild(btn);
+    });
+}
+
+function renderTopicFilters(subject) {
+    const topicContainer = document.getElementById('topic-filters');
+    if (!topicContainer) return;
+    topicContainer.innerHTML = '';
+    topicContainer.classList.remove('hidden');
+
+    const topics = [...new Set(currentQuestions.filter(q => q.subject === subject).map(q => q.topic).filter(Boolean))];
+    
+    if (topics.length === 0) {
+        topicContainer.classList.add('hidden');
+        return;
+    }
+
+    const btnAll = document.createElement('button');
+    btnAll.className = 'filter-btn active';
+    btnAll.innerText = 'All Topics';
+    btnAll.onclick = () => {
+        document.querySelectorAll('#topic-filters .filter-btn').forEach(b => b.classList.remove('active'));
+        btnAll.classList.add('active');
+        activeTopic = null;
+        filterQuestions(activeSubject, null);
+    };
+    topicContainer.appendChild(btnAll);
+
+    topics.forEach(top => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.innerText = top;
+        btn.onclick = () => {
+            document.querySelectorAll('#topic-filters .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeTopic = top;
+            filterQuestions(activeSubject, top);
+        };
+        topicContainer.appendChild(btn);
+    });
+}
+
+function filterQuestions(subject, topic) {
+    let filtered = currentQuestions;
+    if (subject) filtered = filtered.filter(q => q.subject === subject);
+    if (topic) filtered = filtered.filter(q => q.topic === topic);
+
+    renderFullPaper(filtered);
+    
+    // For Quiz mode, reset index
+    if (filtered.length > 0) {
+        currentQIndex = 0;
+        renderQuizQuestion(currentQIndex, filtered);
+    } else {
+        document.getElementById('quiz-view').innerHTML = '<p style="padding: 20px;">No questions found for this filter.</p>';
+    }
+}
+
+// ====== RENDER FULL PAPER ======
+function renderFullPaper(questions = currentQuestions) {
     const list = document.getElementById('full-questions-list');
     const jumpGrid = document.getElementById('jump-grid');
     list.innerHTML = '';
     jumpGrid.innerHTML = '';
 
-    currentQuestions.forEach((q, idx) => {
+    
+    if (questions.length === 0) {
+        list.innerHTML = '<p style="padding: 20px;">No questions found.</p>';
+        return;
+    }
+
+    questions.forEach((q, idx) => {
         // Build list item
         const qDiv = document.createElement('div');
         qDiv.className = 'question-item glass-panel';
