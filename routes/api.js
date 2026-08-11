@@ -160,6 +160,48 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
     }
 });
 
+
+// -------------------------------------
+// 3.5 PAYMENT API (Frontend Verification)
+// -------------------------------------
+router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId } = req.body;
+        const userId = req.user.id;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({ success: false, message: 'Missing payment parameters' });
+        }
+
+        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+        hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+        const generatedSignature = hmac.digest('hex');
+
+        if (generatedSignature === razorpay_signature) {
+            // Update User Subscription
+            let expiry = new Date();
+            if (planId === '1_day') {
+                expiry.setDate(expiry.getDate() + 1);
+            } else if (planId === '2_years') {
+                expiry.setFullYear(expiry.getFullYear() + 2);
+            }
+
+            await User.findByIdAndUpdate(userId, { 
+                isSubscribed: true,
+                subscriptionPlan: planId,
+                subscriptionExpiry: expiry
+            });
+
+            res.json({ success: true, message: 'Payment verified successfully' });
+        } else {
+            res.status(400).json({ success: false, message: 'Invalid signature' });
+        }
+    } catch (err) {
+        console.error('Verify Payment Error:', err);
+        res.status(500).json({ success: false, message: 'Server error during verification' });
+    }
+});
+
 // -------------------------------------
 // 3. PAYMENT API (Webhook Verification)
 // -------------------------------------

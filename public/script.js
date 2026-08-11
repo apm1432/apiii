@@ -504,10 +504,31 @@ async function initiatePayment(planId) {
                 name: "MPSC PYQ Portal",
                 description: "Premium Lifetime Access",
                 order_id: data.order.id,
-                handler: function (response) {
-                    alert("Payment Successful! Refreshing your account...");
-                    // Just reload the page for now to re-fetch user status
-                    window.location.reload();
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await fetch('/api/payment/verify-payment', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}` 
+                            },
+                            body: JSON.stringify({
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                                planId: planId
+                            })
+                        });
+                        const verifyData = await verifyRes.json();
+                        if (verifyData.success) {
+                            alert("Payment Successful! Refreshing your account...");
+                            window.location.reload();
+                        } else {
+                            alert("Payment verification failed: " + verifyData.message);
+                        }
+                    } catch (err) {
+                        alert("Error during payment verification.");
+                    }
                 },
                 prefill: {
                     email: currentUser ? currentUser.email : ''
