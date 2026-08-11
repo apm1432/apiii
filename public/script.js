@@ -148,16 +148,16 @@ async function loadDashboard() {
             grid.innerHTML = '';
             // data.data is grouped by Year
             data.data.forEach(yearGroup => {
-                const year = yearGroup._id;
+                const yearExam = yearGroup._id;
                 yearGroup.exams.forEach(exam => {
                     const card = document.createElement('div');
                     card.className = 'exam-card';
                     card.innerHTML = `
-                        <h3>${exam.exam_name} ${year}</h3>
+                        <h3>${yearExam || 'Unknown Exam'}</h3>
                         <p>${exam.subject}</p>
                         <span class="meta">${exam.count} Questions</span>
                     `;
-                    card.onclick = () => openTest(year, exam.exam_name, exam.subject);
+                    card.onclick = () => openTest(yearExam, exam.subject);
                     grid.appendChild(card);
                 });
             });
@@ -176,7 +176,7 @@ async function loadDashboard() {
 let currentQuestions = [];
 let currentQIndex = 0;
 
-async function openTest(year, examName, subject) {
+async function openTest(yearExam, subject) {
     // Attempt to load questions
     try {
         const res = await fetch('/api/questions', {
@@ -185,7 +185,7 @@ async function openTest(year, examName, subject) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({ year, exam_name: examName, subject })
+            body: JSON.stringify({ year_exam: yearExam, subject })
         });
         
         const data = await res.json();
@@ -204,8 +204,8 @@ async function openTest(year, examName, subject) {
             }
             
             // Set breadcrumbs
-            document.getElementById('crumb-year').innerText = year;
-            document.getElementById('crumb-exam').innerText = examName;
+            document.getElementById('crumb-year').innerText = yearExam || 'Exam';
+            document.getElementById('crumb-exam').innerText = ''; // Removed
             document.getElementById('crumb-subject').innerText = subject;
 
             showSection('test-section');
@@ -233,23 +233,25 @@ function renderQuizQuestion(index) {
             <span class="q-num">Question ${index + 1} of ${currentQuestions.length}</span>
         </div>
         <div class="q-text">
-            ${q.original_marathi || 'No text available'}
+            ${q.text || 'No text available'}
         </div>
     `;
 
-    if (q.question_image) {
-        html += `<img src="${q.question_image}" style="max-width:100%; margin-bottom:15px; border-radius:8px; cursor:pointer;" onclick="openImageModal('${q.question_image}')">`;
+    if (q.original_image_url) {
+        html += `<img src="/api/image/${q.original_image_url}" style="max-width:100%; margin-bottom:15px; border-radius:8px; cursor:pointer;" onclick="openImageModal('/api/image/${q.original_image_url}')">`;
     }
 
     html += `<div class="options">`;
-    const options = [q.option_1, q.option_2, q.option_3, q.option_4].filter(Boolean);
+    const options = q.options && q.options.length > 0 ? q.options : [];
+    const correctOptIndex = parseInt(q.correct_answer_option || q.final_answer_key || q.answer_key) - 1;
+
     options.forEach((opt, idx) => {
-        const isCorrect = (idx + 1) === parseInt(q.answer_key);
+        const isCorrect = idx === correctOptIndex;
         html += `<div class="option" onclick="selectOption(this, ${isCorrect}, '${q._id}', 'quiz')">${opt}</div>`;
     });
     html += `</div>
         <div id="explanation-${q._id}" class="explanation hidden">
-            <strong>Explanation:</strong> ${q.explanation || 'No explanation available.'}
+            <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
         </div>
     `;
 
@@ -272,20 +274,22 @@ function renderFullPaper() {
         qDiv.style.borderRadius = 'var(--radius-lg)';
         qDiv.id = `full-q-${idx}`;
 
-        let html = `<h4>Q${idx + 1}. ${q.original_marathi || ''}</h4>`;
-        if (q.question_image) {
-            html += `<img src="${q.question_image}" style="max-width:100%; margin-bottom:10px; border-radius:8px; cursor:pointer;" onclick="openImageModal('${q.question_image}')">`;
+        let html = `<h4>Q${idx + 1}. ${q.text || ''}</h4>`;
+        if (q.original_image_url) {
+            html += `<img src="/api/image/${q.original_image_url}" style="max-width:100%; margin-bottom:10px; border-radius:8px; cursor:pointer;" onclick="openImageModal('/api/image/${q.original_image_url}')">`;
         }
         
         html += `<div class="options">`;
-        const options = [q.option_1, q.option_2, q.option_3, q.option_4].filter(Boolean);
+        const options = q.options && q.options.length > 0 ? q.options : [];
+        const correctOptIndex = parseInt(q.correct_answer_option || q.final_answer_key || q.answer_key) - 1;
+
         options.forEach((opt, oIdx) => {
-            const isCorrect = (oIdx + 1) === parseInt(q.answer_key);
+            const isCorrect = oIdx === correctOptIndex;
             html += `<div class="option" onclick="selectOption(this, ${isCorrect}, '${q._id}', 'full', ${idx})">${opt}</div>`;
         });
         html += `</div>
             <div id="explanation-full-${q._id}" class="explanation hidden">
-                <strong>Explanation:</strong> ${q.explanation || 'No explanation available.'}
+                <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
             </div>
         `;
         qDiv.innerHTML = html;
@@ -330,7 +334,8 @@ async function selectOption(el, isCorrect, questionId, mode, index = 0) {
         el.classList.add('wrong');
         // Highlight correct answer
         const qIndex = mode === 'full' ? index : currentQIndex;
-        const correctOptIndex = parseInt(currentQuestions[qIndex].answer_key) - 1;
+        const currentQ = currentQuestions[qIndex];
+        const correctOptIndex = parseInt(currentQ.correct_answer_option || currentQ.final_answer_key || currentQ.answer_key) - 1;
         if(correctOptIndex >= 0 && correctOptIndex < parent.children.length) {
             parent.children[correctOptIndex].classList.add('correct');
         }
@@ -377,7 +382,7 @@ async function initiatePayment(planId) {
         
         if (data.success) {
             const options = {
-                key: 'YOUR_RAZORPAY_KEY_ID', // Replaced in production
+                key: data.key_id, // Dynamically fetched from backend
                 amount: data.order.amount,
                 currency: data.order.currency,
                 name: "MPSC PYQ Portal",

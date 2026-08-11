@@ -29,8 +29,7 @@ router.get('/exams/hierarchy', async (req, res) => {
             {
                 $group: {
                     _id: {
-                        year: "$year",
-                        exam_name: "$exam_name",
+                        year_exam: "$year_exam",
                         subject: "$subject"
                     },
                     count: { $sum: 1 }
@@ -38,10 +37,9 @@ router.get('/exams/hierarchy', async (req, res) => {
             },
             {
                 $group: {
-                    _id: "$_id.year",
+                    _id: "$_id.year_exam",
                     exams: {
                         $push: {
-                            exam_name: "$_id.exam_name",
                             subject: "$_id.subject",
                             count: "$count"
                         }
@@ -60,11 +58,10 @@ router.get('/exams/hierarchy', async (req, res) => {
 // 2. Fetch Questions by Filter (Protected & Requires Subscription)
 router.post('/questions', authMiddleware, requireSubscription, async (req, res) => {
     try {
-        const { year, exam_name, subject, limit = 50 } = req.body;
+        const { year_exam, subject, limit = 50 } = req.body;
         let query = {};
         
-        if (year) query.year = year;
-        if (exam_name) query.examName = exam_name;
+        if (year_exam) query.year_exam = year_exam;
         if (subject) query.subject = subject;
 
         const questions = await Question.find(query).limit(parseInt(limit));
@@ -105,7 +102,7 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
         };
 
         const order = await razorpay.orders.create(options);
-        res.json({ success: true, order });
+        res.json({ success: true, order, key_id: process.env.RAZORPAY_KEY_ID });
     } catch (error) {
         console.error('Razorpay Error:', error);
         res.status(500).json({ success: false, message: 'Order Creation Failed' });
@@ -244,6 +241,45 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
         res.json({ success: true, message: 'Progress reset successfully', data: progress });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to reset progress' });
+    }
+});
+
+// -------------------------------------
+// 5. IMAGE PROXY API
+// -------------------------------------
+const axios = require('axios');
+
+router.get('/image/:fileId', async (req, res) => {
+    try {
+        const fileId = req.params.fileId;
+        const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
+        if (!tokensStr) return res.status(500).send('No bot tokens configured');
+        
+        // Try with the first bot token
+        const token = tokensStr.split(',')[0].trim();
+        
+        // 1. Get file path from Telegram API
+        const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+        if (!fileRes.data.ok) {
+            return res.status(404).send('Image metadata not found');
+        }
+        
+        const filePath = fileRes.data.result.file_path;
+        
+        // 2. Fetch the actual image data
+        const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+        const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
+        
+        // Set basic headers if needed (axios usually proxies content-type well)
+        if (imgRes.headers['content-type']) {
+            res.setHeader('Content-Type', imgRes.headers['content-type']);
+        }
+        
+        // 3. Pipe to client
+        imgRes.data.pipe(res);
+    } catch (err) {
+        console.error('Image Proxy Error:', err.message);
+        res.status(500).send('Error fetching image');
     }
 });
 
