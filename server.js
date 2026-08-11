@@ -5,7 +5,7 @@ const cors = require('cors');
 const Razorpay = require('razorpay');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 // Security Middleware: Hide Express X-Powered-By Header
 app.disable('x-powered-by');
