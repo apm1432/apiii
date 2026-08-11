@@ -25,6 +25,41 @@ const razorpay = new Razorpay({
 let cachedHierarchy = null;
 let lastCacheTime = 0;
 
+async function preloadHierarchy() {
+    try {
+        console.log("⏳ Preloading exam hierarchy into server memory...");
+        const hierarchy = await require('../models/Question').aggregate([
+            {
+                $group: {
+                    _id: {
+                        year_exam: "$year_exam",
+                        subject: "$subject"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.year_exam",
+                    exams: {
+                        $push: {
+                            subject: "$_id.subject",
+                            count: "$count"
+                        }
+                    }
+                }
+            },
+            { $sort: { "_id": -1 } }
+        ]);
+        
+        cachedHierarchy = hierarchy;
+        lastCacheTime = Date.now();
+        console.log("✅ Hierarchy preloaded successfully!");
+    } catch (err) {
+        console.error("❌ Failed to preload hierarchy:", err);
+    }
+}
+
 // 1. Fetch Hierarchy (For Dashboard Selection)
 router.get('/exams/hierarchy', async (req, res) => {
     try {
@@ -295,4 +330,7 @@ router.get('/image/:fileId', async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = {
+    router,
+    preloadHierarchy
+};

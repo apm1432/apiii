@@ -25,15 +25,22 @@ const razorpay = new Razorpay({
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log('✅ MongoDB Connected Successfully!'))
+.then(() => {
+    console.log('✅ MongoDB Connected Successfully!');
+    // Preload heavy aggregations into memory immediately on startup
+    const apiModule = require('./routes/api');
+    if(apiModule.preloadHierarchy) {
+        apiModule.preloadHierarchy();
+    }
+})
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // Serve Static Frontend UI
 app.use(express.static('public'));
 
 // API Routes
-const apiRoutes = require('./routes/api');
-app.use('/api', apiRoutes);
+const apiModule = require('./routes/api');
+app.use('/api', apiModule.router);
 
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
