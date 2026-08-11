@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  subscriptionExpiry: {
+    type: Date,
+    default: null
+  },
   assignedSmtp: {
     type: String, // The SMTP connection string assigned to this user
     default: null

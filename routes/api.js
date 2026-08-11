@@ -8,7 +8,8 @@ const Question = require('../models/Question');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 
-// Services
+// Middleware & Services
+const { authMiddleware, requireSubscription } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
 
 // Initialize Razorpay
@@ -18,15 +19,52 @@ const razorpay = new Razorpay({
 });
 
 // -------------------------------------
-// 1. DATA API (Fetch Questions)
+// 1. DATA API
 // -------------------------------------
-router.get('/questions', async (req, res) => {
+
+// 1. Fetch Hierarchy (For Dashboard Selection)
+router.get('/exams/hierarchy', async (req, res) => {
     try {
-        const { year, exam, subject, limit = 50 } = req.query;
+        const hierarchy = await Question.aggregate([
+            {
+                $group: {
+                    _id: {
+                        year: "$year",
+                        exam_name: "$exam_name",
+                        subject: "$subject"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.year",
+                    exams: {
+                        $push: {
+                            exam_name: "$_id.exam_name",
+                            subject: "$_id.subject",
+                            count: "$count"
+                        }
+                    }
+                }
+            },
+            { $sort: { "_id": -1 } }
+        ]);
+        res.json({ success: true, data: hierarchy });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load exam hierarchy' });
+    }
+});
+
+// 2. Fetch Questions by Filter (Protected & Requires Subscription)
+router.post('/questions', authMiddleware, requireSubscription, async (req, res) => {
+    try {
+        const { year, exam_name, subject, limit = 50 } = req.body;
         let query = {};
         
         if (year) query.year = year;
-        if (exam) query.examName = exam;
+        if (exam_name) query.examName = exam_name;
         if (subject) query.subject = subject;
 
         const questions = await Question.find(query).limit(parseInt(limit));
@@ -39,15 +77,16 @@ router.get('/questions', async (req, res) => {
 // -------------------------------------
 // 2. PAYMENT API (Order Creation)
 // -------------------------------------
-router.post('/payment/create-order', async (req, res) => {
+
+// 3. Create Payment Order (Requires Auth to identify user)
+router.post('/payment/create-order', authMiddleware, async (req, res) => {
     try {
-        const { planId, userId } = req.body; // In production, verify user from JWT
+        const userId = req.user.id;
+        const { planId } = req.body;
         
-        // Security: ALWAYS decide price on backend to prevent price manipulation
         const planPrices = {
-            'basic': 99,
-            'premium': 299,
-            'lifetime': 999
+            '1_day': 12,
+            '2_years': 100
         };
         
         const price = planPrices[planId];
@@ -56,9 +95,13 @@ router.post('/payment/create-order', async (req, res) => {
         }
 
         const options = {
-            amount: price * 100, // Amount in paise
+            amount: price * 100,
             currency: 'INR',
-            receipt: `receipt_order_${Date.now()}`
+            receipt: `receipt_order_${Date.now()}`,
+            notes: {
+                userId: userId,
+                planId: planId
+            }
         };
 
         const order = await razorpay.orders.create(options);
@@ -72,6 +115,8 @@ router.post('/payment/create-order', async (req, res) => {
 // -------------------------------------
 // 3. PAYMENT API (Webhook Verification)
 // -------------------------------------
+
+// 4. Webhook for Payment Verification (Unprotected, called by Razorpay)
 router.post('/payment/webhook', (req, res) => {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'YOUR_WEBHOOK_SECRET';
     const signature = req.headers['x-razorpay-signature'];
@@ -87,24 +132,33 @@ router.post('/payment/webhook', (req, res) => {
             .digest('hex');
 
         if (expectedSignature === signature) {
-            // body is already parsed by express.json()
             const event = req.body;
             
             if (event.event === 'payment.captured') {
-                // Payment was successful! Grant access to user in DB.
                 const paymentData = event.payload.payment.entity;
                 console.log(`Payment Captured! Amount: ${paymentData.amount / 100}`);
-                
-                // Assign a permanent SMTP to this user
                 const assignedSmtp = smtpService.assignSmtpToUser();
-                
-                // TODO: Update User DB Subscription and assignedSmtp
-                // const user = await User.findById(paymentData.notes.userId);
-                // user.isPremium = true;
-                // user.assignedSmtp = assignedSmtp;
-                // await user.save();
-                
                 console.log(`Assigned SMTP [${assignedSmtp}] to user.`);
+
+                // Update User Subscription
+                const userId = paymentData.notes.userId;
+                const planId = paymentData.notes.planId;
+                
+                if (userId) {
+                    let expiry = new Date();
+                    if (planId === '1_day') {
+                        expiry.setDate(expiry.getDate() + 1);
+                    } else if (planId === '2_years') {
+                        expiry.setFullYear(expiry.getFullYear() + 2);
+                    }
+                    
+                    User.findByIdAndUpdate(userId, { 
+                        isSubscribed: true, 
+                        subscriptionExpiry: expiry,
+                        assignedSmtp: assignedSmtp 
+                    }).exec();
+                    console.log(`User ${userId} upgraded to ${planId}. Expiry: ${expiry}`);
+                }
             }
             
             res.status(200).send('Webhook verified');
@@ -121,29 +175,25 @@ router.post('/payment/webhook', (req, res) => {
 // 4. PROGRESS TRACKING API
 // -------------------------------------
 
-// Save question attempt
-router.post('/progress/save', async (req, res) => {
+// 5. Progress Tracking (Protected & Requires Subscription)
+router.post('/progress/save', authMiddleware, requireSubscription, async (req, res) => {
     try {
-        const { userId, questionId, isCorrect, section } = req.body;
-        // In real app, userId comes from Auth middleware
+        const { questionId, isCorrect, section } = req.body;
+        const userId = req.user.id;
         
         let progress = await Progress.findOne({ userId });
         if (!progress) {
             progress = new Progress({ userId, totalSolved: 0, totalCorrect: 0, sectionWise: new Map() });
         }
-
-        // Logic to prevent duplicate counting can be added here
         
         progress.totalSolved += 1;
         if (isCorrect) progress.totalCorrect += 1;
 
-        // Section logic
         let secStats = progress.sectionWise.get(section) || { solved: 0, correct: 0 };
         secStats.solved += 1;
         if (isCorrect) secStats.correct += 1;
         progress.sectionWise.set(section, secStats);
 
-        // Update last solved for resume
         progress.lastSolvedQuestion = questionId;
 
         await progress.save();
@@ -153,10 +203,10 @@ router.post('/progress/save', async (req, res) => {
     }
 });
 
-// Get dashboard stats
-router.get('/progress/dashboard', async (req, res) => {
+// 6. Get Dashboard Progress (Protected)
+router.get('/progress/dashboard', authMiddleware, async (req, res) => {
     try {
-        const { userId } = req.query;
+        const userId = req.user.id;
         const progress = await Progress.findOne({ userId });
         
         if (!progress) return res.json({ success: true, data: { totalSolved: 0, totalCorrect: 0, sectionWise: {} } });
@@ -167,15 +217,15 @@ router.get('/progress/dashboard', async (req, res) => {
     }
 });
 
-// Reset progress (Overall or Specific section)
-router.post('/progress/reset', async (req, res) => {
+// 7. Reset Progress (Protected)
+router.post('/progress/reset', authMiddleware, async (req, res) => {
     try {
-        const { userId, section } = req.body;
+        const userId = req.user.id;
+        const { section } = req.body;
         const progress = await Progress.findOne({ userId });
         if (!progress) return res.json({ success: true, message: 'Nothing to reset' });
 
         if (section) {
-            // Reset specific section
             const secStats = progress.sectionWise.get(section);
             if (secStats) {
                 progress.totalSolved -= secStats.solved;

@@ -35,6 +35,9 @@ app.use(express.static('public'));
 const apiRoutes = require('./routes/api');
 app.use('/api', apiRoutes);
 
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
 app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);
 });
