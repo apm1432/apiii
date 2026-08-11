@@ -26,6 +26,11 @@ const progressSchema = new mongoose.Schema({
   lastSolvedQuestion: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Question'
+  },
+  answers: {
+    type: Map,
+    of: Object,
+    default: {}
   }
 }, { timestamps: true });
 

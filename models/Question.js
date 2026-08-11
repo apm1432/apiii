@@ -15,7 +15,9 @@ const questionSchema = new mongoose.Schema({
   topic: { type: String, index: true },
   sub_topic: { type: String },
   original_image_url: { type: String }, // Telegram Image URL
-  year_exam: { type: String, index: true } // e.g., "2018 group b pre"
+  year_exam: { type: String, index: true }, // e.g., "2018 group b pre"
+  passage_marathi: { type: String },
+  passage_english: { type: String }
 });
 
 module.exports = mongoose.model('Question', questionSchema);

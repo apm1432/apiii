@@ -22,9 +22,21 @@ const userSchema = new mongoose.Schema({
     type: String, // The SMTP connection string assigned to this user
     default: null
   },
+  deviceId: {
+    type: String, // FingerprintJS visitorId
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  resetOtp: {
+    type: String,
+    default: null
+  },
+  resetOtpExpiry: {
+    type: Date,
+    default: null
   }
 });
 

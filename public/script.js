@@ -3,6 +3,7 @@
 // State
 let token = localStorage.getItem('jwtToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null; // { email, isSubscribed }
+let userAnswers = JSON.parse(localStorage.getItem('mpsc_user_answers')) || {};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth State
@@ -22,6 +23,17 @@ function showSection(sectionId) {
     document.getElementById(sectionId).classList.add('active');
 }
 
+// ====== VIEW SWITCHING ======
+function switchView(viewId) {
+    document.querySelectorAll('.view-mode').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    window.scrollTo(0, 0);
+
+    const floatingStats = document.getElementById('floating-stats');
+    if (viewId === 'dashboard') {
+        if (floatingStats) floatingStats.classList.add('hidden');
+    }
+}
 // Mode Switching (Quiz / Full Paper)
 function switchMode(mode) {
     const btnQuiz = document.getElementById('btn-quiz');
@@ -29,18 +41,38 @@ function switchMode(mode) {
     const quizView = document.getElementById('quiz-view');
     const fullView = document.getElementById('full-view');
 
+    const floatingStats = document.getElementById('floating-stats');
     if (mode === 'quiz') {
-        btnQuiz.classList.add('active');
-        btnFull.classList.remove('active');
-        quizView.classList.add('active');
-        fullView.classList.remove('active');
+        btnQuiz.classList.add('btn-primary');
+        btnQuiz.classList.remove('btn-outline');
+        btnFull.classList.remove('btn-primary');
+        btnFull.classList.add('btn-outline');
+        quizView.style.display = 'block';
+        fullView.style.display = 'none';
+        if (floatingStats) floatingStats.classList.add('hidden');
     } else {
-        btnFull.classList.add('active');
-        btnQuiz.classList.remove('active');
-        fullView.classList.add('active');
-        quizView.classList.remove('active');
+        btnFull.classList.add('btn-primary');
+        btnFull.classList.remove('btn-outline');
+        btnQuiz.classList.remove('btn-primary');
+        btnQuiz.classList.add('btn-outline');
+        quizView.style.display = 'none';
+        fullView.style.display = 'block';
+        if (floatingStats) floatingStats.classList.remove('hidden');
     }
 }
+
+// ====== DEVICE FINGERPRINTING ======
+let currentDeviceId = null;
+async function initFingerprint() {
+    try {
+        const fp = await window.FingerprintJS.load();
+        const result = await fp.get();
+        currentDeviceId = result.visitorId;
+    } catch (e) {
+        console.warn("Fingerprint error", e);
+    }
+}
+initFingerprint();
 
 // ====== AUTHENTICATION ======
 function toggleAuth(type) {
@@ -75,21 +107,30 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, deviceId: currentDeviceId })
         });
         const data = await res.json();
         
         if (data.success) {
-            msg.innerText = 'Login successful! Redirecting...';
-            msg.style.color = 'var(--success)';
-            setTimeout(() => {
-                token = data.token;
-                currentUser = data.user;
-                localStorage.setItem('jwtToken', token);
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                showSection('dashboard-section');
-                loadDashboard();
-            }, 1000);
+            localStorage.setItem('jwtToken', data.token);
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            
+            // Pre-cache progress from DB
+            try {
+                const progRes = await fetch('/api/progress/dashboard', {
+                    headers: { 'Authorization': `Bearer ${data.token}` }
+                });
+                const progData = await progRes.json();
+                if (progData.success && progData.data && progData.data.answers) {
+                    localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers));
+                    userAnswers = progData.data.answers; // update live cache
+                }
+            } catch (e) {
+                console.warn("Failed to fetch progress on login", e);
+            }
+
+            alert('Login successful!');
+            window.location.reload();
         } else {
             msg.innerText = data.message || 'Invalid email or password.';
             msg.style.color = 'var(--error)';
@@ -112,7 +153,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
         const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, deviceId: currentDeviceId })
         });
         const data = await res.json();
         
@@ -183,18 +224,88 @@ window.toggleProfileModal = function() {
 };
 
 
-// ====== PROFILE TOGGLE ======
-window.toggleProfileModal = function() {
-    const modal = document.getElementById('profile-modal');
-    if (modal.style.display === 'flex') {
-        modal.style.display = 'none';
-        modal.classList.remove('show');
+window.toggleJumpGrid = function() {
+    const grid = document.getElementById('jump-grid-container');
+    if (grid.style.display === 'none') {
+        grid.style.display = 'block';
     } else {
-        modal.style.display = 'flex';
-        void modal.offsetWidth; 
-        modal.classList.add('show');
+        grid.style.display = 'none';
     }
 };
+
+// ====== FORGOT PASSWORD ======
+function toggleForgotPasswordModal() {
+    const modal = document.getElementById('forgot-password-modal');
+    if (modal.classList.contains('show')) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.style.display = 'none', 300);
+    } else {
+        modal.style.display = 'flex';
+        void modal.offsetWidth; // trigger reflow
+        modal.classList.add('show');
+        document.getElementById('fp-step-1').classList.remove('hidden');
+        document.getElementById('fp-step-2').classList.add('hidden');
+        document.getElementById('fp-message').innerText = '';
+    }
+}
+
+async function requestOtp() {
+    const email = document.getElementById('fp-email').value;
+    const msg = document.getElementById('fp-message');
+    if (!email) { msg.innerText = 'Please enter your email.'; msg.style.color = 'red'; return; }
+    
+    msg.innerText = 'Sending OTP...'; msg.style.color = 'var(--text-color)';
+    try {
+        const res = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.innerText = data.message;
+            msg.style.color = 'green';
+            document.getElementById('fp-step-1').classList.add('hidden');
+            document.getElementById('fp-step-2').classList.remove('hidden');
+        } else {
+            msg.innerText = data.message || 'Error sending OTP.';
+            msg.style.color = 'red';
+        }
+    } catch (e) {
+        msg.innerText = 'Network error.'; msg.style.color = 'red';
+    }
+}
+
+async function resetPasswordWithOtp() {
+    const email = document.getElementById('fp-email').value;
+    const otp = document.getElementById('fp-otp').value;
+    const newPassword = document.getElementById('fp-new-password').value;
+    const msg = document.getElementById('fp-message');
+    
+    if (!otp || !newPassword) { msg.innerText = 'Please fill all fields.'; msg.style.color = 'red'; return; }
+    
+    msg.innerText = 'Resetting password...'; msg.style.color = 'var(--text-color)';
+    try {
+        const res = await fetch('/api/auth/verify-reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp, newPassword })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.innerText = 'Password reset successfully! You can now login.';
+            msg.style.color = 'green';
+            setTimeout(() => {
+                toggleForgotPasswordModal();
+            }, 3000);
+        } else {
+            msg.innerText = data.message || 'Error resetting password.';
+            msg.style.color = 'red';
+        }
+    } catch (e) {
+        msg.innerText = 'Network error.'; msg.style.color = 'red';
+    }
+}
 
 // ====== DASHBOARD ======
 async function loadDashboard() {
@@ -208,33 +319,158 @@ async function loadDashboard() {
         const data = await res.json();
         
         if (data.success) {
+            // Fetch progress for this user to display attempted stats
+            let progressSectionWise = {};
+            try {
+                const progRes = await fetch('/api/progress/dashboard', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const progData = await progRes.json();
+                if (progData.success && progData.data) {
+                    if (progData.data.sectionWise) {
+                        progressSectionWise = progData.data.sectionWise;
+                    }
+                    if (progData.data.answers) {
+                        localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers));
+                        userAnswers = progData.data.answers;
+                    }
+                }
+            } catch (e) { console.warn("Failed to fetch dashboard progress stats"); }
+
             grid.innerHTML = '';
-            // data.data is grouped by Year
-            data.data.forEach(yearGroup => {
-                const yearExam = yearGroup._id;
-                
-                // Calculate total questions across all subjects
-                const totalQuestions = yearGroup.exams.reduce((sum, exam) => sum + exam.count, 0);
-                
-                const card = document.createElement('div');
-                card.className = 'exam-card';
-                card.innerHTML = `
-                    <h3>${yearExam || 'Unknown Exam'}</h3>
-                    <p>${yearGroup.exams.length} Subjects Included</p>
-                    <span class="meta">${totalQuestions} Total Questions</span>
-                `;
-                // Pass only yearExam, meaning "load full exam"
-                card.onclick = () => openTest(yearExam);
-                grid.appendChild(card);
-            });
-            if (data.data.length === 0) {
-                grid.innerHTML = '<p style="color:var(--text-secondary);">No exams found in database.</p>';
+            
+            // Global variable for current filter state
+            if (typeof window.currentExamFilter === 'undefined') {
+                window.currentExamFilter = 'all';
             }
+            
+            // Store fetched data globally for filtering
+            window.allExamsData = data.data;
+            window.progressSectionWise = progressSectionWise;
+            
+            renderExamGrid();
         } else {
             grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard.</p>';
         }
     } catch (err) {
         grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard.</p>';
+    }
+}
+
+// Exam filtering and rendering
+function filterExams(category, btnElement) {
+    window.currentExamFilter = category;
+    
+    // Update active tab UI
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+    
+    renderExamGrid();
+}
+
+function renderExamGrid() {
+    const grid = document.getElementById('exam-grid');
+    if (!grid || !window.allExamsData) return;
+    
+    grid.innerHTML = '';
+    const freeExamName = "Maharashtra Subordinate Services Non-Gazetted, Group-b Preliminar 2020";
+    
+    // Process and sort exams
+    let exams = [...window.allExamsData];
+    
+    // Sort by year (descending) extracted from name
+    exams.sort((a, b) => {
+        const yearA = a._id.match(/\d{4}/) ? parseInt(a._id.match(/\d{4}/)[0]) : 0;
+        const yearB = b._id.match(/\d{4}/) ? parseInt(b._id.match(/\d{4}/)[0]) : 0;
+        if (yearA !== yearB) return yearB - yearA; // Newest first
+        return a._id.localeCompare(b._id);
+    });
+    
+    // Pin the free exam to the top
+    const freeExamIndex = exams.findIndex(e => e._id === freeExamName);
+    if (freeExamIndex > -1) {
+        const freeExam = exams.splice(freeExamIndex, 1)[0];
+        exams.unshift(freeExam); // Add to beginning
+    }
+    
+    // Filter based on selected tab
+    const filter = window.currentExamFilter || 'all';
+    if (filter === 'mains') {
+        exams = exams.filter(e => /main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i.test(e._id));
+    } else if (filter === 'prelims') {
+        exams = exams.filter(e => !(/main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i.test(e._id)));
+    }
+    
+    if (exams.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-secondary);">No exams found in this category.</p>';
+        return;
+    }
+    
+    exams.forEach(yearGroup => {
+        const yearExam = yearGroup._id;
+        
+        // Calculate total questions across all subjects
+        const totalQuestions = yearGroup.exams.reduce((sum, exam) => sum + exam.count, 0);
+        
+        const stats = window.progressSectionWise[yearExam] || { solved: 0, correct: 0 };
+        const isFree = (yearExam && yearExam.toLowerCase().includes('preliminar 2020'));
+        
+        const card = document.createElement('div');
+        card.className = 'exam-card';
+        card.style.position = 'relative';
+        if (isFree) {
+            card.style.border = '2px solid var(--accent)';
+        }
+        
+        card.innerHTML = `
+            ${isFree ? '<span style="position:absolute; top:-10px; right:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">FREE</span>' : ''}
+            <h3 title="${yearExam || 'Unknown Exam'}">${yearExam || 'Unknown Exam'}</h3>
+            <p>${yearGroup.exams.length} Subjects Included</p>
+            <span class="meta">${totalQuestions} Total Questions</span>
+            <div style="margin-top: 10px; font-size: 0.9rem; color: var(--accent);">
+                Attempted: ${stats.solved} / ${totalQuestions}
+            </div>
+            ${stats.solved > 0 ? `<button class="btn btn-outline" style="width: 100%; margin-top: 15px; font-size: 0.85rem; padding: 5px; border-color: var(--error); color: var(--error);" onclick="event.stopPropagation(); resetProgress('${yearExam}')">Reset Progress</button>` : ''}
+        `;
+        
+        card.onclick = () => openTest(yearExam);
+        grid.appendChild(card);
+    });
+}
+
+// Reset Progress Function
+async function resetProgress(examId) {
+    if (!confirm(`Are you sure you want to reset all your progress for "${examId}"?`)) return;
+
+    try {
+        const userToken = localStorage.getItem('jwtToken');
+        const res = await fetch('/api/progress/reset', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userToken}` 
+            },
+            body: JSON.stringify({ section: examId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            // Also wipe from local cache
+            if (userAnswers) {
+                for (const qId in userAnswers) {
+                    if (userAnswers[qId].section === examId) {
+                        delete userAnswers[qId];
+                    }
+                }
+                localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+            }
+            alert(`Progress for ${examId} has been reset.`);
+            loadDashboard(); // Reload UI
+        } else {
+            alert('Failed to reset progress.');
+        }
+    } catch (err) {
+        alert('Error resetting progress.');
     }
 }
 
@@ -269,7 +505,13 @@ async function openTest(yearExam) {
                 return;
             }
             
-            document.getElementById('test-title').innerText = `${yearExam}`;
+            if (document.getElementById('test-title')) {
+                document.getElementById('test-title').innerText = `${yearExam}`;
+            } else if (document.getElementById('crumb-year')) {
+                document.getElementById('crumb-year').innerText = `${yearExam}`;
+                if (document.getElementById('crumb-exam')) document.getElementById('crumb-exam').innerText = '';
+                if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
+            }
             
             // Render Filters
             renderSubjectFilters();
@@ -281,7 +523,11 @@ async function openTest(yearExam) {
             // Default to Full Paper Mode
             switchMode('full');
         } else {
-            alert(data.message || 'Error fetching questions.');
+            if (data.message && data.message.includes('Subscription')) {
+                showSection('payment-section');
+            } else {
+                alert(data.message || 'Error fetching questions.');
+            }
         }
     } catch (err) {
         alert('Server error.');
@@ -297,25 +543,60 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         <div class="q-header">
             <span class="q-num">Question ${index + 1} of ${currentQuestions.length}</span>
         </div>
-        <div class="q-text">
-            ${q.text || 'No text available'}
+        <div class="q-text">`;
+        
+        // Handle Passages
+        if (q.passage_marathi && q.passage_marathi !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
+        }
+        if (q.passage_english && q.passage_english !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
+        }
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null")) {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;"><strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.</div>`;
+        }
+
+        html += `<h4>Q${index + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+            ${q.text_eng ? `<p style="${q.text ? 'color: var(--text-secondary); margin-top: 10px;' : ''}">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}
+            ${!q.text && !q.text_eng ? '<p>No text available</p>' : ''}
         </div>
     `;
 
     if (q.original_image_url) {
-        html += `<img src="/api/image/${q.original_image_url}" style="max-width:100%; margin-bottom:15px; border-radius:8px; cursor:pointer;" onclick="openImageModal('/api/image/${q.original_image_url}')">`;
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${q.original_image_url}')">👁 View Original Image</button>`;
     }
 
     html += `<div class="options">`;
     const options = q.options && q.options.length > 0 ? q.options : [];
+    const optionsEng = q.options_eng && q.options_eng.length > 0 ? q.options_eng : [];
+    const maxLen = Math.max(options.length, optionsEng.length);
     const correctOptIndex = parseInt(q.correct_answer_option || q.final_answer_key || q.answer_key) - 1;
 
-    options.forEach((opt, idx) => {
-        const isCorrect = idx === correctOptIndex;
-        html += `<div class="option" onclick="selectOption(this, ${isCorrect}, '${q._id}', 'quiz')">${opt}</div>`;
-    });
+    for (let oIdx = 0; oIdx < maxLen; oIdx++) {
+        const isCorrect = oIdx === correctOptIndex;
+        const opt = options[oIdx] ? options[oIdx] : '';
+        const optEng = optionsEng[oIdx] ? optionsEng[oIdx] : '';
+        
+        let optHtml = opt;
+        if (opt && optEng) optHtml += `<br><small style="color: var(--text-secondary);">${optEng}</small>`;
+        else if (optEng) optHtml += optEng;
+        
+        const answered = userAnswers[q._id];
+        let extraClass = '';
+        let onClickHtml = `onclick="selectOption(this, ${isCorrect}, '${q._id}', 'quiz', ${index}, ${oIdx})"`;
+        if (answered) {
+            onClickHtml = ''; // disable click
+            if (isCorrect) {
+                extraClass = 'correct';
+            } else if (answered.selected === oIdx) {
+                extraClass = 'wrong';
+            }
+        }
+        
+        html += `<div class="option ${extraClass}" ${onClickHtml}>${optHtml}</div>`;
+    }
     html += `</div>
-        <div id="explanation-${q._id}" class="explanation hidden">
+        <div id="explanation-quiz-${q._id}" class="explanation ${userAnswers[q._id] ? '' : 'hidden'}">
             <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
         </div>
     `;
@@ -444,37 +725,100 @@ function renderFullPaper(questions = currentQuestions) {
         qDiv.style.borderRadius = 'var(--radius-lg)';
         qDiv.id = `full-q-${idx}`;
 
-        let html = `<h4>Q${idx + 1}. ${q.text || ''}</h4>`;
+        let html = ``;
+        // Handle Passages
+        if (q.passage_marathi && q.passage_marathi !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
+        }
+        if (q.passage_english && q.passage_english !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
+        }
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null")) {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;"><strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.</div>`;
+        }
+
+        html += `<h4>${idx + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+                 ${q.text_eng ? `<p style="color: var(--text-secondary); margin-bottom: 20px;">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}`;
+        if (!q.text && !q.text_eng) html += `<p>No text available</p>`;
+        
         if (q.original_image_url) {
-            html += `<img src="/api/image/${q.original_image_url}" style="max-width:100%; margin-bottom:10px; border-radius:8px; cursor:pointer;" onclick="openImageModal('/api/image/${q.original_image_url}')">`;
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${q.original_image_url}')">👁 View Original Image</button>`;
         }
         
         html += `<div class="options">`;
         const options = q.options && q.options.length > 0 ? q.options : [];
+        const optionsEng = q.options_eng && q.options_eng.length > 0 ? q.options_eng : [];
+        const maxLen = Math.max(options.length, optionsEng.length);
         const correctOptIndex = parseInt(q.correct_answer_option || q.final_answer_key || q.answer_key) - 1;
 
-        options.forEach((opt, oIdx) => {
+        for (let oIdx = 0; oIdx < maxLen; oIdx++) {
             const isCorrect = oIdx === correctOptIndex;
-            html += `<div class="option" onclick="selectOption(this, ${isCorrect}, '${q._id}', 'full', ${idx})">${opt}</div>`;
-        });
+            const opt = options[oIdx] ? options[oIdx] : '';
+            const optEng = optionsEng[oIdx] ? optionsEng[oIdx] : '';
+            
+            let optHtml = opt;
+            if (opt && optEng) optHtml += `<br><small style="color: var(--text-secondary);">${optEng}</small>`;
+            else if (optEng) optHtml += optEng;
+            
+            // Check if user already answered this
+            const answered = userAnswers[q._id];
+            let extraClass = '';
+            let onClickHtml = `onclick="selectOption(this, ${isCorrect}, '${q._id}', 'full', ${idx}, ${oIdx})"`;
+            if (answered) {
+                onClickHtml = ''; // disable click
+                if (isCorrect) {
+                    extraClass = 'correct';
+                } else if (answered.selected === oIdx) {
+                    extraClass = 'wrong';
+                }
+            }
+
+            html += `<div class="option ${extraClass}" ${onClickHtml}>${optHtml}</div>`;
+        }
+        
+        const showExpl = userAnswers[q._id] ? '' : 'hidden';
         html += `</div>
-            <div id="explanation-full-${q._id}" class="explanation hidden">
+            <div id="explanation-full-${q._id}" class="explanation ${showExpl}">
                 <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
             </div>
         `;
         qDiv.innerHTML = html;
         list.appendChild(qDiv);
-
-        // Build jump grid btn
-        const btn = document.createElement('button');
-        btn.className = 'grid-btn';
-        btn.id = `jump-btn-${idx}`;
-        btn.innerText = idx + 1;
-        btn.onclick = () => {
-            document.getElementById(`full-q-${idx}`).scrollIntoView({ behavior: 'smooth' });
-        };
-        jumpGrid.appendChild(btn);
     });
+
+    let gridHtml = `
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+    `;
+    
+    questions.forEach((q, idx) => {
+        let btnColor = '';
+        if (userAnswers[q._id]) {
+            btnColor = userAnswers[q._id].isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
+        }
+        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${idx + 1}</button>`;
+    });
+    
+    gridHtml += `</div>`;
+    jumpGrid.innerHTML = gridHtml;
+    
+    updateFloatingStats(questions);
+}
+
+function updateFloatingStats(questions) {
+    let totalAttempted = 0;
+    let totalCorrect = 0;
+    
+    questions.forEach(q => {
+        if (userAnswers[q._id]) {
+            totalAttempted++;
+            if (userAnswers[q._id].isCorrect) totalCorrect++;
+        }
+    });
+    
+    const statAttempted = document.getElementById('stat-attempted');
+    const statCorrect = document.getElementById('stat-correct');
+    if (statAttempted) statAttempted.innerText = totalAttempted;
+    if (statCorrect) statCorrect.innerText = totalCorrect;
 }
 
 function prevQuestion() {
@@ -492,7 +836,7 @@ function nextQuestion() {
 }
 
 // Quiz Option Selection Logic (Updated for real data)
-async function selectOption(el, isCorrect, questionId, mode, index = 0) {
+async function selectOption(el, isCorrect, questionId, mode, index = 0, optIndex = 0) {
     const parent = el.parentElement;
     if (parent.classList.contains('answered')) return;
     
@@ -510,17 +854,20 @@ async function selectOption(el, isCorrect, questionId, mode, index = 0) {
             parent.children[correctOptIndex].classList.add('correct');
         }
     }
+    
+    Array.from(parent.children).forEach(optDiv => {
+        optDiv.onclick = null; // Disable clicks after answering
+    });
+
+    // Save to local cache
+    const sectionName = currentQuestions[mode === 'full' ? index : currentQIndex].year_exam;
+    userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, section: sectionName };
+    localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
 
     // Show explanation
-    const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-${questionId}`;
+    const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
     const explanation = document.getElementById(explId);
     if(explanation) explanation.classList.remove('hidden');
-
-    // Update Jump Grid if in full mode
-    if (mode === 'full') {
-        const jumpBtn = document.getElementById(`jump-btn-${index}`);
-        if(jumpBtn) jumpBtn.classList.add('answered');
-    }
 
     // Fire & Forget Progress Save API
     fetch('/api/progress/save', {
@@ -530,11 +877,30 @@ async function selectOption(el, isCorrect, questionId, mode, index = 0) {
             'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({
-            questionId,
-            isCorrect,
-            section: currentQuestions[0].subject // Or passing dynamically
+            questionId: questionId,
+            isCorrect: isCorrect,
+            section: sectionName,
+            selectedOption: optIndex
         })
-    }).catch(console.error);
+    }).catch(err => console.error("Progress sync failed"));
+
+    // Update Jump Grid if in full mode
+    if (mode === 'full') {
+        const gridBtn = document.getElementById(`grid-btn-${index}`);
+        if(gridBtn) {
+            gridBtn.classList.remove('btn-outline');
+            gridBtn.style.color = '#fff';
+            gridBtn.style.borderColor = 'transparent';
+            if (isCorrect) {
+                gridBtn.style.background = '#10b981'; // green
+            } else {
+                gridBtn.style.background = '#ef4444'; // red
+            }
+        }
+        // Update Stats UI
+        updateFloatingStats(currentQuestions);
+    }
+
 }
 
 // ====== PAYMENT & RAZORPAY ======
@@ -620,38 +986,135 @@ window.openImageModal = function(src) {
     zoomLevel = 1;
     modalImg.style.transform = `scale(${zoomLevel})`;
     modalImg.style.cursor = 'zoom-in';
+    modalImg.style.transformOrigin = `center center`;
+    
+    // Reset width changes from previous bug
+    modalImg.style.width = '';
+    modalImg.style.height = '';
+    modalImg.style.maxWidth = '';
 }
 
-function closeModal() {
+window.closeImageModal = function() {
     modal.classList.remove('show');
     setTimeout(() => {
         modal.style.display = "none";
     }, 300);
 }
 
-closeBtn.onclick = closeModal;
+closeBtn.onclick = closeImageModal;
 
 modal.onclick = function(e) {
-    if (e.target === modal) {
-        closeModal();
+    if (e.target === modal || e.target.classList.contains('modal-content-wrapper')) {
+        closeImageModal();
     }
 }
 
+// Drag state for panning
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
+// Click to zoom (like before, but more zoom)
 modalImg.addEventListener('click', (e) => {
     e.stopPropagation();
-    zoomLevel = zoomLevel === 1 ? 2 : 1;
-    modalImg.style.transform = `scale(${zoomLevel})`;
-    modalImg.style.cursor = zoomLevel === 1 ? 'zoom-in' : 'zoom-out';
-    
-    if(zoomLevel === 2) {
+    if (zoomLevel === 1) {
+        zoomLevel = 3; // Zoom in a lot
         const rect = modalImg.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
         modalImg.style.transformOrigin = `${x}% ${y}%`;
     } else {
+        zoomLevel = 1;
+        translateX = 0;
+        translateY = 0;
         modalImg.style.transformOrigin = `center center`;
     }
+    modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    modalImg.style.cursor = zoomLevel === 1 ? 'zoom-in' : 'grab';
 });
+
+// Wheel zoom
+modalImg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+        zoomLevel += 0.25;
+    } else {
+        zoomLevel -= 0.25;
+    }
+    zoomLevel = Math.min(Math.max(1, zoomLevel), 5); // limit between 1x and 5x
+    modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+});
+
+// Panning
+modalImg.addEventListener('mousedown', (e) => {
+    if (zoomLevel > 1) {
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        modalImg.style.cursor = 'grabbing';
+    }
+});
+window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    }
+});
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    if (zoomLevel > 1) modalImg.style.cursor = 'grab';
+});
+
+// Mobile Pinch and Pan
+let initialDistance = null;
+let initialZoom = 1;
+
+modalImg.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        initialDistance = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+        initialZoom = zoomLevel;
+    } else if (e.touches.length === 1 && zoomLevel > 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - translateX;
+        startY = e.touches[0].clientY - translateY;
+    }
+}, {passive: false});
+
+modalImg.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && initialDistance !== null) {
+        e.preventDefault();
+        const currentDistance = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+        zoomLevel = initialZoom * (currentDistance / initialDistance);
+        zoomLevel = Math.min(Math.max(1, zoomLevel), 5);
+        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    } else if (e.touches.length === 1 && isDragging) {
+        e.preventDefault();
+        translateX = e.touches[0].clientX - startX;
+        translateY = e.touches[0].clientY - startY;
+        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    }
+}, {passive: false});
+
+modalImg.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) initialDistance = null;
+    if (e.touches.length === 0) isDragging = false;
+});
+
+window.zoomImage = function(amount) {
+    zoomLevel += amount;
+    zoomLevel = Math.min(Math.max(1, zoomLevel), 5);
+    modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    modalImg.style.cursor = zoomLevel === 1 ? 'zoom-in' : 'grab';
+}
+
+window.panImage = function(dx, dy) {
+    if (zoomLevel > 1) {
+        translateX += dx;
+        translateY += dy;
+        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    }
+}
 
 
 // ====== ULTRA-STRICT SECURITY LOGIC ======

@@ -91,6 +91,20 @@ router.get('/exams/hierarchy', async (req, res) => {
             { $sort: { "_id": -1 } }
         ]);
         
+        const passageCount = await Question.countDocuments({
+            $or: [
+                { passage_marathi: { $exists: true, $nin: [null, "null"] } },
+                { passage_english: { $exists: true, $nin: [null, "null"] } }
+            ]
+        });
+        
+        if (passageCount > 0) {
+            hierarchy.unshift({
+                _id: 'Passage Comprehension',
+                exams: [{ subject: 'All Passages', count: passageCount }]
+            });
+        }
+        
         cachedHierarchy = hierarchy;
         lastCacheTime = Date.now();
         
@@ -101,13 +115,35 @@ router.get('/exams/hierarchy', async (req, res) => {
     }
 });
 
-// 2. Fetch Questions by Filter (Protected & Requires Subscription)
-router.post('/questions', authMiddleware, requireSubscription, async (req, res) => {
+// 2. Fetch Questions by Filter (Protected - Subscription check inside)
+router.post('/questions', authMiddleware, async (req, res) => {
     try {
         const { year_exam, subject, limit } = req.body;
+        
+        // --- Security & Free Bypass Check ---
+        const user = await User.findById(req.user.id);
+        const freePaperName = "Maharashtra Subordinate Services Non-Gazetted, Group-b Preliminar 2020";
+        const isFree = (year_exam === freePaperName);
+        
+        if (!isFree) {
+            if (!user || !user.isSubscribed || !user.subscriptionExpiry || new Date() > user.subscriptionExpiry) {
+                return res.status(403).json({ success: false, message: 'Subscription required or expired' });
+            }
+        }
+        // ------------------------------------
+
         let query = {};
         
-        if (year_exam) query.year_exam = year_exam;
+        if (year_exam === 'Passage Comprehension') {
+            query = {
+                $or: [
+                    { passage_marathi: { $exists: true, $nin: [null, "null"] } },
+                    { passage_english: { $exists: true, $nin: [null, "null"] } }
+                ]
+            };
+        } else if (year_exam) {
+            query.year_exam = year_exam;
+        }
         if (subject) query.subject = subject;
 
         let questions = await Question.find(query).lean();
@@ -118,7 +154,8 @@ router.post('/questions', authMiddleware, requireSubscription, async (req, res) 
         if (limit) {
             questions = questions.slice(0, parseInt(limit));
         }
-        res.json({ success: true, count: questions.length, data: questions });
+
+        res.json({ success: true, data: questions });
     } catch (err) {
         console.error("API /questions Error:", err);
         res.status(500).json({ success: false, message: 'Server Error', error: err.message });
@@ -136,7 +173,7 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
         const { planId } = req.body;
         
         const planPrices = {
-            '1_day': 12,
+            '1_month': 50,
             '2_years': 100
         };
         
@@ -183,10 +220,10 @@ router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
         if (generatedSignature === razorpay_signature) {
             // Update User Subscription
             let expiry = new Date();
-            if (planId === '1_day') {
-                expiry.setDate(expiry.getDate() + 1);
+            if (planId === '1_month') {
+                expiry.setDate(expiry.getDate() + 30); // 30 days access
             } else if (planId === '2_years') {
-                expiry.setFullYear(expiry.getFullYear() + 2);
+                expiry.setFullYear(expiry.getFullYear() + 2); // 2 years access
             }
 
             const updatedUser = await User.findByIdAndUpdate(userId, { 
@@ -277,24 +314,43 @@ router.post('/payment/webhook', (req, res) => {
 // 4. PROGRESS TRACKING API
 // -------------------------------------
 
-// 5. Progress Tracking (Protected & Requires Subscription)
-router.post('/progress/save', authMiddleware, requireSubscription, async (req, res) => {
+// 5. Progress Tracking (Protected)
+router.post('/progress/save', authMiddleware, async (req, res) => {
     try {
-        const { questionId, isCorrect, section } = req.body;
+        const { questionId, isCorrect, section, selectedOption } = req.body;
         const userId = req.user.id;
         
         let progress = await Progress.findOne({ userId });
         if (!progress) {
-            progress = new Progress({ userId, totalSolved: 0, totalCorrect: 0, sectionWise: new Map() });
+            progress = new Progress({ userId, totalSolved: 0, totalCorrect: 0, sectionWise: new Map(), answers: new Map() });
         }
         
-        progress.totalSolved += 1;
-        if (isCorrect) progress.totalCorrect += 1;
+        // Check if already answered to prevent double counting
+        const existingAnswer = progress.answers.get(questionId);
+        
+        if (!existingAnswer) {
+            progress.totalSolved += 1;
+            if (isCorrect) progress.totalCorrect += 1;
 
-        let secStats = progress.sectionWise.get(section) || { solved: 0, correct: 0 };
-        secStats.solved += 1;
-        if (isCorrect) secStats.correct += 1;
-        progress.sectionWise.set(section, secStats);
+            let secStats = progress.sectionWise.get(section) || { solved: 0, correct: 0 };
+            secStats.solved += 1;
+            if (isCorrect) secStats.correct += 1;
+            progress.sectionWise.set(section, secStats);
+        } else {
+            // If they are answering again, update correct counts if it changed (though usually UI prevents this)
+            if (!existingAnswer.isCorrect && isCorrect) {
+                progress.totalCorrect += 1;
+                let secStats = progress.sectionWise.get(section);
+                if (secStats) { secStats.correct += 1; progress.sectionWise.set(section, secStats); }
+            } else if (existingAnswer.isCorrect && !isCorrect) {
+                progress.totalCorrect -= 1;
+                let secStats = progress.sectionWise.get(section);
+                if (secStats) { secStats.correct -= 1; progress.sectionWise.set(section, secStats); }
+            }
+        }
+
+        // Save detailed answer
+        progress.answers.set(questionId, { selected: selectedOption, isCorrect, section });
 
         progress.lastSolvedQuestion = questionId;
 
@@ -335,11 +391,20 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
                 progress.totalCorrect -= secStats.correct;
                 progress.sectionWise.delete(section);
             }
+            // Remove all answers for this section
+            if (progress.answers) {
+                for (const [qId, ansData] of progress.answers.entries()) {
+                    if (ansData.section === section) {
+                        progress.answers.delete(qId);
+                    }
+                }
+            }
         } else {
             // Reset ALL
             progress.totalSolved = 0;
             progress.totalCorrect = 0;
             progress.sectionWise = new Map();
+            progress.answers = new Map();
             progress.lastSolvedQuestion = null;
         }
 

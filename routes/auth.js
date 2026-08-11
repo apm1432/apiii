@@ -9,7 +9,7 @@ const { assignSmtpToUser, sendEmail } = require('../utils/smtpService');
 // REGISTER
 router.post('/register', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, deviceId } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
@@ -27,7 +27,8 @@ router.post('/register', async (req, res) => {
 
         const newUser = new User({
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            deviceId: deviceId || null
         });
 
         await newUser.save();
@@ -73,7 +74,7 @@ router.post('/register', async (req, res) => {
 // LOGIN
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, deviceId } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
@@ -89,6 +90,26 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        // Device Lock Logic
+        if (deviceId) {
+            if (!user.deviceId) {
+                user.deviceId = deviceId;
+                await user.save();
+            } else if (user.deviceId !== deviceId) {
+                return res.status(403).json({ success: false, message: 'Account is locked to another device. Please contact admin to unlock.' });
+            }
+        }
+
+        // Device Lock Logic
+        if (deviceId) {
+            if (!user.deviceId) {
+                user.deviceId = deviceId;
+                await user.save();
+            } else if (user.deviceId !== deviceId) {
+                return res.status(403).json({ success: false, message: 'Account is locked to another device. Please contact admin to unlock.' });
+            }
         }
 
         // Generate JWT
@@ -112,6 +133,85 @@ router.post('/login', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error during login' });
+    }
+});
+
+// FORGOT PASSWORD - Request OTP
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+
+        // Generate 6 digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        user.resetOtp = otp;
+        user.resetOtpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
+        await user.save();
+
+        // Send Email
+        try {
+            const smtpUser = assignSmtpToUser();
+            const subject = "MPSC PYQ Tracker - Password Reset OTP";
+            const text = `Your OTP for password reset is: ${otp}. It is valid for 15 minutes.`;
+            const html = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #2563eb; text-align: center;">Password Reset Request</h2>
+                    <p>Hello,</p>
+                    <p>We received a request to reset your password. Use the OTP below to complete the process:</p>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <h1 style="color: #2563eb; letter-spacing: 5px;">${otp}</h1>
+                    </div>
+                    <p>This OTP is valid for 15 minutes.</p>
+                    <p style="color: #777; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
+                </div>
+            `;
+            await sendEmail(smtpUser, email, subject, text, html);
+            res.json({ success: true, message: 'OTP sent to your email.' });
+        } catch (emailErr) {
+            console.error("Email setup/sending failed:", emailErr.message);
+            // Revert OTP since email failed
+            user.resetOtp = null;
+            user.resetOtpExpiry = null;
+            await user.save();
+            return res.status(500).json({ success: false, message: 'Failed to send OTP email. Please check server SMTP configuration.' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error during forgot password' });
+    }
+});
+
+// VERIFY OTP & RESET PASSWORD
+router.post('/verify-reset-password', async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+
+        if (!user.resetOtp || user.resetOtp !== otp) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+
+        if (new Date() > user.resetOtpExpiry) {
+            return res.status(400).json({ success: false, message: 'OTP has expired' });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        user.resetOtp = null;
+        user.resetOtpExpiry = null;
+        await user.save();
+
+        res.json({ success: true, message: 'Password reset successfully. You can now login.' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error during password reset' });
     }
 });
 
