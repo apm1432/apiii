@@ -2,7 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const Question = require('./models/Question'); // Adjust path if needed
+const Question = require('./models/Question'); 
 
 async function seedDB() {
     try {
@@ -12,17 +12,23 @@ async function seedDB() {
             process.exit(1);
         }
 
-        await mongoose.connect(mongoURI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        });
+        await mongoose.connect(mongoURI);
         console.log("Connected to MongoDB for Seeding...");
 
-        // Load Questions
         const dataPath = path.join(__dirname, 'FINAL_ENRICHED_MPSC_QUESTIONS.json');
-        const questions = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+        const rawData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
         
-        // Load Image Mapping if available (from Telegram upload)
+        let questions = [];
+        for (const examKey in rawData) {
+            const arr = rawData[examKey];
+            if (Array.isArray(arr)) {
+                arr.forEach(q => {
+                    q._examKey = examKey;
+                    questions.push(q);
+                });
+            }
+        }
+        
         const mappingPath = path.join(__dirname, 'image_mapping.json');
         let imageMapping = {};
         if (fs.existsSync(mappingPath)) {
@@ -30,8 +36,6 @@ async function seedDB() {
         }
 
         console.log(`Loaded ${questions.length} questions. Starting insert...`);
-
-        // Clear existing questions? Optional, but good for a fresh seed.
         await Question.deleteMany({});
         console.log("Cleared existing questions from DB.");
 
@@ -39,44 +43,36 @@ async function seedDB() {
         let missingImagesCount = 0;
 
         for (const q of questions) {
-            // Apply Telegram image URL if mapping exists
-            let finalImage = q.question_image || null; // Could be local path
+            let extractedExam = q._examKey;
+            
+            let finalImage = null; 
             if (q._originalFilePath && imageMapping[q._originalFilePath]) {
-                const fileId = imageMapping[q._originalFilePath];
-                // For a web app, a direct Telegram file_id isn't directly routable via HTTP without a bot proxy.
-                // However, if the user requested to save images with detail in ctg channel,
-                // and the bot uploads them, we store the fileId.
-                // Or maybe they just wanted the fileId stored. Let's store it.
-                finalImage = `tg://resolve?domain=YOUR_CHANNEL&post=${fileId}`; // Or just the fileId
-                // Let's store just the fileId or the original URL based on what they had.
-                finalImage = fileId;
+                finalImage = imageMapping[q._originalFilePath];
             } else if (q._originalFilePath) {
                 missingImagesCount++;
             }
 
-            // Fallbacks for missing fields based on model schema
             const doc = {
-                year: q.year || 'Unknown',
-                examName: q.exam_name || 'MPSC',
-                subject: q.subject || 'General Studies',
+                qnum: q.qnum || q.q_num,
+                text: q.text || q.original_marathi || 'N/A',
+                text_eng: q.text_eng || q.translated_english || '',
+                options: q.options || [],
+                options_eng: q.options_eng || [],
+                has_diagram_or_passage: q.has_diagram_or_passage || false,
+                final_answer_key: q.final_answer_key || q.answer_key || '1',
+                exam_set: q.exam_set || '',
+                toppers_explanation_marathi: q.toppers_explanation_marathi || q.explanation || '',
+                correct_answer_option: q.correct_answer_option || q.answer_key || '1',
+                subject: q.subject || extractedExam,
                 topic: q.topic || 'General',
-                subTopic: q.sub_topic || '',
-                originalMarathi: q.original_marathi || '',
-                translatedEnglish: q.translated_english || '',
-                questionImage: finalImage,
-                option1: q.option_1 || 'A',
-                option2: q.option_2 || 'B',
-                option3: q.option_3 || 'C',
-                option4: q.option_4 || 'D',
-                answerKey: q.answer_key || '1',
-                explanation: q.explanation || ''
+                sub_topic: q.sub_topic || '',
+                original_image_url: finalImage,
+                year_exam: q._examKey
             };
 
-            // Using insertMany for speed instead of bulkWrite if it's simpler
             bulkOps.push(doc);
         }
 
-        // Insert in chunks of 1000 to avoid out of memory
         const chunkSize = 1000;
         let inserted = 0;
         for (let i = 0; i < bulkOps.length; i += chunkSize) {

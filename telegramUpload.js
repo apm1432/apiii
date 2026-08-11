@@ -46,8 +46,13 @@ async function main() {
 
     let questions = [];
     try {
-        const data = await fsPromises.readFile(inputDataPath, 'utf8');
-        questions = JSON.parse(data);
+        const dataStr = await fsPromises.readFile(inputDataPath, 'utf8');
+        const rawData = JSON.parse(dataStr);
+        for (const key in rawData) {
+            if (Array.isArray(rawData[key])) {
+                questions = questions.concat(rawData[key]);
+            }
+        }
     } catch (err) {
         console.error(`Error reading or parsing ${inputDataPath}:`, err.message);
         process.exit(1);
