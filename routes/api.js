@@ -104,13 +104,18 @@ router.get('/exams/hierarchy', async (req, res) => {
 // 2. Fetch Questions by Filter (Protected & Requires Subscription)
 router.post('/questions', authMiddleware, requireSubscription, async (req, res) => {
     try {
-        const { year_exam, subject, limit = 50 } = req.body;
+        const { year_exam, subject, limit } = req.body;
         let query = {};
         
         if (year_exam) query.year_exam = year_exam;
         if (subject) query.subject = subject;
 
-        const questions = await Question.find(query).limit(parseInt(limit));
+        let dbQuery = Question.find(query).sort({ qnum: 1 });
+        if (limit) {
+            dbQuery = dbQuery.limit(parseInt(limit));
+        }
+        
+        const questions = await dbQuery;
         res.json({ success: true, count: questions.length, data: questions });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server Error', error: err.message });
