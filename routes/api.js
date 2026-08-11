@@ -120,6 +120,7 @@ router.post('/questions', authMiddleware, requireSubscription, async (req, res) 
         }
         res.json({ success: true, count: questions.length, data: questions });
     } catch (err) {
+        console.error("API /questions Error:", err);
         res.status(500).json({ success: false, message: 'Server Error', error: err.message });
     }
 });
@@ -188,13 +189,22 @@ router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
                 expiry.setFullYear(expiry.getFullYear() + 2);
             }
 
-            await User.findByIdAndUpdate(userId, { 
+            const updatedUser = await User.findByIdAndUpdate(userId, { 
                 isSubscribed: true,
                 subscriptionPlan: planId,
                 subscriptionExpiry: expiry
-            });
+            }, { new: true });
 
-            res.json({ success: true, message: 'Payment verified successfully' });
+            res.json({ 
+                success: true, 
+                message: 'Payment verified successfully!',
+                user: {
+                    email: updatedUser.email,
+                    isSubscribed: updatedUser.isSubscribed,
+                    subscriptionPlan: updatedUser.subscriptionPlan,
+                    subscriptionExpiry: updatedUser.subscriptionExpiry
+                }
+            });
         } else {
             res.status(400).json({ success: false, message: 'Invalid signature' });
         }

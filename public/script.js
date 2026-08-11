@@ -575,6 +575,9 @@ async function initiatePayment(planId) {
                         });
                         const verifyData = await verifyRes.json();
                         if (verifyData.success) {
+                            if (verifyData.user) {
+                                localStorage.setItem('currentUser', JSON.stringify(verifyData.user));
+                            }
                             alert("Payment Successful! Refreshing your account...");
                             window.location.reload();
                         } else {

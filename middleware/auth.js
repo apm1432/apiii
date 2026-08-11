@@ -42,6 +42,7 @@ const requireSubscription = async (req, res, next) => {
         }
         next();
     } catch (err) {
+        console.error("Auth Middleware Error:", err);
         return res.status(500).json({ success: false, message: 'Internal auth error' });
     }
 };

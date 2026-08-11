@@ -41,6 +41,11 @@ router.post('/register', async (req, res) => {
                     <h2 style="color: #2563eb; text-align: center;">Welcome to MPSC PYQ Tracker</h2>
                     <p>Hello,</p>
                     <p>Thank you for registering on <strong>MPSC PYQ Tracker</strong>. You have taken the first step towards a structured and focused preparation!</p>
+                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p style="margin: 0;"><strong>Your Login Credentials:</strong></p>
+                        <p style="margin: 5px 0 0 0;"><strong>User ID (Email):</strong> ${email}</p>
+                        <p style="margin: 5px 0 0 0;"><strong>Password:</strong> ${password}</p>
+                    </div>
                     <p>Log in to access thousands of previous year questions with detailed explanations.</p>
                     <div style="text-align: center; margin-top: 20px;">
                         <a href="https://apiii-apm1432.koyeb.app" style="background-color: #2563eb; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold;">Login Now</a>
@@ -97,7 +102,12 @@ router.post('/login', async (req, res) => {
             success: true, 
             message: 'Login successful',
             token,
-            user: { email: user.email, isSubscribed: user.isSubscribed }
+            user: { 
+                email: user.email, 
+                isSubscribed: user.isSubscribed,
+                subscriptionPlan: user.subscriptionPlan,
+                subscriptionExpiry: user.subscriptionExpiry
+            }
         });
     } catch (err) {
         console.error(err);
