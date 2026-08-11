@@ -28,14 +28,12 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('✅ MongoDB Connected Successfully!'))
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
+// Serve Static Frontend UI
+app.use(express.static('public'));
+
 // API Routes
 const apiRoutes = require('./routes/api');
 app.use('/api', apiRoutes);
-
-// Basic API Route
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running securely.' });
-});
 
 app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);
