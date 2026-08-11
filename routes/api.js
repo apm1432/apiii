@@ -110,12 +110,14 @@ router.post('/questions', authMiddleware, requireSubscription, async (req, res) 
         if (year_exam) query.year_exam = year_exam;
         if (subject) query.subject = subject;
 
-        let dbQuery = Question.find(query).sort({ qnum: 1 });
-        if (limit) {
-            dbQuery = dbQuery.limit(parseInt(limit));
-        }
+        let questions = await Question.find(query).lean();
         
-        const questions = await dbQuery;
+        // Sort in memory to avoid MongoDB 32MB sort limit
+        questions.sort((a, b) => (a.qnum || 0) - (b.qnum || 0));
+        
+        if (limit) {
+            questions = questions.slice(0, parseInt(limit));
+        }
         res.json({ success: true, count: questions.length, data: questions });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Server Error', error: err.message });

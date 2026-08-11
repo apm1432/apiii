@@ -39,7 +39,11 @@
         <section id="dashboard-section" class="view-section">
             <header class="dash-header">
                 <h2>Exam Dashboard</h2>
-                <div class="user-controls">
+                <div class="user-controls" style="display: flex; align-items: center; gap: 15px;">
+                    <div class="user-profile" onclick="toggleProfileModal()" style="text-align: center; cursor: pointer;">
+                        <div style="font-size: 1.5rem; line-height: 1;">👤</div>
+                        <div id="profile-name" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: bold; margin-top: 4px;">User</div>
+                    </div>
                     <button class="btn btn-danger" onclick="logout()">Logout</button>
                 </div>
             </header>
@@ -128,6 +132,17 @@
                 </div>
             </main>
         </section>
+    </div>
+
+    <!-- Profile Details Modal -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 400px; text-align: left;">
+            <span class="close-modal" onclick="toggleProfileModal()">&times;</span>
+            <h3 style="margin-bottom: 15px; color: var(--accent);">My Profile</h3>
+            <p style="margin-bottom: 10px;"><strong>Email:</strong> <span id="modal-email"></span></p>
+            <p style="margin-bottom: 10px;"><strong>Subscription Plan:</strong> <span id="modal-sub"></span></p>
+            <p style="margin-bottom: 10px;"><strong>Valid Till:</strong> <span id="modal-expiry"></span></p>
+        </div>
     </div>
 
     <!-- Image Modal -->

@@ -2,12 +2,13 @@
 
 // State
 let token = localStorage.getItem('jwtToken');
-let currentUser = null; // { email, isSubscribed }
+let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null; // { email, isSubscribed }
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth State
     if (token) {
         // Assume valid for now, load dashboard
+        if (currentUser) updateProfileUI();
         showSection('dashboard-section');
         loadDashboard();
     } else {
@@ -141,6 +142,59 @@ function logout() {
     localStorage.removeItem('currentUser');
     showSection('auth-section');
 }
+
+// ====== PROFILE TOGGLE & UPDATE ======
+window.updateProfileUI = function() {
+    if (!currentUser) return;
+    try {
+        document.getElementById('profile-name').innerText = currentUser.email.split('@')[0];
+        document.getElementById('modal-email').innerText = currentUser.email;
+        
+        if (currentUser.isSubscribed) {
+            document.getElementById('modal-sub').innerText = currentUser.subscriptionPlan || "Premium";
+            document.getElementById('modal-sub').style.color = "#10b981"; // green
+            
+            if (currentUser.subscriptionExpiry) {
+                const expiryDate = new Date(currentUser.subscriptionExpiry).toLocaleDateString();
+                document.getElementById('modal-expiry').innerText = expiryDate;
+            } else {
+                document.getElementById('modal-expiry').innerText = "Lifetime";
+            }
+        } else {
+            document.getElementById('modal-sub').innerText = "Free (Not Subscribed)";
+            document.getElementById('modal-sub').style.color = "var(--text-secondary)";
+            document.getElementById('modal-expiry').innerText = "N/A";
+        }
+    } catch (e) {
+        console.warn("Profile UI elements not found:", e);
+    }
+}
+
+window.toggleProfileModal = function() {
+    const modal = document.getElementById('profile-modal');
+    if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    } else {
+        modal.style.display = 'flex';
+        void modal.offsetWidth; 
+        modal.classList.add('show');
+    }
+};
+
+
+// ====== PROFILE TOGGLE ======
+window.toggleProfileModal = function() {
+    const modal = document.getElementById('profile-modal');
+    if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    } else {
+        modal.style.display = 'flex';
+        void modal.offsetWidth; 
+        modal.classList.add('show');
+    }
+};
 
 // ====== DASHBOARD ======
 async function loadDashboard() {
