@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPSC PYQ Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Background element for glassmorphism -->
+    <div class="bg-shape bg-shape1"></div>
+    <div class="bg-shape bg-shape2"></div>
+
+    <div class="app-container glass">
+            <div class="header-left">
+                <h1>MPSC PYQ Portal</h1>
+                <nav id="breadcrumb-nav">
+                    <span class="crumb">2023</span> >
+                    <span class="crumb">Rajyaseva</span> >
+                    <span class="crumb active">History</span>
+                </nav>
+            </div>
+            <div class="header-controls">
+                <select id="theme-selector" onchange="changeTheme(this.value)">
+                    <option value="theme-night">Night Theme</option>
+                    <option value="theme-light">Light Theme</option>
+                    <option value="theme-premium">Premium Theme</option>
+                    <option value="theme-blank">Blank/Compact</option>
+                </select>
+                <div class="mode-toggle">
+                    <button id="btn-quiz" class="btn active">Quiz</button>
+                    <button id="btn-full" class="btn">Full Paper</button>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <!-- Quiz Mode View -->
+            <section id="quiz-view" class="view-section active">
+                <div class="question-container">
+                    <div class="q-header">
+                        <span class="q-num">Question 1</span>
+                        <button class="btn-icon" onclick="openImageModal()">View Original Image</button>
+                    </div>
+                    <div class="q-text">
+                        Who among the following was the founder of Satyashodhak Samaj?
+                    </div>
+                    <div class="options">
+                        <div class="option" onclick="selectOption(this, false)">A. Dr. B.R. Ambedkar</div>
+                        <div class="option" onclick="selectOption(this, true)">B. Mahatma Jyotirao Phule</div>
+                        <div class="option" onclick="selectOption(this, false)">C. Rajarshi Shahu Maharaj</div>
+                        <div class="option" onclick="selectOption(this, false)">D. Maharshi Karve</div>
+                    </div>
+                    <div class="explanation hidden" id="explanation-1">
+                        <strong>Explanation:</strong> Mahatma Jyotirao Phule founded the Satyashodhak Samaj on 24 September 1873 in Pune, Maharashtra.
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn nav-btn">Previous</button>
+                    <button class="btn nav-btn">Next</button>
+                </div>
+            </section>
+
+            <!-- Full Paper Mode View -->
+            <section id="full-view" class="view-section hidden">
+                <div class="full-paper-layout">
+                    <div class="questions-list">
+                        <!-- Mock Questions -->
+                        <div class="question-item">
+                            <h4>Q1. Who among the following was the founder of Satyashodhak Samaj?</h4>
+                            <div class="options full-options">
+                                <label class="radio-option"><input type="radio" name="q1"> <span>A. Dr. B.R. Ambedkar</span></label>
+                                <label class="radio-option"><input type="radio" name="q1"> <span>B. Mahatma Jyotirao Phule</span></label>
+                                <label class="radio-option"><input type="radio" name="q1"> <span>C. Rajarshi Shahu Maharaj</span></label>
+                                <label class="radio-option"><input type="radio" name="q1"> <span>D. Maharshi Karve</span></label>
+                            </div>
+                        </div>
+                         <div class="question-item">
+                            <h4>Q2. Which river is known as the Dakshin Ganga?</h4>
+                            <div class="options full-options">
+                                <label class="radio-option"><input type="radio" name="q2"> <span>A. Krishna</span></label>
+                                <label class="radio-option"><input type="radio" name="q2"> <span>B. Godavari</span></label>
+                                <label class="radio-option"><input type="radio" name="q2"> <span>C. Cauvery</span></label>
+                                <label class="radio-option"><input type="radio" name="q2"> <span>D. Narmada</span></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="jump-grid-container glass-panel">
+                        <h3>Jump to Question</h3>
+                        <div class="jump-grid">
+                            <button class="grid-btn answered">1</button>
+                            <button class="grid-btn">2</button>
+                            <button class="grid-btn">3</button>
+                            <button class="grid-btn">4</button>
+                            <button class="grid-btn">5</button>
+                            <button class="grid-btn">6</button>
+                            <button class="grid-btn">7</button>
+                            <button class="grid-btn">8</button>
+                            <button class="grid-btn">9</button>
+                            <button class="grid-btn">10</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="image-modal" class="modal">
+        <span class="close-modal">&times;</span>
+        <div class="modal-content-wrapper">
+            <img class="modal-content" id="modal-img" src="https://via.placeholder.com/800x600/0f172a/f8fafc?text=Mock+Original+Question+Image" alt="Original Question">
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

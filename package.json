@@ -1,0 +1,31 @@
+{
+  "name": "mpscpyqwebsite",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://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@github.com/apm1432/apiii.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/apm1432/apiii/issues"
+  },
+  "homepage": "https://github.com/apm1432/apiii#readme",
+  "dependencies": {
+    "axios": "^1.19.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.2",
+    "multer": "^2.2.0",
+    "node-telegram-bot-api": "^1.2.0",
+    "razorpay": "^2.9.8"
+  }
+}

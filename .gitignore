@@ -1,3 +1,7 @@
 AutoSync.ps1
 Start_AutoSync.bat
 PYQ_DATA/
+node_modules/
+.env
+image_mapping.json
+FINAL_ENRICHED_MPSC_QUESTIONS.json
