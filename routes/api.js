@@ -22,9 +22,16 @@ const razorpay = new Razorpay({
 // 1. DATA API
 // -------------------------------------
 
+let cachedHierarchy = null;
+let lastCacheTime = 0;
+
 // 1. Fetch Hierarchy (For Dashboard Selection)
 router.get('/exams/hierarchy', async (req, res) => {
     try {
+        if (cachedHierarchy && (Date.now() - lastCacheTime < 3600000)) { // 1 hour cache
+            return res.json({ success: true, data: cachedHierarchy });
+        }
+
         const hierarchy = await Question.aggregate([
             {
                 $group: {
@@ -48,6 +55,10 @@ router.get('/exams/hierarchy', async (req, res) => {
             },
             { $sort: { "_id": -1 } }
         ]);
+        
+        cachedHierarchy = hierarchy;
+        lastCacheTime = Date.now();
+        
         res.json({ success: true, data: hierarchy });
     } catch (err) {
         console.error(err);
@@ -196,6 +207,7 @@ router.post('/progress/save', authMiddleware, requireSubscription, async (req, r
         await progress.save();
         res.json({ success: true, progress });
     } catch (err) {
+        console.error("Progress save error:", err);
         res.status(500).json({ success: false, message: 'Failed to save progress' });
     }
 });

@@ -79,14 +79,18 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         const data = await res.json();
         
         if (data.success) {
-            token = data.token;
-            currentUser = data.user;
-            localStorage.setItem('jwtToken', token);
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            showSection('dashboard-section');
-            loadDashboard();
+            msg.innerText = 'Login successful! Redirecting...';
+            msg.style.color = 'var(--success)';
+            setTimeout(() => {
+                token = data.token;
+                currentUser = data.user;
+                localStorage.setItem('jwtToken', token);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showSection('dashboard-section');
+                loadDashboard();
+            }, 1000);
         } else {
-            msg.innerText = data.message;
+            msg.innerText = data.message || 'Invalid email or password.';
             msg.style.color = 'var(--error)';
         }
     } catch (err) {
@@ -112,11 +116,16 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
         const data = await res.json();
         
         if (data.success) {
-            msg.innerText = 'Registration successful! You can now login.';
+            msg.innerText = 'Registration successful! Please login.';
             msg.style.color = 'var(--success)';
-            toggleAuth('login');
+            setTimeout(() => {
+                toggleAuth('login');
+                const newMsg = document.getElementById('auth-message');
+                newMsg.innerText = 'Registration successful! Please login.';
+                newMsg.style.color = 'var(--success)';
+            }, 1500);
         } else {
-            msg.innerText = data.message;
+            msg.innerText = data.message || 'Registration failed.';
             msg.style.color = 'var(--error)';
         }
     } catch (err) {

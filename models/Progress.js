@@ -4,27 +4,29 @@ const progressSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    unique: true
   },
-  questionId: {
+  totalSolved: {
+    type: Number,
+    default: 0
+  },
+  totalCorrect: {
+    type: Number,
+    default: 0
+  },
+  sectionWise: {
+    type: Map,
+    of: {
+      solved: Number,
+      correct: Number
+    },
+    default: {}
+  },
+  lastSolvedQuestion: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Question',
-    required: true
-  },
-  isCorrect: {
-    type: Boolean,
-    required: true
-  },
-  attemptedAt: {
-    type: Date,
-    default: Date.now
-  },
-  section: {
-    type: String, // Tracks where the user solved it from (e.g. "Year", "Subject", "Full Paper")
+    ref: 'Question'
   }
-});
-
-// Create index for fast querying per user
-progressSchema.index({ userId: 1, questionId: 1 }, { unique: true });
+}, { timestamps: true });
 
 module.exports = mongoose.model('Progress', progressSchema);
