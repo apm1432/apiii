@@ -497,41 +497,45 @@ router.get('/image/:fileId', async (req, res) => {
         }
 
         // 2. Not in Cache - Try fetching from Telegram Bots
-        for (let i = 0; i < tokens.length; i++) {
-            const token = tokens[i];
-            const fId = fileIdsObj[i.toString()] || firstAvailableId; // try matched index or fallback
+        const allFileIds = Object.values(fileIdsObj);
+        let success = false;
+        
+        for (const token of tokens) {
+            if (success) break;
+            
+            for (const fId of allFileIds) {
+                if (!fId) continue;
+                try {
+                    const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
+                    if (!fileRes.data.ok) continue;
 
-            try {
-                const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
-                if (!fileRes.data.ok) continue; // Try next bot
+                    const filePath = fileRes.data.result.file_path;
+                    const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+                    
+                    const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
+                    
+                    const writer = fs.createWriteStream(cachePath);
+                    imgRes.data.pipe(writer);
+                    
+                    if (imgRes.headers['content-type']) {
+                        res.setHeader('Content-Type', imgRes.headers['content-type']);
+                    }
+                    
+                    imgRes.data.pipe(res);
 
-                const filePath = fileRes.data.result.file_path;
-                const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
-                
-                // Fetch image as stream
-                const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
-                
-                // Save to cache AND send to client
-                const writer = fs.createWriteStream(cachePath);
-                imgRes.data.pipe(writer);
-                
-                if (imgRes.headers['content-type']) {
-                    res.setHeader('Content-Type', imgRes.headers['content-type']);
+                    writer.on('finish', () => {
+                        cleanupCache();
+                    });
+
+                    success = true;
+                    break; // Successfully served, break out of inner loop
+                } catch (err) {
+                    continue; // Try next fileId
                 }
-                
-                imgRes.data.pipe(res);
-
-                // Run cache cleanup asynchronously
-                writer.on('finish', () => {
-                    cleanupCache();
-                });
-
-                return; // Successfully served
-            } catch (err) {
-                // Ignore 400 errors (bot mismatch) and continue to next bot
-                continue;
             }
         }
+        
+        if (success) return;
 
         // If all bots failed
         res.status(404).send('Image not available on any bot.');
