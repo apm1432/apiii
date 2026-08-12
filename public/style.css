@@ -486,3 +486,5 @@ header {
 .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); }
 
 #auth-section.active { display: flex !important; }
+@ k e y f r a m e s   s p i n   {   0 %   {   t r a n s f o r m :   r o t a t e ( 0 d e g ) ;   }   1 0 0 %   {   t r a n s f o r m :   r o t a t e ( 3 6 0 d e g ) ;   }   }  
+ 

@@ -14,7 +14,8 @@ const questionSchema = new mongoose.Schema({
   subject: { type: String, index: true },
   topic: { type: String, index: true },
   sub_topic: { type: String },
-  original_image_url: { type: String }, // Telegram Image URL
+  original_image_url: { type: mongoose.Schema.Types.Mixed }, // Map of Token Index -> File ID
+  telegram_msg_id: { type: Number }, // Optional Message ID from Telegram
   year_exam: { type: String, index: true }, // e.g., "2018 group b pre"
   passage_marathi: { type: String },
   passage_english: { type: String }

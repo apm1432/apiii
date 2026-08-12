@@ -5,3 +5,11 @@ node_modules/
 .env
 image_mapping.json
 FINAL_ENRICHED_MPSC_QUESTIONS.json
+cache/
+FINAL_ENRICHED_MPSC_QUESTIONS - Copy.json
+sync_db.js
+sync.js
+telegramUpload.js
+admin.js
+admin.bat
+bot_manager_plan.md

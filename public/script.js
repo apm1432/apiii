@@ -380,10 +380,12 @@ function renderExamGrid() {
     
     // Sort by year (descending) extracted from name
     exams.sort((a, b) => {
-        const yearA = a._id.match(/\d{4}/) ? parseInt(a._id.match(/\d{4}/)[0]) : 0;
-        const yearB = b._id.match(/\d{4}/) ? parseInt(b._id.match(/\d{4}/)[0]) : 0;
+        const idA = a._id || '';
+        const idB = b._id || '';
+        const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
+        const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
         if (yearA !== yearB) return yearB - yearA; // Newest first
-        return a._id.localeCompare(b._id);
+        return idA.localeCompare(idB);
     });
     
     // Pin the free exam to the top
@@ -478,7 +480,21 @@ async function resetProgress(examId) {
 let currentQuestions = [];
 let currentQIndex = 0;
 
+window.showGlobalLoader = function(text = "Loading...") {
+    const loader = document.getElementById('global-loader');
+    if (loader) {
+        document.getElementById('global-loader-text').innerText = text;
+        loader.style.display = 'flex';
+    }
+}
+
+window.hideGlobalLoader = function() {
+    const loader = document.getElementById('global-loader');
+    if (loader) loader.style.display = 'none';
+}
+
 async function openTest(yearExam) {
+    showGlobalLoader("Loading Exam Paper...");
     // Attempt to load questions
     try {
         const res = await fetch('/api/questions', {
@@ -531,6 +547,8 @@ async function openTest(yearExam) {
         }
     } catch (err) {
         alert('Server error.');
+    } finally {
+        hideGlobalLoader();
     }
 }
 
@@ -563,7 +581,8 @@ function renderQuizQuestion(index, questions = currentQuestions) {
     `;
 
     if (q.original_image_url) {
-        html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${q.original_image_url}')">👁 View Original Image</button>`;
+        const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
     }
 
     html += `<div class="options">`;
@@ -742,7 +761,8 @@ function renderFullPaper(questions = currentQuestions) {
         if (!q.text && !q.text_eng) html += `<p>No text available</p>`;
         
         if (q.original_image_url) {
-            html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${q.original_image_url}')">👁 View Original Image</button>`;
+            const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
         }
         
         html += `<div class="options">`;
@@ -978,9 +998,22 @@ const closeBtn = document.querySelector('.close-modal');
 let zoomLevel = 1;
 
 window.openImageModal = function(src) {
+    showGlobalLoader("Loading Image...");
     modal.style.display = 'flex';
     void modal.offsetWidth; 
     modal.classList.add('show');
+    
+    // Hide image until loaded
+    modalImg.style.visibility = 'hidden';
+    modalImg.onload = function() {
+        modalImg.style.visibility = 'visible';
+        hideGlobalLoader();
+    };
+    modalImg.onerror = function() {
+        hideGlobalLoader();
+        alert("Failed to load image.");
+    };
+    
     modalImg.src = src;
     
     zoomLevel = 1;

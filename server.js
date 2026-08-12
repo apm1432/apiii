@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const Razorpay = require('razorpay');
+const { startAdminBot } = require('./admin_bot');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -27,6 +28,8 @@ const razorpay = new Razorpay({
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {
     console.log('✅ MongoDB Connected Successfully!');
+    // Start Telegram Admin Bot
+    startAdminBot();
     // Preload heavy aggregations into memory immediately on startup
     const apiModule = require('./routes/api');
     if(apiModule.preloadHierarchy) {

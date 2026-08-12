@@ -92,18 +92,8 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // Device Lock Logic
-        if (deviceId) {
-            if (!user.deviceId) {
-                user.deviceId = deviceId;
-                await user.save();
-            } else if (user.deviceId !== deviceId) {
-                return res.status(403).json({ success: false, message: 'Account is locked to another device. Please contact admin to unlock.' });
-            }
-        }
-
-        // Device Lock Logic
-        if (deviceId) {
+        // Device Lock Logic (Only for Subscribed Users)
+        if (user.isSubscribed && deviceId) {
             if (!user.deviceId) {
                 user.deviceId = deviceId;
                 await user.save();

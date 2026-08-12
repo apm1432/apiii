@@ -418,36 +418,124 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
 // -------------------------------------
 // 5. IMAGE PROXY API
 // -------------------------------------
+const fs = require('fs');
+const fsPromises = require('fs').promises;
+const path = require('path');
 const axios = require('axios');
+
+const CACHE_DIR = path.join(__dirname, '..', 'cache', 'images');
+const MAX_CACHE_SIZE = 900 * 1024 * 1024; // 900 MB
+const TARGET_CACHE_SIZE = 700 * 1024 * 1024; // 700 MB
+
+// Ensure cache directory exists
+if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+async function cleanupCache() {
+    try {
+        const files = await fsPromises.readdir(CACHE_DIR);
+        let totalSize = 0;
+        const fileStats = [];
+
+        for (const file of files) {
+            const filePath = path.join(CACHE_DIR, file);
+            const stats = await fsPromises.stat(filePath);
+            totalSize += stats.size;
+            fileStats.push({ filePath, mtime: stats.mtime.getTime(), size: stats.size });
+        }
+
+        if (totalSize > MAX_CACHE_SIZE) {
+            console.log(`Cache size (${(totalSize / 1024 / 1024).toFixed(2)} MB) exceeded limit. Cleaning up...`);
+            // Sort by oldest first (LRU approximation based on modified/access time)
+            fileStats.sort((a, b) => a.mtime - b.mtime);
+
+            while (totalSize > TARGET_CACHE_SIZE && fileStats.length > 0) {
+                const oldest = fileStats.shift();
+                await fsPromises.unlink(oldest.filePath);
+                totalSize -= oldest.size;
+            }
+            console.log(`Cache cleanup done. New size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+        }
+    } catch (err) {
+        console.error("Cache cleanup error:", err.message);
+    }
+}
 
 router.get('/image/:fileId', async (req, res) => {
     try {
-        const fileId = req.params.fileId;
+        const rawFileId = req.params.fileId;
         const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
         if (!tokensStr) return res.status(500).send('No bot tokens configured');
         
-        // Try with the first bot token
-        const token = tokensStr.split(',')[0].trim();
+        const tokens = tokensStr.split(',').map(t => t.trim()).filter(Boolean);
         
-        // 1. Get file path from Telegram API
-        const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
-        if (!fileRes.data.ok) {
-            return res.status(404).send('Image metadata not found');
+        let fileIdsObj = {};
+        try {
+            // Attempt to decode and parse JSON (from new Redundancy DB)
+            const decoded = decodeURIComponent(rawFileId);
+            fileIdsObj = JSON.parse(decoded);
+        } catch (e) {
+            // Fallback for single string backwards compatibility
+            fileIdsObj = { "0": rawFileId };
         }
-        
-        const filePath = fileRes.data.result.file_path;
-        
-        // 2. Fetch the actual image data
-        const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
-        const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
-        
-        // Set basic headers if needed (axios usually proxies content-type well)
-        if (imgRes.headers['content-type']) {
-            res.setHeader('Content-Type', imgRes.headers['content-type']);
+
+        // We will try the first available fileId to use as the cache filename
+        const firstAvailableId = Object.values(fileIdsObj)[0];
+        if (!firstAvailableId) return res.status(404).send('Invalid file metadata');
+
+        // Sanitize filename
+        const safeFilename = firstAvailableId.replace(/[^a-zA-Z0-9-_]/g, '') + '.jpg';
+        const cachePath = path.join(CACHE_DIR, safeFilename);
+
+        // 1. Check Cache
+        if (fs.existsSync(cachePath)) {
+            // Update modified time for LRU
+            const now = new Date();
+            try { fs.utimesSync(cachePath, now, now); } catch (e) {} // ignore if fails
+            return res.sendFile(cachePath);
         }
-        
-        // 3. Pipe to client
-        imgRes.data.pipe(res);
+
+        // 2. Not in Cache - Try fetching from Telegram Bots
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i];
+            const fId = fileIdsObj[i.toString()] || firstAvailableId; // try matched index or fallback
+
+            try {
+                const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
+                if (!fileRes.data.ok) continue; // Try next bot
+
+                const filePath = fileRes.data.result.file_path;
+                const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+                
+                // Fetch image as stream
+                const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
+                
+                // Save to cache AND send to client
+                const writer = fs.createWriteStream(cachePath);
+                imgRes.data.pipe(writer);
+                
+                if (imgRes.headers['content-type']) {
+                    res.setHeader('Content-Type', imgRes.headers['content-type']);
+                }
+                
+                imgRes.data.pipe(res);
+
+                // Run cache cleanup asynchronously
+                writer.on('finish', () => {
+                    cleanupCache();
+                });
+
+                return; // Successfully served
+            } catch (err) {
+                // Ignore 400 errors (bot mismatch) and continue to next bot
+                continue;
+            }
+        }
+
+        // If all bots failed
+        res.status(404).send('Image not available on any bot.');
+
     } catch (err) {
         console.error('Image Proxy Error:', err.message);
         res.status(500).send('Error fetching image');
