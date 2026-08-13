@@ -1014,6 +1014,10 @@ window.openImageModal = function(src) {
         alert("Failed to load image.");
     };
     
+    // If src doesn't start with /api/image/, it's likely a raw file ID
+    if (!src.startsWith('/api/image/')) {
+        src = '/api/image/' + src;
+    }
     modalImg.src = src;
     
     zoomLevel = 1;
