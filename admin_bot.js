@@ -20,7 +20,7 @@ async function startAdminBot() {
         return;
     }
 
-    tokens = tokensStr.split(',').map(t => t.trim()).filter(Boolean);
+    tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
     const token = tokens[0];
     
     bot = new TelegramBot(token, { polling: true });
@@ -35,7 +35,8 @@ async function startAdminBot() {
     bot.on('message', async (msg) => {
         const chatId = msg.chat.id;
         const text = msg.text || '';
-        const adminId = process.env.ADMIN_TG_ID;
+        const rawAdminId = process.env.ADMIN_TG_ID || '';
+        const adminId = rawAdminId.replace(/['"]/g, '').trim();
 
         if (!adminId || chatId.toString() !== adminId) {
             if (text.startsWith('/')) {
@@ -79,7 +80,8 @@ async function startAdminBot() {
     bot.on('callback_query', async (query) => {
         const chatId = query.message.chat.id;
         const data = query.data;
-        const adminId = process.env.ADMIN_TG_ID;
+        const rawAdminId = process.env.ADMIN_TG_ID || '';
+        const adminId = rawAdminId.replace(/['"]/g, '').trim();
 
         if (!adminId || chatId.toString() !== adminId) return;
         

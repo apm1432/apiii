@@ -468,7 +468,7 @@ router.get('/image/:fileId', async (req, res) => {
         const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
         if (!tokensStr) return res.status(500).send('No bot tokens configured');
         
-        const tokens = tokensStr.split(',').map(t => t.trim()).filter(Boolean);
+        const tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
         
         let fileIdsObj = {};
         try {
@@ -530,6 +530,7 @@ router.get('/image/:fileId', async (req, res) => {
                     success = true;
                     break; // Successfully served, break out of inner loop
                 } catch (err) {
+                    console.error(`Failed fetching ${fId} with token ${token.substring(0, 5)}...:`, err.message);
                     continue; // Try next fileId
                 }
             }
