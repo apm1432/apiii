@@ -423,7 +423,8 @@ const fsPromises = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
 
-const CACHE_DIR = path.join(__dirname, '..', 'cache', 'images');
+const os = require('os');
+const CACHE_DIR = path.join(os.tmpdir(), 'mpscpyq_images');
 const MAX_CACHE_SIZE = 900 * 1024 * 1024; // 900 MB
 const TARGET_CACHE_SIZE = 700 * 1024 * 1024; // 700 MB
 
