@@ -82,7 +82,7 @@ async function startAdminBot() {
                             <p style="color: #6b7280; font-size: 0.9em;">- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        await sendEmail(user.email, user.smtp_user, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
+                        await sendEmail(user.smtp_user, user.email, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
                     } catch (e) {
                         console.error("Failed to send subscription email:", e.message);
                     }
@@ -144,7 +144,7 @@ async function startAdminBot() {
                             <p>- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        await sendEmail(user.email, user.smtp_user, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
+                        await sendEmail(user.smtp_user, user.email, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
                     } catch (e) {
                         console.error("Failed to send revoke email:", e.message);
                     }
