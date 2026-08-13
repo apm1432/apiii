@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 const User = require('./models/User');
 const Question = require('./models/Question');
-const { sendEmail } = require('./utils/smtpService');
+const { sendEmail, assignSmtpToUser } = require('./utils/smtpService');
 
 let bot = null;
 let tokens = [];
@@ -82,7 +82,13 @@ async function startAdminBot() {
                             <p style="color: #6b7280; font-size: 0.9em;">- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        await sendEmail(user.smtp_user, user.email, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
+                        let smtpUser = user.smtp_user;
+                        if (!smtpUser) {
+                            smtpUser = assignSmtpToUser();
+                            user.smtp_user = smtpUser;
+                            await user.save();
+                        }
+                        await sendEmail(smtpUser, user.email, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
                     } catch (e) {
                         console.error("Failed to send subscription email:", e.message);
                     }
@@ -144,7 +150,13 @@ async function startAdminBot() {
                             <p>- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        await sendEmail(user.smtp_user, user.email, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
+                        let smtpUser = user.smtp_user;
+                        if (!smtpUser) {
+                            smtpUser = assignSmtpToUser();
+                            user.smtp_user = smtpUser;
+                            await user.save();
+                        }
+                        await sendEmail(smtpUser, user.email, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
                     } catch (e) {
                         console.error("Failed to send revoke email:", e.message);
                     }
