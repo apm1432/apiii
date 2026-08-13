@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const axios = require('axios');
 const User = require('./models/User');
 const Question = require('./models/Question');
+const { sendEmail } = require('./utils/smtpService');
 
 let bot = null;
 let tokens = [];
@@ -66,6 +67,25 @@ async function startAdminBot() {
                     
                     bot.sendMessage(chatId, `✅ **Success!**\nUser ${user.email} is now subscribed for **${months} Months** (until ${expiry.toLocaleDateString()}).`, { parse_mode: 'Markdown' });
                     sendUserProfile(chatId, user._id);
+
+                    // Send Email to User
+                    try {
+                        const emailHtml = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+                            <h2 style="color: #2563eb; text-align: center;">Subscription Activated! 🎉</h2>
+                            <p>Hello,</p>
+                            <p>Great news! Your premium subscription has been successfully activated for <strong>${months} months</strong>.</p>
+                            <p>Your subscription is valid until: <strong>${expiry.toLocaleDateString()}</strong></p>
+                            <p>You now have full access to all premium features, including detailed topper explanations and ad-free browsing.</p>
+                            <br>
+                            <p>Thank you for your support!</p>
+                            <p style="color: #6b7280; font-size: 0.9em;">- The MPSC PYQ Team</p>
+                        </div>
+                        `;
+                        await sendEmail(user.email, user.smtp_user, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
+                    } catch (e) {
+                        console.error("Failed to send subscription email:", e.message);
+                    }
                 }
                 delete adminState[chatId]; // Clear state
                 return;
@@ -108,9 +128,27 @@ async function startAdminBot() {
             }
             else if (data.startsWith('revoke_user_')) {
                 const userId = data.split('revoke_user_')[1];
-                await User.findByIdAndUpdate(userId, { isSubscribed: false, subscriptionExpiry: null });
+                const user = await User.findByIdAndUpdate(userId, { isSubscribed: false, subscriptionExpiry: null });
                 bot.sendMessage(chatId, `✅ Premium Revoked!`);
                 sendUserProfile(chatId, userId, query.message.message_id);
+
+                if (user) {
+                    try {
+                        const emailHtml = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+                            <h2 style="color: #ef4444; text-align: center;">Subscription Expired / Revoked</h2>
+                            <p>Hello,</p>
+                            <p>Your premium subscription to MPSC PYQ has ended or been revoked by the admin.</p>
+                            <p>If you believe this is a mistake or wish to renew your subscription, please contact support.</p>
+                            <br>
+                            <p>- The MPSC PYQ Team</p>
+                        </div>
+                        `;
+                        await sendEmail(user.email, user.smtp_user, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
+                    } catch (e) {
+                        console.error("Failed to send revoke email:", e.message);
+                    }
+                }
             }
             else if (data.startsWith('give_prem_')) {
                 const userId = data.split('give_prem_')[1];
