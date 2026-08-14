@@ -61,18 +61,13 @@ function switchMode(mode) {
     }
 }
 
-// ====== DEVICE FINGERPRINTING ======
-let currentDeviceId = null;
-async function initFingerprint() {
-    try {
-        const fp = await window.FingerprintJS.load();
-        const result = await fp.get();
-        currentDeviceId = result.visitorId;
-    } catch (e) {
-        console.warn("Fingerprint error", e);
-    }
+// ====== DEVICE IDENTIFICATION ======
+let currentDeviceId = localStorage.getItem('mpscpyq_device_id');
+if (!currentDeviceId) {
+    // Generate a robust UUID for this browser
+    currentDeviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+    localStorage.setItem('mpscpyq_device_id', currentDeviceId);
 }
-initFingerprint();
 
 // ====== AUTHENTICATION ======
 function toggleAuth(type) {
