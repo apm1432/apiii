@@ -1021,7 +1021,9 @@ window.openImageModal = function(src) {
     modalImg.src = src;
     
     zoomLevel = 1;
-    modalImg.style.transform = `scale(${zoomLevel})`;
+    translateX = 0;
+    translateY = 0;
+    modalImg.style.transform = `translate(0px, 0px) scale(${zoomLevel})`;
     modalImg.style.cursor = 'zoom-in';
     modalImg.style.transformOrigin = `center center`;
     
@@ -1078,6 +1080,11 @@ modalImg.addEventListener('wheel', (e) => {
         zoomLevel -= 0.25;
     }
     zoomLevel = Math.min(Math.max(1, zoomLevel), 5); // limit between 1x and 5x
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+        modalImg.style.transformOrigin = 'center center';
+    }
     modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
 });
 
@@ -1141,6 +1148,11 @@ modalImg.addEventListener('touchend', (e) => {
 window.zoomImage = function(amount) {
     zoomLevel += amount;
     zoomLevel = Math.min(Math.max(1, zoomLevel), 5);
+    if (zoomLevel === 1) {
+        translateX = 0;
+        translateY = 0;
+        modalImg.style.transformOrigin = 'center center';
+    }
     modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
     modalImg.style.cursor = zoomLevel === 1 ? 'zoom-in' : 'grab';
 }
