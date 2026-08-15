@@ -237,6 +237,15 @@ async function importJson() {
         }
         
         await fsPromises.writeFile(mappingPath, JSON.stringify(mapping, null, 2));
+        
+        // Clear server cache automatically
+        try {
+            await axios.post('http://localhost:3000/api/admin/clear-cache');
+            console.log("\n✅ Website cache cleared automatically. Live update successful!");
+        } catch(e) {
+            // Ignore error if server is not running on 3000
+        }
+
         console.log(`\n✅ Import Complete! Uploaded ${uploaded} new files. Synced ${synced} docs.`);
         showMenu();
     });
@@ -309,8 +318,30 @@ async function addBotResync() {
         }
     }
     
+    // Clear server cache automatically
+    try {
+        await axios.post('http://localhost:3000/api/admin/clear-cache');
+    } catch(e) {}
+
     console.log(`\n✅ Resync Complete! Updated ${updated} questions.`);
     showMenu();
+}
+
+async function clearDB() {
+    console.log("\n⚠️ WARNING: This will delete ALL questions from the database!");
+    rl.question('Are you sure? Type "YES" to confirm: ', async (ans) => {
+        if (ans === 'YES') {
+            try {
+                const result = await Question.deleteMany({});
+                console.log(`✅ Database cleared! Deleted ${result.deletedCount} questions.`);
+            } catch (err) {
+                console.error("❌ Error clearing database:", err.message);
+            }
+        } else {
+            console.log("Canceled.");
+        }
+        showMenu();
+    });
 }
 
 function showMenu() {
@@ -320,12 +351,14 @@ function showMenu() {
     console.log(`Active Bots: ${bots.length}`);
     console.log("[1] Import JSON & Auto-Sync (Initial Upload)");
     console.log("[2] Add New Bot & Server Mirroring (Resync)");
-    console.log("[3] Exit");
+    console.log("[3] Clear All Questions from Database");
+    console.log("[4] Exit");
     console.log("==================================");
     rl.question('Select an option: ', (ans) => {
         if (ans === '1') importJson();
         else if (ans === '2') addBotResync();
-        else if (ans === '3') {
+        else if (ans === '3') clearDB();
+        else if (ans === '4') {
             console.log("Goodbye!");
             process.exit(0);
         } else {

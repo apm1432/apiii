@@ -60,6 +60,14 @@ async function preloadHierarchy() {
     }
 }
 
+// Admin: Clear Cache (Called by bot_manager.js after sync)
+router.post('/admin/clear-cache', (req, res) => {
+    cachedHierarchy = null;
+    lastCacheTime = 0;
+    preloadHierarchy(); // Start preloading again in background
+    res.json({ success: true });
+});
+
 // 1. Fetch Hierarchy (For Dashboard Selection)
 router.get('/exams/hierarchy', async (req, res) => {
     try {
