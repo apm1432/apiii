@@ -110,6 +110,11 @@
                 </div>
             </header>
             
+            <div id="dashboard-mode-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; background: var(--surface-color); padding: 5px; border-radius: 8px;">
+                <button class="btn tab-btn active" id="mode-exam-btn" onclick="switchDashboardMode('exam')" style="flex: 1;">Exam-Wise</button>
+                <button class="btn tab-btn" id="mode-subject-btn" onclick="switchDashboardMode('subject')" style="flex: 1;">Subject-Wise</button>
+            </div>
+
             <div id="exam-tabs" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
                 <button class="btn tab-btn active" onclick="filterExams('all', this)" style="min-width: 100px;">All Exams</button>
                 <button class="btn tab-btn" onclick="filterExams('prelims', this)" style="min-width: 100px;">Prelims</button>
@@ -125,14 +130,27 @@
         <section id="payment-section" class="view-section">
             <div class="payment-box">
                 <h2>Premium Access Required</h2>
+                
+                <div style="background: rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308; padding: 15px; margin-bottom: 20px; text-align: left; border-radius: 4px;">
+                    <p style="margin: 0; color: #eab308; font-size: 0.95rem;">
+                        <strong>⚠️ IMPORTANT:</strong> Your account will be locked to the device and browser you are currently using. Please ensure you are opening this website on your primary device (where you will give daily tests) before making a payment or starting the free trial.
+                    </p>
+                </div>
+
                 <p>Get full access to all MPSC Previous Year Questions, detailed explanations, and progress tracking.</p>
-                    <div class="pricing-cards">
-                        <div class="pricing-card">
-                            <h4>1 Month Access</h4>
-                            <p class="price">₹50</p>
-                            <p>Full access to all MPSC PYQ papers.</p>
-                            <button class="btn btn-primary" onclick="initiatePayment('1_month')">Pay ₹50</button>
-                        </div>
+                
+                <div id="free-trial-container" style="margin-bottom: 20px;">
+                    <button class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; width: 100%; font-size: 1.1rem; padding: 12px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);" onclick="startFreeTrial()">🎁 Start 1-Day Free Trial</button>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px;">For new users only. Explore all content for 24 hours!</p>
+                </div>
+
+                <div class="pricing-cards">
+                    <div class="pricing-card">
+                        <h4>1 Month Access</h4>
+                        <p class="price">₹50</p>
+                        <p>Full access to all MPSC PYQ papers.</p>
+                        <button class="btn btn-primary" onclick="initiatePayment('1_month')">Pay ₹50</button>
+                    </div>
                         <div class="pricing-card">
                             <h4>2 Years Access</h4>
                             <p class="price">₹100</p>

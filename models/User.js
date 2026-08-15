@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
     type: String, // The SMTP connection string assigned to this user
     default: null
   },
+  hasUsedFreeTrial: {
+    type: Boolean,
+    default: false
+  },
   deviceId: {
     type: String, // FingerprintJS visitorId
     default: null

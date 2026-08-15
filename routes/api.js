@@ -166,6 +166,49 @@ router.post('/questions', authMiddleware, async (req, res) => {
 // 2. PAYMENT API (Order Creation)
 // -------------------------------------
 
+router.post('/payment/free-trial', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (user.hasUsedFreeTrial) {
+            return res.status(400).json({ success: false, message: 'You have already claimed your free trial.' });
+        }
+
+        // Set 24 hours expiry
+        const expiry = new Date();
+        expiry.setHours(expiry.getHours() + 24);
+
+        user.isSubscribed = true;
+        user.subscriptionPlan = 'free_trial';
+        user.subscriptionExpiry = expiry;
+        user.hasUsedFreeTrial = true;
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: '1-Day Free Trial activated successfully!',
+            user: {
+                email: user.email,
+                isSubscribed: user.isSubscribed,
+                subscriptionPlan: user.subscriptionPlan,
+                subscriptionExpiry: user.subscriptionExpiry,
+                hasUsedFreeTrial: user.hasUsedFreeTrial
+            }
+        });
+
+    } catch (err) {
+        console.error('Free Trial Error:', err);
+        res.status(500).json({ success: false, message: 'Failed to activate free trial' });
+    }
+});
+// -------------------------------------
+
 // 3. Create Payment Order (Requires Auth to identify user)
 router.post('/payment/create-order', authMiddleware, async (req, res) => {
     try {
@@ -327,25 +370,26 @@ router.post('/progress/save', authMiddleware, async (req, res) => {
         
         // Check if already answered to prevent double counting
         const existingAnswer = progress.answers.get(questionId);
+        const safeSection = section.replace(/\./g, '_dot_');
         
         if (!existingAnswer) {
             progress.totalSolved += 1;
             if (isCorrect) progress.totalCorrect += 1;
 
-            let secStats = progress.sectionWise.get(section) || { solved: 0, correct: 0 };
+            let secStats = progress.sectionWise.get(safeSection) || { solved: 0, correct: 0 };
             secStats.solved += 1;
             if (isCorrect) secStats.correct += 1;
-            progress.sectionWise.set(section, secStats);
+            progress.sectionWise.set(safeSection, secStats);
         } else {
             // If they are answering again, update correct counts if it changed (though usually UI prevents this)
             if (!existingAnswer.isCorrect && isCorrect) {
                 progress.totalCorrect += 1;
-                let secStats = progress.sectionWise.get(section);
-                if (secStats) { secStats.correct += 1; progress.sectionWise.set(section, secStats); }
+                let secStats = progress.sectionWise.get(safeSection);
+                if (secStats) { secStats.correct += 1; progress.sectionWise.set(safeSection, secStats); }
             } else if (existingAnswer.isCorrect && !isCorrect) {
                 progress.totalCorrect -= 1;
-                let secStats = progress.sectionWise.get(section);
-                if (secStats) { secStats.correct -= 1; progress.sectionWise.set(section, secStats); }
+                let secStats = progress.sectionWise.get(safeSection);
+                if (secStats) { secStats.correct -= 1; progress.sectionWise.set(safeSection, secStats); }
             }
         }
 
@@ -368,9 +412,21 @@ router.get('/progress/dashboard', authMiddleware, async (req, res) => {
         const userId = req.user.id;
         const progress = await Progress.findOne({ userId });
         
-        if (!progress) return res.json({ success: true, data: { totalSolved: 0, totalCorrect: 0, sectionWise: {} } });
+        if (!progress) {
+            return res.json({ success: true, data: { totalSolved: 0, totalCorrect: 0, sectionWise: {}, answers: {} } });
+        }
         
-        res.json({ success: true, data: progress });
+        const unescapedSectionWise = {};
+        for (const [key, val] of progress.sectionWise.entries()) {
+            unescapedSectionWise[key.replace(/_dot_/g, '.')] = val;
+        }
+
+        res.json({ success: true, data: {
+            totalSolved: progress.totalSolved,
+            totalCorrect: progress.totalCorrect,
+            sectionWise: unescapedSectionWise,
+            answers: Object.fromEntries(progress.answers)
+        }});
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to fetch dashboard' });
     }

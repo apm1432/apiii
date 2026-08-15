@@ -16,9 +16,14 @@ const questionSchema = new mongoose.Schema({
   sub_topic: { type: String },
   original_image_url: { type: mongoose.Schema.Types.Mixed }, // Map of Token Index -> File ID
   telegram_msg_id: { type: Number }, // Optional Message ID from Telegram
-  year_exam: { type: String, index: true }, // e.g., "2018 group b pre"
+  year_exam: { type: String, index: true }, // e.g., "2018 group b pre" or official name + date
+  official_exam_name: { type: String, index: true },
+  exam_date: { type: String },
+  diagram_description: { type: String },
+  options_explanation: [{ type: String }],
   passage_marathi: { type: String },
-  passage_english: { type: String }
+  passage_english: { type: String },
+  passage_text: { type: String }
 });
 
 module.exports = mongoose.model('Question', questionSchema);

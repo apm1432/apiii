@@ -201,6 +201,13 @@ window.updateProfileUI = function() {
             document.getElementById('modal-sub').style.color = "var(--text-secondary)";
             document.getElementById('modal-expiry').innerText = "N/A";
         }
+
+        // Hide free trial button if already used
+        if (currentUser.hasUsedFreeTrial) {
+            const trialContainer = document.getElementById('free-trial-container');
+            if (trialContainer) trialContainer.style.display = 'none';
+        }
+
     } catch (e) {
         console.warn("Profile UI elements not found:", e);
     }
@@ -363,7 +370,65 @@ function filterExams(category, btnElement) {
     renderExamGrid();
 }
 
+window.dashboardMode = 'exam';
+
+window.switchDashboardMode = function(mode) {
+    window.dashboardMode = mode;
+    document.getElementById('mode-exam-btn').classList.remove('active');
+    document.getElementById('mode-subject-btn').classList.remove('active');
+    document.getElementById('mode-' + mode + '-btn').classList.add('active');
+    
+    if (mode === 'subject') {
+        document.getElementById('exam-tabs').style.display = 'none';
+        renderSubjectGrid();
+    } else {
+        document.getElementById('exam-tabs').style.display = 'flex';
+        renderExamGrid();
+    }
+}
+
+function renderSubjectGrid() {
+    const grid = document.getElementById('exam-grid');
+    if (!grid || !window.allExamsData) return;
+    grid.innerHTML = '';
+    
+    // Group by Subject
+    const subjectMap = {};
+    window.allExamsData.forEach(examGroup => {
+        if (examGroup.exams) {
+            examGroup.exams.forEach(ex => {
+                if (!subjectMap[ex.subject]) subjectMap[ex.subject] = { count: 0, subject: ex.subject };
+                subjectMap[ex.subject].count += ex.count;
+            });
+        }
+    });
+    
+    const subjects = Object.values(subjectMap).sort((a, b) => b.count - a.count);
+    
+    if (subjects.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-secondary);">No subjects found.</p>';
+        return;
+    }
+    
+    subjects.forEach(sub => {
+        const card = document.createElement('div');
+        card.className = 'exam-card';
+        card.style.position = 'relative';
+        
+        card.innerHTML = `
+            <h3 title="${sub.subject}">${sub.subject}</h3>
+            <p>All Exams</p>
+            <span class="meta">${sub.count} Total Questions</span>
+        `;
+        
+        // Pass null for examId, and sub.subject for subject
+        card.onclick = () => openTest(null, sub.subject);
+        grid.appendChild(card);
+    });
+}
+
 function renderExamGrid() {
+    if (window.dashboardMode !== 'exam') return;
     const grid = document.getElementById('exam-grid');
     if (!grid || !window.allExamsData) return;
     
@@ -488,17 +553,21 @@ window.hideGlobalLoader = function() {
     if (loader) loader.style.display = 'none';
 }
 
-async function openTest(yearExam) {
+async function openTest(yearExam, subject = null) {
     showGlobalLoader("Loading Exam Paper...");
     // Attempt to load questions
     try {
+        const bodyData = {};
+        if (yearExam) bodyData.year_exam = yearExam;
+        if (subject) bodyData.subject = subject;
+
         const res = await fetch('/api/questions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
             },
-            body: JSON.stringify({ year_exam: yearExam })
+            body: JSON.stringify(bodyData)
         });
         
         const data = await res.json();
@@ -517,9 +586,9 @@ async function openTest(yearExam) {
             }
             
             if (document.getElementById('test-title')) {
-                document.getElementById('test-title').innerText = `${yearExam}`;
+                document.getElementById('test-title').innerText = yearExam ? `${yearExam}` : `${subject} (All Exams)`;
             } else if (document.getElementById('crumb-year')) {
-                document.getElementById('crumb-year').innerText = `${yearExam}`;
+                document.getElementById('crumb-year').innerText = yearExam ? `${yearExam}` : `${subject} (All Exams)`;
                 if (document.getElementById('crumb-exam')) document.getElementById('crumb-exam').innerText = '';
                 if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
             }
@@ -554,22 +623,33 @@ function renderQuizQuestion(index, questions = currentQuestions) {
 
     let html = `
         <div class="q-header">
-            <span class="q-num">Question ${index + 1} of ${currentQuestions.length}</span>
+            <span class="q-num">Question ${q.qnum || index + 1}</span>
+            <span style="float: right; font-size: 0.85rem; color: var(--text-secondary); text-align: right;">
+                ${q.official_exam_name || ''} <br>
+                ${q.exam_date ? `(${q.exam_date})` : ''}
+            </span>
         </div>
-        <div class="q-text">`;
+        <div class="q-text" style="clear: both; padding-top: 10px;">`;
         
         // Handle Passages
-        if (q.passage_marathi && q.passage_marathi !== "null") {
+        if (q.passage_text && q.passage_text !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+        } else if (q.passage_marathi && q.passage_marathi !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
+        
         if (q.passage_english && q.passage_english !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
-        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null")) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;"><strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.</div>`;
+        
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
+                <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
+                ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
+            </div>`;
         }
 
-        html += `<h4>Q${index + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+        html += `<h4>Q${q.qnum || index + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
             ${q.text_eng ? `<p style="${q.text ? 'color: var(--text-secondary); margin-top: 10px;' : ''}">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}
             ${!q.text && !q.text_eng ? '<p>No text available</p>' : ''}
         </div>
@@ -609,9 +689,23 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         
         html += `<div class="option ${extraClass}" ${onClickHtml}>${optHtml}</div>`;
     }
-    html += `</div>
+    html += `</div>`;
+    
+    // Construct Options Explanation HTML if available
+    let optsExplHtml = '';
+    if (q.options_explanation && q.options_explanation.length > 0) {
+        optsExplHtml = `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+            <strong>Options Breakdown:</strong>
+            <ul style="margin-top: 10px; padding-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                ${q.options_explanation.map(exp => `<li style="margin-bottom: 8px;">${exp.replace(/\n/g, '<br>')}</li>`).join('')}
+            </ul>
+        </div>`;
+    }
+
+    html += `
         <div id="explanation-quiz-${q._id}" class="explanation ${userAnswers[q._id] ? '' : 'hidden'}">
-            <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
+            <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+            ${optsExplHtml}
         </div>
     `;
 
@@ -739,19 +833,30 @@ function renderFullPaper(questions = currentQuestions) {
         qDiv.style.borderRadius = 'var(--radius-lg)';
         qDiv.id = `full-q-${idx}`;
 
-        let html = ``;
+        let html = `
+            <div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">
+                ${q.official_exam_name || ''} ${q.exam_date ? `(${q.exam_date})` : ''}
+            </div>
+        `;
         // Handle Passages
-        if (q.passage_marathi && q.passage_marathi !== "null") {
+        if (q.passage_text && q.passage_text !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+        } else if (q.passage_marathi && q.passage_marathi !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
+        
         if (q.passage_english && q.passage_english !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
-        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null")) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;"><strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.</div>`;
+        
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
+                <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
+                ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
+            </div>`;
         }
 
-        html += `<h4>${idx + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+        html += `<h4>${q.qnum || idx + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
                  ${q.text_eng ? `<p style="color: var(--text-secondary); margin-bottom: 20px;">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}`;
         if (!q.text && !q.text_eng) html += `<p>No text available</p>`;
         
@@ -791,10 +896,24 @@ function renderFullPaper(questions = currentQuestions) {
             html += `<div class="option ${extraClass}" ${onClickHtml}>${optHtml}</div>`;
         }
         
+        html += `</div>`;
+        
+        // Construct Options Explanation HTML if available
+        let optsExplHtml = '';
+        if (q.options_explanation && q.options_explanation.length > 0) {
+            optsExplHtml = `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+                <strong>Options Breakdown:</strong>
+                <ul style="margin-top: 10px; padding-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    ${q.options_explanation.map(exp => `<li style="margin-bottom: 8px;">${exp.replace(/\n/g, '<br>')}</li>`).join('')}
+                </ul>
+            </div>`;
+        }
+
         const showExpl = userAnswers[q._id] ? '' : 'hidden';
-        html += `</div>
+        html += `
             <div id="explanation-full-${q._id}" class="explanation ${showExpl}">
-                <strong>Explanation:</strong> ${q.toppers_explanation_marathi || 'No explanation available.'}
+                <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+                ${optsExplHtml}
             </div>
         `;
         qDiv.innerHTML = html;
@@ -810,7 +929,7 @@ function renderFullPaper(questions = currentQuestions) {
         if (userAnswers[q._id]) {
             btnColor = userAnswers[q._id].isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
         }
-        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${idx + 1}</button>`;
+        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${q.qnum || idx + 1}</button>`;
     });
     
     gridHtml += `</div>`;
@@ -919,6 +1038,31 @@ async function selectOption(el, isCorrect, questionId, mode, index = 0, optIndex
 }
 
 // ====== PAYMENT & RAZORPAY ======
+async function startFreeTrial() {
+    if (!confirm("Are you sure you want to start your 1-Day Free Trial now?")) return;
+    
+    try {
+        const res = await fetch('/api/payment/free-trial', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            alert("1-Day Free Trial activated successfully! Enjoy premium access.");
+            window.location.reload();
+        } else {
+            alert(data.message || "Failed to activate free trial.");
+        }
+    } catch (err) {
+        alert("Network error while activating free trial.");
+    }
+}
+
 async function initiatePayment(planId) {
     try {
         const res = await fetch('/api/payment/create-order', {

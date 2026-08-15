@@ -19,13 +19,33 @@ async function seedDB() {
         const rawData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
         
         let questions = [];
-        for (const examKey in rawData) {
-            const arr = rawData[examKey];
-            if (Array.isArray(arr)) {
-                arr.forEach(q => {
-                    q._examKey = examKey;
-                    questions.push(q);
-                });
+        if (Array.isArray(rawData)) {
+            questions = rawData;
+        } else {
+            for (const key in rawData) {
+                if (Array.isArray(rawData[key])) {
+                    let unifiedName = key;
+                    const firstQ = rawData[key].find(q => q.official_exam_name);
+                    if (firstQ) {
+                        let baseName = firstQ.official_exam_name.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+                        if (firstQ.exam_date) baseName += ` (${firstQ.exam_date.trim()})`;
+                        
+                        let paperMatch = key.match(/paper[- _]*no\.?[- _]*[iv\d]+|paper[- _]*[iv\d]+/i);
+                        if (paperMatch) {
+                            if (!baseName.toLowerCase().includes('paper')) {
+                                baseName += ` - ${paperMatch[0]}`;
+                            }
+                        }
+                        unifiedName = baseName;
+                    }
+
+                    const arr = rawData[key].map(q => {
+                        q.year_exam = unifiedName;
+                        q.official_exam_name = unifiedName;
+                        return q;
+                    });
+                    questions = questions.concat(arr);
+                }
             }
         }
         
@@ -66,8 +86,17 @@ async function seedDB() {
                 subject: q.subject || extractedExam,
                 topic: q.topic || 'General',
                 sub_topic: q.sub_topic || '',
-                original_image_url: finalImage,
-                year_exam: q._examKey
+                original_image_url: q.original_image_url || finalImage || null,
+                official_exam_name: q.official_exam_name || 'Unknown Exam',
+                exam_date: q.exam_date || '',
+                year_exam: q.year_exam || 'Unknown Exam',
+                diagram_description: q.diagram_description || null,
+                options_explanation: Array.isArray(q.options_explanation) 
+                    ? q.options_explanation.map(opt => typeof opt === 'object' ? (opt.explanation || JSON.stringify(opt)) : String(opt))
+                    : (typeof q.options_explanation === 'object' && q.options_explanation !== null 
+                        ? Object.values(q.options_explanation).map(opt => String(opt))
+                        : (typeof q.options_explanation === 'string' ? [q.options_explanation] : [])),
+                passage_text: q.passage_text || q.passage_marathi || null
             };
 
             bulkOps.push(doc);

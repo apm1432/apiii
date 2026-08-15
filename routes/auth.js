@@ -117,7 +117,8 @@ router.post('/login', async (req, res) => {
                 email: user.email, 
                 isSubscribed: user.isSubscribed,
                 subscriptionPlan: user.subscriptionPlan,
-                subscriptionExpiry: user.subscriptionExpiry
+                subscriptionExpiry: user.subscriptionExpiry,
+                hasUsedFreeTrial: user.hasUsedFreeTrial
             }
         });
     } catch (err) {

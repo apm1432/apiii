@@ -99,8 +99,24 @@ async function importJson() {
         let questions = [];
         for (const key in rawData) {
             if (Array.isArray(rawData[key])) {
+                let unifiedName = key;
+                const firstQ = rawData[key].find(q => q.official_exam_name);
+                if (firstQ) {
+                    let baseName = firstQ.official_exam_name.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+                    if (firstQ.exam_date) baseName += ` (${firstQ.exam_date.trim()})`;
+                    
+                    let paperMatch = key.match(/paper[- _]*no\.?[- _]*[iv\d]+|paper[- _]*[iv\d]+/i);
+                    if (paperMatch) {
+                        if (!baseName.toLowerCase().includes('paper')) {
+                            baseName += ` - ${paperMatch[0]}`;
+                        }
+                    }
+                    unifiedName = baseName;
+                }
+
                 const arr = rawData[key].map(q => {
-                    q.year_exam = key;
+                    q.year_exam = unifiedName;
+                    q.official_exam_name = unifiedName;
                     return q;
                 });
                 questions = questions.concat(arr);
@@ -154,21 +170,64 @@ async function importJson() {
             }
 
             // Sync to MongoDB
-            const qData = { ...q };
-            delete qData._originalFilePath;
+            let fileIdsObjFinal = null;
             if (Object.keys(fileIdsObj).length > 0) {
-                qData.original_image_url = fileIdsObj; // Save object directly using Mixed schema
+                fileIdsObjFinal = fileIdsObj; // Save object directly using Mixed schema
             } else if (mapping[localPath]) {
-                qData.original_image_url = mapping[localPath];
-            } else {
-                 qData.original_image_url = null; // force null if no image exists to clear old data
+                fileIdsObjFinal = mapping[localPath];
             }
+            
+            // Auto-clean official_exam_name to prevent split exams
+            if (q.official_exam_name) {
+                let n = q.official_exam_name;
+                n = n.replace('राज्य सेवा[**(पूर्व) परीक्षा २०२१', 'राज्य सेवा (पूर्व) परीक्षा २०२१');
+                n = n.replace('महाराष्ट्र राजपत्रित नागरी सेवा[संयुक्त पूर्व परीक्षा - २०२५, पेपर क्र. १', 'महाराष्ट्र राजपत्रित नागरी सेवा संयुक्त पूर्व परीक्षा - २०२५, पेपर क्र. १');
+                n = n.replace('महाराष्ट्र राजपत्रित नागरी सेवा संयुक्त पूर्व परीक्षा[-,SPACE]२०२५, पेपर क्र[.,SPACE]१', 'महाराष्ट्र राजपत्रित नागरी सेवा संयुक्त पूर्व परीक्षा - २०२५, पेपर क्र. १');
+                n = n.replace('महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा[*-२०१८', 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८');
+                n = n.replace('महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा[–] २०१८', 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८');
+                n = n.replace('महाराष्ट्र दुय्यम सेवा[राजपत्रित, गट-ब पूर्व परीक्षा - २०१८', 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८');
+                n = n.replace('महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१', 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८');
+                n = n.replace('महाराष्ट्र दुय्यम सेवा, गट-ब (अराजपत्रित) संयुक्त (पूर्व) परीक्षा - २०२०', 'महाराष्ट्र दुय्यम सेवा, गट-ब (अराजपत्रित) संयुक्त पूर्व परीक्षा - २०२०');
+                // General safety regex
+                n = n.replace(/\[\-,SPACE\]/g, '- ');
+                n = n.replace(/\[\.,SPACE\]/g, '. ');
+                n = n.replace(/\[\*\*,SPACE\]/g, ' ');
+                if (n === 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१') n = 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८';
+                q.official_exam_name = n;
+            }
+            
+            const qData = {
+                qnum: q.qnum || q.q_num,
+                text: q.text || q.original_marathi || 'N/A',
+                text_eng: q.text_eng || q.translated_english || '',
+                options: q.options || [],
+                options_eng: q.options_eng || [],
+                has_diagram_or_passage: q.has_diagram_or_passage || false,
+                final_answer_key: q.final_answer_key || q.answer_key || '1',
+                exam_set: q.exam_set || '',
+                toppers_explanation_marathi: q.toppers_explanation_marathi || q.explanation || '',
+                correct_answer_option: q.correct_answer_option || q.answer_key || '1',
+                subject: q.subject || q.year_exam,
+                topic: q.topic || 'General',
+                sub_topic: q.sub_topic || '',
+                original_image_url: fileIdsObjFinal,
+                official_exam_name: q.official_exam_name || 'Unknown Exam',
+                exam_date: q.exam_date || '',
+                year_exam: q.year_exam || 'Unknown Exam',
+                diagram_description: q.diagram_description || null,
+                options_explanation: Array.isArray(q.options_explanation) 
+                    ? q.options_explanation.map(opt => typeof opt === 'object' ? (opt.explanation || JSON.stringify(opt)) : String(opt))
+                    : (typeof q.options_explanation === 'object' && q.options_explanation !== null 
+                        ? Object.values(q.options_explanation).map(opt => String(opt))
+                        : (typeof q.options_explanation === 'string' ? [q.options_explanation] : [])),
+                passage_text: q.passage_text || q.passage_marathi || null,
+                telegram_msg_id: q.telegram_msg_id
+            };
             
             // Generate deterministic ID or query by properties
             const query = { 
-                year_exam: q.year_exam, 
-                subject: q.subject, 
-                qnum: q.qnum 
+                year_exam: qData.year_exam, 
+                qnum: qData.qnum 
             };
             
             await Question.findOneAndUpdate(query, qData, { upsert: true, returnDocument: 'after' });
