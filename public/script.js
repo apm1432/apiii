@@ -5,11 +5,39 @@ let token = localStorage.getItem('jwtToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null; // { email, isSubscribed }
 let userAnswers = JSON.parse(localStorage.getItem('mpsc_user_answers')) || {};
 
+window.saveSession = function() {
+    if (document.getElementById('test-section').classList.contains('active')) {
+        if (typeof window.activeYearExam !== 'undefined' || typeof window.activeSubject !== 'undefined') {
+            const state = {
+                yearExam: window.activeYearExam,
+                subject: window.activeSubject,
+                qIndex: currentQIndex,
+                mode: document.getElementById('quiz-view').style.display !== 'none' ? 'quiz' : 'full',
+                scrollPos: window.scrollY
+            };
+            localStorage.setItem('mpsc_last_session', JSON.stringify(state));
+        }
+    }
+};
+window.addEventListener('beforeunload', window.saveSession);
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth State
     if (token) {
-        // Assume valid for now, load dashboard
         if (currentUser) updateProfileUI();
+        
+        const sessionStr = localStorage.getItem('mpsc_last_session');
+        if (sessionStr) {
+            try {
+                const state = JSON.parse(sessionStr);
+                if (state.yearExam || state.subject) {
+                    showSection('test-section');
+                    openTest(state.yearExam, state.subject, state);
+                    return;
+                }
+            } catch(e) {}
+        }
+        
         showSection('dashboard-section');
         loadDashboard();
     } else {
@@ -19,6 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // View Switching (SPA)
 function showSection(sectionId) {
+    if (sectionId === 'dashboard-section') {
+        localStorage.removeItem('mpsc_last_session');
+    }
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
 }
@@ -579,7 +610,7 @@ window.hideGlobalLoader = function() {
     if (loader) loader.style.display = 'none';
 }
 
-async function openTest(yearExam, subject = null) {
+async function openTest(yearExam, subject = null, restoreState = null) {
     showGlobalLoader("Loading Exam Paper...");
     // Attempt to load questions
     try {
@@ -606,6 +637,8 @@ async function openTest(yearExam, subject = null) {
 
         if (data.success) {
             currentQuestions = data.data;
+            window.activeYearExam = yearExam;
+            window.activeSubject = subject;
             if (currentQuestions.length === 0) {
                 alert("No questions found for this selection.");
                 return;
@@ -626,8 +659,18 @@ async function openTest(yearExam, subject = null) {
             filterQuestions(null, null);
 
             showSection('test-section');
-            // Default to Full Paper Mode
-            switchMode('full');
+            
+            if (restoreState) {
+                currentQIndex = restoreState.qIndex || 0;
+                renderQuizQuestion(currentQIndex, currentQuestions);
+                switchMode(restoreState.mode || 'full');
+                if (restoreState.scrollPos) {
+                    setTimeout(() => window.scrollTo(0, restoreState.scrollPos), 100);
+                }
+            } else {
+                // Default to Full Paper Mode
+                switchMode('full');
+            }
 
             // Admin features
             if (currentUser && currentUser.isAdmin) {
