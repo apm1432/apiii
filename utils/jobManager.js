@@ -83,9 +83,7 @@ async function processJob(jobId) {
 
             // Update question in DB
             question.text = parsedContent.fixed_text || question.text;
-            if (parsedContent.fixed_text_eng) question.text_eng = parsedContent.fixed_text_eng;
             question.options = parsedContent.fixed_options || question.options;
-            if (parsedContent.fixed_options_eng && parsedContent.fixed_options_eng.length === 4) question.options_eng = parsedContent.fixed_options_eng;
             if (parsedContent.correct_answer_option) {
                 if (parsedContent.correct_answer_option === "#") {
                     question.correct_answer_option = "#";

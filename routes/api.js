@@ -251,9 +251,7 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
         if (fixedData) {
             // Apply fixes
             if (fixedData.fixed_text) question.text = fixedData.fixed_text;
-            if (fixedData.fixed_text_eng) question.text_eng = fixedData.fixed_text_eng;
             if (fixedData.fixed_options && fixedData.fixed_options.length === 4) question.options = fixedData.fixed_options;
-            if (fixedData.fixed_options_eng && fixedData.fixed_options_eng.length === 4) question.options_eng = fixedData.fixed_options_eng;
             if (fixedData.correct_answer_option) {
                 if (fixedData.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
@@ -311,7 +309,8 @@ router.get('/exams/hierarchy', async (req, res) => {
         const passageCount = await Question.countDocuments({
             $or: [
                 { passage_marathi: { $exists: true, $nin: [null, "null"] } },
-                { passage_english: { $exists: true, $nin: [null, "null"] } }
+                { passage_english: { $exists: true, $nin: [null, "null"] } },
+                { passage_text: { $exists: true, $nin: [null, "null"] } }
             ]
         });
         
@@ -377,7 +376,8 @@ router.post('/questions', authMiddleware, async (req, res) => {
             query = {
                 $or: [
                     { passage_marathi: { $exists: true, $nin: [null, "null"] } },
-                    { passage_english: { $exists: true, $nin: [null, "null"] } }
+                    { passage_english: { $exists: true, $nin: [null, "null"] } },
+                    { passage_text: { $exists: true, $nin: [null, "null"] } }
                 ]
             };
         } else if (year_exam) {

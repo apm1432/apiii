@@ -51,42 +51,9 @@ async function uploadToBot(botIndex, originalPath, year_exam, qnum, buffer = nul
                 return { file_id: msg.photo[msg.photo.length - 1].file_id, message_id: msg.message_id };
             } else if (msg.document) {
                 return { file_id: msg.document.file_id, message_id: msg.message_id };
-            } else {
-                console.error(`[Bot ${botIndex}] Unexpected success response from sendPhoto:`, JSON.stringify(msg));
-                retries--;
-                await sleep(2000);
-                continue;
             }
         } catch (err) {
-            if (err.message && err.message.includes('PHOTO_INVALID_DIMENSIONS')) {
-                console.log(`[Bot ${botIndex}] Photo dimensions invalid. Falling back to sendDocument...`);
-                try {
-                    const dataToUpload = buffer ? buffer : originalPath;
-                    const fileOptions = buffer ? { filename: 'image.jpg', contentType: 'image/jpeg' } : undefined;
-                    const msg = await bot.sendDocument(channelId, dataToUpload, { caption }, fileOptions);
-                    if (msg.document) {
-                        return { file_id: msg.document.file_id, message_id: msg.message_id };
-                    } else if (msg.photo && msg.photo.length > 0) {
-                        return { file_id: msg.photo[msg.photo.length - 1].file_id, message_id: msg.message_id };
-                    } else {
-                        console.error(`[Bot ${botIndex}] Unexpected success response from sendDocument:`, JSON.stringify(msg));
-                        retries--;
-                        await sleep(2000);
-                        continue;
-                    }
-                } catch (docErr) {
-                    console.error(`Fallback sendDocument error (Bot ${botIndex}):`, docErr.message);
-                    if (docErr.response && docErr.response.statusCode === 429) {
-                        const retryAfter = docErr.response.body.parameters.retry_after || 5;
-                        console.log(`Rate limited on fallback (Bot ${botIndex}). Sleeping ${retryAfter}s...`);
-                        await sleep(retryAfter * 1000);
-                    } else {
-                        retries--;
-                        await sleep(2000);
-                    }
-                    continue;
-                }
-            } else if (err.response && err.response.statusCode === 429) {
+            if (err.response && err.response.statusCode === 429) {
                 const retryAfter = err.response.body.parameters.retry_after || 5;
                 console.log(`Rate limited (Bot ${botIndex}). Sleeping ${retryAfter}s...`);
                 await sleep(retryAfter * 1000);
@@ -260,8 +227,6 @@ async function importJson() {
                         ? Object.values(q.options_explanation).map(opt => String(opt))
                         : (typeof q.options_explanation === 'string' ? [q.options_explanation] : [])),
                 passage_text: q.passage_text || q.passage_marathi || null,
-                passage_marathi: q.passage_marathi || null,
-                passage_english: q.passage_english || null,
                 telegram_msg_id: q.telegram_msg_id
             };
             
