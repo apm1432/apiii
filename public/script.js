@@ -667,18 +667,19 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         <div class="q-text" style="clear: both; padding-top: 10px;">`;
         
         // Handle Passages
+        console.log('[PASSAGE DEBUG] Q' + (q.qnum || index) + ' passage_text:', !!q.passage_text, 'passage_marathi:', !!q.passage_marathi, 'has_diagram_or_passage:', q.has_diagram_or_passage);
         if (q.passage_text && q.passage_text !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
         } else if (q.passage_marathi && q.passage_marathi !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
         
         if (q.passage_english && q.passage_english !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #10b981;">📖 Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
         
         if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem; color: #92400e;">
                 <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
                 ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
             </div>`;
@@ -888,18 +889,19 @@ function renderFullPaper(questions = currentQuestions) {
             </div>
         `;
         // Handle Passages
+        console.log('[PASSAGE DEBUG FULL] Q' + (q.qnum || idx) + ' passage_text:', !!q.passage_text, 'passage_marathi:', !!q.passage_marathi);
         if (q.passage_text && q.passage_text !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
         } else if (q.passage_marathi && q.passage_marathi !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
         
         if (q.passage_english && q.passage_english !== "null") {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #10b981;">📖 Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
         
         if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem; color: #92400e;">
                 <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
                 ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
             </div>`;
