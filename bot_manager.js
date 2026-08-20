@@ -260,6 +260,8 @@ async function importJson() {
                         ? Object.values(q.options_explanation).map(opt => String(opt))
                         : (typeof q.options_explanation === 'string' ? [q.options_explanation] : [])),
                 passage_text: q.passage_text || q.passage_marathi || null,
+                passage_marathi: q.passage_marathi || null,
+                passage_english: q.passage_english || null,
                 telegram_msg_id: q.telegram_msg_id
             };
             
