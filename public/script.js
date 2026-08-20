@@ -667,6 +667,10 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         <div class="q-text" style="clear: both; padding-top: 10px;">`;
         
         // Handle Passages
+        const hasValidMarathiPassage = q.passage_marathi && q.passage_marathi !== "null" && q.passage_marathi.trim() !== "" && q.passage_marathi.trim() !== "[**SPACE**]";
+        const hasValidEnglishPassage = q.passage_english && q.passage_english !== "null" && q.passage_english.trim() !== "" && q.passage_english.trim() !== "[**SPACE**]";
+        const hasValidTextPassage = q.passage_text && q.passage_text !== "null" && q.passage_text.trim() !== "" && q.passage_text.trim() !== "[**SPACE**]";
+        
         if (hasValidTextPassage) {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.trim().replace(/\n/g, '<br>')}</div>`;
         } else if (hasValidMarathiPassage) {
