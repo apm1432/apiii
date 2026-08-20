@@ -121,9 +121,14 @@ CRITICAL INSTRUCTION FOR INCORRECT/CANCELLED QUESTIONS:
 If NO option is exactly correct, OR if MULTIPLE options are correct (which means MPSC should cancel the question), set "correct_answer_option": "#". 
 In the "fixed_explanation", explicitly state "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..." (This question is cancelled by MPSC because...) and clearly explain the ACTUAL correct facts.
 
-CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY:
-1. OVERALL EXPLANATION: Write a VERY DEEP, EXHAUSTIVE, and COMPLETE explanation in Marathi (at least 200-300 words). Include extra background points, historical context, current statistics, formulas, or related facts that an MPSC aspirant must know. You MUST provide additional value beyond just stating the answer.
-2. OPTIONS EXPLANATION: NEVER say "this is not it so it's wrong". For EVERY incorrect option, you MUST give a solid factual explanation of what that option actually refers to in reality. For example, if the option is a year, explain what ACTUALLY happened in that year. If it's a person, explain who they are. Provide detailed factual value for each option.
+CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (fixed_explanation):
+1. FORMAT & LENGTH: You MUST format the "fixed_explanation" using NUMBERED pointers (1., 2., 3., etc.). There MUST be a MINIMUM of 10 highly detailed pointers. DO NOT write short points. Each pointer MUST be a deep, exhaustive paragraph containing a MINIMUM OF 35 WORDS.
+2. NO FILLER OR STUDY ADVICE: NEVER write generic pointers like "This topic is important for MPSC" or "Students should study this deeply". EVERY SINGLE POINTER MUST contain pure, hard historical/scientific/geographical facts. DO NOT just copy-paste from the 'Current Explanation'. Provide NEW, external, deeply researched value.
+3. MEMORY TRICKS & MNEMONICS: If possible, provide clever memory tricks (Mnemonics) or shortcuts at the end of the explanation to help students easily recall dates, names, or sequences for the exam.
+4. COMPREHENSIVENESS: These 10+ long pointers must cover the ENTIRE TOPIC in extreme detail. The student MUST understand the complete context. Include all required background information, historical context, current statistics, relevant formulas, and extra related facts that an MPSC aspirant must know.
+5. AUTHENTICITY & INTERNET USE: IF POSSIBLE, ALWAYS USE THE INTERNET/WEB SEARCH to fetch maximum current data, 100% authentic facts, accurate dates, and names. Combine this with your extensive internal knowledge. Do not hallucinate.
+6. INDEPENDENT VERIFICATION: Verify the answer independently BEFORE trusting the answer key. If the key is wrong, correct it and explain why based on authentic facts.
+7. OPTIONS EXPLANATION: For EVERY incorrect option in "fixed_options_explanation", you MUST give a deep, solid factual explanation of what that option actually refers to in reality.
 
 Current Data:
 - Question Text (Marathi): ${questionData.text}
@@ -145,7 +150,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
     let attempts = 0;
     let lastError = null;
 
-    while (attempts < 5) {
+    while (attempts < 10) {
         const { key, model, waitTime } = await getNextAvailableKeyAndModel();
         
         if (waitTime > 0) {
@@ -181,7 +186,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
             const resp = await axios.post(url, payload, {
                 headers: { 'Content-Type': 'application/json' },
                 responseType: 'stream',
-                timeout: 60000
+                timeout: 600000
             });
 
             await updateModelState(key, model, "Success");
@@ -259,6 +264,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
                     await sleep(2000);
                 }
             } else {
+                if (onChunk) onChunk(`\n[System] Parsing/Internal Error: ${error.message}. Retrying...\n`);
                 lastError = error.message;
                 attempts++;
                 await sleep(2000);
@@ -266,7 +272,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
         }
     }
 
-    throw new Error(`Failed after 5 attempts. Last error: ${lastError}`);
+    throw new Error(`Failed after 10 attempts. Last error: ${lastError}`);
 }
 
 module.exports = {
