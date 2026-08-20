@@ -126,8 +126,8 @@ CRITICAL INSTRUCTION FOR INCORRECT/CANCELLED QUESTIONS:
 If NO option is exactly correct, OR if MULTIPLE options are correct (which means MPSC should cancel the question), set "correct_answer_option": "#". 
 In the "fixed_explanation", explicitly state "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..." (This question is cancelled by MPSC because...) and clearly explain the ACTUAL correct facts.
 
-CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (ENFORCED DEPTH & MAXIMUM POINTS):
-1. OVERALL EXPLANATION: Write a VERY DEEP, EXHAUSTIVE, and COMPLETE explanation in Marathi (MINIMUM 300-400 words). Do not just state the answer. You MUST cover the MAXIMUM POSSIBLE POINTS and facts. Include extra background points, historical context, exact dates/statistics, related articles/formulas, or associated facts that an MPSC aspirant must know.
+CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (ENFORCED 360-DEGREE CHAPTER REVISION):
+1. OVERALL EXPLANATION: Write a VERY DEEP, EXHAUSTIVE, and COMPLETE explanation in Marathi (MINIMUM 400-500 words). DO NOT just focus on the single point asked in the question. You MUST provide a 360-degree revision of that entire topic/chapter. Include the background of the topic, historical context, all related key facts, exact dates/statistics, formulas, and WHAT ELSE IS IMPORTANT FOR THE EXAM from this chapter. A student reading your explanation should cover the maximum possible syllabus portion for that topic. Use bullet points for readability.
 2. OPTIONS EXPLANATION: NEVER say "this is not it so it's wrong". For EVERY single option (correct or incorrect), you MUST give a solid factual explanation of what that option actually refers to in reality. Provide detailed factual value for each option independently.
 
 Current Data:
