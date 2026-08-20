@@ -667,21 +667,17 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         <div class="q-text" style="clear: both; padding-top: 10px;">`;
         
         // Handle Passages
-        const hasValidMarathiPassage = q.passage_marathi && q.passage_marathi !== "null" && q.passage_marathi.trim() !== "" && q.passage_marathi.trim() !== "[**SPACE**]";
-        const hasValidEnglishPassage = q.passage_english && q.passage_english !== "null" && q.passage_english.trim() !== "" && q.passage_english.trim() !== "[**SPACE**]";
-        const hasValidTextPassage = q.passage_text && q.passage_text !== "null" && q.passage_text.trim() !== "" && q.passage_text.trim() !== "[**SPACE**]";
-        
-        if (hasValidTextPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.trim().replace(/\n/g, '<br>')}</div>`;
-        } else if (hasValidMarathiPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.trim().replace(/\n/g, '<br>')}</div>`;
+        if (q.passage_text && q.passage_text !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+        } else if (q.passage_marathi && q.passage_marathi !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
         
-        if (hasValidEnglishPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.trim().replace(/\n/g, '<br>')}</div>`;
+        if (q.passage_english && q.passage_english !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
         
-        if (q.has_diagram_or_passage && (!hasValidMarathiPassage) && (!hasValidEnglishPassage) && (!hasValidTextPassage)) {
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
                 <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
                 ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
@@ -891,23 +887,18 @@ function renderFullPaper(questions = currentQuestions) {
                 ${q.official_exam_name || ''} ${q.exam_date ? `(${q.exam_date})` : ''}
             </div>
         `;
-        
-        const modalHasValidMarathiPassage = q.passage_marathi && q.passage_marathi !== "null" && q.passage_marathi.trim() !== "" && q.passage_marathi.trim() !== "[**SPACE**]";
-        const modalHasValidEnglishPassage = q.passage_english && q.passage_english !== "null" && q.passage_english.trim() !== "" && q.passage_english.trim() !== "[**SPACE**]";
-        const modalHasValidTextPassage = q.passage_text && q.passage_text !== "null" && q.passage_text.trim() !== "" && q.passage_text.trim() !== "[**SPACE**]";
-        
         // Handle Passages
-        if (modalHasValidTextPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.trim().replace(/\n/g, '<br>')}</div>`;
-        } else if (modalHasValidMarathiPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.trim().replace(/\n/g, '<br>')}</div>`;
+        if (q.passage_text && q.passage_text !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
+        } else if (q.passage_marathi && q.passage_marathi !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage:</strong><br><br>${q.passage_marathi.replace(/\n/g, '<br>')}</div>`;
         }
         
-        if (modalHasValidEnglishPassage) {
-            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.trim().replace(/\n/g, '<br>')}</div>`;
+        if (q.passage_english && q.passage_english !== "null") {
+            html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid var(--primary-color); font-size: 0.95rem; line-height: 1.6;"><strong>Passage (English):</strong><br><br>${q.passage_english.replace(/\n/g, '<br>')}</div>`;
         }
         
-        if (q.has_diagram_or_passage && (!modalHasValidMarathiPassage) && (!modalHasValidEnglishPassage) && (!modalHasValidTextPassage)) {
+        if (q.has_diagram_or_passage && (!q.passage_marathi || q.passage_marathi === "null") && (!q.passage_english || q.passage_english === "null") && (!q.passage_text || q.passage_text === "null")) {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: var(--hover-color); border-radius: 8px; border-left: 4px solid #f59e0b; font-size: 0.95rem;">
                 <strong>Note:</strong> This question contains a diagram. Please click "View Original Image" below to see it.
                 ${q.diagram_description ? `<br><br><strong>Diagram Description:</strong> ${q.diagram_description}` : ''}
