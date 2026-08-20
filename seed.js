@@ -55,7 +55,20 @@ async function seedDB() {
             imageMapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
         }
 
-        console.log(`Loaded ${questions.length} questions. Starting insert...`);
+        // Deduplicate questions by exam name and qnum
+        const uniqueQuestionsMap = new Map();
+        for (const q of questions) {
+            const parsedQnum = q.qnum || q.q_num || 0;
+            const examName = q.official_exam_name || 'Unknown Exam';
+            const uniqueKey = `${examName}_${parsedQnum}`;
+            
+            if (!uniqueQuestionsMap.has(uniqueKey)) {
+                uniqueQuestionsMap.set(uniqueKey, q);
+            }
+        }
+        questions = Array.from(uniqueQuestionsMap.values());
+
+        console.log(`Loaded ${questions.length} unique questions. Starting insert...`);
         await Question.deleteMany({});
         console.log("Cleared existing questions from DB.");
 

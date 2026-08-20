@@ -1,0 +1,1 @@
+const mongoose = require('mongoose'); require('dotenv').config(); mongoose.connect(process.env.MONGODB_URI).then(async () => { const Question = require('./models/Question'); const counts = await Question.aggregate([{ $group: { _id: '$year_exam', count: { $sum: 1 } } }, { $match: { count: { $gt: 120 } } }]); console.log(counts); process.exit(0); });
