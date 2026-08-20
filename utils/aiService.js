@@ -103,38 +103,31 @@ async function updateModelState(key, model, status) {
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 const prompt = `You are an expert MPSC mentor and state topper. 
-Verify, correct, and translate this MPSC question data.
+Verify and correct this MPSC question data.
 If there is an image, refer to it to correct the text.
 
-CRITICAL INSTRUCTIONS ON FACT-CHECKING & CONFIRMATION BIAS (ANSWER MUST BE CORRECT):
-1. DO NOT blindly trust the 'Current Final Answer Key' or 'Current Explanation'. MPSC answer keys are sometimes WRONG.
+CRITICAL INSTRUCTIONS ON FACT-CHECKING & CONFIRMATION BIAS:
+1. DO NOT blindly trust the 'Current Final Answer Key' or 'Current Explanation'. 
 2. DO NOT hallucinate facts just to justify the provided answer key. 
-3. Solve the question yourself independently first. Fact-check everything rigorously.
-4. If the provided answer key is factually incorrect, COMPLETELY IGNORE IT. You MUST provide the REAL, FACTUALLY CORRECT answer option (1-4), regardless of what the answer key says.
+3. Solve the question yourself independently first. Fact-check everything rigorously. 
+4. If the provided answer key is factually incorrect, completely ignore it and provide the REAL correct answer option (1-4).
 
-CRITICAL INSTRUCTIONS FOR QUESTION TEXT (fixed_text & fixed_text_eng):
+CRITICAL INSTRUCTIONS FOR QUESTION TEXT (fixed_text):
 1. DO NOT truncate, summarize, or omit ANY part of the original question text. Every single sentence, list item, or matching group MUST be preserved.
-2. For 'Match the Pairs' (जोड्या जुळवा) questions, you MUST explicitly include BOTH Group A and Group B exactly as they are in both languages.
-3. Fix spelling, punctuation, or grammatical errors in the Marathi text. DO NOT remove content.
-4. Fix spelling, punctuation, or grammatical errors in the English text for "fixed_text_eng". DO NOT translate from Marathi. Preserve the original English question exactly as provided (or as seen in the image).
-
-CRITICAL INSTRUCTIONS FOR OPTIONS (fixed_options & fixed_options_eng):
-1. Fix any errors in the Marathi options.
-2. Fix any errors in the English options for "fixed_options_eng". DO NOT translate from Marathi. Preserve the original English options.
+2. For 'Match the Pairs' (जोड्या जुळवा) questions, you MUST explicitly include BOTH Group A (गट अ) and Group B (गट ब) exactly as they are. Never omit the matching targets.
+3. Your only job for 'fixed_text' is to fix spelling, punctuation, or grammatical errors. DO NOT remove content.
 
 CRITICAL INSTRUCTION FOR INCORRECT/CANCELLED QUESTIONS:
 If NO option is exactly correct, OR if MULTIPLE options are correct (which means MPSC should cancel the question), set "correct_answer_option": "#". 
 In the "fixed_explanation", explicitly state "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..." (This question is cancelled by MPSC because...) and clearly explain the ACTUAL correct facts.
 
-CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (ENFORCED 360-DEGREE CHAPTER REVISION):
-1. OVERALL EXPLANATION: Write a VERY DEEP, EXHAUSTIVE, and COMPLETE explanation in Marathi (MINIMUM 400-500 words). DO NOT just focus on the single point asked in the question. You MUST provide a 360-degree revision of that entire topic/chapter. Include the background of the topic, historical context, all related key facts, exact dates/statistics, formulas, and WHAT ELSE IS IMPORTANT FOR THE EXAM from this chapter. A student reading your explanation should cover the maximum possible syllabus portion for that topic. Use bullet points for readability.
-2. OPTIONS EXPLANATION: NEVER say "this is not it so it's wrong". For EVERY single option (correct or incorrect), you MUST give a solid factual explanation of what that option actually refers to in reality. Provide detailed factual value for each option independently.
+CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY:
+1. OVERALL EXPLANATION: Write a VERY DEEP, EXHAUSTIVE, and COMPLETE explanation in Marathi (at least 200-300 words). Include extra background points, historical context, current statistics, formulas, or related facts that an MPSC aspirant must know. You MUST provide additional value beyond just stating the answer.
+2. OPTIONS EXPLANATION: NEVER say "this is not it so it's wrong". For EVERY incorrect option, you MUST give a solid factual explanation of what that option actually refers to in reality. For example, if the option is a year, explain what ACTUALLY happened in that year. If it's a person, explain who they are. Provide detailed factual value for each option.
 
 Current Data:
 - Question Text (Marathi): ${questionData.text}
 - Options: ${JSON.stringify(questionData.options)}
-- Question Text (English): ${questionData.text_eng || "Not provided. Please generate."}
-- Options (English): ${questionData.options_eng ? JSON.stringify(questionData.options_eng) : "Not provided. Please generate."}
 - Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
 - Current Explanation: ${questionData.toppers_explanation_marathi}
 - Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
@@ -144,11 +137,9 @@ Output STRICTLY as a JSON object with NO markdown formatting:
   "thought_process": "Your internal scratchpad. Fact-check the question independently here first before looking at the options. State the raw facts. Do NOT hallucinate to match an option.",
   "fixed_text": "Corrected question text in Marathi",
   "fixed_options": ["option 1", "option 2", "option 3", "option 4"],
-  "fixed_text_eng": "Corrected question text in English (from the original English provided, do NOT translate)",
-  "fixed_options_eng": ["english option 1", "english option 2", "english option 3", "english option 4"],
   "correct_answer_option": "Correct option integer (1-4) or '#'",
-  "fixed_explanation": "Extremely deep Marathi explanation covering why the answer is correct, historical background, and detailed analysis",
-  "fixed_options_explanation": ["detailed factual explanation for option 1", "detailed factual explanation for option 2", "detailed factual explanation for option 3", "detailed factual explanation for option 4"]
+  "fixed_explanation": "Deep Marathi explanation covering why the answer is correct and others are wrong",
+  "fixed_options_explanation": ["explanation for option 1", "explanation for option 2", "explanation for option 3", "explanation for option 4"]
 }`;
 
     let attempts = 0;
@@ -253,12 +244,14 @@ Output STRICTLY as a JSON object with NO markdown formatting:
             if (error.response) {
                 const status = error.response.status;
                 if (status === 429) {
-                    if (onChunk) onChunk(`\n[System] ERROR 429 on ${model}. Rotating model/key...`);
-                    await updateModelState(key, model, "Exhausted");
+                    if (onChunk) onChunk(`\n[System] ERROR 429. API Key rate limited. Changing key...`);
+                    await AiKey.updateMany({ key: key }, { $set: { status: "Exhausted", cooldownUntil: Date.now() + 60000 } });
+                    lastError = "Rate limited (429).";
+                    attempts++;
                 } else if (status === 503) {
-                    if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Waiting...`);
+                    if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Changing model...`);
+                    await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", cooldownUntil: Date.now() + 60000 } });
                     lastError = "Model is currently experiencing high demand (503).";
-                    await sleep(10000);
                     attempts++;
                 } else {
                     lastError = `API Error ${status}`;

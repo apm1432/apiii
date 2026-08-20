@@ -1,7 +1,10 @@
 require('dotenv').config();
+process.env.NTBA_FIX_350 = 1;
+process.env.NTBA_FIX_319 = 1;
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
+const sharp = require('sharp');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const readline = require('readline');
@@ -45,7 +48,7 @@ async function uploadToBot(botIndex, originalPath, year_exam, qnum, buffer = nul
             // if buffer is used, we must provide fileOptions for TelegramBot
             const fileOptions = buffer ? { filename: 'image.jpg', contentType: 'image/jpeg' } : undefined;
             
-            const msg = await bot.sendPhoto(channelId, dataToUpload, { caption }, fileOptions);
+            const msg = await bot.sendDocument(channelId, dataToUpload, { caption }, fileOptions);
             
             if (msg.photo && msg.photo.length > 0) {
                 return { file_id: msg.photo[msg.photo.length - 1].file_id, message_id: msg.message_id };
@@ -148,15 +151,38 @@ async function importJson() {
                     }
 
                     let newlyUploaded = false;
+
+                    let needsUpload = false;
                     for (let b = 0; b < bots.length; b++) {
                         if (!fileIdsObj[b.toString()]) {
-                            console.log(`[${i+1}/${questions.length}] Uploading via Bot ${b}: ${localPath}`);
-                            const uploadRes = await uploadToBot(b, localPath, q.year_exam, q.qnum);
-                            if (uploadRes && uploadRes.file_id) {
-                                fileIdsObj[b.toString()] = uploadRes.file_id;
-                                q.telegram_msg_id = uploadRes.message_id;
-                                newlyUploaded = true;
-                                uploaded++;
+                            needsUpload = true;
+                            break;
+                        }
+                    }
+
+                    if (needsUpload) {
+                        let uploadBuffer = null;
+                        if (localPath.match(/\.(jpg|jpeg|png|webp)$/i)) {
+                            try {
+                                uploadBuffer = await sharp(localPath)
+                                    .resize({ width: 1200, withoutEnlargement: true })
+                                    .jpeg({ quality: 60 })
+                                    .toBuffer();
+                            } catch(e) {
+                                console.log(`\n⚠️ Compression failed for ${localPath}: ${e.message}`);
+                            }
+                        }
+
+                        for (let b = 0; b < bots.length; b++) {
+                            if (!fileIdsObj[b.toString()]) {
+                                console.log(`[${i+1}/${questions.length}] Uploading via Bot ${b}: ${localPath}`);
+                                const uploadRes = await uploadToBot(b, localPath, q.year_exam, q.qnum, uploadBuffer);
+                                if (uploadRes && uploadRes.file_id) {
+                                    fileIdsObj[b.toString()] = uploadRes.file_id;
+                                    q.telegram_msg_id = uploadRes.message_id;
+                                    newlyUploaded = true;
+                                    uploaded++;
+                                }
                             }
                         }
                     }
@@ -236,7 +262,23 @@ async function importJson() {
                 qnum: qData.qnum 
             };
             
-            await Question.findOneAndUpdate(query, qData, { upsert: true, returnDocument: 'after' });
+            let existingQ = await Question.findOne(query);
+            if (existingQ && existingQ.is_ai_fixed) {
+                // Keep the AI corrected text, answer, and explanation, but allow updates to topics/images
+                existingQ.topic = qData.topic || existingQ.topic;
+                existingQ.sub_topic = qData.sub_topic || existingQ.sub_topic;
+                existingQ.subject = qData.subject || existingQ.subject;
+                if (qData.original_image_url) {
+                    existingQ.original_image_url = qData.original_image_url;
+                    existingQ.markModified('original_image_url');
+                }
+                if (qData.telegram_msg_id) {
+                    existingQ.telegram_msg_id = qData.telegram_msg_id;
+                }
+                await existingQ.save();
+            } else {
+                await Question.findOneAndUpdate(query, qData, { upsert: true, returnDocument: 'after' });
+            }
             synced++;
             
             process.stdout.write(`\rProgress: ${synced}/${questions.length} synced to DB. `);

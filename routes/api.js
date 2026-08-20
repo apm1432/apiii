@@ -252,8 +252,6 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
             // Apply fixes
             if (fixedData.fixed_text) question.text = fixedData.fixed_text;
             if (fixedData.fixed_options && fixedData.fixed_options.length === 4) question.options = fixedData.fixed_options;
-            if (fixedData.fixed_text_eng) question.text_eng = fixedData.fixed_text_eng;
-            if (fixedData.fixed_options_eng && fixedData.fixed_options_eng.length === 4) question.options_eng = fixedData.fixed_options_eng;
             if (fixedData.correct_answer_option) {
                 if (fixedData.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
@@ -263,9 +261,6 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
             }
             if (fixedData.fixed_explanation) question.toppers_explanation_marathi = fixedData.fixed_explanation;
             if (fixedData.fixed_options_explanation && fixedData.fixed_options_explanation.length > 0) question.options_explanation = fixedData.fixed_options_explanation;
-            
-            question.is_ai_fixed = true;
-            question.ai_fixed_at = new Date();
             
             await question.save();
             return res.json({ success: true, message: 'Question fixed and saved.', question });

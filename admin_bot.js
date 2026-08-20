@@ -1,3 +1,6 @@
+require('dotenv').config();
+process.env.NTBA_FIX_350 = 1;
+process.env.NTBA_FIX_319 = 1;
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const axios = require('axios');
@@ -315,9 +318,11 @@ async function uploadToBotResync(botIndex, year_exam, qnum, buffer) {
     let retries = 3;
     while (retries > 0) {
         try {
-            const msg = await b.sendPhoto(process.env.TELEGRAM_CHANNEL_ID, buffer, { caption }, fileOptions);
+            const msg = await b.sendDocument(process.env.TELEGRAM_CHANNEL_ID, buffer, { caption }, fileOptions);
             if (msg.photo && msg.photo.length > 0) {
                 return { file_id: msg.photo[msg.photo.length - 1].file_id, message_id: msg.message_id };
+            } else if (msg.document) {
+                return { file_id: msg.document.file_id, message_id: msg.message_id };
             }
         } catch (err) {
             if (err.response && err.response.statusCode === 429) {
