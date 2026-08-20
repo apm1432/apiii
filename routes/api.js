@@ -343,11 +343,17 @@ router.post('/questions', authMiddleware, async (req, res) => {
         if (cachedHierarchy && cachedHierarchy.length > 0) {
             let exams = [...cachedHierarchy];
             // Sort by year descending (same as frontend)
+            const extractYearForFree = (str) => {
+                const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+                const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
+                const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
+                return match ? parseInt(match[1], 10) : 0;
+            };
             exams.sort((a, b) => {
                 const idA = a._id || '';
                 const idB = b._id || '';
-                const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
-                const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
+                const yearA = extractYearForFree(idA);
+                const yearB = extractYearForFree(idB);
                 if (yearA !== yearB) return yearB - yearA; 
                 return idA.localeCompare(idB);
             });

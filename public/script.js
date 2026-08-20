@@ -445,11 +445,17 @@ function renderExamGrid() {
     let freeTests = [];
     if (window.allExamsData && window.allExamsData.length > 0) {
         let examsForFree = [...window.allExamsData];
+        const extractYear = (str) => {
+            const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+            const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
+            const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
+            return match ? parseInt(match[1], 10) : 0;
+        };
         examsForFree.sort((a, b) => {
             const idA = a._id || '';
             const idB = b._id || '';
-            const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
-            const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
+            const yearA = extractYear(idA);
+            const yearB = extractYear(idB);
             if (yearA !== yearB) return yearB - yearA; 
             return idA.localeCompare(idB);
         });
@@ -460,11 +466,17 @@ function renderExamGrid() {
     let exams = [...window.allExamsData];
     
     // Sort by year (descending) extracted from name
+    const extractYearMain = (str) => {
+        const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+        const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
+        const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
+        return match ? parseInt(match[1], 10) : 0;
+    };
     exams.sort((a, b) => {
         const idA = a._id || '';
         const idB = b._id || '';
-        const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
-        const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
+        const yearA = extractYearMain(idA);
+        const yearB = extractYearMain(idB);
         if (yearA !== yearB) return yearB - yearA; // Newest first
         return idA.localeCompare(idB);
     });
