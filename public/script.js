@@ -176,6 +176,13 @@ function logout() {
     currentUser = null;
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('activeAiJobId');
+    if (window.activeAiEventSource) {
+        window.activeAiEventSource.close();
+        window.activeAiEventSource = null;
+    }
+    const panel = document.getElementById('ai-live-panel');
+    if (panel) panel.style.display = 'none';
     showSection('auth-section');
 }
 
@@ -433,7 +440,21 @@ function renderExamGrid() {
     if (!grid || !window.allExamsData) return;
     
     grid.innerHTML = '';
-    const freeExamName = "Maharashtra Subordinate Services Non-Gazetted, Group-b Preliminar 2020";
+    
+    // Identify the first 2 tests for the '2 Free Tests' offer
+    let freeTests = [];
+    if (window.allExamsData && window.allExamsData.length > 0) {
+        let examsForFree = [...window.allExamsData];
+        examsForFree.sort((a, b) => {
+            const idA = a._id || '';
+            const idB = b._id || '';
+            const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
+            const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
+            if (yearA !== yearB) return yearB - yearA; 
+            return idA.localeCompare(idB);
+        });
+        freeTests = examsForFree.slice(0, 2).map(e => e._id);
+    }
     
     // Process and sort exams
     let exams = [...window.allExamsData];
@@ -447,13 +468,6 @@ function renderExamGrid() {
         if (yearA !== yearB) return yearB - yearA; // Newest first
         return idA.localeCompare(idB);
     });
-    
-    // Pin the free exam to the top
-    const freeExamIndex = exams.findIndex(e => e._id === freeExamName);
-    if (freeExamIndex > -1) {
-        const freeExam = exams.splice(freeExamIndex, 1)[0];
-        exams.unshift(freeExam); // Add to beginning
-    }
     
     // Filter based on selected tab
     const filter = window.currentExamFilter || 'all';
@@ -475,7 +489,7 @@ function renderExamGrid() {
         const totalQuestions = yearGroup.exams.reduce((sum, exam) => sum + exam.count, 0);
         
         const stats = window.progressSectionWise[yearExam] || { solved: 0, correct: 0 };
-        const isFree = (yearExam && yearExam.toLowerCase().includes('preliminar 2020'));
+        const isFree = freeTests.includes(yearExam) && currentUser && currentUser.hasUsedFreeTrial;
         
         const card = document.createElement('div');
         card.className = 'exam-card';
@@ -602,6 +616,15 @@ async function openTest(yearExam, subject = null) {
             showSection('test-section');
             // Default to Full Paper Mode
             switchMode('full');
+
+            // Admin features
+            if (currentUser && currentUser.isAdmin) {
+                const btnFixAll = document.getElementById('btn-ai-fix-all');
+                if (btnFixAll) btnFixAll.classList.remove('hidden');
+            } else {
+                const btnFixAll = document.getElementById('btn-ai-fix-all');
+                if (btnFixAll) btnFixAll.classList.add('hidden');
+            }
         } else {
             if (data.message && data.message.includes('Subscription')) {
                 showSection('payment-section');
@@ -657,7 +680,11 @@ function renderQuizQuestion(index, questions = currentQuestions) {
 
     if (q.original_image_url) {
         const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-        html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+    }
+
+    if (currentUser && currentUser.isAdmin) {
+        html += `<button class="btn" id="btn-fix-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}')">🤖 AI Fix</button>`;
     }
 
     html += `<div class="options">`;
@@ -677,13 +704,23 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         
         const answered = userAnswers[q._id];
         let extraClass = '';
-        let onClickHtml = `onclick="selectOption(this, ${isCorrect}, '${q._id}', 'quiz', ${index}, ${oIdx})"`;
+        let onClickHtml = `onclick="selectOption(this, '${q._id}', 'quiz', ${index}, ${oIdx})"`;
         if (answered) {
             onClickHtml = ''; // disable click
-            if (isCorrect) {
-                extraClass = 'correct';
-            } else if (answered.selected === oIdx) {
-                extraClass = 'wrong';
+            const correctStr = String(q.correct_answer_option || q.final_answer_key || q.answer_key).trim();
+            if (correctStr === "#") {
+                if (answered.selected === oIdx) {
+                    extraClass = 'wrong';
+                    optHtml += ' <span style="font-weight:bold; color:#f59e0b;">(Cancelled by MPSC)</span>';
+                }
+            } else {
+                const correctOptIndex = parseInt(correctStr) - 1;
+                const isActuallyCorrect = (oIdx === correctOptIndex);
+                if (isActuallyCorrect) {
+                    extraClass = 'correct';
+                } else if (answered.selected === oIdx) {
+                    extraClass = 'wrong';
+                }
             }
         }
         
@@ -862,7 +899,11 @@ function renderFullPaper(questions = currentQuestions) {
         
         if (q.original_image_url) {
             const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-            html += `<button class="btn btn-secondary" style="margin-bottom: 15px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+        }
+        
+        if (currentUser && currentUser.isAdmin) {
+            html += `<button class="btn" id="btn-fix-full-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}', 'full')">🤖 AI Fix</button>`;
         }
         
         html += `<div class="options">`;
@@ -883,13 +924,23 @@ function renderFullPaper(questions = currentQuestions) {
             // Check if user already answered this
             const answered = userAnswers[q._id];
             let extraClass = '';
-            let onClickHtml = `onclick="selectOption(this, ${isCorrect}, '${q._id}', 'full', ${idx}, ${oIdx})"`;
+            let onClickHtml = `onclick="selectOption(this, '${q._id}', 'full', ${idx}, ${oIdx})"`;
             if (answered) {
                 onClickHtml = ''; // disable click
-                if (isCorrect) {
-                    extraClass = 'correct';
-                } else if (answered.selected === oIdx) {
-                    extraClass = 'wrong';
+                const correctStr = String(q.correct_answer_option || q.final_answer_key || q.answer_key).trim();
+                if (correctStr === "#") {
+                    if (answered.selected === oIdx) {
+                        extraClass = 'wrong';
+                        optHtml += ' <span style="font-weight:bold; color:#f59e0b;">(Cancelled by MPSC)</span>';
+                    }
+                } else {
+                    const correctOptIndex = parseInt(correctStr) - 1;
+                    const isActuallyCorrect = (oIdx === correctOptIndex);
+                    if (isActuallyCorrect) {
+                        extraClass = 'correct';
+                    } else if (answered.selected === oIdx) {
+                        extraClass = 'wrong';
+                    }
                 }
             }
 
@@ -927,7 +978,11 @@ function renderFullPaper(questions = currentQuestions) {
     questions.forEach((q, idx) => {
         let btnColor = '';
         if (userAnswers[q._id]) {
-            btnColor = userAnswers[q._id].isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
+            if (userAnswers[q._id].isCancelled) {
+                btnColor = 'background: #f59e0b; color: white; border-color: transparent;'; // Orange
+            } else {
+                btnColor = userAnswers[q._id].isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
+            }
         }
         gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${q.qnum || idx + 1}</button>`;
     });
@@ -970,76 +1025,111 @@ function nextQuestion() {
 }
 
 // Quiz Option Selection Logic (Updated for real data)
-async function selectOption(el, isCorrect, questionId, mode, index = 0, optIndex = 0) {
+async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
     const parent = el.parentElement;
-    if (parent.classList.contains('answered')) return;
+    if (parent.classList.contains('answered') || parent.classList.contains('loading')) return;
     
-    parent.classList.add('answered');
-    
-    if (isCorrect) {
-        el.classList.add('correct');
-    } else {
-        el.classList.add('wrong');
-        // Highlight correct answer
-        const qIndex = mode === 'full' ? index : currentQIndex;
-        const currentQ = currentQuestions[qIndex];
-        const correctOptIndex = parseInt(currentQ.correct_answer_option || currentQ.final_answer_key || currentQ.answer_key) - 1;
-        if(correctOptIndex >= 0 && correctOptIndex < parent.children.length) {
-            parent.children[correctOptIndex].classList.add('correct');
-        }
-    }
-    
-    Array.from(parent.children).forEach(optDiv => {
-        optDiv.onclick = null; // Disable clicks after answering
-    });
+    parent.classList.add('loading');
+    const originalHtml = el.innerHTML;
+    el.innerHTML += ' <span style="font-size:0.8em; color:var(--text-secondary);">(Checking...)</span>';
 
-    // Save to local cache
     const sectionName = currentQuestions[mode === 'full' ? index : currentQIndex].year_exam;
-    userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, section: sectionName };
-    localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+    
+    try {
+        const res = await fetch('/api/progress/save', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+                questionId: questionId,
+                section: sectionName,
+                selectedOption: optIndex
+            })
+        });
+        const data = await res.json();
+        
+        parent.classList.remove('loading');
+        el.innerHTML = originalHtml;
 
-    // Show explanation
-    const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
-    const explanation = document.getElementById(explId);
-    if(explanation) explanation.classList.remove('hidden');
+        if (!data.success) {
+            alert(data.message || "Failed to submit answer.");
+            return;
+        }
 
-    // Fire & Forget Progress Save API
-    fetch('/api/progress/save', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-            questionId: questionId,
-            isCorrect: isCorrect,
-            section: sectionName,
-            selectedOption: optIndex
-        })
-    }).catch(err => console.error("Progress sync failed"));
+        parent.classList.add('answered');
+        const { isCorrect, isCancelled, correctOptionIndex, explanation, optionsExplanation } = data;
 
-    // Update Jump Grid if in full mode
-    if (mode === 'full') {
-        const gridBtn = document.getElementById(`grid-btn-${index}`);
-        if(gridBtn) {
-            gridBtn.classList.remove('btn-outline');
-            gridBtn.style.color = '#fff';
-            gridBtn.style.borderColor = 'transparent';
-            if (isCorrect) {
-                gridBtn.style.background = '#10b981'; // green
-            } else {
-                gridBtn.style.background = '#ef4444'; // red
+        if (isCancelled) {
+            el.classList.add('wrong');
+            el.style.background = '#f59e0b'; // orange for cancelled
+            el.style.borderColor = '#f59e0b';
+            el.innerHTML += ' <span style="font-weight:bold; color:#fff;">(Cancelled by MPSC)</span>';
+        } else if (isCorrect) {
+            el.classList.add('correct');
+        } else {
+            el.classList.add('wrong');
+            if(correctOptionIndex >= 0 && correctOptionIndex < parent.children.length) {
+                parent.children[correctOptionIndex].classList.add('correct');
             }
         }
-        // Update Stats UI
-        updateFloatingStats(currentQuestions);
-    }
+        
+        Array.from(parent.children).forEach(optDiv => {
+            optDiv.onclick = null; // Disable clicks after answering
+        });
 
+        // Save to local cache
+        userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, isCancelled: isCancelled, section: sectionName };
+        localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+
+        // Update explanation HTML with backend data
+        const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
+        const explanationDiv = document.getElementById(explId);
+        if(explanationDiv) {
+            let explHtml = `<strong>Explanation:</strong> ${explanation ? explanation.replace(/\n/g, '<br>') : 'No explanation available.'}`;
+            if (optionsExplanation && optionsExplanation.length > 0) {
+                explHtml += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+                    <strong>Options Breakdown:</strong>
+                    <ul style="margin-top: 10px; padding-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                        ${optionsExplanation.map(exp => `<li style="margin-bottom: 8px;">${exp.replace(/\n/g, '<br>')}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+            explanationDiv.innerHTML = explHtml;
+            explanationDiv.classList.remove('hidden');
+        }
+
+        // Update Jump Grid if in full mode
+        if (mode === 'full') {
+            const gridBtn = document.getElementById(`grid-btn-${index}`);
+            if(gridBtn) {
+                gridBtn.classList.remove('btn-outline');
+                gridBtn.style.color = '#fff';
+                gridBtn.style.borderColor = 'transparent';
+                if (isCancelled) {
+                    gridBtn.style.background = '#f59e0b'; // orange
+                } else if (isCorrect) {
+                    gridBtn.style.background = '#10b981'; // green
+                } else {
+                    gridBtn.style.background = '#ef4444'; // red
+                }
+            }
+            // Update Stats UI
+            updateFloatingStats(currentQuestions);
+        }
+
+    } catch (err) {
+        parent.classList.remove('loading');
+        el.innerHTML = originalHtml;
+        console.error(err);
+        alert("Network error.");
+    }
 }
 
 // ====== PAYMENT & RAZORPAY ======
 async function startFreeTrial() {
-    if (!confirm("Are you sure you want to start your 1-Day Free Trial now?")) return;
+    if (!confirm("Are you sure you want to unlock your first 2 free tests now?")) return;
     
     try {
         const res = await fetch('/api/payment/free-trial', {
@@ -1053,7 +1143,10 @@ async function startFreeTrial() {
         
         if (data.success) {
             localStorage.setItem('currentUser', JSON.stringify(data.user));
-            alert("1-Day Free Trial activated successfully! Enjoy premium access.");
+            alert("First 2 tests unlocked successfully! Enjoy premium access to these tests.");
+            // Also explicitly update the global currentUser obj so UI updates immediately
+            if(currentUser) currentUser.hasUsedFreeTrial = true;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
             window.location.reload();
         } else {
             alert(data.message || "Failed to activate free trial.");
@@ -1156,6 +1249,11 @@ window.openImageModal = function(src) {
     // If src doesn't start with /api/image/, it's likely a raw file ID
     if (!src.startsWith('/api/image/')) {
         src = '/api/image/' + src;
+    }
+    
+    const userToken = localStorage.getItem('jwtToken');
+    if (userToken) {
+        src += `?token=${userToken}`;
     }
     modalImg.src = src;
     
@@ -1303,6 +1401,180 @@ window.panImage = function(dx, dy) {
         modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
     }
 }
+
+// ====== AI FIX QUESTION LOGIC (ADMIN) ======
+window.fixQuestion = async function(qId, mode = 'quiz') {
+    const btn = document.getElementById(mode === 'full' ? `btn-fix-full-${qId}` : `btn-fix-${qId}`);
+    if (btn) {
+        btn.innerText = "⏳ Queued...";
+        btn.disabled = true;
+    }
+
+    try {
+        const res = await fetch('/api/admin/fix-paper-bg', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ questionIds: [qId] })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('activeAiJobId', data.jobId);
+            connectAiLiveStream(data.jobId);
+            return true;
+        } else {
+            btn.innerText = "❌ Failed";
+            btn.style.background = "#ef4444";
+            console.error("AI Fix failed:", data.message);
+            alert(`AI Fix Failed: ${data.message}`);
+            return false;
+        }
+    } catch (err) {
+        btn.innerText = "❌ Error";
+        btn.style.background = "#ef4444";
+        console.error("Network error during AI Fix:", err);
+        return false;
+    }
+};
+
+window.fixAllQuestions = async function() {
+    if (!confirm("Are you sure you want to run AI Fix on ALL questions currently displayed? This will take some time.")) return;
+    
+    const btnAll = document.getElementById('btn-ai-fix-all');
+    if(btnAll) {
+        btnAll.disabled = true;
+    }
+    
+    // We only process the filtered questions currently displayed
+    let questionsToFix = currentQuestions;
+    if (activeSubject) questionsToFix = questionsToFix.filter(q => q.subject === activeSubject);
+    if (activeTopic) questionsToFix = questionsToFix.filter(q => q.topic === activeTopic);
+
+    const questionIds = questionsToFix.map(q => q._id);
+    
+    try {
+        const res = await fetch('/api/admin/fix-paper-bg', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ questionIds })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            localStorage.setItem('activeAiJobId', data.jobId);
+            connectAiLiveStream(data.jobId);
+        } else {
+            alert("Failed to start background job.");
+            if(btnAll) btnAll.disabled = false;
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Network error.");
+        if(btnAll) btnAll.disabled = false;
+    }
+};
+
+window.connectAiLiveStream = function(jobId) {
+    if (!jobId) return;
+    
+    const panel = document.getElementById('ai-live-panel');
+    const content = document.getElementById('ai-live-content');
+    if (panel) panel.style.display = 'flex';
+    
+    if (window.activeAiEventSource) {
+        window.activeAiEventSource.close();
+    }
+    const es = new EventSource(`/api/admin/fix-stream/${jobId}?token=${token}`);
+    window.activeAiEventSource = es;
+    
+    es.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'error') {
+            content.innerHTML += `<br/><span style="color: #ef4444;">[System] Error: ${data.message}</span>`;
+            es.close();
+            localStorage.removeItem('activeAiJobId');
+        } else if (data.type === 'init') {
+            content.innerHTML += `<br/><span style="color: #64748b;">[Queue] Job attached. Processing...</span>`;
+        } else if (data.type === 'chunk') {
+            content.innerHTML += data.chunk;
+            content.scrollTop = content.scrollHeight;
+        } else if (data.type === 'question_start') {
+            content.innerHTML = `<span style="color: #f59e0b;">[Queue] Starting Question ${data.index + 1}...</span><br/>`;
+        } else if (data.type === 'question_done') {
+            content.innerHTML += `<br/><span style="color: #10b981;">[Queue] Question ${data.index + 1} Fixed Successfully!</span>`;
+            
+            // Update local state and UI
+            const qIndex = currentQuestions.findIndex(q => q._id === data.question._id);
+            if (qIndex > -1) {
+                currentQuestions[qIndex] = data.question;
+            }
+            const btn = document.getElementById(`btn-fix-full-${data.question._id}`) || document.getElementById(`btn-fix-${data.question._id}`);
+            if (btn) {
+                btn.innerText = "✅ Fixed!";
+                btn.style.background = "#10b981";
+            }
+            setTimeout(() => {
+                const quizView = document.getElementById('quiz-view');
+                if (quizView && quizView.style.display !== 'none') {
+                    renderQuizQuestion(qIndex, currentQuestions);
+                } else {
+                    renderFullPaper(currentQuestions);
+                }
+            }, 500);
+
+        } else if (data.type === 'question_failed') {
+            content.innerHTML += `<br/><span style="color: #ef4444;">[Queue] Question ${data.index + 1} Failed: ${data.error}</span><br/><button onclick="retryAiQuestion('${jobId}', '${data.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; cursor:pointer; margin-top:5px; border-radius:3px;">Retry Question ${data.index + 1}</button>`;
+        } else if (data.type === 'job_done') {
+            content.innerHTML += `<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`;
+            es.close();
+            localStorage.removeItem('activeAiJobId');
+            const btnAll = document.getElementById('btn-ai-fix-all');
+            if(btnAll) {
+                btnAll.innerText = '🤖 Fix Complete Paper';
+                btnAll.disabled = false;
+            }
+        }
+    };
+    
+    es.onerror = function() {
+        content.innerHTML += `<br/><span style="color: #ef4444;">[System] Connection lost. Trying to reconnect...</span>`;
+    };
+};
+
+window.retryAiQuestion = async function(jobId, questionId) {
+    try {
+        const res = await fetch('/api/admin/fix-retry', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ jobId, questionId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const content = document.getElementById('ai-live-content');
+            if (content) content.innerHTML += `<br/><span style="color: #f59e0b;">[Queue] Question added back to queue!</span>`;
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+// Auto-connect if job was running
+window.addEventListener('load', () => {
+    const activeJobId = localStorage.getItem('activeAiJobId');
+    if (activeJobId && document.getElementById('ai-live-panel')) {
+        connectAiLiveStream(activeJobId);
+    }
+});
 
 
 // ====== ULTRA-STRICT SECURITY LOGIC ======

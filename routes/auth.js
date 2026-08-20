@@ -104,7 +104,7 @@ router.post('/login', async (req, res) => {
 
         // Generate JWT
         const token = jwt.sign(
-            { id: user._id, email: user.email, isSubscribed: user.isSubscribed },
+            { id: user._id, email: user.email, isSubscribed: user.isSubscribed, isAdmin: user.isAdmin },
             JWT_SECRET,
             { expiresIn: '7d' } // Token valid for 7 days
         );
@@ -118,7 +118,8 @@ router.post('/login', async (req, res) => {
                 isSubscribed: user.isSubscribed,
                 subscriptionPlan: user.subscriptionPlan,
                 subscriptionExpiry: user.subscriptionExpiry,
-                hasUsedFreeTrial: user.hasUsedFreeTrial
+                hasUsedFreeTrial: user.hasUsedFreeTrial,
+                isAdmin: user.isAdmin
             }
         });
     } catch (err) {

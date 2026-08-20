@@ -132,6 +132,7 @@ async function importJson() {
 
         let uploaded = 0;
         let synced = 0;
+        let lastCacheClearTime = Date.now();
 
         for (let i = 0; i < questions.length; i++) {
             const q = questions[i];
@@ -195,9 +196,14 @@ async function importJson() {
                 if (n === 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१') n = 'महाराष्ट्र दुय्यम सेवा अराजपत्रित, गट-ब पूर्व परीक्षा - २०१८';
                 q.official_exam_name = n;
             }
+            let parsedQnum = q.qnum || q.q_num || 0;
+            if (typeof parsedQnum === 'string') {
+                const match = parsedQnum.match(/\d+/);
+                parsedQnum = match ? parseInt(match[0], 10) : 0;
+            }
             
             const qData = {
-                qnum: q.qnum || q.q_num,
+                qnum: parsedQnum,
                 text: q.text || q.original_marathi || 'N/A',
                 text_eng: q.text_eng || q.translated_english || '',
                 options: q.options || [],
@@ -234,16 +240,25 @@ async function importJson() {
             synced++;
             
             process.stdout.write(`\rProgress: ${synced}/${questions.length} synced to DB. `);
+            
+            // Clear cache every 5 minutes during upload so website live updates
+            if (Date.now() - lastCacheClearTime > 5 * 60 * 1000) {
+                try {
+                    await axios.post('https://royal-luella-mpscpyq-b44a4574.koyeb.app/api/admin/clear-cache');
+                    process.stdout.write(" [Live Cache Cleared] ");
+                } catch(e) {}
+                lastCacheClearTime = Date.now();
+            }
         }
         
         await fsPromises.writeFile(mappingPath, JSON.stringify(mapping, null, 2));
         
         // Clear server cache automatically
         try {
-            await axios.post('http://localhost:3000/api/admin/clear-cache');
+            await axios.post('https://royal-luella-mpscpyq-b44a4574.koyeb.app/api/admin/clear-cache');
             console.log("\n✅ Website cache cleared automatically. Live update successful!");
         } catch(e) {
-            // Ignore error if server is not running on 3000
+            console.log("⚠️ Could not clear cache on the live server automatically.");
         }
 
         console.log(`\n✅ Import Complete! Uploaded ${uploaded} new files. Synced ${synced} docs.`);
@@ -320,7 +335,7 @@ async function addBotResync() {
     
     // Clear server cache automatically
     try {
-        await axios.post('http://localhost:3000/api/admin/clear-cache');
+        await axios.post('https://royal-luella-mpscpyq-b44a4574.koyeb.app/api/admin/clear-cache');
     } catch(e) {}
 
     console.log(`\n✅ Resync Complete! Updated ${updated} questions.`);

@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
+const fs = require('fs');
+const fsPromises = require('fs').promises;
+const path = require('path');
+const os = require('os');
+const axios = require('axios');
+
+const CACHE_DIR = path.join(os.tmpdir(), 'mpscpyq_images');
+if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
 
 // Models
 const Question = require('../models/Question');
@@ -11,6 +21,7 @@ const Progress = require('../models/Progress');
 // Middleware & Services
 const { authMiddleware, requireSubscription } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
+const { fixQuestionWithAI } = require('../utils/aiService');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -24,6 +35,14 @@ const razorpay = new Razorpay({
 
 let cachedHierarchy = null;
 let lastCacheTime = 0;
+
+function extractYear(str) {
+    const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+    const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
+    const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
+    if (match) return parseInt(match[1], 10);
+    return 0;
+}
 
 async function preloadHierarchy() {
     try {
@@ -48,9 +67,10 @@ async function preloadHierarchy() {
                         }
                     }
                 }
-            },
-            { $sort: { "_id": -1 } }
+            }
         ]);
+        
+        hierarchy.sort((a, b) => extractYear(b._id) - extractYear(a._id));
         
         cachedHierarchy = hierarchy;
         lastCacheTime = Date.now();
@@ -66,6 +86,192 @@ router.post('/admin/clear-cache', (req, res) => {
     lastCacheTime = 0;
     preloadHierarchy(); // Start preloading again in background
     res.json({ success: true });
+});
+
+// Admin: Fetch Telegram Image as Base64 (Using Cache)
+async function fetchTelegramImageBase64(rawFileId) {
+    if (!rawFileId) return null;
+    
+    let fileIdsObj = {};
+    if (typeof rawFileId === 'object') {
+        fileIdsObj = rawFileId;
+    } else {
+        try {
+            const decoded = decodeURIComponent(rawFileId);
+            fileIdsObj = JSON.parse(decoded);
+        } catch (e) {
+            fileIdsObj = { "0": rawFileId };
+        }
+    }
+
+    const allFileIds = Object.values(fileIdsObj);
+    if (allFileIds.length === 0 || !allFileIds[0]) return null;
+
+    // Check Cache First
+    const firstAvailableId = allFileIds[0];
+    const safeFilename = firstAvailableId.replace(/[^a-zA-Z0-9-_]/g, '') + '.jpg';
+    const cachePath = path.join(CACHE_DIR, safeFilename);
+
+    if (fs.existsSync(cachePath)) {
+        try {
+            const fileData = fs.readFileSync(cachePath);
+            return Buffer.from(fileData).toString('base64');
+        } catch (e) {
+            console.error("Failed to read from cache", e);
+        }
+    }
+
+    // Not in cache, fetch from Telegram
+    const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
+    if (!tokensStr) return null;
+    const tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
+    
+    for (const token of tokens) {
+        for (const fId of allFileIds) {
+            if (!fId) continue;
+            try {
+                const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
+                if (!fileRes.data.ok) continue;
+
+                const filePath = fileRes.data.result.file_path;
+                const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+                
+                const imgRes = await axios.get(imgUrl, { responseType: 'arraybuffer' });
+                
+                // Save to cache for future
+                try {
+                    fs.writeFileSync(cachePath, imgRes.data);
+                } catch(e) {}
+                
+                return Buffer.from(imgRes.data).toString('base64');
+            } catch (err) {
+                continue;
+            }
+        }
+    }
+    return null;
+}
+
+// Expose fetchImageForAI to global so jobManager can use it
+global.fetchImageForAI = fetchTelegramImageBase64;
+
+const { createJob, addClientToJob, retryQuestion } = require('../utils/jobManager');
+
+// Admin: Start Background Job for Fixing Paper
+router.post('/admin/fix-paper-bg', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        }
+
+        const { questionIds } = req.body;
+        if (!Array.isArray(questionIds) || questionIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No questions provided.' });
+        }
+
+        // Generate a random job ID
+        const jobId = Math.random().toString(36).substring(2, 15);
+        createJob(jobId, questionIds);
+
+        res.json({ success: true, jobId });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+});
+
+// Admin: Stream Job Status (SSE)
+router.get('/admin/fix-stream/:jobId', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        }
+        
+        const { jobId } = req.params;
+        
+        res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    // Flush headers to establish SSE connection
+    res.flushHeaders();
+
+    const added = addClientToJob(jobId, res);
+    if (!added) {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Job not found' })}\n\n`);
+        res.end();
+    }
+    } catch (err) {
+        res.status(500).end();
+    }
+});
+
+// Admin: Retry a failed question in a job
+router.post('/admin/fix-retry', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden.' });
+
+        const { jobId, questionId } = req.body;
+        const retried = retryQuestion(jobId, questionId);
+        
+        if (retried) {
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ success: false, message: 'Job or question not found' });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false });
+    }
+});
+
+// Admin: Fix Question with AI
+router.post('/admin/fix-question', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        }
+
+        const { questionId } = req.body;
+        const question = await Question.findById(questionId);
+        if (!question) {
+            return res.status(404).json({ success: false, message: 'Question not found.' });
+        }
+
+        let imageBase64 = null;
+        if (question.original_image_url) {
+            imageBase64 = await fetchTelegramImageBase64(question.original_image_url);
+        }
+
+        const fixedData = await fixQuestionWithAI(question, imageBase64);
+
+        if (fixedData) {
+            // Apply fixes
+            if (fixedData.fixed_text) question.text = fixedData.fixed_text;
+            if (fixedData.fixed_options && fixedData.fixed_options.length === 4) question.options = fixedData.fixed_options;
+            if (fixedData.correct_answer_option) {
+                if (fixedData.correct_answer_option === "#") {
+                    question.correct_answer_option = "#";
+                } else {
+                    question.correct_answer_option = parseInt(fixedData.correct_answer_option);
+                }
+            }
+            if (fixedData.fixed_explanation) question.toppers_explanation_marathi = fixedData.fixed_explanation;
+            if (fixedData.fixed_options_explanation && fixedData.fixed_options_explanation.length > 0) question.options_explanation = fixedData.fixed_options_explanation;
+            
+            await question.save();
+            return res.json({ success: true, message: 'Question fixed and saved.', question });
+        } else {
+            return res.status(500).json({ success: false, message: 'AI returned empty result.' });
+        }
+
+    } catch (err) {
+        console.error("AI Fix Error:", err.message);
+        res.status(500).json({ success: false, message: `AI Fix Failed: ${err.message}` });
+    }
 });
 
 // 1. Fetch Hierarchy (For Dashboard Selection)
@@ -95,9 +301,10 @@ router.get('/exams/hierarchy', async (req, res) => {
                         }
                     }
                 }
-            },
-            { $sort: { "_id": -1 } }
+            }
         ]);
+        
+        hierarchy.sort((a, b) => extractYear(b._id) - extractYear(a._id));
         
         const passageCount = await Question.countDocuments({
             $or: [
@@ -130,8 +337,24 @@ router.post('/questions', authMiddleware, async (req, res) => {
         
         // --- Security & Free Bypass Check ---
         const user = await User.findById(req.user.id);
-        const freePaperName = "Maharashtra Subordinate Services Non-Gazetted, Group-b Preliminar 2020";
-        const isFree = (year_exam === freePaperName);
+        
+        // Dynamically get the first 2 tests from hierarchy
+        let freeTests = [];
+        if (cachedHierarchy && cachedHierarchy.length > 0) {
+            let exams = [...cachedHierarchy];
+            // Sort by year descending (same as frontend)
+            exams.sort((a, b) => {
+                const idA = a._id || '';
+                const idB = b._id || '';
+                const yearA = idA.match(/\d{4}/) ? parseInt(idA.match(/\d{4}/)[0]) : 0;
+                const yearB = idB.match(/\d{4}/) ? parseInt(idB.match(/\d{4}/)[0]) : 0;
+                if (yearA !== yearB) return yearB - yearA; 
+                return idA.localeCompare(idB);
+            });
+            freeTests = exams.slice(0, 2).map(e => e._id);
+        }
+
+        const isFree = freeTests.includes(year_exam) && user && user.hasUsedFreeTrial;
         
         if (!isFree) {
             if (!user || !user.isSubscribed || !user.subscriptionExpiry || new Date() > user.subscriptionExpiry) {
@@ -154,6 +377,9 @@ router.post('/questions', authMiddleware, async (req, res) => {
         }
         if (subject) query.subject = subject;
 
+        const progress = await Progress.findOne({ userId: req.user.id });
+        const answeredMap = progress ? progress.answers : new Map();
+
         let questions = await Question.find(query).lean();
         
         // Sort in memory to avoid MongoDB 32MB sort limit
@@ -162,6 +388,18 @@ router.post('/questions', authMiddleware, async (req, res) => {
         if (limit) {
             questions = questions.slice(0, parseInt(limit));
         }
+
+        // STRIP SENSITIVE DATA
+        questions = questions.map(q => {
+            if (!answeredMap.has(q._id.toString())) {
+                delete q.final_answer_key;
+                delete q.correct_answer_option;
+                delete q.answer_key;
+                delete q.toppers_explanation_marathi;
+                delete q.options_explanation;
+            }
+            return q;
+        });
 
         res.json({ success: true, data: questions });
     } catch (err) {
@@ -187,20 +425,15 @@ router.post('/payment/free-trial', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'You have already claimed your free trial.' });
         }
 
-        // Set 24 hours expiry
-        const expiry = new Date();
-        expiry.setHours(expiry.getHours() + 24);
-
-        user.isSubscribed = true;
-        user.subscriptionPlan = 'free_trial';
-        user.subscriptionExpiry = expiry;
+        // Instead of subscribing them fully, just flag that they claimed the 2-free-test offer
+        user.subscriptionPlan = '2_free_tests';
         user.hasUsedFreeTrial = true;
 
         await user.save();
 
         res.json({
             success: true,
-            message: '1-Day Free Trial activated successfully!',
+            message: 'First 2 Tests unlocked successfully!',
             user: {
                 email: user.email,
                 isSubscribed: user.isSubscribed,
@@ -365,11 +598,36 @@ router.post('/payment/webhook', (req, res) => {
 // 4. PROGRESS TRACKING API
 // -------------------------------------
 
-// 5. Progress Tracking (Protected)
-router.post('/progress/save', authMiddleware, async (req, res) => {
+const rateLimit = require('express-rate-limit');
+const submitAnswerLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 60, // Limit each IP to 60 answer submissions per windowMs
+    message: { success: false, message: 'Too many answers submitted. Please slow down.' }
+});
+
+// 5. Progress Tracking (Protected & Validated)
+router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, res) => {
     try {
-        const { questionId, isCorrect, section, selectedOption } = req.body;
+        const { questionId, section, selectedOption } = req.body;
         const userId = req.user.id;
+        
+        // 1. Fetch real question
+        const question = await Question.findById(questionId).lean();
+        if (!question) {
+            return res.status(404).json({ success: false, message: 'Question not found' });
+        }
+
+        const correctStr = String(question.correct_answer_option || question.final_answer_key || question.answer_key).trim();
+        let isCancelled = false;
+        let isCorrect = false;
+        let correctOptIndex = -1;
+
+        if (correctStr === "#") {
+            isCancelled = true;
+        } else {
+            correctOptIndex = parseInt(correctStr) - 1;
+            isCorrect = (selectedOption === correctOptIndex);
+        }
         
         let progress = await Progress.findOne({ userId });
         if (!progress) {
@@ -388,26 +646,23 @@ router.post('/progress/save', authMiddleware, async (req, res) => {
             secStats.solved += 1;
             if (isCorrect) secStats.correct += 1;
             progress.sectionWise.set(safeSection, secStats);
-        } else {
-            // If they are answering again, update correct counts if it changed (though usually UI prevents this)
-            if (!existingAnswer.isCorrect && isCorrect) {
-                progress.totalCorrect += 1;
-                let secStats = progress.sectionWise.get(safeSection);
-                if (secStats) { secStats.correct += 1; progress.sectionWise.set(safeSection, secStats); }
-            } else if (existingAnswer.isCorrect && !isCorrect) {
-                progress.totalCorrect -= 1;
-                let secStats = progress.sectionWise.get(safeSection);
-                if (secStats) { secStats.correct -= 1; progress.sectionWise.set(safeSection, secStats); }
-            }
         }
 
         // Save detailed answer
-        progress.answers.set(questionId, { selected: selectedOption, isCorrect, section });
+        if (!existingAnswer) {
+            progress.answers.set(questionId, { selected: selectedOption, isCorrect, section });
+            progress.lastSolvedQuestion = questionId;
+            await progress.save();
+        }
 
-        progress.lastSolvedQuestion = questionId;
-
-        await progress.save();
-        res.json({ success: true, progress });
+        res.json({ 
+            success: true, 
+            isCorrect, 
+            isCancelled,
+            correctOptionIndex: correctOptIndex,
+            explanation: question.toppers_explanation_marathi,
+            optionsExplanation: question.options_explanation
+        });
     } catch (err) {
         console.error("Progress save error:", err);
         res.status(500).json({ success: false, message: 'Failed to save progress' });
@@ -482,20 +737,9 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
 // -------------------------------------
 // 5. IMAGE PROXY API
 // -------------------------------------
-const fs = require('fs');
-const fsPromises = require('fs').promises;
-const path = require('path');
-const axios = require('axios');
 
-const os = require('os');
-const CACHE_DIR = path.join(os.tmpdir(), 'mpscpyq_images');
 const MAX_CACHE_SIZE = 900 * 1024 * 1024; // 900 MB
 const TARGET_CACHE_SIZE = 700 * 1024 * 1024; // 700 MB
-
-// Ensure cache directory exists
-if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-}
 
 async function cleanupCache() {
     try {
@@ -529,6 +773,20 @@ async function cleanupCache() {
 
 router.get('/image/:fileId', async (req, res) => {
     try {
+        let token = req.query.token;
+        if (!token && req.headers.authorization) {
+            token = req.headers.authorization.split(' ')[1];
+        }
+        if (!token) return res.status(401).send('Unauthorized. Token missing.');
+        
+        const jwt = require('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
+        try {
+            jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            return res.status(401).send('Unauthorized. Invalid token.');
+        }
+
         const rawFileId = req.params.fileId;
         const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
         if (!tokensStr) return res.status(500).send('No bot tokens configured');

@@ -162,6 +162,18 @@ async function startAdminBot() {
                     }
                 }
             }
+            else if (data.startsWith('make_admin_')) {
+                const userId = data.split('make_admin_')[1];
+                await User.findByIdAndUpdate(userId, { isAdmin: true });
+                bot.sendMessage(chatId, `✅ Admin rights granted!`);
+                sendUserProfile(chatId, userId, query.message.message_id);
+            }
+            else if (data.startsWith('remove_admin_')) {
+                const userId = data.split('remove_admin_')[1];
+                await User.findByIdAndUpdate(userId, { isAdmin: false });
+                bot.sendMessage(chatId, `✅ Admin rights removed!`);
+                sendUserProfile(chatId, userId, query.message.message_id);
+            }
             else if (data.startsWith('give_prem_')) {
                 const userId = data.split('give_prem_')[1];
                 adminState[chatId] = { action: 'awaiting_months', userId: userId };
@@ -241,6 +253,7 @@ async function sendUserProfile(chatId, userId, messageId = null) {
     const expiry = user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : 'N/A';
     const text = `👤 **Profile:** ${user.email}\n` +
                  `💎 **Premium:** ${user.isSubscribed ? 'Yes ✅' : 'No ❌'}\n` +
+                 `👨‍💻 **Admin:** ${user.isAdmin ? 'Yes ✅' : 'No ❌'}\n` +
                  `📅 **Expiry:** ${expiry}\n` +
                  `📱 **Locked Device:** ${user.deviceId ? 'Yes 🔒' : 'No 🔓'}`;
 
@@ -250,6 +263,12 @@ async function sendUserProfile(chatId, userId, messageId = null) {
         inline_keyboard.push([{ text: "🔴 Revoke Premium", callback_data: `revoke_user_${user._id}` }]);
     } else {
         inline_keyboard.push([{ text: "🟢 Give Premium", callback_data: `give_prem_${user._id}` }]);
+    }
+
+    if (user.isAdmin) {
+        inline_keyboard.push([{ text: "👨‍💻 Remove Admin", callback_data: `remove_admin_${user._id}` }]);
+    } else {
+        inline_keyboard.push([{ text: "👨‍💻 Make Admin", callback_data: `make_admin_${user._id}` }]);
     }
 
     if (user.deviceId) {
