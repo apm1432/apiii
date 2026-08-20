@@ -145,7 +145,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
     let attempts = 0;
     let lastError = null;
 
-    while (attempts < 3) {
+    while (attempts < 5) {
         const { key, model, waitTime } = await getNextAvailableKeyAndModel();
         
         if (waitTime > 0) {
@@ -181,7 +181,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
             const resp = await axios.post(url, payload, {
                 headers: { 'Content-Type': 'application/json' },
                 responseType: 'stream',
-                timeout: 30000
+                timeout: 60000
             });
 
             await updateModelState(key, model, "Success");
@@ -266,7 +266,7 @@ Output STRICTLY as a JSON object with NO markdown formatting:
         }
     }
 
-    throw new Error(`Failed after 3 attempts. Last error: ${lastError}`);
+    throw new Error(`Failed after 5 attempts. Last error: ${lastError}`);
 }
 
 module.exports = {
