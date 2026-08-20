@@ -685,8 +685,8 @@ function renderQuizQuestion(index, questions = currentQuestions) {
             </div>`;
         }
 
-        html += `<h4>Q${q.qnum || index + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
-            ${q.text_eng ? `<p style="${q.text ? 'color: var(--text-secondary); margin-top: 10px;' : ''}">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}
+        html += `<h4 style="white-space: pre-wrap;">Q${q.qnum || index + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+            ${q.text_eng ? `<p style="white-space: pre-wrap; ${q.text ? 'color: var(--text-secondary); margin-top: 10px;' : ''}">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}
             ${!q.text && !q.text_eng ? '<p>No text available</p>' : ''}
         </div>
     `;
@@ -755,6 +755,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
     html += `
         <div id="explanation-quiz-${q._id}" class="explanation ${userAnswers[q._id] ? '' : 'hidden'}">
             <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+            ${q.is_ai_fixed && q.ai_fixed_at ? `<div style="margin-top: 10px; font-size: 0.8rem; color: #8b5cf6;"><i class="fas fa-robot"></i> Last AI update: ${new Date(q.ai_fixed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>` : ''}
             ${optsExplHtml}
         </div>
     `;
@@ -907,8 +908,8 @@ function renderFullPaper(questions = currentQuestions) {
             </div>`;
         }
 
-        html += `<h4>${q.qnum || idx + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
-                 ${q.text_eng ? `<p style="color: var(--text-secondary); margin-bottom: 20px;">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}`;
+        html += `<h4 style="white-space: pre-wrap;">${q.qnum || idx + 1}. ${q.text ? q.text.replace(/\n/g, '<br>') : ''}</h4>
+                 ${q.text_eng ? `<p style="white-space: pre-wrap; color: var(--text-secondary); margin-bottom: 20px;">${q.text_eng.replace(/\n/g, '<br>')}</p>` : ''}`;
         if (!q.text && !q.text_eng) html += `<p>No text available</p>`;
         
         if (q.original_image_url) {
@@ -978,6 +979,7 @@ function renderFullPaper(questions = currentQuestions) {
         html += `
             <div id="explanation-full-${q._id}" class="explanation ${showExpl}">
                 <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+                ${q.is_ai_fixed && q.ai_fixed_at ? `<div style="margin-top: 10px; font-size: 0.8rem; color: #8b5cf6;"><i class="fas fa-robot"></i> Last AI update: ${new Date(q.ai_fixed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>` : ''}
                 ${optsExplHtml}
             </div>
         `;

@@ -23,7 +23,9 @@ const questionSchema = new mongoose.Schema({
   options_explanation: [{ type: String }],
   passage_marathi: { type: String },
   passage_english: { type: String },
-  passage_text: { type: String }
+  passage_text: { type: String },
+  is_ai_fixed: { type: Boolean, default: false },
+  ai_fixed_at: { type: Date }
 });
 
 module.exports = mongoose.model('Question', questionSchema);

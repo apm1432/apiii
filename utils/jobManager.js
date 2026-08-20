@@ -84,6 +84,8 @@ async function processJob(jobId) {
             // Update question in DB
             question.text = parsedContent.fixed_text || question.text;
             question.options = parsedContent.fixed_options || question.options;
+            question.text_eng = parsedContent.fixed_text_eng || question.text_eng;
+            question.options_eng = parsedContent.fixed_options_eng || question.options_eng;
             if (parsedContent.correct_answer_option) {
                 if (parsedContent.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
@@ -94,6 +96,7 @@ async function processJob(jobId) {
             question.toppers_explanation_marathi = parsedContent.fixed_explanation || question.toppers_explanation_marathi;
             question.options_explanation = parsedContent.fixed_options_explanation || question.options_explanation;
             question.is_ai_fixed = true;
+            question.ai_fixed_at = new Date();
 
             await question.save();
 
