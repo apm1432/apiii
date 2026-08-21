@@ -45,60 +45,61 @@ async function initializeKeys() {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+let keyMutex = Promise.resolve();
+
 async function getNextAvailableKeyAndModel() {
-    await initializeKeys();
-    const now = Date.now();
-    
-    const dbKeys = await AiKey.find({});
-    if (dbKeys.length === 0) {
-        throw new Error("No GEMINI_API_KEYS configured in database/env.");
-    }
+    return new Promise((resolve, reject) => {
+        keyMutex = keyMutex.then(async () => {
+            try {
+                await initializeKeys();
+                const now = Date.now();
+                
+                const dbKeys = await AiKey.find({});
+                if (dbKeys.length === 0) {
+                    throw new Error("No GEMINI_API_KEYS configured in database/env.");
+                }
 
-    let availableKeys = [];
+                let availableKeys = [];
+                for (let doc of dbKeys) {
+                    let waitTime = 0;
+                    const timeSinceLastUse = now - doc.lastUsed;
+                    if (timeSinceLastUse < doc.rpmDelayMs) {
+                        waitTime = doc.rpmDelayMs - timeSinceLastUse;
+                    }
+                    availableKeys.push({ key: doc.key, model: doc.model, waitTime, status: doc.status, rpmDelayMs: doc.rpmDelayMs });
+                }
 
-    for (let doc of dbKeys) {
-        let waitTime = 0;
-        if (now < doc.cooldownUntil) {
-            waitTime = doc.cooldownUntil - now;
-        }
+                // Sort by waitTime ascending to pick the most "ready" key (Round-Robin)
+                availableKeys.sort((a, b) => {
+                    if (a.waitTime !== b.waitTime) return a.waitTime - b.waitTime;
+                    if (a.status === 'Success' && b.status !== 'Success') return -1;
+                    if (b.status === 'Success' && a.status !== 'Success') return 1;
+                    return 0;
+                });
 
-        const timeSinceLastUse = now - doc.lastUsed;
-        if (timeSinceLastUse < doc.rpmDelayMs) {
-            const rpmWait = doc.rpmDelayMs - timeSinceLastUse;
-            waitTime = Math.max(waitTime, rpmWait);
-        }
-
-        availableKeys.push({ key: doc.key, model: doc.model, waitTime, status: doc.status });
-    }
-
-    // Sort by waitTime ascending. If waitTime is same, prioritize 'Success' status
-    availableKeys.sort((a, b) => {
-        if (a.waitTime !== b.waitTime) {
-            return a.waitTime - b.waitTime;
-        }
-        if (a.status === 'Success' && b.status !== 'Success') return -1;
-        if (b.status === 'Success' && a.status !== 'Success') return 1;
-        return 0;
+                if (availableKeys.length > 0) {
+                    const best = availableKeys[0];
+                    const effectiveUseTime = now + best.waitTime;
+                    
+                    // Reserve this key in the DB so next concurrent requests will see it as used
+                    await AiKey.updateOne(
+                        { key: best.key, model: best.model }, 
+                        { $set: { lastUsed: effectiveUseTime } }
+                    );
+                    
+                    resolve({ key: best.key, model: best.model, waitTime: best.waitTime });
+                    return;
+                }
+                reject(new Error("No keys available."));
+            } catch (e) {
+                reject(e);
+            }
+        });
     });
-
-    if (availableKeys.length > 0) {
-        const best = availableKeys[0];
-        return { key: best.key, model: best.model, waitTime: best.waitTime };
-    }
-
-    throw new Error("No keys available.");
 }
 
 async function updateModelState(key, model, status) {
-    const doc = await AiKey.findOne({ key, model });
-    if (doc) {
-        doc.lastUsed = Date.now();
-        doc.status = status;
-        if (status === "Exhausted") {
-            doc.cooldownUntil = Date.now() + 60000;
-        }
-        await doc.save();
-    }
+    await AiKey.updateOne({ key, model }, { $set: { status } });
 }
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
@@ -242,20 +243,34 @@ Output STRICTLY as a JSON object with NO markdown formatting:
             }
             
             const parsed = JSON.parse(cleanText.trim());
-            if (onChunk) onChunk(`\n\n[System] Done!\n`);
+            if (onChunk) onChunk(`\n\n[System] Done! Applying rate-limit delay based on model...`);
+            
+            let delayMs = 5000; // default 5 seconds
+            if (model.toLowerCase().includes('flash') && !model.toLowerCase().includes('lite') && !model.toLowerCase().includes('8b')) {
+                delayMs = 15000; // 15 seconds for flash
+            } else if (model.toLowerCase().includes('lite') || model.toLowerCase().includes('8b')) {
+                delayMs = 5000; // 5 seconds for lite/flash-8b
+            } else if (model.toLowerCase().includes('pro')) {
+                delayMs = 30000; // 30 seconds for pro
+            }
+            
+            if (onChunk) onChunk(` (${delayMs / 1000}s)\n`);
+            await sleep(delayMs);
+
             return parsed;
 
         } catch (error) {
             if (error.response) {
                 const status = error.response.status;
                 if (status === 429) {
-                    if (onChunk) onChunk(`\n[System] ERROR 429. API Key rate limited. Changing key...`);
-                    await AiKey.updateMany({ key: key }, { $set: { status: "Exhausted", cooldownUntil: Date.now() + 60000 } });
+                    if (onChunk) onChunk(`\n[System] ERROR 429. API Key rate limited. Pushing to back of queue...`);
+                    // Just set status to Exhausted and lastUsed to now, so it goes to back of queue based on rpmDelayMs
+                    await AiKey.updateMany({ key: key }, { $set: { status: "Exhausted", lastUsed: Date.now() } });
                     lastError = "Rate limited (429).";
                     attempts++;
                 } else if (status === 503) {
-                    if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Changing model...`);
-                    await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", cooldownUntil: Date.now() + 60000 } });
+                    if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Pushing to back of queue...`);
+                    await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", lastUsed: Date.now() } });
                     lastError = "Model is currently experiencing high demand (503).";
                     attempts++;
                 } else {
