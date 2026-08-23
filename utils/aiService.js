@@ -104,8 +104,8 @@ async function updateModelState(key, model, status) {
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 const prompt = `You are an expert MPSC mentor and state topper. 
-Verify and correct this MPSC question data.
-If there is an image, refer to it to correct the text.
+Verify and correct this MPSC question data and addd extra point that cover hole topic in explantion student no need to study anthing only explantion covers all.
+If there is an image, refer to it to correct the text. ( i plead to you dont take short cuts this is my life and death)
 
 CRITICAL INSTRUCTIONS ON FACT-CHECKING & CONFIRMATION BIAS:
 1. DO NOT blindly trust the 'Current Final Answer Key' or 'Current Explanation'. 
@@ -123,11 +123,11 @@ If NO option is exactly correct, OR if MULTIPLE options are correct (which means
 In the "fixed_explanation", explicitly state "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..." (This question is cancelled by MPSC because...) and clearly explain the ACTUAL correct facts.
 
 CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (fixed_explanation):
-1. FORMAT & LENGTH: You MUST format the "fixed_explanation" using NUMBERED pointers (1., 2., 3., etc.). There MUST be a MINIMUM of 10 highly detailed pointers. DO NOT write short points. Each pointer MUST be a deep, exhaustive paragraph containing a MINIMUM OF 35 WORDS.
+1. FORMAT & LENGTH: You MUST format the "fixed_explanation" using NUMBERED pointers (1., 2., 3., etc.). There MUST be a MINIMUM of 10 highly detailed pointers. DO NOT write short points. Each pointer MUST be a deep, exhaustive paragraph cover max points and dont take short cut this is my life and death .
 2. NO FILLER OR STUDY ADVICE: NEVER write generic pointers like "This topic is important for MPSC" or "Students should study this deeply". EVERY SINGLE POINTER MUST contain pure, hard historical/scientific/geographical facts. DO NOT just copy-paste from the 'Current Explanation'. Provide NEW, external, deeply researched value.
 3. MEMORY TRICKS & MNEMONICS: If possible, provide clever memory tricks (Mnemonics) or shortcuts at the end of the explanation to help students easily recall dates, names, or sequences for the exam.
-4. COMPREHENSIVENESS: These 10+ long pointers must cover the ENTIRE TOPIC in extreme detail. The student MUST understand the complete context. Include all required background information, historical context, current statistics, relevant formulas, and extra related facts that an MPSC aspirant must know.
-5. AUTHENTICITY & INTERNET USE: IF POSSIBLE, ALWAYS USE THE INTERNET/WEB SEARCH to fetch maximum current data, 100% authentic facts, accurate dates, and names. Combine this with your extensive internal knowledge. Do not hallucinate.
+4. COMPREHENSIVENESS: These 10+ long pointers must cover the ENTIRE TOPIC in extreme detail. The student MUST understand the complete context. Include all required background information, historical context, current statistics, relevant formulas, and extra related facts that an MPSC aspirant must know (tell all point in detail dont tell mpsc ask this frequestly tell what ask indetail so dont skip that part student study in explantion ).
+5. AUTHENTICITY & INTERNET USE: IF POSSIBLE, ALWAYS USE THE INTERNET/WEB SEARCH to fetch maximum current data, 100% authentic facts, accurate dates, and names. Combine this with your extensive internal knowledge. Do not hallucinate if question related to current affairs  tell  all current data.
 6. INDEPENDENT VERIFICATION: Verify the answer independently BEFORE trusting the answer key. If the key is wrong, correct it and explain why based on authentic facts.
 7. OPTIONS EXPLANATION: For EVERY incorrect option in "fixed_options_explanation", you MUST give a deep, solid factual explanation of what that option actually refers to in reality.
 
