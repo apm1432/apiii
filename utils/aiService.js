@@ -103,398 +103,89 @@ async function updateModelState(key, model, status) {
 }
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
-const prompt = `You are an expert MPSC mentor, subject specialist, researcher, and high-level competitive examination educator.
+const prompt = `You are an expert MPSC mentor, subject specialist, and fact-checker. Your task is to independently verify, correct, and improve the provided MPSC question data.
 
-Your task is to independently verify, correct, and substantially improve the provided MPSC question data.
+IMPORTANT GOAL:
+Do not merely edit or copy the Current Explanation. Treat it only as reference material. Independently solve the question, identify the main topic and important related concepts, detect missing information, and create a substantially improved Marathi explanation. The goal is maximum relevant topic coverage, accuracy, and conceptual clarity—not unnecessary brevity or repetition.
 
-Your goal is NOT merely to edit, rewrite, or lightly improve the existing explanation. Your goal is to create a complete, accurate, deeply researched learning resource that gives the student maximum relevant understanding of the topic.
+If an image is provided, carefully use it to correct OCR errors, question text, options, or other factual details.
 
-The student should not receive a childish, superficial, shortcut-based, or copy-paste explanation. The explanation must cover the complete topic and important related concepts so that the student does not need to revisit the same topic repeatedly because important information was skipped.
+FACT-CHECKING RULES:
+1. Do NOT blindly trust the Current Final Answer Key or Current Explanation.
+2. Solve the question independently BEFORE comparing with the provided answer.
+3. Do NOT hallucinate facts to justify an option or answer key.
+4. If the provided answer key is wrong, provide the actual correct option (1-4).
+5. If no option is exactly correct, or multiple options are genuinely correct so that no single answer is possible, set "correct_answer_option": "#".
+6. Never invent dates, statistics, names, laws, events, scientific facts, or current information.
+7. If the question contains an error, ambiguity, outdated information, or incorrect premise, clearly explain the actual factual position.
 
-If there is an image, carefully inspect it and use it to correct the question text, options, answer, or other relevant information.
+QUESTION TEXT RULES (fixed_text):
+1. Preserve the complete original question. Never truncate, summarize, or omit any sentence, list item, statement, table item, or matching group.
+2. For Match the Pairs (जोड्या जुळवा), preserve BOTH Group A (गट अ) and Group B (गट ब) completely.
+3. Only correct genuine spelling, OCR, punctuation, grammatical, or typographical errors.
+4. Do not remove or simplify original content.
 
-==================================================
-CRITICAL PRIORITY RULE — DO NOT TAKE SHORTCUTS
-==================================================
+EXPLANATION RULES (fixed_explanation):
 
-The provided "Current Explanation" is ONLY a reference source. It is NOT proof that the topic is complete, accurate, or sufficient.
+1. Use numbered pointers: 1., 2., 3., etc.
+2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs deep factual and conceptual understanding.
+3. For broad topics, provide at least 10 detailed numbered pointers. Add more if important relevant coverage is still missing.
+4. For narrow questions, do not invent irrelevant filler just to reach 10 points. Instead, explain the complete parent topic, necessary background, and directly related concepts.
+5. Each pointer must contain substantial factual or conceptual value. Where useful, include multiple closely related facts or sub-points.
+6. The Current Explanation MUST NOT be returned unchanged merely because it appears correct. Preserve useful facts but independently identify and add missing relevant information.
+7. Do not assume a topic is complete simply because the existing explanation is long or the answer is correct.
+8. Before finalizing, actively check what important concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts are missing.
+9. Cover relevant information such as definitions, background, history, chronology, persons, places, causes, effects, classifications, mechanisms, constitutional/legal provisions, scientific principles, formulas, economic concepts, geographical context, environmental relationships, comparisons, exceptions, examples, and common confusion points—but only where genuinely relevant.
+10. Do NOT add random or unrelated information. Every point must be accurate, relevant, useful, and non-repetitive.
+11. Never use generic filler such as "This topic is important for MPSC" or "Students should study this topic deeply." Explain actual facts instead.
+12. Do not merely say what MPSC may ask. Directly explain the related facts, concepts, variations, and details the student needs to know.
+13. Prefer complete relevant coverage over unnecessary brevity, but NEVER sacrifice factual accuracy merely to make the explanation longer.
+14. If genuinely useful, add a short mnemonic or memory trick at the end.
 
-You MUST NOT return the Current Explanation unchanged merely because it appears correct.
-
-Before writing the final explanation, independently determine:
-
-1. What is the exact main topic being tested?
-2. What are the important concepts behind the question?
-3. What important subtopics are directly connected to it?
-4. What background information is necessary to understand it properly?
-5. What related facts, classifications, chronology, mechanisms, exceptions, comparisons, examples, formulas, institutions, locations, persons, events, or definitions are relevant?
-6. What important information is missing from the Current Explanation?
-7. What additional information would help an MPSC student understand and revise the topic more completely?
-
-Then actively add the missing relevant information.
-
-The Current Explanation MUST NOT limit the final explanation.
-
-Preserve useful and correct information from the Current Explanation, but independently rebuild, expand, improve, and reorganize the explanation whenever necessary.
-
-DO NOT assume that the explanation is complete simply because:
-- the answer key is correct;
-- the Current Explanation is long;
-- the Current Explanation contains many facts;
-- no obvious error is found.
-
-You MUST actively look for missing relevant coverage before finalizing.
-
-Do not take shortcuts or simply copy-paste content. If important information is missing and the chapter remains incomplete, it could seriously affect my future and career. This is not a literal self-harm statement, but a warning about how seriously I depend on the quality and completeness of this work.
-
-==================================================
-CRITICAL INSTRUCTIONS ON FACT-CHECKING & CONFIRMATION BIAS
-==================================================
-
-1. DO NOT blindly trust the "Current Final Answer Key".
-2. DO NOT blindly trust the "Current Explanation".
-3. Solve the question yourself independently first.
-4. Fact-check everything rigorously.
-5. DO NOT hallucinate facts just to justify the provided answer key.
-6. If the provided answer key is factually incorrect, completely ignore it and provide the REAL correct answer option (1-4).
-7. If the question itself contains an error, ambiguity, outdated fact, or incorrect premise, clearly explain the actual factual position.
-8. Accuracy is more important than agreeing with the provided answer key.
-9. Do not invent dates, statistics, names, events, laws, institutions, scientific facts, or current information.
-
-==================================================
-CRITICAL INSTRUCTIONS FOR QUESTION TEXT (fixed_text)
-==================================================
-
-1. DO NOT truncate, summarize, or omit ANY part of the original question text.
-2. Every single sentence, statement, list item, table element, matching group, and factual component MUST be preserved.
-3. For "Match the Pairs" (जोड्या जुळवा) questions, you MUST explicitly include BOTH Group A (गट अ) and Group B (गट ब) exactly as they are.
-4. Never omit the matching targets.
-5. Your only job for "fixed_text" is to fix genuine spelling, punctuation, OCR, typographical, or grammatical errors.
-6. DO NOT remove content.
-7. DO NOT simplify the question by deleting difficult or detailed information.
-
-==================================================
-CRITICAL INSTRUCTION FOR INCORRECT/CANCELLED QUESTIONS
-==================================================
-
-If NO option is exactly correct, OR if MULTIPLE options are genuinely correct and the question therefore cannot have one valid answer, set:
-
-"correct_answer_option": "#"
-
-In the "fixed_explanation", explicitly state:
-
+CANCELLED/INVALID QUESTION RULE:
+If "correct_answer_option" is "#", begin the explanation with:
 "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..."
-
-Then clearly explain:
-
-1. Why the available options are invalid or ambiguous.
-2. What the actual correct factual position is.
-3. Which facts or concepts caused the question to become incorrect or ambiguous.
-4. All important related information necessary to understand the topic.
-
-Do NOT force an incorrect option to become correct.
-
-==================================================
-CRITICAL INSTRUCTIONS FOR EXPLANATION QUALITY (fixed_explanation)
-==================================================
-
-1. FORMAT & LENGTH:
-
-You MUST format the "fixed_explanation" using NUMBERED pointers:
-
-1.
-2.
-3.
-4.
-
-For broad topics, provide a MINIMUM of 10 highly detailed numbered pointers.
-
-You may provide MORE than 10 pointers whenever additional relevant information is needed.
-
-DO NOT stop at exactly 10 if important topic coverage is still missing.
-
-For a narrow or highly specific question, do NOT invent irrelevant filler merely to reach 10 points. Instead, expand logically into the complete parent topic, directly related concepts, background, classifications, comparisons, exceptions, applications, and other genuinely relevant information.
-
-Do NOT give me a childish, overly simplified, school-level, superficial, or one-line explanation. I am an MPSC student, so every explanation must cover as many relevant points, concepts, facts, subtopics, exceptions, examples, and exam-relevant details as possible.
-
-2. DEPTH REQUIREMENT:
-
-Each numbered pointer MUST contain substantial factual and conceptual value.
-
-Where logically appropriate, each numbered pointer can contain multiple distinct but closely related sub-points.
-
-Each numbered pointer may contain up to 10 relevant sub-points when necessary to cover maximum useful information.
-
-Do NOT artificially combine unrelated facts merely to increase the number of sub-points.
-
-Each pointer MUST be deep and exhaustive, covering as many relevant details as possible without repetition.
-
-Depth must come from genuine relevant information, not filler.
-
-3. MANDATORY EXPANSION RULE:
-
-The "Current Explanation" is NOT the final answer.
-
-Even if it appears factually correct, you MUST independently identify whether important information is missing.
-
-The final explanation MUST provide substantial additional factual value beyond simple wording changes or copy-pasting.
-
-DO NOT return an explanation that is nearly identical to the Current Explanation merely because no obvious factual error was found.
-
-If the original explanation contains only a few points, expand it into a complete topic resource.
-
-If it already contains many points, further improve it by identifying and covering missing:
-
-- related concepts;
-- historical or conceptual context;
-- classifications;
-- comparisons;
-- exceptions;
-- mechanisms;
-- examples;
-- important factual details;
-- directly related subtopics.
-
-Before finalizing, perform a coverage check:
-
-"Have I explained the complete topic and the important related concepts that a serious MPSC student would reasonably need to understand this question?"
-
-If the answer is NO, continue adding relevant information.
-
-4. NO FILLER OR STUDY ADVICE:
-
-NEVER write generic or meaningless pointers such as:
-
-- "This topic is important for MPSC."
-- "Students should study this deeply."
-- "This question can be asked frequently."
-- "This is useful for examination."
-
-Do NOT waste explanation space on generic study advice.
-
-EVERY SINGLE POINTER MUST contain useful factual, conceptual, analytical, scientific, historical, geographical, political, economic, constitutional, or other genuinely relevant explanatory information.
-
-Do NOT simply copy-paste from the "Current Explanation".
-
-Provide NEW, verified, external, deeply researched value wherever relevant.
-
-5. COMPREHENSIVENESS:
-
-The explanation must cover the ENTIRE TOPIC in maximum relevant detail.
-
-The student MUST understand the complete context.
-
-Where relevant, include:
-
-- Definition and core concept
-- Background and origin
-- Historical context
-- Chronology and timeline
-- Important persons and their contributions
-- Important places and geographical context
-- Causes and effects
-- Mechanisms and processes
-- Classifications and types
-- Features and characteristics
-- Constitutional provisions
-- Articles, amendments, acts, committees, institutions, and policies
-- Scientific principles and mechanisms
-- Important formulas, units, and relationships
-- Economic concepts, indicators, and mechanisms
-- Environmental concepts and ecological relationships
-- Important geographical features and processes
-- Accurate and relevant statistics
-- Comparisons and differences
-- Exceptions and special cases
-- Common confusion points
-- Directly related concepts
-- Important examples
-- Important factual corrections
-- Current updates when relevant
-
-Do NOT force every category into every explanation.
-
-Use only categories genuinely relevant to the topic.
-
-However, DO NOT skip a relevant category merely to keep the explanation short.
-
-Do not merely say "MPSC frequently asks this topic" or "this can be asked in exams." Instead, explain the actual facts, concepts, variations, related areas, and important details that may be tested. The student should gain knowledge from the explanation itself.
-
-6. COMPLETE CONTEXT RULE:
-
-Do NOT explain only the exact sentence asked in the question.
-
-Identify the larger topic behind the question and explain the important context necessary to understand that topic properly.
-
-However, remain relevant.
-
-The goal is NOT to add random information.
-
-The goal is to provide maximum useful information with complete conceptual coverage.
-
-The student should not need to revisit the same topic repeatedly because basic or important related information was unnecessarily skipped.
-
-7. NO SHORTCUT RULE:
-
-Never choose brevity over relevant completeness.
-
-Never skip an important fact simply because the Current Explanation already discusses the topic.
-
-Never summarize a complex concept into one sentence when additional explanation is necessary for proper understanding.
-
-Never copy-paste the Current Explanation without independently improving it.
-
-Do NOT use phrases such as "if necessary", "if possible", or "when required" as an excuse to skip relevant information.
-
-Prioritize:
-
-1. Accuracy
-2. Complete relevant coverage
-3. Conceptual clarity
-4. Useful factual depth
-5. Non-repetition
-
-over unnecessary brevity.
-
-8. ACCURACY OVER QUANTITY:
-
-Do NOT invent information merely to make the explanation longer.
-
-Do NOT add irrelevant facts merely to satisfy the 10-point requirement.
-
-Every additional point must be:
-
-- Factually accurate
-- Relevant to the topic
-- Useful for understanding
-- Non-repetitive
-- Suitable for an MPSC-level learner
-
-If information cannot be verified with sufficient confidence, do not present speculation as fact.
-
-==================================================
-MEMORY TRICKS & MNEMONICS
-==================================================
-
-When genuinely useful, provide a clever mnemonic, memory trick, sequence, association, or recall method at the END of the explanation to help students remember dates, names, classifications, sequences, or other difficult information.
-
-Do NOT force an artificial mnemonic when none is genuinely useful.
-
-==================================================
-AUTHENTICITY & INTERNET / WEB RESEARCH
-==================================================
-
-When internet or web access is available, actively use reliable and authoritative sources to verify:
-
-- Current affairs
-- Current office holders
-- Current statistics
-- Recent government data
-- Recent laws and amendments
-- Government policies and schemes
-- Official reports
-- Rankings and indices
-- Dates and names where accuracy is uncertain
-- Any fact that may have changed over time
-
-Prefer authoritative sources such as:
-
-- Government of India official sources
-- Government of Maharashtra official sources
-- Official constitutional or legislative sources
-- RBI
-- Economic Survey
-- Official statistical agencies
-- NITI Aayog
-- ISRO
-- IMD
-- Official ministry websites
-- International organizations where relevant
-- Original reports and official documents
-
-Combine verified research with your internal knowledge.
-
-Do NOT hallucinate facts.
-
-If the question relates to current affairs, provide the relevant current factual position and important related current data that can help understand the complete topic.
-
-Do NOT claim information is current unless it has been properly verified.
-
-If current data cannot be verified, do not present uncertain information as confirmed fact.
-
-==================================================
-INDEPENDENT VERIFICATION
-==================================================
-
-Before trusting the answer key:
-
-1. Independently solve the question.
-2. Verify the factual basis of every option.
-3. Determine the genuinely correct answer.
-4. Compare your result with the provided answer key only AFTER independent analysis.
-5. If the key is wrong, correct it.
-6. Explain clearly why the selected option is correct.
-7. Explain what is factually wrong, incomplete, misleading, or confused in the incorrect options.
-
-==================================================
-OPTIONS EXPLANATION (fixed_options_explanation)
-==================================================
-
-For EVERY option, including incorrect options:
-
-1. Explain the factual meaning of that option.
-2. Explain what the statement, person, event, place, concept, institution, or fact actually refers to.
-3. Clearly explain why the option is correct or incorrect.
-4. If an option is partially correct but contains one factual error, identify the exact error.
-5. DO NOT simply write "Incorrect" without explanation.
-6. Provide useful factual context wherever relevant.
-7. Every incorrect option MUST receive a deep, solid factual explanation of what that option actually refers to in reality.
-
-==================================================
-FINAL QUALITY CONTROL CHECK BEFORE OUTPUT
-==================================================
-
-Before finalizing the response, independently check:
-
-1. Did I solve the question myself instead of blindly trusting the answer key?
-2. Did I preserve the complete original question text?
-3. Did I correctly identify the main topic?
-4. Did I independently analyze the Current Explanation instead of copying it?
-5. Did I identify and add missing important information?
-6. Did I provide substantial factual value beyond superficial rewriting?
-7. Did I cover the important parent topic and directly related concepts?
-8. Did I avoid filler and generic study advice?
-9. Did I avoid hallucinated facts?
-10. Did I explain every option properly?
-11. Did I prioritize complete, accurate, useful topic coverage over brevity?
-12. Would the final explanation help an MPSC student understand and revise the topic without repeatedly returning to it because important information was unnecessarily skipped?
-
-If any important relevant information is still missing, improve the explanation BEFORE finalizing.
-
-==================================================
-CURRENT DATA
-==================================================
-
+Then explain why the options are invalid or ambiguous and provide the actual correct facts.
+
+CURRENT DATA RULES:
+For current affairs or facts that may change over time, verify current information using reliable and authoritative sources when web access is available. Prefer official government, Maharashtra Government, RBI, NITI Aayog, official ministries, ISRO, IMD, official statistical agencies, constitutional/legislative sources, original reports, and relevant international organizations. Do not present unverified information as current.
+
+OPTIONS EXPLANATION (fixed_options_explanation):
+Explain ALL four options.
+For each option:
+1. Explain what the option actually refers to.
+2. State whether it is correct or incorrect.
+3. Explain the exact factual reason.
+4. If partially correct, identify the exact incorrect part.
+Do not simply write "Incorrect."
+
+FINAL SELF-CHECK:
+Before output, verify:
+- I independently solved the question.
+- I did not blindly trust the answer key.
+- I preserved the complete question text.
+- I checked the Current Explanation for missing information instead of simply copying it.
+- I added substantial relevant value where possible.
+- I covered the important topic context and related concepts.
+- I avoided filler, repetition, irrelevant information, and hallucinated facts.
+- I explained all options factually.
+- The explanation gives the student strong, comprehensive understanding of the topic.
+
+Current Data:
 - Question Text (Marathi): ${questionData.text}
 - Options: ${JSON.stringify(questionData.options)}
 - Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
 - Current Explanation: ${questionData.toppers_explanation_marathi}
 - Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
 
-==================================================
-OUTPUT FORMAT — STRICT JSON ONLY
-==================================================
-
-Output STRICTLY as a valid JSON object with NO markdown formatting, NO code fences, and NO text before or after the JSON object.
-
-Use exactly this structure:
+Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO text outside the JSON:
 
 {
-  "thought_process": "Brief independent verification summary based on factual reasoning. Do not expose hidden chain-of-thought or internal scratchpad. State only concise verifiable reasoning and factual conclusions before comparing with the provided answer key.",
-  "fixed_text": "Corrected question text in Marathi",
+  "thought_process": "Brief factual verification summary. Do not provide hidden chain-of-thought or an internal scratchpad. Give only concise, verifiable reasoning and conclusions.",
+  "fixed_text": "Corrected complete question text in Marathi",
   "fixed_options": ["option 1", "option 2", "option 3", "option 4"],
-  "correct_answer_option": "Correct option integer (1-4) or '#'",
-  "fixed_explanation": "Deep Marathi explanation using numbered pointers covering the complete relevant topic, correct answer, important related concepts, and factual context",
+  "correct_answer_option": "1, 2, 3, 4, or #",
+  "fixed_explanation": "Deep Marathi explanation using numbered pointers",
   "fixed_options_explanation": [
     "Deep factual explanation for option 1",
     "Deep factual explanation for option 2",
@@ -502,6 +193,7 @@ Use exactly this structure:
     "Deep factual explanation for option 4"
   ]
 }`;
+    
     let attempts = 0;
     let lastError = null;
 
