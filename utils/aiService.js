@@ -106,7 +106,9 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 const prompt = `You are an expert MPSC mentor, subject specialist, and fact-checker. Your task is to independently verify, correct, and improve the provided MPSC question data.
 
 IMPORTANT GOAL:
-Do not merely edit or copy the Current Explanation. Treat it only as reference material. Independently solve the question, identify the main topic and important related concepts, detect missing information, and create a substantially improved Marathi explanation. The goal is maximum relevant topic coverage, accuracy, and conceptual clarity—not unnecessary brevity or repetition.
+Do not merely edit or copy the Current Explanation. Treat it only as reference material. Independently solve the question, identify the main topic and important related concepts, detect missing information, and create a substantially improved Marathi explanation.
+
+The goal is MAXIMUM RELEVANT TOPIC COVERAGE, factual accuracy, conceptual clarity, and FAST REVISION. Do not unnecessarily stretch existing points into long paragraphs when distinct information can be presented as separate numbered points.
 
 If an image is provided, carefully use it to correct OCR errors, question text, options, or other factual details.
 
@@ -128,36 +130,136 @@ QUESTION TEXT RULES (fixed_text):
 EXPLANATION RULES (fixed_explanation):
 
 1. Use numbered pointers: 1., 2., 3., etc.
-2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs deep factual and conceptual understanding.
-3. For broad topics, provide at least 10 detailed numbered pointers. Add more if important relevant coverage is still missing.
-4. For narrow questions, do not invent irrelevant filler just to reach 10 points. Instead, explain the complete parent topic, necessary background, and directly related concepts.
-5. Each pointer must contain substantial factual or conceptual value. Where useful, include multiple closely related facts or sub-points.
-6. The Current Explanation MUST NOT be returned unchanged merely because it appears correct. Preserve useful facts but independently identify and add missing relevant information.
-7. Do not assume a topic is complete simply because the existing explanation is long or the answer is correct.
-8. Before finalizing, actively check what important concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts are missing.
-9. Cover relevant information such as definitions, background, history, chronology, persons, places, causes, effects, classifications, mechanisms, constitutional/legal provisions, scientific principles, formulas, economic concepts, geographical context, environmental relationships, comparisons, exceptions, examples, and common confusion points—but only where genuinely relevant.
-10. Do NOT add random or unrelated information. Every point must be accurate, relevant, useful, and non-repetitive.
-11. Never use generic filler such as "This topic is important for MPSC" or "Students should study this topic deeply." Explain actual facts instead.
-12. Do not merely say what MPSC may ask. Directly explain the related facts, concepts, variations, and details the student needs to know.
-13. Prefer complete relevant coverage over unnecessary brevity, but NEVER sacrifice factual accuracy merely to make the explanation longer.
-14. If genuinely useful, add a short mnemonic or memory trick at the end.
+
+2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs strong factual and conceptual understanding.
+
+3. IMPORTANT POINTER STYLE:
+Do NOT artificially limit the explanation to exactly 10 pointers. The number of pointers must depend on the number of distinct relevant facts, concepts, events, features, exceptions, classifications, comparisons, and related subtopics.
+
+For broad topics, aim for approximately 15–30+ numbered pointers whenever the topic genuinely contains that many relevant points. Do NOT stop at 10 if important information is still missing.
+
+For narrow questions, do NOT invent irrelevant filler merely to increase the number of pointers. Instead, explain the complete parent topic, necessary background, and directly related concepts.
+
+4. NEW DISTINCT FACT RULE:
+Whenever a genuinely new and distinct important fact, concept, event, feature, exception, date, person, place, classification, comparison, or related subtopic is added, prefer creating a NEW numbered pointer instead of stretching an existing pointer.
+
+Do NOT merge many independent facts into one excessively long paragraph merely to keep the number of pointers low.
+
+Related facts belonging to the same concept may remain together in one pointer.
+
+5. POINTER LENGTH:
+Keep each pointer concise but information-dense. Prefer approximately 20–60 words per numbered pointer when possible.
+
+Do not make every pointer unnecessarily long. The goal is that the student should be able to quickly identify, understand, and revise individual facts.
+
+A pointer may be longer when the concept genuinely requires additional explanation, but do NOT stretch or repeat information merely to make it look detailed.
+
+6. CURRENT EXPLANATION IMPROVEMENT:
+The Current Explanation MUST NOT be returned unchanged merely because it appears correct.
+
+Preserve useful and accurate facts, but independently identify missing relevant information and add it.
+
+Do not assume a topic is complete simply because the existing explanation is long or the answer is correct.
+
+Before finalizing, actively check what important concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts are missing.
+
+7. TOPIC COVERAGE:
+Where genuinely relevant, cover:
+- Definitions and core concepts
+- Background and origin
+- History and chronology
+- Important persons and contributions
+- Important places and geographical context
+- Causes and effects
+- Mechanisms and processes
+- Classifications and types
+- Features and characteristics
+- Constitutional and legal provisions
+- Articles, amendments, acts, committees, institutions, and policies
+- Scientific principles and mechanisms
+- Important formulas, units, and relationships
+- Economic concepts, indicators, and mechanisms
+- Environmental concepts and ecological relationships
+- Geographical features and processes
+- Accurate and relevant statistics
+- Comparisons and differences
+- Exceptions and special cases
+- Common confusion points
+- Directly related concepts
+- Important examples
+- Important factual corrections
+- Current updates when genuinely relevant
+
+Do NOT force every category into every explanation. Use only genuinely relevant information, but do NOT skip an important relevant area merely to keep the answer short.
+
+8. NO FILLER:
+Never use generic filler such as:
+"This topic is important for MPSC."
+"Students should study this topic deeply."
+"This question can be asked frequently."
+
+Do not merely say what MPSC may ask. Directly explain the actual facts, concepts, variations, and details that the student needs to know.
+
+Every numbered pointer must contain useful factual, conceptual, analytical, or explanatory value.
+
+9. ACCURACY AND RELEVANCE:
+Do NOT add random or unrelated information merely to increase the number of pointers.
+
+Every point must be:
+- Factually accurate
+- Directly or meaningfully relevant
+- Useful for understanding or revision
+- Non-repetitive
+
+Prefer maximum relevant coverage over unnecessary brevity, but NEVER sacrifice factual accuracy merely to make the explanation longer.
+
+10. FAST REVISION PRIORITY:
+Structure the explanation so that important distinct facts are easy to find during revision.
+
+Prefer separate numbered pointers for separate important pieces of information instead of hiding many independent facts inside a few very long paragraphs.
+
+The goal is:
+MAXIMUM RELEVANT INFORMATION + CLEAR SEPARATE POINTS + FAST REVISION.
+
+11. MEMORY TRICKS:
+If genuinely useful, add a short mnemonic or memory trick at the end. Do not force an artificial mnemonic.
 
 CANCELLED/INVALID QUESTION RULE:
 If "correct_answer_option" is "#", begin the explanation with:
 "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..."
-Then explain why the options are invalid or ambiguous and provide the actual correct facts.
+
+Then explain:
+1. Why the options are invalid or ambiguous.
+2. What the actual correct factual position is.
+3. The important related facts needed to understand the topic.
 
 CURRENT DATA RULES:
-For current affairs or facts that may change over time, verify current information using reliable and authoritative sources when web access is available. Prefer official government, Maharashtra Government, RBI, NITI Aayog, official ministries, ISRO, IMD, official statistical agencies, constitutional/legislative sources, original reports, and relevant international organizations. Do not present unverified information as current.
+For current affairs or facts that may change over time, verify current information using reliable and authoritative sources when web access is available.
+
+Prefer official sources such as:
+- Government of India
+- Government of Maharashtra
+- RBI
+- NITI Aayog
+- Official Ministries
+- ISRO
+- IMD
+- Official statistical agencies
+- Constitutional or legislative sources
+- Original reports
+- Relevant international organizations
+
+Do not present unverified information as current or confirmed.
 
 OPTIONS EXPLANATION (fixed_options_explanation):
 Explain ALL four options.
+
 For each option:
 1. Explain what the option actually refers to.
 2. State whether it is correct or incorrect.
 3. Explain the exact factual reason.
 4. If partially correct, identify the exact incorrect part.
-Do not simply write "Incorrect."
+5. Do not simply write "Incorrect."
 
 FINAL SELF-CHECK:
 Before output, verify:
@@ -165,11 +267,13 @@ Before output, verify:
 - I did not blindly trust the answer key.
 - I preserved the complete question text.
 - I checked the Current Explanation for missing information instead of simply copying it.
-- I added substantial relevant value where possible.
-- I covered the important topic context and related concepts.
+- I added relevant missing information where possible.
+- I used separate numbered pointers for distinct important facts whenever appropriate.
+- I did not artificially stop at 10 points.
+- I covered important topic context and directly related concepts.
 - I avoided filler, repetition, irrelevant information, and hallucinated facts.
 - I explained all options factually.
-- The explanation gives the student strong, comprehensive understanding of the topic.
+- The explanation provides maximum relevant coverage while remaining easy and fast to revise.
 
 Current Data:
 - Question Text (Marathi): ${questionData.text}
@@ -184,15 +288,14 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
   "fixed_text": "Corrected complete question text in Marathi",
   "fixed_options": ["option 1", "option 2", "option 3", "option 4"],
   "correct_answer_option": "1, 2, 3, 4, or #",
-  "fixed_explanation": "Deep Marathi explanation using numbered pointers",
+  "fixed_explanation": "Deep Marathi explanation using concise, information-dense numbered pointers",
   "fixed_options_explanation": [
     "Deep factual explanation for option 1",
     "Deep factual explanation for option 2",
     "Deep factual explanation for option 3",
     "Deep factual explanation for option 4"
   ]
-}`;
-    
+}`;    
     let attempts = 0;
     let lastError = null;
 
