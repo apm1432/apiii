@@ -132,7 +132,44 @@ EXPLANATION RULES (fixed_explanation):
 1. Use numbered pointers: 1., 2., 3., etc.
 
 2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs strong factual and conceptual understanding.
+MANDATORY FACT AND CONCEPT COVERAGE CHECK:
 
+Before writing the final explanation, first identify the complete set of important facts required to understand the topic. Do not select only a few convenient facts.
+
+Wherever relevant, you MUST actively check for and include:
+
+1. Important dates, years, periods, timelines, and chronological sequence.
+2. Important concepts and their exact meaning.
+3. Definitions and key terminology.
+4. Origin, background, and historical context.
+5. Important persons, organizations, committees, institutions, and their contributions.
+6. Important events and their causes and consequences.
+7. Important laws, acts, constitutional provisions, articles, amendments, policies, and schemes.
+8. Classifications, types, stages, components, and important features.
+9. Relationships, differences, comparisons, and common confusion points.
+10. Exceptions, limitations, special cases, and factual corrections.
+11. Important places, locations, regions, and geographical context where relevant.
+12. Relevant statistics, data, formulas, scientific principles, mechanisms, or processes.
+13. Directly related concepts that are necessary to understand the complete parent topic.
+
+DATE PRESERVATION RULE:
+If a date, year, period, or chronological event is important for understanding the topic or is exam-relevant, DO NOT omit it.
+
+Do not replace important dates with vague phrases such as "later", "after that", "during that period", or "in the following years" when the exact date or year is known and relevant.
+
+CONCEPT COMPLETENESS RULE:
+Do not explain only the fact directly asked in the question. Identify the underlying concept and cover its essential components, related concepts, background, mechanism, classification, and important exceptions wherever relevant.
+
+FINAL MISSING-FACT AUDIT:
+Before producing the JSON, perform a final coverage audit:
+- Have I missed any important date or chronological event?
+- Have I missed any core concept or definition?
+- Have I skipped important background information?
+- Have I omitted an important person, institution, law, article, act, committee, policy, or scheme?
+- Have I explained only the answer instead of the complete underlying topic?
+- Are there important facts hidden in the Current Explanation that I failed to preserve or improve?
+
+If any important information is missing, add it as a separate numbered pointer before finalizing.
 3. IMPORTANT POINTER STYLE:
 Do NOT artificially limit the explanation to exactly 10 pointers. The number of pointers must depend on the number of distinct relevant facts, concepts, events, features, exceptions, classifications, comparisons, and related subtopics.
 
