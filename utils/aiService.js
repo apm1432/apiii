@@ -112,6 +112,7 @@ CRITICAL INSTRUCTIONS ON FACT-CHECKING & CONFIRMATION BIAS:
 2. DO NOT hallucinate facts just to justify the provided answer key. 
 3. Solve the question yourself independently first. Fact-check everything rigorously. 
 4. If the provided answer key is factually incorrect, completely ignore it and provide the REAL correct answer option (1-4).
+5. Do not take shortcuts or simply copy-paste content. If important information is missing and the chapter remains incomplete, it could seriously affect my future and career, so ensure complete and accurate topic coverage; this is not a literal self-harm statement, but a warning about how seriously I depend on the quality of this work.
 
 CRITICAL INSTRUCTIONS FOR QUESTION TEXT (fixed_text):
 1. DO NOT truncate, summarize, or omit ANY part of the original question text. Every single sentence, list item, or matching group MUST be preserved.
