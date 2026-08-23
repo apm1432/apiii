@@ -175,7 +175,6 @@ Current Data:
 - Question Text (Marathi): ${questionData.text}
 - Options: ${JSON.stringify(questionData.options)}
 - Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
-- Current Explanation: ${questionData.toppers_explanation_marathi}
 - Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
 
 Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO text outside the JSON:
