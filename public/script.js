@@ -1090,104 +1090,91 @@ function nextQuestion() {
 // Quiz Option Selection Logic (Updated for real data)
 async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
     const parent = el.parentElement;
-    if (parent.classList.contains('answered') || parent.classList.contains('loading')) return;
+    if (parent.classList.contains('answered')) return;
     
-    parent.classList.add('loading');
-    const originalHtml = el.innerHTML;
-    el.innerHTML += ' <span style="font-size:0.8em; color:var(--text-secondary);">(Checking...)</span>';
+    parent.classList.add('answered');
 
-    const sectionName = currentQuestions[mode === 'full' ? index : currentQIndex].year_exam;
+    const q = currentQuestions[mode === 'full' ? index : currentQIndex];
+    const sectionName = q.year_exam;
     
-    try {
-        const res = await fetch('/api/progress/save', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({
-                questionId: questionId,
-                section: sectionName,
-                selectedOption: optIndex
-            })
-        });
-        const data = await res.json();
-        
-        parent.classList.remove('loading');
-        el.innerHTML = originalHtml;
+    const correctStr = String(q.correct_answer_option || q.final_answer_key || q.answer_key).trim();
+    const isCancelled = correctStr === '#';
+    const correctOptionIndex = parseInt(correctStr) - 1;
+    const isCorrect = !isCancelled && optIndex === correctOptionIndex;
+    const explanation = q.toppers_explanation_marathi;
+    const optionsExplanation = q.options_explanation;
 
-        if (!data.success) {
-            alert(data.message || "Failed to submit answer.");
-            return;
+    if (isCancelled) {
+        el.classList.add('wrong');
+        el.style.background = '#f59e0b'; // orange for cancelled
+        el.style.borderColor = '#f59e0b';
+        el.innerHTML += ' <span style="font-weight:bold; color:#fff;">(Cancelled by MPSC)</span>';
+    } else if (isCorrect) {
+        el.classList.add('correct');
+    } else {
+        el.classList.add('wrong');
+        if(correctOptionIndex >= 0 && correctOptionIndex < parent.children.length) {
+            parent.children[correctOptionIndex].classList.add('correct');
         }
-
-        parent.classList.add('answered');
-        const { isCorrect, isCancelled, correctOptionIndex, explanation, optionsExplanation } = data;
-
-        if (isCancelled) {
-            el.classList.add('wrong');
-            el.style.background = '#f59e0b'; // orange for cancelled
-            el.style.borderColor = '#f59e0b';
-            el.innerHTML += ' <span style="font-weight:bold; color:#fff;">(Cancelled by MPSC)</span>';
-        } else if (isCorrect) {
-            el.classList.add('correct');
-        } else {
-            el.classList.add('wrong');
-            if(correctOptionIndex >= 0 && correctOptionIndex < parent.children.length) {
-                parent.children[correctOptionIndex].classList.add('correct');
-            }
-        }
-        
-        Array.from(parent.children).forEach(optDiv => {
-            optDiv.onclick = null; // Disable clicks after answering
-        });
-
-        // Save to local cache
-        userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, isCancelled: isCancelled, section: sectionName };
-        localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
-
-        // Update explanation HTML with backend data
-        const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
-        const explanationDiv = document.getElementById(explId);
-        if(explanationDiv) {
-            let explHtml = `<strong>Explanation:</strong> ${explanation ? explanation.replace(/\n/g, '<br>') : 'No explanation available.'}`;
-            if (optionsExplanation && optionsExplanation.length > 0) {
-                explHtml += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
-                    <strong>Options Breakdown:</strong>
-                    <ul style="margin-top: 10px; padding-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
-                        ${optionsExplanation.map(exp => `<li style="margin-bottom: 8px;">${exp.replace(/\n/g, '<br>')}</li>`).join('')}
-                    </ul>
-                </div>`;
-            }
-            explanationDiv.innerHTML = explHtml;
-            explanationDiv.classList.remove('hidden');
-        }
-
-        // Update Jump Grid if in full mode
-        if (mode === 'full') {
-            const gridBtn = document.getElementById(`grid-btn-${index}`);
-            if(gridBtn) {
-                gridBtn.classList.remove('btn-outline');
-                gridBtn.style.color = '#fff';
-                gridBtn.style.borderColor = 'transparent';
-                if (isCancelled) {
-                    gridBtn.style.background = '#f59e0b'; // orange
-                } else if (isCorrect) {
-                    gridBtn.style.background = '#10b981'; // green
-                } else {
-                    gridBtn.style.background = '#ef4444'; // red
-                }
-            }
-            // Update Stats UI
-            updateFloatingStats(currentQuestions);
-        }
-
-    } catch (err) {
-        parent.classList.remove('loading');
-        el.innerHTML = originalHtml;
-        console.error(err);
-        alert("Network error.");
     }
+    
+    Array.from(parent.children).forEach(optDiv => {
+        optDiv.onclick = null; // Disable clicks after answering
+    });
+
+    // Save to local cache
+    userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, isCancelled: isCancelled, section: sectionName };
+    localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+
+    // Update explanation HTML with frontend data
+    const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
+    const explanationDiv = document.getElementById(explId);
+    if(explanationDiv) {
+        let explHtml = `<strong>Explanation:</strong> ${explanation ? explanation.replace(/\n/g, '<br>') : 'No explanation available.'}`;
+        if (optionsExplanation && optionsExplanation.length > 0) {
+            explHtml += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
+                <strong>Options Breakdown:</strong>
+                <ul style="margin-top: 10px; padding-left: 20px; font-size: 0.9rem; color: var(--text-secondary);">
+                    ${optionsExplanation.map(exp => `<li style="margin-bottom: 8px;">${exp.replace(/\n/g, '<br>')}</li>`).join('')}
+                </ul>
+            </div>`;
+        }
+        explanationDiv.innerHTML = explHtml;
+        explanationDiv.classList.remove('hidden');
+    }
+
+    // Update Jump Grid if in full mode
+    if (mode === 'full') {
+        const gridBtn = document.getElementById(`grid-btn-${index}`);
+        if(gridBtn) {
+            gridBtn.classList.remove('btn-outline');
+            gridBtn.style.color = '#fff';
+            gridBtn.style.borderColor = 'transparent';
+            if (isCancelled) {
+                gridBtn.style.background = '#f59e0b'; // orange
+            } else if (isCorrect) {
+                gridBtn.style.background = '#10b981'; // green
+            } else {
+                gridBtn.style.background = '#ef4444'; // red
+            }
+        }
+        // Update Stats UI
+        updateFloatingStats(currentQuestions);
+    }
+
+    // Fire and forget the progress save to backend
+    fetch('/api/progress/save', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+            questionId: questionId,
+            section: sectionName,
+            selectedOption: optIndex
+        })
+    }).catch(err => console.log('Offline: Progress will sync later or is stored locally only', err));
 }
 
 // ====== PAYMENT & RAZORPAY ======

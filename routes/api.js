@@ -397,15 +397,9 @@ router.post('/questions', authMiddleware, async (req, res) => {
             questions = questions.slice(0, parseInt(limit));
         }
 
-        // STRIP SENSITIVE DATA
+        // STRIP SENSITIVE DATA block removed so that answers are available offline on the frontend.
         questions = questions.map(q => {
-            if (!answeredMap.has(q._id.toString())) {
-                delete q.final_answer_key;
-                delete q.correct_answer_option;
-                delete q.answer_key;
-                delete q.toppers_explanation_marathi;
-                delete q.options_explanation;
-            }
+            // Data is sent in full so the frontend can work offline
             return q;
         });
 
