@@ -444,7 +444,7 @@ def _heal_signature(resp, url, headers, data, model_name):
         if resp.status_code == 400 and "thought_signature" in resp.text.lower():
             print(f"[SIG HEAL] {model_name}: signature 400 -> retrying with dummy signature")
             return requests.post(url, json=prepare_payload(data, model_name, force_dummy=True),
-                                 headers=headers, stream=True, timeout=120)
+                                 headers=headers, stream=True,timeout=600)
     except Exception as e:
         print(f"[SIG HEAL ERROR] {e}")
     return resp
@@ -1013,7 +1013,7 @@ def proxy_chat():
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             try:
-                resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=120)
+                resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True,timeout=600)
                 resp = _heal_signature(resp, url, headers, data, actual_model)
                 if resp.status_code == 200:
                     remember_sticky_slot(client_id, key, actual_model)
@@ -1074,7 +1074,7 @@ def proxy_chat():
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
         try:
-            resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=120)
+            resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True,timeout=600)
             resp = _heal_signature(resp, url, headers, data, actual_model)
             last_resp = resp
 
