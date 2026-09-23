@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, Response, render_template_string, g
 from functools import wraps
 import requests
 import base64, copy, hashlib, re, uuid
+import concurrent.futures
 
 app = Flask(__name__)
 
@@ -80,7 +81,7 @@ PERMANENTLY_BROKEN_MODELS: set = set()
 # is unaffected -- only steps *within* one tool-calling task stay glued to
 # the same model.
 CONV_STICKY_TTL = 3 * 60 * 60   # forget a caller's pin after 3h of no traffic
-STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "5"))  # short wait for RPM on the pinned model; after that we switch (signatures are re-injected)
+STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "15"))  # short wait for RPM on the pinned model; after that we switch (signatures are re-injected)
 conversation_sticky: dict = {}   # client_id -> (key, model_name, last_used_monotonic)
 
 def _client_id_from_request(data: dict, remote_addr: str) -> str:
@@ -481,12 +482,14 @@ def _prune_rpm(key, model_name):
 
 def _rpm_available(key, model_name, rpm_limit):
     window = _prune_rpm(key, model_name)
-    # RPM_SAFETY_MARGIN reserves headroom so several requests admitted in the
-    # same instant (before their own timestamp is recorded) can never push
-    # the pair over the real limit when many users hit the router at once.
-    # BUG FIX: Use strict < (not <=) and always keep margin >= 1 so that
-    # at rpm_limit=5, effective_limit=3 (margin=2), we never allow 5 requests
-    # through the window check — Google counts differently and can 429 at 4+.
+    
+    # 1. Pacing: ensure strict minimum spacing between requests dynamically based on RPM
+    # Example: 15 RPM = 4s + 1s = 5s. 5 RPM = 12s + 1s = 13s.
+    spacing = (60.0 / rpm_limit) + 1.0
+    if window and (time.monotonic() - window[-1] < spacing):
+        return False
+
+    # 2. 60s window check
     effective_limit = max(1, rpm_limit - max(RPM_SAFETY_MARGIN, 1))
     return len(window) < effective_limit
 
@@ -798,20 +801,20 @@ def _test_single_combo(key: str, model_name: str, question: str, timeout: int = 
             try:
                 text = resp.json()["choices"][0]["message"]["content"].strip()
             except Exception:
-                text = "(parse error)"
-            return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+                text = resp.text
+            return {"key": f"...{key[-4:]}", "model": model_name, "question": question,
                     "status": 200, "ok": True, "response": text, "ms": elapsed}
         else:
             try:
-                err_msg = resp.json().get("error", {}).get("message", resp.text[:120])
+                err_msg = json.dumps(resp.json(), indent=2)
             except Exception:
-                err_msg = resp.text[:120]
-            return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+                err_msg = resp.text
+            return {"key": f"...{key[-4:]}", "model": model_name, "question": question,
                     "status": resp.status_code, "ok": False, "response": err_msg, "ms": elapsed}
     except Exception as e:
-        return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+        return {"key": f"...{key[-4:]}", "model": model_name, "question": question,
                 "status": 0, "ok": False,
-                "response": f"Exception: {str(e)[:100]}",
+                "response": f"Exception: {str(e)}",
                 "ms": round((time.time() - start) * 1000)}
 
 # ─── Test All Keys Route ───────────────────────────────────────────────────────
@@ -842,12 +845,20 @@ def test_all_keys():
     # without any code change here.
     results = []
 
-    for key in API_KEYS:
-        for m_idx, model in enumerate(MODELS):
-            model_name = model["name"]
-            question   = _question_for_model_idx(m_idx)
-            result     = _test_single_combo(key, model_name, question)
-            results.append(result)
+    # Read optional target_key from query params
+    target_key_preview = request.args.get("key")
+    
+    tasks = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        for key in API_KEYS:
+            if target_key_preview and target_key_preview not in key:
+                continue
+            for m_idx, model in enumerate(MODELS):
+                model_name = model["name"]
+                question   = _question_for_model_idx(m_idx)
+                tasks.append(executor.submit(_test_single_combo, key, model_name, question))
+                
+    results = [t.result() for t in tasks]
 
     total = len(results)
     ok_count = sum(1 for r in results if r["ok"])
@@ -944,9 +955,11 @@ def api_dashboard_data():
             f"{k[:5]}...{k[-5:]}|{m}": round(ts - now_mono, 1)
             for (k, m), ts in rpm_cooldown.items() if ts > now_mono
         }
+        key_list = [f"...{k[-4:]}" for k in API_KEYS]
     return jsonify({
         "metrics": metrics,
         "active_keys": len(API_KEYS),
+        "key_list": key_list,
         "penalized_keys": penalized,
         "rpm_cooldowns": cooldowns,
         "models": get_active_models(),
@@ -1026,7 +1039,7 @@ function toggleParams(idx){const el=document.getElementById('params-'+idx);el.st
 function toggleAllParams(){allParamsVisible=!allParamsVisible;document.getElementById('toggle-btn').innerText=allParamsVisible?'🙈 Hide All Params':'👁️ Show All Params';const boxes=document.getElementsByClassName('params-box');for(let box of boxes)box.style.display=allParamsVisible?'block':'none';}
 document.addEventListener('selectionchange',()=>{const s=window.getSelection();isSelecting=s.toString().length>0;});
 
-async function testAllKeys(){
+async function testAllKeys(targetKey = ''){
   const btn=document.getElementById('test-btn');
   if(!window._wapiPwd){
     const pwd=prompt('Enter your WAPI password to run key tests:');
@@ -1035,10 +1048,12 @@ async function testAllKeys(){
   }
   btn.innerText='⏳ Testing...'; btn.disabled=true;
   document.getElementById('test-modal').style.display='block';
-  document.getElementById('test-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">⏳ Running tests on all keys × models... this may take ~30s</td></tr>';
+  const msg = targetKey ? `⏳ Running tests on models for key ${targetKey}...` : '⏳ Running tests on all keys × models (Parallel)...';
+  document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">${msg}</td></tr>`;
   document.getElementById('test-summary').innerHTML='';
   try{
-    const r=await fetch('/router/test_keys',{headers:{Authorization:'Bearer '+window._wapiPwd}});
+    const url = targetKey ? '/router/test_keys?key='+encodeURIComponent(targetKey) : '/router/test_keys';
+    const r=await fetch(url,{headers:{Authorization:'Bearer '+window._wapiPwd}});
     if(r.status===401){
       window._wapiPwd=null;
       throw new Error('Wrong password (401). Click Test again to re-enter.');
@@ -1100,9 +1115,16 @@ function updateUI(data){
     for(const[k,v]of Object.entries(data.rpm_cooldowns))
       cdHtml+=`<span class="tag" style="background:rgba(251,191,36,.2);color:#fbbf24;border-color:#fbbf24;">${k} (${v}s)</span>`;
   }else cdHtml='<span style="color:#4ade80;">None</span>';
+  let keysHtml = '';
+  if (data.key_list) {
+    data.key_list.forEach(k => {
+        keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
+    });
+  }
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
-      <div class="sub flex-col">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
+      <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
       <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
@@ -1221,17 +1243,42 @@ def proxy_chat():
 
         if slot is None:
             # Nothing available right now for any untried combo.
-            # If something is about to come off cooldown soon, wait for it
-            # instead of failing the user's request.
+            # Calculate the exact time until the NEXT combo becomes available
+            # (due to pacing, 60s window expiration, or cooldown).
             with state_lock:
                 now_mono = time.monotonic()
-                soonest = min(
-                    (ts for ts in rpm_cooldown.values() if ts > now_mono),
-                    default=None
-                )
+                waits = []
+                for _, _, k, m_dict in _list_combos_in_order(requested_model):
+                    m = m_dict["name"]
+                    if (k, m) in tried or (k, m) in PERMANENTLY_BROKEN_MODELS or _is_daily_penalized(k, m) or not _rpd_available(k, m, m_dict["rpd"]):
+                        continue
+                    
+                    # 1. Check cooldown
+                    cd = rpm_cooldown.get((k, m), 0)
+                    if cd > now_mono:
+                        waits.append(cd)
+                        continue
+                        
+                    window = rpm_window.get((k, m), [])
+                    if window:
+                        # 2. Check pacing
+                        spacing = (60.0 / m_dict["rpm"]) + 1.0
+                        pacing_end = window[-1] + spacing
+                        if pacing_end > now_mono:
+                            waits.append(pacing_end)
+                        
+                        # 3. Check 60s window
+                        effective_limit = max(1, m_dict["rpm"] - max(RPM_SAFETY_MARGIN, 1))
+                        if len(window) >= effective_limit:
+                            window_end = window[0] + 60.0
+                            if window_end > now_mono:
+                                waits.append(window_end)
+                
+                soonest = min(waits, default=None)
+            
             if soonest and (soonest - now_mono) <= 65:
-                wait = soonest - time.monotonic() + 1.0
-                print(f"[WAIT] All slots busy, waiting {wait:.1f}s for a cooldown to clear...")
+                wait = soonest - time.monotonic() + 0.1
+                print(f"[WAIT] All slots busy (pacing/cooldown), waiting {wait:.1f}s...")
                 time.sleep(max(0, wait))
                 continue
             break  # truly nothing available (e.g. all keys hit daily limit)
