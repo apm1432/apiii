@@ -760,6 +760,61 @@ def set_sticky_success(k_idx, m_idx):
 # ─── Request logs ─────────────────────────────────────────────────────────────
 request_logs = deque(maxlen=150)
 
+# ─── Shared question pool (used by test_all_keys AND auto-test on /add) ───────
+# Questions are assigned by model-index so each model always gets a distinct
+# prompt.  The list is intentionally longer than the number of models so new
+# models added via /add also get a unique question automatically.
+MODEL_QUESTIONS = [
+    "What is your name? Answer in one sentence.",
+    "What is 5 + 3? Just give the number.",
+    "What is 10 - 7? Just give the number.",
+    "What is 4 × 6? Just give the number.",
+    "How old are you? Answer in one sentence.",
+    "What color is the sky? One word answer.",
+    "What is 2 + 2? Just give the number.",
+    "What is the capital of France? One word.",
+    "What is 3 × 3? Just give the number.",
+    "What is the opposite of hot? One word.",
+    "How many days are in a week? Just the number.",
+    "What is 100 ÷ 4? Just give the number.",
+]
+
+def _question_for_model_idx(m_idx: int) -> str:
+    """Return a deterministic question for a model by its index in MODELS."""
+    return MODEL_QUESTIONS[m_idx % len(MODEL_QUESTIONS)]
+
+def _test_single_combo(key: str, model_name: str, question: str, timeout: int = 15) -> dict:
+    """
+    Fire one test call for (key, model_name) and return a result dict.
+    Does NOT touch RPM/RPD state — purely diagnostic.
+    """
+    url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {"model": model_name, "messages": [{"role": "user", "content": question}], "max_tokens": 60}
+    start = time.time()
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=timeout)
+        elapsed = round((time.time() - start) * 1000)
+        if resp.status_code == 200:
+            try:
+                text = resp.json()["choices"][0]["message"]["content"].strip()
+            except Exception:
+                text = "(parse error)"
+            return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+                    "status": 200, "ok": True, "response": text, "ms": elapsed}
+        else:
+            try:
+                err_msg = resp.json().get("error", {}).get("message", resp.text[:120])
+            except Exception:
+                err_msg = resp.text[:120]
+            return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+                    "status": resp.status_code, "ok": False, "response": err_msg, "ms": elapsed}
+    except Exception as e:
+        return {"key": f"{key[:5]}...{key[-5:]}", "model": model_name, "question": question,
+                "status": 0, "ok": False,
+                "response": f"Exception: {str(e)[:100]}",
+                "ms": round((time.time() - start) * 1000)}
+
 # ─── Test All Keys Route ───────────────────────────────────────────────────────
 @app.route('/test_keys', methods=['GET'])
 def test_all_keys():
@@ -783,72 +838,17 @@ def test_all_keys():
     if not bearer_ok and not basic_ok:
         return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="WAPI Test"'})
 
-    # Different question per model index — so all 6 models get a unique prompt
-    # and the requests look clearly distinct in Google's logs too.
-    MODEL_QUESTIONS = [
-        "What is your name? Answer in one sentence.",
-        "What is 5 + 3? Just give the number.",
-        "What is 10 - 7? Just give the number.",
-        "What is 4 × 6? Just give the number.",
-        "How old are you? Answer in one sentence.",
-        "What color is the sky? One word answer.",
-        "What is 2 + 2? Just give the number.",
-        "What is the capital of France? One word.",
-    ]
+    # Questions are assigned by model-index using the shared MODEL_QUESTIONS pool
+    # defined near /add — so newly added models automatically get a unique question
+    # without any code change here.
     results = []
 
     for key in API_KEYS:
         for m_idx, model in enumerate(MODELS):
             model_name = model["name"]
-            question = MODEL_QUESTIONS[m_idx % len(MODEL_QUESTIONS)]
-            test_prompt = [{"role": "user", "content": question}]
-            start = time.time()
-            try:
-                url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-                payload = {"model": model_name, "messages": test_prompt, "max_tokens": 60}
-                resp = requests.post(url, json=payload, headers=headers, timeout=15)
-                elapsed = round((time.time() - start) * 1000)
-
-                if resp.status_code == 200:
-                    try:
-                        text = resp.json()["choices"][0]["message"]["content"].strip()
-                    except Exception:
-                        text = "(parse error)"
-                    results.append({
-                        "key": f"{key[:5]}...{key[-5:]}",
-                        "model": model_name,
-                        "question": question,
-                        "status": 200,
-                        "ok": True,
-                        "response": text,
-                        "ms": elapsed
-                    })
-                else:
-                    try:
-                        err = resp.json()
-                        err_msg = err.get("error", {}).get("message", resp.text[:120])
-                    except Exception:
-                        err_msg = resp.text[:120]
-                    results.append({
-                        "key": f"{key[:5]}...{key[-5:]}",
-                        "model": model_name,
-                        "question": question,
-                        "status": resp.status_code,
-                        "ok": False,
-                        "response": err_msg,
-                        "ms": elapsed
-                    })
-            except Exception as e:
-                results.append({
-                    "key": f"{key[:5]}...{key[-5:]}",
-                    "model": model_name,
-                    "question": question,
-                    "status": 0,
-                    "ok": False,
-                    "response": f"Exception: {str(e)[:100]}",
-                    "ms": round((time.time() - start) * 1000)
-                })
+            question   = _question_for_model_idx(m_idx)
+            result     = _test_single_combo(key, model_name, question)
+            results.append(result)
 
     total = len(results)
     ok_count = sum(1 for r in results if r["ok"])
@@ -1029,28 +1029,25 @@ document.addEventListener('selectionchange',()=>{const s=window.getSelection();i
 
 async function testAllKeys(){
   const btn=document.getElementById('test-btn');
+  if(!window._wapiPwd){
+    const pwd=prompt('Enter your WAPI password to run key tests:');
+    if(!pwd){return;}
+    window._wapiPwd=pwd;
+  }
   btn.innerText='⏳ Testing...'; btn.disabled=true;
   document.getElementById('test-modal').style.display='block';
   document.getElementById('test-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">⏳ Running tests on all keys × models... this may take ~30s</td></tr>';
   document.getElementById('test-summary').innerHTML='';
   try{
-    const r=await fetch('/test_keys',{headers:{Authorization:'Bearer '+btoa(document.cookie).split('').reverse().join('')}});
-    // Auth via Basic: browser already has credentials from the session
-    const r2=await fetch('/test_keys',{credentials:'same-origin'});
-    if(!r2.ok && r2.status===401){
-      // Prompt for password
-      const pwd=prompt('Enter your WAPI password to run key tests:');
-      if(!pwd){btn.innerText='🧪 Test All Keys';btn.disabled=false;return;}
-      const r3=await fetch('/test_keys',{headers:{Authorization:'Bearer '+pwd}});
-      if(!r3.ok){throw new Error('Auth failed: '+r3.status);}
-      renderTestResults(await r3.json());
-    } else if(r2.ok){
-      renderTestResults(await r2.json());
-    } else {
-      throw new Error('HTTP '+r2.status);
+    const r=await fetch('/test_keys',{headers:{Authorization:'Bearer '+window._wapiPwd}});
+    if(r.status===401){
+      window._wapiPwd=null;
+      throw new Error('Wrong password (401). Click Test again to re-enter.');
     }
+    if(!r.ok){throw new Error('HTTP '+r.status);}
+    renderTestResults(await r.json());
   }catch(e){
-    document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171;">❌ Error: ${esc(e.message)}<br><small style="color:#9ca3af;margin-top:8px;display:block;">Note: Enter password via URL if needed: /test_keys with Authorization header</small></td></tr>`;
+    document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171;">❌ Error: ${esc(e.message)}</td></tr>`;
   }
   btn.innerText='🧪 Test All Keys'; btn.disabled=false;
 }
@@ -1444,13 +1441,64 @@ def add_key_model():
     if request.headers.get("Authorization") != f"Bearer {os.environ.get('PASSWORD','')}":
         return jsonify({"error": "Unauthorized"}), 401
     data = request.json
+    new_key_added   = False
+    new_model_added = False
+    added_key       = None
+    added_model     = None
+
     with state_lock:
         if "key" in data and data["key"] not in API_KEYS:
             API_KEYS.append(data["key"])
+            new_key_added = True
+            added_key = data["key"]
         if "model" in data and "rpm" in data:
             MODELS.append({"name": data["model"], "rpm": int(data["rpm"]),
                            "rpd": int(data.get("rpd", 500))})
-    return jsonify({"status": "success", "keys_count": len(API_KEYS), "models": MODELS})
+            new_model_added = True
+            added_model = data["model"]
+
+    test_results = []
+
+    # ── Auto-test: new KEY → test it against every current model ──────────────
+    if new_key_added:
+        print(f"[ADD KEY] New key added (…{added_key[-6:]}), auto-testing against all {len(MODELS)} models...")
+        for m_idx, model in enumerate(MODELS):
+            question = _question_for_model_idx(m_idx)
+            result = _test_single_combo(added_key, model["name"], question)
+            test_results.append(result)
+            status_str = "✅ OK" if result["ok"] else f"❌ {result['status']}"
+            print(f"  [ADD KEY TEST] key=…{added_key[-6:]} model={model['name']} → {status_str} ({result['ms']}ms)")
+
+    # ── Auto-test: new MODEL → test every existing key against it ─────────────
+    if new_model_added:
+        # find the index of the newly added model for question assignment
+        new_m_idx = next((i for i, m in enumerate(MODELS) if m["name"] == added_model), len(MODELS) - 1)
+        question  = _question_for_model_idx(new_m_idx)
+        print(f"[ADD MODEL] New model '{added_model}' added, auto-testing against all {len(API_KEYS)} keys...")
+        for key in API_KEYS:
+            # skip the key that was just added to avoid double-testing the
+            # (new_key, new_model) combo — it was already covered above
+            if new_key_added and key == added_key:
+                continue
+            result = _test_single_combo(key, added_model, question)
+            test_results.append(result)
+            status_str = "✅ OK" if result["ok"] else f"❌ {result['status']}"
+            print(f"  [ADD MODEL TEST] key=…{key[-6:]} model={added_model} → {status_str} ({result['ms']}ms)")
+
+    ok_count = sum(1 for r in test_results if r["ok"])
+    return jsonify({
+        "status": "success",
+        "keys_count": len(API_KEYS),
+        "models": MODELS,
+        "new_key_added": new_key_added,
+        "new_model_added": new_model_added,
+        "auto_test": {
+            "total": len(test_results),
+            "ok": ok_count,
+            "failed": len(test_results) - ok_count,
+            "results": test_results,
+        }
+    })
 
 @app.route('/status', methods=['GET'])
 @requires_browser_auth
