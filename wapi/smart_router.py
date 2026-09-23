@@ -625,8 +625,7 @@ def get_active_models():
     return MODELS
 
 # ─── Core: Smart Combo Picker ─────────────────────────────────────────────────
-current_key_idx   = 0
-current_model_idx = 0
+current_combo_idx = 0
 
 def _list_combos_in_order(requested_model: str):
     """
@@ -655,11 +654,13 @@ def _list_combos_in_order(requested_model: str):
         K, M = len(API_KEYS), len(sorted_models)
         if M == 0 or K == 0:
             return []
-        # Try highest-RPM models first, but round-robin across keys to prevent per-key rate limits
-        for m_i in range(M):
-            for j in range(K):
-                k_i = (current_key_idx + j) % K
-                combos.append((k_i, m_i, API_KEYS[k_i], sorted_models[m_i]))
+        
+        # Flat round-robin across all K*M combinations.
+        for i in range(K * M):
+            idx = (current_combo_idx + i) % (K * M)
+            m_i = idx // K
+            k_i = idx % K
+            combos.append((k_i, m_i, API_KEYS[k_i], sorted_models[m_i]))
     else:
         model_dict = next(
             (m for m in active_models if m["name"] == requested_model), None
@@ -675,7 +676,7 @@ def _list_combos_in_order(requested_model: str):
         if K == 0:
             return []
         for i in range(K):
-            k_i = (current_key_idx + i) % K
+            k_i = (current_combo_idx + i) % K
             combos.append((k_i, -1, API_KEYS[k_i], model_dict))
 
     return combos
@@ -723,9 +724,11 @@ def acquire_next_slot(requested_model: str, exclude: set):
             # this is what closes the race window.
             _record_request(key, model["name"])
             
-            global current_key_idx
-            if k_i >= 0:
-                current_key_idx = (current_key_idx + 1) % len(API_KEYS)
+            global current_combo_idx
+            # Advance by 1 across the total pool of K*M combinations
+            # If we are in specific model mode, we still just advance by 1
+            # so it moves to the next key.
+            current_combo_idx = (current_combo_idx + 1) % (len(API_KEYS) * max(1, len(MODELS)))
                 
             return (k_i, m_i, key, model)
 
@@ -851,8 +854,10 @@ def test_all_keys():
     tasks = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
         for key in API_KEYS:
-            if target_key_preview and target_key_preview not in key:
-                continue
+            if target_key_preview:
+                clean_preview = target_key_preview.replace("...", "").strip()
+                if not key.endswith(clean_preview):
+                    continue
             for m_idx, model in enumerate(MODELS):
                 model_name = model["name"]
                 question   = _question_for_model_idx(m_idx)
