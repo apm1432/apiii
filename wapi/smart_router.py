@@ -652,12 +652,11 @@ def _list_combos_in_order(requested_model: str):
         K, M = len(API_KEYS), len(sorted_models)
         if M == 0 or K == 0:
             return []
-        start = (current_key_idx % K) * M + (current_model_idx % M)
-        for i in range(K * M):
-            idx = (start + i) % (K * M)
-            k_i = idx // M
-            m_i = idx % M
-            combos.append((k_i, m_i, API_KEYS[k_i], sorted_models[m_i]))
+        # Try highest-RPM models first, but round-robin across keys to prevent per-key rate limits
+        for m_i in range(M):
+            for j in range(K):
+                k_i = (current_key_idx + j) % K
+                combos.append((k_i, m_i, API_KEYS[k_i], sorted_models[m_i]))
     else:
         model_dict = next(
             (m for m in active_models if m["name"] == requested_model), None
@@ -720,6 +719,11 @@ def acquire_next_slot(requested_model: str, exclude: set):
             # Reserve immediately, still inside the lock, before returning —
             # this is what closes the race window.
             _record_request(key, model["name"])
+            
+            global current_key_idx
+            if k_i >= 0:
+                current_key_idx = (current_key_idx + 1) % len(API_KEYS)
+                
             return (k_i, m_i, key, model)
 
         return None
@@ -751,11 +755,6 @@ def get_best_combo(requested_model: str):
             viable.append((k_i, m_i, key, model))
         return viable
 
-def set_sticky_success(k_idx, m_idx):
-    global current_key_idx, current_model_idx
-    with state_lock:
-        if k_idx >= 0: current_key_idx   = k_idx
-        if m_idx >= 0: current_model_idx = m_idx
 
 # ─── Request logs ─────────────────────────────────────────────────────────────
 request_logs = deque(maxlen=150)
@@ -1254,8 +1253,7 @@ def proxy_chat():
             last_resp = resp
 
             if resp.status_code == 200:
-                if k_idx >= 0:
-                    set_sticky_success(k_idx, m_idx)
+
                 # Pin this conversation to this exact (key, model) so that
                 # if the assistant's reply contains a tool call, the NEXT
                 # request (the tool result) lands back on the same slot and
