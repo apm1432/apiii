@@ -1039,7 +1039,7 @@ async function testAllKeys(){
   document.getElementById('test-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">⏳ Running tests on all keys × models... this may take ~30s</td></tr>';
   document.getElementById('test-summary').innerHTML='';
   try{
-    const r=await fetch('/test_keys',{headers:{Authorization:'Bearer '+window._wapiPwd}});
+    const r=await fetch('/router/test_keys',{headers:{Authorization:'Bearer '+window._wapiPwd}});
     if(r.status===401){
       window._wapiPwd=null;
       throw new Error('Wrong password (401). Click Test again to re-enter.');
