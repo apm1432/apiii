@@ -30,7 +30,7 @@ if not MODELS:
 # Concurrency safety margin: reserve this many RPM slots as a buffer so that
 # several requests admitted in the same instant (before their timestamps are
 # recorded) can never push the key+model pair over its real RPM limit.
-RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "0"))
+RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "2"))
 
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 
@@ -484,7 +484,10 @@ def _rpm_available(key, model_name, rpm_limit):
     # RPM_SAFETY_MARGIN reserves headroom so several requests admitted in the
     # same instant (before their own timestamp is recorded) can never push
     # the pair over the real limit when many users hit the router at once.
-    effective_limit = max(1, rpm_limit - RPM_SAFETY_MARGIN)
+    # BUG FIX: Use strict < (not <=) and always keep margin >= 1 so that
+    # at rpm_limit=5, effective_limit=3 (margin=2), we never allow 5 requests
+    # through the window check — Google counts differently and can 429 at 4+.
+    effective_limit = max(1, rpm_limit - max(RPM_SAFETY_MARGIN, 1))
     return len(window) < effective_limit
 
 def _rpd_available(key, model_name, rpd_limit):
@@ -757,6 +760,105 @@ def set_sticky_success(k_idx, m_idx):
 # ─── Request logs ─────────────────────────────────────────────────────────────
 request_logs = deque(maxlen=150)
 
+# ─── Test All Keys Route ───────────────────────────────────────────────────────
+@app.route('/test_keys', methods=['GET'])
+def test_all_keys():
+    """
+    Test every (key, model) combo with a simple 'What is your name?' message.
+    Returns JSON with results for each combo — used by the dashboard Test button.
+    Does NOT record RPM/RPD usage (test calls are made directly, bypassing router logic).
+    Auth: Bearer password required.
+    """
+    expected_pass = os.environ.get("PASSWORD", "")
+    auth_header   = request.headers.get("Authorization", "")
+    bearer_ok = (auth_header == f"Bearer {expected_pass}")
+    basic_ok  = False
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+            _, pwd = decoded.split(":", 1)
+            basic_ok = (pwd == expected_pass)
+        except Exception:
+            pass
+    if not bearer_ok and not basic_ok:
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="WAPI Test"'})
+
+    # Different question per model index — so all 6 models get a unique prompt
+    # and the requests look clearly distinct in Google's logs too.
+    MODEL_QUESTIONS = [
+        "What is your name? Answer in one sentence.",
+        "What is 5 + 3? Just give the number.",
+        "What is 10 - 7? Just give the number.",
+        "What is 4 × 6? Just give the number.",
+        "How old are you? Answer in one sentence.",
+        "What color is the sky? One word answer.",
+        "What is 2 + 2? Just give the number.",
+        "What is the capital of France? One word.",
+    ]
+    results = []
+
+    for key in API_KEYS:
+        for m_idx, model in enumerate(MODELS):
+            model_name = model["name"]
+            question = MODEL_QUESTIONS[m_idx % len(MODEL_QUESTIONS)]
+            test_prompt = [{"role": "user", "content": question}]
+            start = time.time()
+            try:
+                url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+                payload = {"model": model_name, "messages": test_prompt, "max_tokens": 60}
+                resp = requests.post(url, json=payload, headers=headers, timeout=15)
+                elapsed = round((time.time() - start) * 1000)
+
+                if resp.status_code == 200:
+                    try:
+                        text = resp.json()["choices"][0]["message"]["content"].strip()
+                    except Exception:
+                        text = "(parse error)"
+                    results.append({
+                        "key": f"{key[:5]}...{key[-5:]}",
+                        "model": model_name,
+                        "question": question,
+                        "status": 200,
+                        "ok": True,
+                        "response": text,
+                        "ms": elapsed
+                    })
+                else:
+                    try:
+                        err = resp.json()
+                        err_msg = err.get("error", {}).get("message", resp.text[:120])
+                    except Exception:
+                        err_msg = resp.text[:120]
+                    results.append({
+                        "key": f"{key[:5]}...{key[-5:]}",
+                        "model": model_name,
+                        "question": question,
+                        "status": resp.status_code,
+                        "ok": False,
+                        "response": err_msg,
+                        "ms": elapsed
+                    })
+            except Exception as e:
+                results.append({
+                    "key": f"{key[:5]}...{key[-5:]}",
+                    "model": model_name,
+                    "question": question,
+                    "status": 0,
+                    "ok": False,
+                    "response": f"Exception: {str(e)[:100]}",
+                    "ms": round((time.time() - start) * 1000)
+                })
+
+    total = len(results)
+    ok_count = sum(1 for r in results if r["ok"])
+    return jsonify({
+        "total": total,
+        "ok": ok_count,
+        "failed": total - ok_count,
+        "results": results
+    })
+
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 def check_browser_auth(username, password):
     return password == os.environ.get("PASSWORD", "")
@@ -778,7 +880,7 @@ def requires_browser_auth(f):
 def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status']:
+    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys']:
         return
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
@@ -886,8 +988,31 @@ tr:hover{background:#252525}
 .params-box{display:none}
 </style></head><body><div class="container">
 <h1>🚀 WAPI Live Dashboard
-<button class="btn" onclick="fetchData()" id="refresh-btn">🔄 Refresh</button></h1>
+<div style="display:flex;gap:8px;align-items:center;">
+<button class="btn" onclick="fetchData()" id="refresh-btn">🔄 Refresh</button>
+<button class="btn" onclick="testAllKeys()" id="test-btn" style="background:#7c3aed;">🧪 Test All Keys</button>
+</div></h1>
 <div id="error-msg" style="color:#fca5a5;background:#451a1a;padding:10px;border-radius:5px;text-align:center;display:none;margin-bottom:15px;"></div>
+<div id="test-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;">
+<div style="max-width:960px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<h2 style="margin:0;color:#a78bfa;">🧪 Key & Model Test — "What is your name?"</h2>
+<button onclick="document.getElementById('test-modal').style.display='none'" style="background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;">✕ Close</button>
+</div>
+<div id="test-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;"></div>
+<div style="overflow-x:auto;"><table id="test-table" style="width:100%;border-collapse:collapse;min-width:600px;">
+<thead><tr style="background:#2d1b69;">
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Key</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Model</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Question Asked</th>
+<th style="padding:10px;text-align:center;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Status</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Response</th>
+<th style="padding:10px;text-align:right;color:#c4b5fd;border-bottom:1px solid #4c1d95;">ms</th>
+</tr></thead>
+<tbody id="test-tbody"><tr><td colspan="6" style="text-align:center;padding:30px;color:#6b7280;">Click "Test All Keys" to run tests...</td></tr></tbody>
+</table></div>
+</div>
+</div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
 🔐 Secure Access Logs
@@ -901,6 +1026,59 @@ let isSelecting=false,allParamsVisible=false;
 function toggleParams(idx){const el=document.getElementById('params-'+idx);el.style.display=(el.style.display==='none'||el.style.display==='')?'block':'none';}
 function toggleAllParams(){allParamsVisible=!allParamsVisible;document.getElementById('toggle-btn').innerText=allParamsVisible?'🙈 Hide All Params':'👁️ Show All Params';const boxes=document.getElementsByClassName('params-box');for(let box of boxes)box.style.display=allParamsVisible?'block':'none';}
 document.addEventListener('selectionchange',()=>{const s=window.getSelection();isSelecting=s.toString().length>0;});
+
+async function testAllKeys(){
+  const btn=document.getElementById('test-btn');
+  btn.innerText='⏳ Testing...'; btn.disabled=true;
+  document.getElementById('test-modal').style.display='block';
+  document.getElementById('test-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">⏳ Running tests on all keys × models... this may take ~30s</td></tr>';
+  document.getElementById('test-summary').innerHTML='';
+  try{
+    const r=await fetch('/test_keys',{headers:{Authorization:'Bearer '+btoa(document.cookie).split('').reverse().join('')}});
+    // Auth via Basic: browser already has credentials from the session
+    const r2=await fetch('/test_keys',{credentials:'same-origin'});
+    if(!r2.ok && r2.status===401){
+      // Prompt for password
+      const pwd=prompt('Enter your WAPI password to run key tests:');
+      if(!pwd){btn.innerText='🧪 Test All Keys';btn.disabled=false;return;}
+      const r3=await fetch('/test_keys',{headers:{Authorization:'Bearer '+pwd}});
+      if(!r3.ok){throw new Error('Auth failed: '+r3.status);}
+      renderTestResults(await r3.json());
+    } else if(r2.ok){
+      renderTestResults(await r2.json());
+    } else {
+      throw new Error('HTTP '+r2.status);
+    }
+  }catch(e){
+    document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171;">❌ Error: ${esc(e.message)}<br><small style="color:#9ca3af;margin-top:8px;display:block;">Note: Enter password via URL if needed: /test_keys with Authorization header</small></td></tr>`;
+  }
+  btn.innerText='🧪 Test All Keys'; btn.disabled=false;
+}
+
+function renderTestResults(data){
+  const ok=data.ok||0, total=data.total||0, failed=data.failed||0;
+  document.getElementById('test-summary').innerHTML=`
+    <div style="background:rgba(74,222,128,.15);border:1px solid #4ade80;border-radius:8px;padding:10px 18px;color:#4ade80;font-size:1.1em;font-weight:bold;">✅ Working: ${ok}</div>
+    <div style="background:rgba(248,113,113,.15);border:1px solid #f87171;border-radius:8px;padding:10px 18px;color:#f87171;font-size:1.1em;font-weight:bold;">❌ Failed: ${failed}</div>
+    <div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:10px 18px;color:#9ca3af;font-size:1.1em;">📊 Total: ${total}</div>`;
+  let html='';
+  (data.results||[]).forEach(r=>{
+    const bg=r.ok?'rgba(74,222,128,.05)':'rgba(248,113,113,.05)';
+    const statusColor=r.ok?'#4ade80':(r.status===429?'#fbbf24':'#f87171');
+    const statusLabel=r.ok?'✅ 200':( r.status===429?'⚠️ 429':('❌ '+r.status));
+    const responseText=r.ok?esc(r.response):('<span style="color:#f87171;font-size:.85em;">'+esc(r.response)+'</span>');
+    html+=`<tr style="background:${bg};border-bottom:1px solid #2d2d2d;">
+      <td style="padding:10px;font-family:monospace;color:#93c5fd;font-size:.85em;">${esc(r.key)}</td>
+      <td style="padding:10px;color:#c4b5fd;font-size:.85em;">${esc(r.model)}</td>
+      <td style="padding:10px;color:#fbbf24;font-size:.8em;font-style:italic;">${esc(r.question||'')}</td>
+      <td style="padding:10px;text-align:center;font-weight:bold;color:${statusColor};">${statusLabel}</td>
+      <td style="padding:10px;font-size:.85em;max-width:280px;word-break:break-word;">${responseText}</td>
+      <td style="padding:10px;text-align:right;color:#6b7280;font-size:.8em;">${r.ms}ms</td>
+    </tr>`;
+  });
+  document.getElementById('test-tbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
+}
+
 async function fetchData(){
   const btn=document.getElementById('refresh-btn');btn.innerText='⏳...';
   try{
