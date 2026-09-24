@@ -511,9 +511,24 @@ def _is_daily_penalized(key, model_name):
     return time.time() < until
 
 def _record_request(key, model_name):
-    """Call BEFORE sending API request."""
+    """Call BEFORE sending API request — reserves the RPM slot only.
+
+    IMPORTANT: this does NOT touch rpd_count anymore. It used to increment
+    the daily counter right here, at *reservation* time, before we even
+    knew whether the request would succeed. That meant every 503
+    ("model overloaded"), every client-side read-timeout, and every 429
+    silently consumed a slot of the daily budget even though Google never
+    actually served the request -- so a key could get midnight-penalized
+    (key_daily_penalty) after a run of transient failures while its real
+    Gemini-side RPD quota was still almost untouched. RPD is now only
+    counted by _record_rpd_success(), called after a confirmed 200."""
     _prune_rpm(key, model_name)
     rpm_window[(key, model_name)].append(time.monotonic())
+
+def _record_rpd_success(key, model_name):
+    """Call AFTER a confirmed 200 response. This is the only place
+    rpd_count should be incremented, since it's the only case where a
+    request actually consumed quota on Google's side."""
     k = (key, model_name)
     rpd_count[k] = rpd_count.get(k, 0) + 1
 
@@ -1271,6 +1286,7 @@ def proxy_chat():
                     capture_signatures(resp.content)
                     with state_lock:
                         metrics["successful_api_calls"] += 1
+                        _record_rpd_success(key, actual_model)
                     return _finalize_success_response(resp, is_responses_api, actual_model, client_stream_requested)
                 if resp.status_code in (429, 403):
                     err = resp.text.lower()
@@ -1378,6 +1394,7 @@ def proxy_chat():
                     g.log_entry["status"] = f"200 Success ({actual_model})"
                 with state_lock:
                     metrics["successful_api_calls"] += 1
+                    _record_rpd_success(key, actual_model)
                     safe_key = key[:5] + "..." + key[-5:]
                     metrics["usage_by_key"].setdefault(safe_key, {})
                     metrics["usage_by_key"][safe_key][actual_model] = \
