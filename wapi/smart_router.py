@@ -482,15 +482,18 @@ def _prune_rpm(key, model_name):
 
 def _rpm_available(key, model_name, rpm_limit):
     window = _prune_rpm(key, model_name)
-    
-    # 1. Pacing: ensure strict minimum spacing between requests dynamically based on RPM
-    # Example: 15 RPM = 4s + 1s = 5s. 5 RPM = 12s + 1s = 13s.
-    spacing = (60.0 / rpm_limit) + 1.0
-    if window and (time.monotonic() - window[-1] < spacing):
-        return False
 
-    # 2. 60s window check
-    effective_limit = max(1, rpm_limit - max(RPM_SAFETY_MARGIN, 1))
+    # 60s sliding-window check — this is the ONLY guard needed.
+    # The old code also added a per-request spacing rule
+    # (e.g. 13 s between requests for a 5-RPM model). With 12 keys × 6
+    # models the pool has 72 slots; spacing one slot out blocks ALL of them
+    # simultaneously when requests arrive in a burst, making the router
+    # return None and send a 429 to the user even though the aggregate
+    # quota has barely been touched. Removing the spacing rule and relying
+    # on the window count alone is correct: the 60-second window
+    # automatically limits throughput to `effective_limit` RPM without
+    # needlessly serialising bursts across unrelated (key, model) pairs.
+    effective_limit = max(1, rpm_limit - RPM_SAFETY_MARGIN)
     return len(window) < effective_limit
 
 def _rpd_available(key, model_name, rpd_limit):
@@ -555,23 +558,55 @@ def _handle_429(key, model_name, err_text: str) -> str:
     Returns "daily" or "rpm"."""
     t = (err_text or "").lower()
     k = (key, model_name)
-    if "perday" in t or "per day" in t or "daily" in t or "per_day" in t:
+
+    # ── Daily / RPD detection ─────────────────────────────────────────────────
+    # Google free-tier quota errors contain quotaId strings like:
+    #   "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+    # which in lowercase becomes "generaterequestsperdayperprojectpermodel-freetier"
+    # containing "perday". We also check retryDelay: if it's > 300s it's
+    # almost certainly a daily reset (midnight), not a per-minute cooldown.
+    is_daily = (
+        "perday" in t
+        or "per day" in t
+        or "per_day" in t
+        or "daily" in t
+        or "freetier" in t          # free-tier quota IDs always = daily limits
+        or "free_tier" in t
+        or "free tier" in t
+        or "generatecontentfreetier" in t
+    )
+    if is_daily:
         _apply_daily_penalty(key, model_name)
         return "daily"
+
+    # ── Extract retryDelay from Google's error body ───────────────────────────
     m = re.search(r'retrydelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s', t)
     retry = float(m.group(1)) + 2 if m else None
+
+    # If retryDelay > 300s Google is effectively saying "come back tomorrow"
+    if retry and retry > 300:
+        _apply_daily_penalty(key, model_name)
+        return "daily"
+
+    # ── Per-minute / RPM detection ────────────────────────────────────────────
     if "perminute" in t or "per minute" in t or "per_minute" in t:
         rate_strikes.pop(k, None)
         _apply_rpm_cooldown(key, model_name, seconds=int(retry or 62))
         return "rpm"
-    # Ambiguous ("quota" with no PerDay/PerMinute, e.g. limit 0 on free tier,
-    # or a bare 429): escalate 62s -> 5min -> 30min -> daily, reset on success.
+
+    # ── Ambiguous 429 ─────────────────────────────────────────────────────────
+    # "quota" with no PerDay/PerMinute, or bare 429 with no body.
+    # Escalate: 62s → 5 min → 30 min → daily (reset on success via rate_strikes.pop).
+    # We cap at 3 strikes before going daily so we don't keep hammering a key
+    # whose free-tier daily quota read as ambiguous.
     n = rate_strikes.get(k, 0) + 1
     rate_strikes[k] = n
-    if n >= 4:
+    if n >= 3:
+        # Three ambiguous 429s in a row on the same (key, model) almost
+        # certainly means the daily quota is gone — penalise until midnight.
         _apply_daily_penalty(key, model_name)
         return "daily"
-    secs = int(retry) if retry else {1: 62, 2: 300, 3: 1800}[n]
+    secs = int(retry) if retry else {1: 62, 2: 300}[n]
     _apply_rpm_cooldown(key, model_name, seconds=max(secs, 30))
     return "rpm"
 
@@ -650,11 +685,26 @@ def _list_combos_in_order(requested_model: str):
     combos = []
 
     if is_pool_mode:
-        sorted_models = sorted(active_models, key=lambda m: -m["rpm"])
+        # Sort models so that the ones with the most available keys come
+        # first. A model where every key is daily-penalized or broken is
+        # sorted to the bottom so the router doesn't waste time iterating
+        # its K slots before reaching a fully-available model.
+        # Within the same availability bucket, higher RPM wins (original
+        # behaviour for healthy models).
+        def _model_sort_key(m):
+            penalized_keys = sum(
+                1 for k in API_KEYS
+                if _is_daily_penalized(k, m["name"])
+                or (k, m["name"]) in PERMANENTLY_BROKEN_MODELS
+            )
+            # fewer penalized keys = better; higher rpm = better
+            return (penalized_keys, -m["rpm"])
+
+        sorted_models = sorted(active_models, key=_model_sort_key)
         K, M = len(API_KEYS), len(sorted_models)
         if M == 0 or K == 0:
             return []
-        
+
         # Flat round-robin across all K*M combinations.
         for i in range(K * M):
             idx = (current_combo_idx + i) % (K * M)
@@ -1232,10 +1282,15 @@ def proxy_chat():
                 print(f"[STICKY ERROR] {e} → switching slot")
         # exhausted / busy / no pin / pinned failed -> normal routing below
 
-    # How many total distinct (key, model) attempts to allow per incoming
-    # request before giving up. Sized to the whole pool so that under load
-    # we genuinely exhaust every key×model combo instead of stopping early.
-    max_attempts = max(20, len(API_KEYS) * max(1, len(MODELS)) + 5)
+    # How many total loop iterations (attempts + wait-cycles) to allow.
+    # Each iteration either:
+    #   (a) tries a real (key, model) slot — capped by the pool size, or
+    #   (b) sleeps and retries after RPM window clears — we allow up to
+    #       ~3 of these so a burst of requests can queue briefly without
+    #       waiting more than ~3×65 = ~3 minutes total.
+    # The old value (pool_size + 5 = up to 77) meant the loop could spin
+    # for far too long when every slot was RPM-busy.
+    max_attempts = len(API_KEYS) * max(1, len(MODELS)) + 3
 
     for attempt in range(max_attempts):
         # Atomic: pick a viable (key, model) AND reserve it in one lock
@@ -1247,46 +1302,53 @@ def proxy_chat():
         slot = acquire_next_slot(requested_model, exclude=tried)
 
         if slot is None:
-            # Nothing available right now for any untried combo.
-            # Calculate the exact time until the NEXT combo becomes available
-            # (due to pacing, 60s window expiration, or cooldown).
+            # acquire_next_slot found no viable combo right now.
+            # Work out whether any slot is merely RPM-throttled (transient)
+            # or everything is daily-exhausted/broken (permanent for today).
             with state_lock:
                 now_mono = time.monotonic()
                 waits = []
-                for _, _, k, m_dict in _list_combos_in_order(requested_model):
-                    m = m_dict["name"]
-                    if (k, m) in tried or (k, m) in PERMANENTLY_BROKEN_MODELS or _is_daily_penalized(k, m) or not _rpd_available(k, m, m_dict["rpd"]):
-                        continue
-                    
-                    # 1. Check cooldown
-                    cd = rpm_cooldown.get((k, m), 0)
-                    if cd > now_mono:
-                        waits.append(cd)
-                        continue
-                        
-                    window = rpm_window.get((k, m), [])
-                    if window:
-                        # 2. Check pacing
-                        spacing = (60.0 / m_dict["rpm"]) + 1.0
-                        pacing_end = window[-1] + spacing
-                        if pacing_end > now_mono:
-                            waits.append(pacing_end)
-                        
-                        # 3. Check 60s window
-                        effective_limit = max(1, m_dict["rpm"] - max(RPM_SAFETY_MARGIN, 1))
-                        if len(window) >= effective_limit:
-                            window_end = window[0] + 60.0
-                            if window_end > now_mono:
-                                waits.append(window_end)
-                
-                soonest = min(waits, default=None)
-            
-            if soonest and (soonest - now_mono) <= 65:
-                wait = soonest - time.monotonic() + 0.1
-                print(f"[WAIT] All slots busy (pacing/cooldown), waiting {wait:.1f}s...")
-                time.sleep(max(0, wait))
-                continue
-            break  # truly nothing available (e.g. all keys hit daily limit)
+                any_waitable = False
+                for m_dict in get_active_models():
+                    m_name = m_dict["name"]
+                    for k in API_KEYS:
+                        if (k, m_name) in tried:
+                            continue
+                        if (k, m_name) in PERMANENTLY_BROKEN_MODELS:
+                            continue
+                        if _is_daily_penalized(k, m_name):
+                            continue
+                        if not _rpd_available(k, m_name, m_dict["rpd"]):
+                            continue
+                        # This combo is not permanently dead — it's just
+                        # RPM-limited right now. Find when it opens up.
+                        any_waitable = True
+                        cd = rpm_cooldown.get((k, m_name), 0)
+                        if cd > now_mono:
+                            waits.append(cd - now_mono)
+                        window = list(rpm_window.get((k, m_name), []))
+                        if window:
+                            effective_limit = max(1, m_dict["rpm"] - RPM_SAFETY_MARGIN)
+                            if len(window) >= effective_limit:
+                                # oldest entry falls out of the 60s window
+                                waits.append(max(0, window[0] + 60.0 - now_mono))
+
+            if not any_waitable:
+                # Every remaining combo is permanently dead for today.
+                print("[EXHAUSTED] All key×model combos are daily-exhausted or broken.")
+                break
+
+            # At least one slot is coming back — sleep until the soonest one.
+            wait_secs = min(waits) + 0.2 if waits else 2.0
+            if wait_secs > 65:
+                # Cooldown/window is too far away — not worth blocking the
+                # HTTP request this long. Return 429 now so the caller can
+                # retry; the next call will likely find a fresh slot.
+                print(f"[WAIT TOO LONG] Soonest slot in {wait_secs:.0f}s — returning 429 now.")
+                break
+            print(f"[WAIT] All slots RPM-busy, sleeping {wait_secs:.1f}s for next available slot...")
+            time.sleep(wait_secs)
+            continue
 
         k_idx, m_idx, key, model = slot
         actual_model = model["name"]
@@ -1397,7 +1459,6 @@ def proxy_chat():
                 else:
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
                 continue  # instantly try the next key/model regardless
-                continue
 
             else:
                 with state_lock:
