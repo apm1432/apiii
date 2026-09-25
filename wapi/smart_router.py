@@ -1065,24 +1065,42 @@ def api_dashboard_data():
     now_mono = time.monotonic()
     with state_lock:
         _maybe_reset_rpd()
-        # key_daily_penalty is now keyed by (key, model) — display it the
-        # same way rpm_cooldowns is displayed, so the dashboard shows which
-        # specific model on which key is daily-exhausted, not the whole key.
-        penalized = {
-            f"{k[:5]}...{k[-5:]}|{m}": round((ts - now)/60, 1)
-            for (k, m), ts in key_daily_penalty.items() if ts > now
+        # Grouped BY MODEL instead of one flat tag per (key, model) pair --
+        # with 12 keys × several models, the old flat list turned into one
+        # giant unreadable line the moment more than a couple of combos got
+        # penalized, and there was no way to tell at a glance whether a
+        # model still had ANY working key left or was fully exhausted.
+        # Each model now reports how many of the total keys are affected
+        # (so "6/12" instantly tells you whether keys remain), plus the
+        # individual key suffixes + time-left for anyone who expands it.
+        total_keys = len(API_KEYS)
+
+        by_model_daily = {}
+        for (k, m), ts in key_daily_penalty.items():
+            if ts > now:
+                by_model_daily.setdefault(m, []).append({"key": f"...{k[-4:]}", "mins": round((ts - now) / 60, 1)})
+        penalized_by_model = {
+            m: {"count": len(v), "total": total_keys, "keys": sorted(v, key=lambda x: -x["mins"])}
+            for m, v in by_model_daily.items()
         }
-        cooldowns = {
-            f"{k[:5]}...{k[-5:]}|{m}": round(ts - now_mono, 1)
-            for (k, m), ts in rpm_cooldown.items() if ts > now_mono
+
+        by_model_rpm = {}
+        for (k, m), ts in rpm_cooldown.items():
+            if ts > now_mono:
+                by_model_rpm.setdefault(m, []).append({"key": f"...{k[-4:]}", "secs": round(ts - now_mono, 1)})
+        rpm_by_model = {
+            m: {"count": len(v), "total": total_keys, "keys": sorted(v, key=lambda x: -x["secs"])}
+            for m, v in by_model_rpm.items()
         }
+
         key_list = [f"...{k[-4:]}" for k in API_KEYS]
     return jsonify({
         "metrics": metrics,
         "active_keys": len(API_KEYS),
         "key_list": key_list,
-        "penalized_keys": penalized,
-        "rpm_cooldowns": cooldowns,
+        "penalized_by_model": penalized_by_model,
+        "rpm_by_model": rpm_by_model,
+        "total_keys": total_keys,
         "models": get_active_models(),
         "logs": list(request_logs)
     })
@@ -1224,14 +1242,30 @@ async function fetchData(){
 function updateUI(data){
   const m=data.metrics;
   let penHtml='';
-  if(Object.keys(data.penalized_keys||{}).length>0){
-    for(const[k,v]of Object.entries(data.penalized_keys))
-      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;">${k} (${v}m)</span>`;
+  if(data.penalized_by_model && Object.keys(data.penalized_by_model).length>0){
+    for(const[model,info]of Object.entries(data.penalized_by_model)){
+      const allGone = info.count>=info.total;
+      const keyTags = info.keys.map(x=>`<span class="tag" style="background:rgba(248,113,113,.15);border-color:#f87171;">${x.key} (${x.mins}m)</span>`).join('');
+      penHtml+=`<details style="margin-bottom:4px;">
+        <summary style="cursor:pointer;color:${allGone?'#f87171':'#fbbf24'};font-size:.85em;">
+          ${esc(model)} — ${info.count}/${info.total} keys${allGone?' ⚠️ ALL EXHAUSTED':''}
+        </summary>
+        <div style="padding:5px 0 5px 14px;display:flex;flex-wrap:wrap;gap:5px;">${keyTags}</div>
+      </details>`;
+    }
   }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
   let cdHtml='';
-  if(Object.keys(data.rpm_cooldowns||{}).length>0){
-    for(const[k,v]of Object.entries(data.rpm_cooldowns))
-      cdHtml+=`<span class="tag" style="background:rgba(251,191,36,.2);color:#fbbf24;border-color:#fbbf24;">${k} (${v}s)</span>`;
+  if(data.rpm_by_model && Object.keys(data.rpm_by_model).length>0){
+    for(const[model,info]of Object.entries(data.rpm_by_model)){
+      const allBusy = info.count>=info.total;
+      const keyTags = info.keys.map(x=>`<span class="tag" style="background:rgba(251,191,36,.15);border-color:#fbbf24;">${x.key} (${x.secs}s)</span>`).join('');
+      cdHtml+=`<details style="margin-bottom:4px;">
+        <summary style="cursor:pointer;color:${allBusy?'#f87171':'#fbbf24'};font-size:.85em;">
+          ${esc(model)} — ${info.count}/${info.total} keys${allBusy?' ⚠️ ALL BUSY':''}
+        </summary>
+        <div style="padding:5px 0 5px 14px;display:flex;flex-wrap:wrap;gap:5px;">${keyTags}</div>
+      </details>`;
+    }
   }else cdHtml='<span style="color:#4ade80;">None</span>';
   let keysHtml = '';
   if (data.key_list) {
@@ -1242,14 +1276,26 @@ function updateUI(data){
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
-      <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
-      <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
+      <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="margin-top:5px;">${penHtml}</div></div>
+      <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="margin-top:5px;">${cdHtml}</div></div>
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
       <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span></div></div>
     <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
       <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
+
+  // Logs table: rebuilding all 50 rows' innerHTML on every 5s poll -- even
+  // when NOTHING new happened -- is exactly what made the page feel janky
+  // (constant DOM churn, lost text selection, scroll jumps). We now build a
+  // cheap signature of the current log set (count + newest entry's time)
+  // and only touch the DOM when it actually changed.
+  const currentLogsKey = (data.logs && data.logs.length)
+    ? data.logs.length + '|' + data.logs[0].time + '|' + data.logs[0].ip + '|' + data.logs[0].status
+    : 'empty';
+  if (currentLogsKey === lastLogsKey) return;  // nothing new -- skip the table rebuild entirely
+  lastLogsKey = currentLogsKey;
+
   const tbody=document.getElementById('logs-body');
   if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
   let html='';
@@ -1274,6 +1320,7 @@ function updateUI(data){
   tbody.innerHTML=html;
 }
 function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+let lastLogsKey='';
 fetchData();setInterval(fetchData,5000);
 </script></body></html>"""
     return render_template_string(html)
@@ -1499,7 +1546,7 @@ def proxy_chat():
                         # after which it's fair game again on a later pass.
 
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
-                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit — {err_text[:150]}")
+                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit — {err_text[:90]}")
                 continue  # instantly retry with the next best slot
 
             elif resp.status_code in [500, 503]:
@@ -1581,7 +1628,7 @@ def proxy_chat():
                                            f"-> permanently disabled for this key")
                 else:
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
-                    attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text[:150]}")
+                    attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text[:90]}")
                 continue  # instantly try the next key/model regardless
 
             else:
@@ -1593,7 +1640,7 @@ def proxy_chat():
                 if hasattr(g, "log_entry"):
                     g.log_entry["error_detail"] = (
                         f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text}"
-                        + (f" | earlier attempts: {' || '.join(attempt_errors[-4:])}" if attempt_errors else "")
+                        + (f" | earlier attempts: {' || '.join(attempt_errors[-3:])}" if attempt_errors else "")
                     )
                 excluded = ['content-encoding','content-length','transfer-encoding','connection']
                 out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
@@ -1617,7 +1664,7 @@ def proxy_chat():
     with state_lock:
         metrics["failed_requests"] += 1
 
-    error_summary = " || ".join(attempt_errors[-6:]) if attempt_errors else "no combo was tried (pool empty?)"
+    error_summary = " || ".join(attempt_errors[-4:]) if attempt_errors else "no combo was tried (pool empty?)"
     if hasattr(g, "log_entry"):
         g.log_entry["error_detail"] = f"exhausted after {len(attempt_errors)} attempt(s): {error_summary}"
 
