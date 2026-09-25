@@ -951,9 +951,18 @@ def test_all_keys():
 
     # Read optional target_key from query params
     target_key_preview = request.args.get("key")
-    
+
+    # Concurrency: firing all 72 combos at once (32 workers, near-simultaneous
+    # TLS connections to the SAME Google host from this ONE server IP) reads
+    # to Google's edge like a connection-flood, not 72 independent users --
+    # it can trigger raw connection resets (SSLEOFError, SSLZeroReturnError,
+    # "Remote end closed connection") on a big chunk of the batch that have
+    # nothing to do with any key's real quota/health. A lower worker count
+    # plus a small stagger between submissions keeps this a genuine health
+    # check instead of a self-inflicted burst that makes healthy keys look
+    # broken.
     tasks = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         for key in API_KEYS:
             if target_key_preview:
                 clean_preview = target_key_preview.replace("...", "").strip()
@@ -963,7 +972,8 @@ def test_all_keys():
                 model_name = model["name"]
                 question   = _question_for_model_idx(m_idx)
                 tasks.append(executor.submit(_test_single_combo, key, model_name, question))
-                
+                time.sleep(0.12)  # stagger submissions so connections open gradually
+
     results = [t.result() for t in tasks]
 
     total = len(results)
@@ -1028,6 +1038,7 @@ def strict_password_and_log():
         "message": formatted_msg,
         "model": None,           # filled in on a successful 200 (which key/model served it)
         "response_ms": None,     # filled in in after_request below
+        "error_detail": None,    # filled in on failure -- WHY it failed, not just the status code
         "status": "Pending..."
     }
     g.log_entry = log_entry
@@ -1139,8 +1150,8 @@ tr:hover{background:#252525}
 🔐 Secure Access Logs (last 50)
 </h2>
 <div class="table-wrapper"><table><thead><tr>
-<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Response Time</th><th>Message / Prompt</th>
-</tr></thead><tbody id="logs-body"><tr><td colspan="7" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
+<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Response Time</th><th>Message / Prompt</th><th>Error Detail</th>
+</tr></thead><tbody id="logs-body"><tr><td colspan="8" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
 </div>
 <script>
 let isSelecting=false;
@@ -1240,7 +1251,7 @@ function updateUI(data){
     <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
       <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
   const tbody=document.getElementById('logs-body');
-  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
+  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
   let html='';
   data.logs.forEach((log,idx)=>{
     const pwdClass=log.is_correct?'pwd-correct':'pwd-wrong';
@@ -1248,6 +1259,7 @@ function updateUI(data){
     const badgeClass=log.is_correct?'bg-green':'bg-red';
     const modelText=log.model?esc(log.model):'—';
     const msText=(log.response_ms!==null&&log.response_ms!==undefined)?log.response_ms+'ms':'—';
+    const errText=log.error_detail?esc(log.error_detail):'—';
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;font-size:.9em;">${log.time||''}</td>
       <td class="ip">${log.ip||''}</td>
@@ -1256,6 +1268,7 @@ function updateUI(data){
       <td style="color:#c4b5fd;font-size:.85em;">${modelText}</td>
       <td style="color:#6b7280;font-size:.85em;white-space:nowrap;">${msText}</td>
       <td><div class="msg">${esc(log.message||'No message')}</div></td>
+      <td>${log.error_detail?`<div class="msg" style="color:#f87171;max-width:280px;">${errText}</div>`:'<span style="color:#4ade80;">—</span>'}</td>
     </tr>`;
   });
   tbody.innerHTML=html;
@@ -1302,6 +1315,12 @@ def proxy_chat():
     is_continuation = _is_tool_continuation(messages)
 
     last_resp = None
+    attempt_errors = []      # short "{status} {model} (…key): reason" strings for
+                              # every failed attempt this request made, so that if
+                              # the request ultimately fails, the dashboard log can
+                              # show WHY (not just a bare status code) -- see
+                              # g.log_entry["error_detail"] set right before we
+                              # return to the client below.
     tried = set()            # (key, model_name) permanently excluded this request
                               # (daily-penalized, permanently broken, or attempt-cap reached)
     attempt_counts = {}      # (key, model_name) -> attempts made this request, for
@@ -1480,6 +1499,7 @@ def proxy_chat():
                         # after which it's fair game again on a later pass.
 
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
+                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit — {err_text[:150]}")
                 continue  # instantly retry with the next best slot
 
             elif resp.status_code in [500, 503]:
@@ -1501,6 +1521,7 @@ def proxy_chat():
                         _apply_rpm_cooldown(key, actual_model, seconds=20)
                         print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
                               f"server error, attempt {n}/{MAX_ATTEMPTS_PER_COMBO} -> trying other combos first")
+                attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): server overloaded/unavailable")
                 continue
 
             elif resp.status_code in [400, 404]:
@@ -1534,6 +1555,8 @@ def proxy_chat():
                             PERMANENTLY_BROKEN_MODELS.add((_k, actual_model))
                     print(f"[404 RETIRED] {actual_model} no longer exists -> removed from pool for all keys "
                           f"(remove it from GEMINI_MODELS env)")
+                    attempt_errors.append(f"404 {actual_model} (…{key[-4:]}): model no longer exists on Google's side "
+                                           f"-> permanently removed from the pool")
                     continue
 
                 model_is_incompatible = any(sig in err_text for sig in [
@@ -1554,13 +1577,24 @@ def proxy_chat():
                         metrics["failed_requests"] += 1
                     print(f"[400 INCOMPATIBLE] key=…{key[-6:]} model={actual_model} "
                           f"does not work via this proxy shape → disabled for this key, switching instantly")
+                    attempt_errors.append(f"400 {actual_model} (…{key[-4:]}): incompatible with this proxy shape "
+                                           f"-> permanently disabled for this key")
                 else:
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
+                    attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text[:150]}")
                 continue  # instantly try the next key/model regardless
 
             else:
                 with state_lock:
                     metrics["failed_requests"] += 1
+                err_text = ""
+                try: err_text = resp.text[:200]
+                except: pass
+                if hasattr(g, "log_entry"):
+                    g.log_entry["error_detail"] = (
+                        f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text}"
+                        + (f" | earlier attempts: {' || '.join(attempt_errors[-4:])}" if attempt_errors else "")
+                    )
                 excluded = ['content-encoding','content-length','transfer-encoding','connection']
                 out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
                 return Response(resp.content, resp.status_code, out_headers)
@@ -1569,6 +1603,7 @@ def proxy_chat():
             print(f"[ERROR] key=…{key[-6:]} model={actual_model}: {e}")
             # Network-level failure (e.g. read timeout) -- same treatment as
             # a 503: transient, not quota-related, never a daily block.
+            attempt_errors.append(f"EXC {actual_model} (…{key[-4:]}): {str(e)[:150]}")
             with state_lock:
                 n = attempt_counts.get((key, actual_model), 0) + 1
                 attempt_counts[(key, actual_model)] = n
@@ -1581,6 +1616,10 @@ def proxy_chat():
     # Every key×model combo was tried (or the pool is genuinely exhausted).
     with state_lock:
         metrics["failed_requests"] += 1
+
+    error_summary = " || ".join(attempt_errors[-6:]) if attempt_errors else "no combo was tried (pool empty?)"
+    if hasattr(g, "log_entry"):
+        g.log_entry["error_detail"] = f"exhausted after {len(attempt_errors)} attempt(s): {error_summary}"
 
     if last_resp is not None:
         excluded = ['content-encoding','content-length','transfer-encoding','connection']
