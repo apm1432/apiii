@@ -570,59 +570,81 @@ rate_strikes: dict = {}   # (key, model) -> consecutive ambiguous 429 count
 
 def _handle_429(key, model_name, err_text: str) -> str:
     """Classify a 429 and apply the right penalty. Call with state_lock held.
-    Returns "daily" or "rpm"."""
+    Returns "daily" or "rpm".
+
+    Google's free-tier Gemini 3.x models return a quotaId string containing
+    "...PerDay...FreeTier" even for errors that come back with a short
+    retryDelay (commonly 40-60s) and clear well within a minute -- so that
+    label text alone is NOT a reliable signal for these models; trusting it
+    blindly is what caused keys to get midnight-blocked while their real
+    daily quota was still mostly unused. retryDelay -- Google's own stated
+    wait time -- is checked FIRST and trusted over the label. A key/model is
+    only ever pushed into a real midnight daily-block when either:
+      (a) Google gives an explicitly long retryDelay (>300s), or a
+          daily-looking label with no retryDelay at all -- i.e. Google
+          itself is saying "there is no short wait that fixes this", or
+      (b) the SAME (key, model) keeps coming back with an ambiguous quota
+          error several times in a row, each one AFTER its own previous
+          short cooldown has fully expired (acquire_next_slot only ever
+          retries it once that cooldown is over) -- repeated failure that
+          survives waiting is the real behavioural signature of a genuine
+          daily block, since a per-minute limit would have cleared by then.
+    """
     t = (err_text or "").lower()
     k = (key, model_name)
 
-    # ── Daily / RPD detection ─────────────────────────────────────────────────
-    # Google free-tier quota errors contain quotaId strings like:
-    #   "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-    # which in lowercase becomes "generaterequestsperdayperprojectpermodel-freetier"
-    # containing "perday". We also check retryDelay: if it's > 300s it's
-    # almost certainly a daily reset (midnight), not a per-minute cooldown.
-    is_daily = (
-        "perday" in t
-        or "per day" in t
-        or "per_day" in t
-        or "daily" in t
-        or "freetier" in t          # free-tier quota IDs always = daily limits
-        or "free_tier" in t
-        or "free tier" in t
-        or "generatecontentfreetier" in t
-    )
-    if is_daily:
-        _apply_daily_penalty(key, model_name)
-        return "daily"
-
-    # ── Extract retryDelay from Google's error body ───────────────────────────
     m = re.search(r'retrydelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s', t)
     retry = float(m.group(1)) + 2 if m else None
 
-    # If retryDelay > 300s Google is effectively saying "come back tomorrow"
-    if retry and retry > 300:
-        _apply_daily_penalty(key, model_name)
-        return "daily"
-
     # ── Per-minute / RPM detection ────────────────────────────────────────────
+    # Explicit label -> definitely RPM, short cooldown, reset strikes.
     if "perminute" in t or "per minute" in t or "per_minute" in t:
         rate_strikes.pop(k, None)
         _apply_rpm_cooldown(key, model_name, seconds=int(retry or 62))
         return "rpm"
 
+    is_daily_label = (
+        "perday" in t or "per day" in t or "per_day" in t or "daily" in t
+        or "freetier" in t or "free_tier" in t or "free tier" in t
+        or "generatecontentfreetier" in t
+    )
+
+    # A short retryDelay is trusted over the label, whatever it says: it
+    # clears fast, so it's treated as an RPM-style cooldown, not a daily one.
+    if retry is not None and retry <= 120:
+        _apply_rpm_cooldown(key, model_name, seconds=int(retry))
+        return _escalate_or_stay_rpm(k, key, model_name)
+
+    # No short retryDelay to trust: a long one (>300s), or a daily-looking
+    # label with no retryDelay at all, really does mean "come back tomorrow".
+    if (retry and retry > 300) or (is_daily_label and retry is None):
+        _apply_daily_penalty(key, model_name)
+        rate_strikes.pop(k, None)
+        return "daily"
+
     # ── Ambiguous 429 ─────────────────────────────────────────────────────────
-    # "quota" with no PerDay/PerMinute, or bare 429 with no body.
-    # Escalate: 62s → 5 min → 30 min → daily (reset on success via rate_strikes.pop).
-    # We cap at 3 strikes before going daily so we don't keep hammering a key
-    # whose free-tier daily quota read as ambiguous.
+    # No reliable signal at all (bare 429, no retryDelay, no clear label) ->
+    # a single flat ~62s cooldown every time (no escalating 5-minute jump),
+    # since RPM windows are only 60s wide anyway. Only escalates to a real
+    # daily block after this same combo fails the same ambiguous way
+    # repeatedly (see _escalate_or_stay_rpm).
+    _apply_rpm_cooldown(key, model_name, seconds=int(retry or 62))
+    return _escalate_or_stay_rpm(k, key, model_name)
+
+def _escalate_or_stay_rpm(k, key, model_name) -> str:
+    """Consecutive-ambiguous-strike counter for the (key, model) pair `k`.
+    Each strike here can only happen after the PREVIOUS short cooldown for
+    this same combo has actually expired (acquire_next_slot won't re-pick a
+    combo that's still under cooldown), so reaching the cap means the combo
+    failed the same way several separate times, well spaced apart -- real
+    confirmation of a genuine daily block, not just a noisy burst. Reset to
+    0 on any success (see remember_sticky_slot)."""
     n = rate_strikes.get(k, 0) + 1
     rate_strikes[k] = n
-    if n >= 3:
-        # Three ambiguous 429s in a row on the same (key, model) almost
-        # certainly means the daily quota is gone — penalise until midnight.
+    if n >= 5:
         _apply_daily_penalty(key, model_name)
+        rate_strikes.pop(k, None)
         return "daily"
-    secs = int(retry) if retry else {1: 62, 2: 300}[n]
-    _apply_rpm_cooldown(key, model_name, seconds=max(secs, 30))
     return "rpm"
 
 # ─── Dynamic model list (refreshed daily from API) ────────────────────────────
@@ -828,7 +850,7 @@ def get_best_combo(requested_model: str):
 
 
 # ─── Request logs ─────────────────────────────────────────────────────────────
-request_logs = deque(maxlen=150)
+request_logs = deque(maxlen=50)
 
 # ─── Shared question pool (used by test_all_keys AND auto-test on /add) ───────
 # Questions are assigned by model-index so each model always gets a distinct
@@ -856,7 +878,16 @@ def _question_for_model_idx(m_idx: int) -> str:
 def _test_single_combo(key: str, model_name: str, question: str, timeout: int = 15) -> dict:
     """
     Fire one test call for (key, model_name) and return a result dict.
-    Does NOT touch RPM/RPD state — purely diagnostic.
+    Does NOT touch RPM state — purely diagnostic. It DOES count a genuine
+    200 towards rpd_count, though: this call is a REAL request against
+    Google, so it really does consume a slice of that key+model's daily
+    quota whether the router's internal counter knows about it or not.
+    Not recording it here used to let "Test All Keys" silently burn real
+    RPD headroom that the router still believed was fully available,
+    causing later production requests on that key+model to fail with a
+    real Google 429 that looked unexplained. Only successes are counted,
+    for the same reason _record_rpd_success() only fires on 200 in the
+    main proxy path — a 429/503/timeout here didn't consume any quota.
     """
     url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
@@ -870,6 +901,9 @@ def _test_single_combo(key: str, model_name: str, question: str, timeout: int = 
                 text = resp.json()["choices"][0]["message"]["content"].strip()
             except Exception:
                 text = resp.text
+            with state_lock:
+                _maybe_reset_rpd()
+                _record_rpd_success(key, model_name)
             return {"key": f"...{key[-4:]}", "model": model_name, "question": question,
                     "status": 200, "ok": True, "response": text, "ms": elapsed}
         else:
@@ -891,7 +925,9 @@ def test_all_keys():
     """
     Test every (key, model) combo with a simple 'What is your name?' message.
     Returns JSON with results for each combo — used by the dashboard Test button.
-    Does NOT record RPM/RPD usage (test calls are made directly, bypassing router logic).
+    These are REAL calls to Google, made directly (bypassing the router's
+    combo-picking logic) — but a successful one now still counts against
+    that key+model's tracked RPD, since it really did use up real quota.
     Auth: Bearer password required.
     """
     expected_pass = os.environ.get("PASSWORD", "")
@@ -962,20 +998,20 @@ def strict_password_and_log():
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys']:
         return
+    g._log_start = time.monotonic()  # for response_ms in after_request, not stored in log_entry itself
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
     is_correct    = (auth_header == f"Bearer {expected_pass}")
 
-    msg, params_str = "", ""
+    msg = ""
     if request.is_json:
         try:
             body = request.get_json(silent=True) or {}
-            params_str = json.dumps(body, indent=2)
             msgs = body.get("messages", [])
             if msgs:
                 msg = msgs[-1].get("content", "")
-        except Exception as e:
-            params_str = str(e)
+        except Exception:
+            pass
 
     if isinstance(msg, str) and len(msg) > 1:
         formatted_msg = f"{msg[0]}...{msg[-1]}"
@@ -983,14 +1019,15 @@ def strict_password_and_log():
         formatted_msg = str(msg) if msg else ""
 
     log_entry = {
-        "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "time": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
         "ip": request.headers.get("Cf-Connecting-Ip",
               request.headers.get("X-Forwarded-For", request.remote_addr)),
         "path": request.path,
         "password_used": "*** HIDDEN (CORRECT) ***" if is_correct else auth_header,
         "is_correct": is_correct,
         "message": formatted_msg,
-        "params": params_str,
+        "model": None,           # filled in on a successful 200 (which key/model served it)
+        "response_ms": None,     # filled in in after_request below
         "status": "Pending..."
     }
     g.log_entry = log_entry
@@ -1002,8 +1039,11 @@ def strict_password_and_log():
 
 @app.after_request
 def update_log_status(response):
-    if hasattr(g, 'log_entry') and g.log_entry["status"] == "Pending...":
-        g.log_entry["status"] = f"{response.status_code} {'Success' if response.status_code == 200 else 'Failed'}"
+    if hasattr(g, 'log_entry'):
+        if g.log_entry["status"] == "Pending...":
+            g.log_entry["status"] = f"{response.status_code} {'Success' if response.status_code == 200 else 'Failed'}"
+        if g.log_entry.get("response_ms") is None and hasattr(g, "_log_start"):
+            g.log_entry["response_ms"] = round((time.monotonic() - g._log_start) * 1000)
     return response
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -1067,7 +1107,6 @@ tr:hover{background:#252525}
 .tag{background:#333;padding:2px 6px;border-radius:4px;font-size:.8em;color:#ccc;border:1px solid #444}
 .btn{background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:.9em;transition:.2s}
 .btn:hover{background:#2563eb}
-.params-box{display:none}
 </style></head><body><div class="container">
 <h1>🚀 WAPI Live Dashboard
 <div style="display:flex;gap:8px;align-items:center;">
@@ -1097,16 +1136,14 @@ tr:hover{background:#252525}
 </div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
-🔐 Secure Access Logs
-<button class="btn" onclick="toggleAllParams()" id="toggle-btn">👁️ Show All Params</button></h2>
+🔐 Secure Access Logs (last 50)
+</h2>
 <div class="table-wrapper"><table><thead><tr>
-<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Message / Prompt</th><th>Parameters</th>
-</tr></thead><tbody id="logs-body"><tr><td colspan="6" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
+<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Response Time</th><th>Message / Prompt</th>
+</tr></thead><tbody id="logs-body"><tr><td colspan="7" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
 </div>
 <script>
-let isSelecting=false,allParamsVisible=false;
-function toggleParams(idx){const el=document.getElementById('params-'+idx);el.style.display=(el.style.display==='none'||el.style.display==='')?'block':'none';}
-function toggleAllParams(){allParamsVisible=!allParamsVisible;document.getElementById('toggle-btn').innerText=allParamsVisible?'🙈 Hide All Params':'👁️ Show All Params';const boxes=document.getElementsByClassName('params-box');for(let box of boxes)box.style.display=allParamsVisible?'block':'none';}
+let isSelecting=false;
 document.addEventListener('selectionchange',()=>{const s=window.getSelection();isSelecting=s.toString().length>0;});
 
 async function testAllKeys(targetKey = ''){
@@ -1203,20 +1240,22 @@ function updateUI(data){
     <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
       <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
   const tbody=document.getElementById('logs-body');
-  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
+  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
   let html='';
   data.logs.forEach((log,idx)=>{
     const pwdClass=log.is_correct?'pwd-correct':'pwd-wrong';
     const pwdText=log.is_correct?'🛡️ '+log.password_used:(log.password_used||'NONE');
     const badgeClass=log.is_correct?'bg-green':'bg-red';
+    const modelText=log.model?esc(log.model):'—';
+    const msText=(log.response_ms!==null&&log.response_ms!==undefined)?log.response_ms+'ms':'—';
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;font-size:.9em;">${log.time||''}</td>
       <td class="ip">${log.ip||''}</td>
       <td><span class="${pwdClass}">${esc(pwdText)}</span></td>
       <td><span class="badge ${badgeClass}">${esc(log.status||'')}</span></td>
+      <td style="color:#c4b5fd;font-size:.85em;">${modelText}</td>
+      <td style="color:#6b7280;font-size:.85em;white-space:nowrap;">${msText}</td>
       <td><div class="msg">${esc(log.message||'No message')}</div></td>
-      <td><button class="btn" style="padding:2px 6px;font-size:.7em;margin-bottom:5px;" onclick="toggleParams(${idx})">Show Params</button>
-      <div id="params-${idx}" class="msg params-box" style="display:none;max-height:150px;overflow-y:auto;max-width:300px;">${esc(log.params||'No parameters')}</div></td>
     </tr>`;
   });
   tbody.innerHTML=html;
@@ -1263,7 +1302,17 @@ def proxy_chat():
     is_continuation = _is_tool_continuation(messages)
 
     last_resp = None
-    tried = set()  # (key, model_name) already attempted this request
+    tried = set()            # (key, model_name) permanently excluded this request
+                              # (daily-penalized, permanently broken, or attempt-cap reached)
+    attempt_counts = {}      # (key, model_name) -> attempts made this request, for
+                              # transient failures (503/500/timeout) only. A combo
+                              # that fails this way isn't given up on after just one
+                              # try -- Google's "high demand" 503s are usually brief,
+                              # so each combo gets up to MAX_ATTEMPTS_PER_COMBO tries,
+                              # cycling through every other key/model in between
+                              # (never hammered 3x back-to-back), before it's finally
+                              # excluded for the rest of this request.
+    MAX_ATTEMPTS_PER_COMBO = 3
 
     if is_continuation:
         # PREFER the (key, model) that produced the tool call (its signature
@@ -1284,6 +1333,9 @@ def proxy_chat():
                 if resp.status_code == 200:
                     remember_sticky_slot(client_id, key, actual_model)
                     capture_signatures(resp.content)
+                    if hasattr(g, "log_entry"):
+                        g.log_entry["status"] = f"200 Success ({actual_model})"
+                        g.log_entry["model"] = actual_model
                     with state_lock:
                         metrics["successful_api_calls"] += 1
                         _record_rpd_success(key, actual_model)
@@ -1299,14 +1351,17 @@ def proxy_chat():
         # exhausted / busy / no pin / pinned failed -> normal routing below
 
     # How many total loop iterations (attempts + wait-cycles) to allow.
-    # Each iteration either:
-    #   (a) tries a real (key, model) slot — capped by the pool size, or
-    #   (b) sleeps and retries after RPM window clears — we allow up to
-    #       ~3 of these so a burst of requests can queue briefly without
-    #       waiting more than ~3×65 = ~3 minutes total.
-    # The old value (pool_size + 5 = up to 77) meant the loop could spin
-    # for far too long when every slot was RPM-busy.
-    max_attempts = len(API_KEYS) * max(1, len(MODELS)) + 3
+    # We want up to 3 full round-robin passes over the ENTIRE key×model pool
+    # (first-to-last, then first-to-last again, then a third time) before
+    # giving up on this request -- not 3 back-to-back tries of the SAME
+    # combo. A combo that fails transiently (503/500/timeout) is only
+    # excluded after MAX_ATTEMPTS_PER_COMBO tries (see attempt_counts
+    # below), so it naturally gets revisited on a later pass once the rest
+    # of the pool has had its turn. We also keep a small buffer of extra
+    # iterations purely for RPM wait-cycles (sleeping for a slot that's
+    # about to free up rather than giving up on it).
+    pool_size = len(API_KEYS) * max(1, len(MODELS))
+    max_attempts = pool_size * 3 + 6
 
     for attempt in range(max_attempts):
         # Atomic: pick a viable (key, model) AND reserve it in one lock
@@ -1392,6 +1447,7 @@ def proxy_chat():
                 capture_signatures(resp.content)
                 if hasattr(g, "log_entry"):
                     g.log_entry["status"] = f"200 Success ({actual_model})"
+                    g.log_entry["model"] = actual_model
                 with state_lock:
                     metrics["successful_api_calls"] += 1
                     _record_rpd_success(key, actual_model)
@@ -1412,14 +1468,39 @@ def proxy_chat():
                     kind = _handle_429(key, actual_model, err_text)
                     if kind == "daily":
                         metrics["daily_limits_hit"] = metrics.get("daily_limits_hit", 0) + 1
+                        # A confirmed daily/quota block is the ONLY reason a
+                        # combo is permanently excluded for this request --
+                        # every other failure kind below gets more chances.
+                        tried.add((key, actual_model))
                     else:
                         metrics["rpm_cooldowns_applied"] = metrics.get("rpm_cooldowns_applied", 0) + 1
+                        # RPM-style cooldown only: NOT excluded. Its own
+                        # cooldown timer keeps acquire_next_slot from
+                        # re-picking it until the cooldown actually clears,
+                        # after which it's fair game again on a later pass.
 
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
                 continue  # instantly retry with the next best slot
 
             elif resp.status_code in [500, 503]:
-                print(f"[{resp.status_code}] model={actual_model} server error, trying next...")
+                # Google's own transient overload ("model currently
+                # experiencing high demand") -- NOT a quota problem, so this
+                # must never trigger a daily block. Give this exact combo a
+                # short breather (so it isn't hammered again on the very
+                # next iteration) and let round-robin move on to other
+                # combos; it becomes eligible again once the breather ends,
+                # up to MAX_ATTEMPTS_PER_COMBO total tries for this request.
+                with state_lock:
+                    n = attempt_counts.get((key, actual_model), 0) + 1
+                    attempt_counts[(key, actual_model)] = n
+                    if n >= MAX_ATTEMPTS_PER_COMBO:
+                        tried.add((key, actual_model))
+                        print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
+                              f"failed {n}x (server error) -> giving up on this combo for this request")
+                    else:
+                        _apply_rpm_cooldown(key, actual_model, seconds=20)
+                        print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
+                              f"server error, attempt {n}/{MAX_ATTEMPTS_PER_COMBO} -> trying other combos first")
                 continue
 
             elif resp.status_code in [400, 404]:
@@ -1486,6 +1567,15 @@ def proxy_chat():
 
         except Exception as e:
             print(f"[ERROR] key=…{key[-6:]} model={actual_model}: {e}")
+            # Network-level failure (e.g. read timeout) -- same treatment as
+            # a 503: transient, not quota-related, never a daily block.
+            with state_lock:
+                n = attempt_counts.get((key, actual_model), 0) + 1
+                attempt_counts[(key, actual_model)] = n
+                if n >= MAX_ATTEMPTS_PER_COMBO:
+                    tried.add((key, actual_model))
+                else:
+                    _apply_rpm_cooldown(key, actual_model, seconds=20)
             continue
 
     # Every key×model combo was tried (or the pool is genuinely exhausted).
