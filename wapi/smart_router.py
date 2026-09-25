@@ -1224,9 +1224,22 @@ async function fetchData(){
 function updateUI(data){
   const m=data.metrics;
   let penHtml='';
-  if(Object.keys(data.penalized_keys||{}).length>0){
-    for(const[k,v]of Object.entries(data.penalized_keys))
-      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;">${k} (${v}m)</span>`;
+  const penData=data.penalized_keys||{};
+  if(Object.keys(penData).length>0){
+    // Group entries by key prefix (e.g. "AQ.Ab...5AOiA")
+    const byKey={};
+    for(const[kv,mins] of Object.entries(penData)){
+      const pipe=kv.lastIndexOf('|');
+      const keyPart=pipe>=0?kv.slice(0,pipe):kv;
+      const modelPart=pipe>=0?kv.slice(pipe+1):kv;
+      if(!byKey[keyPart])byKey[keyPart]={models:[],mins};
+      byKey[keyPart].models.push(modelPart);
+    }
+    for(const[keyPart,info] of Object.entries(byKey)){
+      const last5=keyPart.slice(-5);
+      const tooltip=info.models.join(', ')+' ('+info.mins+'m left)';
+      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="alert('Key: ...${last5}\\nModels: ${esc(info.models.join(', '))}\\nTime left: ${info.mins}m')">...${last5} (${info.mins}m)</span>`;
+    }
   }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
   let cdHtml='';
   if(Object.keys(data.rpm_cooldowns||{}).length>0){
