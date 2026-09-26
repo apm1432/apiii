@@ -1077,13 +1077,27 @@ def api_dashboard_data():
             for (k, m), ts in rpm_cooldown.items() if ts > now_mono
         }
         key_list = [f"...{k[-4:]}" for k in API_KEYS]
+        # Per-model: count of available keys and list of penalized key last-5 digits
+        active_models_snap = get_active_models()
+        model_key_info = {}
+        for m in active_models_snap:
+            mn = m["name"]
+            pen_keys = []
+            available = 0
+            for k in API_KEYS:
+                if _is_daily_penalized(k, mn) or (k, mn) in PERMANENTLY_BROKEN_MODELS:
+                    pen_keys.append(k[-5:])
+                else:
+                    available += 1
+            model_key_info[mn] = {"available": available, "penalized_last5": pen_keys}
     return jsonify({
         "metrics": metrics,
         "active_keys": len(API_KEYS),
         "key_list": key_list,
         "penalized_keys": penalized,
         "rpm_cooldowns": cooldowns,
-        "models": get_active_models(),
+        "models": active_models_snap,
+        "model_key_info": model_key_info,
         "logs": list(request_logs)
     })
 
@@ -1221,37 +1235,26 @@ async function fetchData(){
   }
   btn.innerText='🔄 Refresh';
 }
-function updateUI(data){try{
+function updateUI(data){
   const m=data.metrics;
-  // Build model -> list of penalized key last-5-digits
-  const penData=data.penalized_keys||{};
-  const totalKeys=data.active_keys||0;
-  const allModels=(data.models||[]).map(m=>m.name);
-  const modelPenMap={};
-  for(const[kv] of Object.entries(penData)){
-    const pipe=kv.lastIndexOf('|');
-    if(pipe<0)continue;
-    const keyPart=kv.slice(0,pipe);
-    const modelPart=kv.slice(pipe+1);
-    const last5=keyPart.slice(-5);
-    if(!modelPenMap[modelPart])modelPenMap[modelPart]=new Set();
-    modelPenMap[modelPart].add(last5);
-  }
   let penHtml='';
-  for(const modelName of allModels){
-    const penKeys=modelPenMap[modelName]?[...modelPenMap[modelName]]:[];
-    const penCount=penKeys.length;
-    const color=penCount>0?'#f87171':'#4ade80';
-    const bg=penCount>0?'rgba(248,113,113,.15)':'rgba(74,222,128,.1)';
-    const border=penCount>0?'#f87171':'#4ade80';
-    const clickable=penCount>0?'cursor:pointer;':'';
-    const keyList=penKeys.map(k=>'...'+k).join('\n');
-    const safeModel=esc(modelName).replace(/'/g,"&#039;");
-    const safeKeys=penKeys.map(k=>'...'+k).join('\n').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    const onclick=penCount>0?`onclick="alert('Penalized keys for ${safeModel}:\n${safeKeys}')"`:'';
-    penHtml+=`<span class="tag" style="background:${bg};color:${color};border-color:${border};${clickable}" ${onclick}>${esc(modelName)} — ${penCount}/${totalKeys}</span>`;
-  }
-  if(!penHtml)penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
+  const penData=data.penalized_keys||{};
+  if(Object.keys(penData).length>0){
+    // Group entries by key prefix (e.g. "AQ.Ab...5AOiA")
+    const byKey={};
+    for(const[kv,mins] of Object.entries(penData)){
+      const pipe=kv.lastIndexOf('|');
+      const keyPart=pipe>=0?kv.slice(0,pipe):kv;
+      const modelPart=pipe>=0?kv.slice(pipe+1):kv;
+      if(!byKey[keyPart])byKey[keyPart]={models:[],mins};
+      byKey[keyPart].models.push(modelPart);
+    }
+    for(const[keyPart,info] of Object.entries(byKey)){
+      const last5=keyPart.slice(-5);
+      const tooltip=info.models.join(', ')+' ('+info.mins+'m left)';
+      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="alert('Key: ...${last5}\\nModels: ${esc(info.models.join(', '))}\\nTime left: ${info.mins}m')">...${last5} (${info.mins}m)</span>`;
+    }
+  }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
   let cdHtml='';
   if(Object.keys(data.rpm_cooldowns||{}).length>0){
     for(const[k,v]of Object.entries(data.rpm_cooldowns))
@@ -1263,11 +1266,34 @@ function updateUI(data){try{
         keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
     });
   }
+  // Build models row: each model shows available key count; click → show penalized last-5 digits
+  const mki = data.model_key_info || {};
+  let modelsHtml = '';
+  (data.models || []).forEach(model => {
+    const mn = model.name;
+    const info = mki[mn] || {available: '?', penalized_last5: []};
+    const total = data.active_keys || 0;
+    const penCount = info.penalized_last5.length;
+    const avail = info.available;
+    const countColor = penCount > 0 ? '#fbbf24' : '#4ade80';
+    const penTip = penCount > 0
+      ? info.penalized_last5.map(k=>'...'+k).join(', ')
+      : 'none';
+    const clickHandler = penCount > 0
+      ? `onclick="alert('Model: ${mn}\\nPenalized keys (${penCount}):\\n${info.penalized_last5.map(k=>'...'+k).join('\\n')}')"`
+      : '';
+    const cursor = penCount > 0 ? 'cursor:pointer;' : '';
+    modelsHtml += `<span class="tag" style="background:#1a1a2e;border:1px solid #4c1d95;${cursor}" title="${mn} — ${avail}/${total} keys available${penCount>0?' | penalized: '+penTip:''}" ${clickHandler}>${mn} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span></span>`;
+  });
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
       <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
       <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
+    </div>
+    <div class="card"><h3>Models</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
+      <div class="sub" style="margin-top:8px;color:#6b7280;">Click model to see penalized keys</div>
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
@@ -1296,7 +1322,7 @@ function updateUI(data){try{
     </tr>`;
   });
   tbody.innerHTML=html;
-}catch(e){console.error('updateUI error:',e);document.getElementById('error-msg').style.display='block';document.getElementById('error-msg').innerText='⚠️ UI Error: '+e.message;}}
+}
 function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 fetchData();setInterval(fetchData,5000);
 </script></body></html>"""
