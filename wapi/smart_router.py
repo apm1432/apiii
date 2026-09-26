@@ -1006,7 +1006,7 @@ def requires_browser_auth(f):
 def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys']:
+    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/reset_penalties', '/set_auto_reset']:
         return
     g._log_start = time.monotonic()  # for response_ms in after_request, not stored in log_entry itself
     expected_pass = os.environ.get("PASSWORD", "")
@@ -1137,6 +1137,14 @@ tr:hover{background:#252525}
 <div style="display:flex;gap:8px;align-items:center;">
 <button class="btn" onclick="fetchData()" id="refresh-btn">🔄 Refresh</button>
 <button class="btn" onclick="testAllKeys()" id="test-btn" style="background:#7c3aed;">🧪 Test All Keys</button>
+<button class="btn" onclick="resetPenalties()" id="reset-btn" style="background:#dc2626;">🔓 Reset Penalties</button>
+<select id="auto-reset-sel" onchange="setAutoReset(this.value)" style="background:#1e293b;color:#e0e0e0;border:1px solid #475569;border-radius:6px;padding:8px 12px;font-size:.9em;cursor:pointer;">
+<option value="0">⏰ Auto-Reset: Off</option>
+<option value="2">⏰ Every 2h</option>
+<option value="6">⏰ Every 6h</option>
+<option value="12">⏰ Every 12h</option>
+<option value="24">⏰ Every 24h</option>
+</select>
 </div></h1>
 <div id="error-msg" style="color:#fca5a5;background:#451a1a;padding:10px;border-radius:5px;text-align:center;display:none;margin-bottom:15px;"></div>
 <div id="test-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;">
@@ -1220,6 +1228,49 @@ function renderTestResults(data){
     </tr>`;
   });
   document.getElementById('test-tbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
+}
+
+async function resetPenalties(){
+  if(!window._wapiPwd){
+    const pwd=prompt('Enter your WAPI password:');
+    if(!pwd)return;
+    window._wapiPwd=pwd;
+  }
+  const btn=document.getElementById('reset-btn');
+  btn.innerText='⏳...'; btn.disabled=true;
+  try{
+    const r=await fetch('/router/reset_penalties',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+window._wapiPwd,'Content-Type':'application/json'},
+      body:JSON.stringify({rpm:true})
+    });
+    if(r.status===401){window._wapiPwd=null;alert('❌ Wrong password');btn.innerText='🔓 Reset Penalties';btn.disabled=false;return;}
+    const d=await r.json();
+    const total=d.total_cleared||0;
+    const dailyList=(d.cleared_daily_penalties||[]).join('\n') || 'none';
+    alert('✅ Reset done!\n\nDaily penalties cleared: '+(d.cleared_daily_penalties||[]).length+'\n'+dailyList+'\n\nRPM cooldowns cleared: '+(d.cleared_rpm_cooldowns||[]).length);
+    fetchData();
+  }catch(e){alert('❌ Error: '+e.message);}
+  btn.innerText='🔓 Reset Penalties'; btn.disabled=false;
+}
+
+async function setAutoReset(hours){
+  if(!window._wapiPwd){
+    const pwd=prompt('Enter your WAPI password to set auto-reset:');
+    if(!pwd){document.getElementById('auto-reset-sel').value='0';return;}
+    window._wapiPwd=pwd;
+  }
+  try{
+    const r=await fetch('/router/set_auto_reset',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+window._wapiPwd,'Content-Type':'application/json'},
+      body:JSON.stringify({hours:parseFloat(hours)})
+    });
+    if(r.status===401){window._wapiPwd=null;alert('❌ Wrong password');document.getElementById('auto-reset-sel').value='0';return;}
+    const d=await r.json();
+    const msg=d.auto_reset_hours==='disabled'?'Auto-reset disabled.':'Auto-reset set: every '+d.auto_reset_hours+'h\nPenalties will clear automatically.';
+    alert('✅ '+msg);
+  }catch(e){alert('❌ Error: '+e.message);}
 }
 
 async function fetchData(){
@@ -1826,6 +1877,107 @@ def get_status():
         "permanently_broken_key_model_pairs": broken,
         "models": get_active_models()
     })
+
+@app.route('/reset_penalties', methods=['POST'])
+def reset_penalties():
+    """Clear daily penalties (key_daily_penalty) and optionally rpm_cooldowns.
+    Auth: Bearer password required.
+    Body (all optional):
+      key   - last-N digits suffix to match a specific key (e.g. "AA111")
+      model - model name to clear for (e.g. "gemini-2.0-flash-lite")
+      rpm   - if true, also clear rpm_cooldowns for matched pairs
+    If neither key nor model given -> clears ALL penalties.
+    """
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {os.environ.get('PASSWORD', '')}":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    body = request.json or {}
+    key_suffix = (body.get("key") or "").strip().lstrip(".")
+    model_filter = (body.get("model") or "").strip()
+    also_rpm = bool(body.get("rpm", False))
+
+    cleared_daily = []
+    cleared_rpm = []
+
+    with state_lock:
+        # ── Daily penalties ───────────────────────────────────────────────
+        to_del = []
+        for (k, m) in list(key_daily_penalty.keys()):
+            match_key   = (not key_suffix)   or k.endswith(key_suffix)
+            match_model = (not model_filter) or (m == model_filter)
+            if match_key and match_model:
+                to_del.append((k, m))
+        for pair in to_del:
+            key_daily_penalty.pop(pair, None)
+            cleared_daily.append(f"...{pair[0][-5:]}|{pair[1]}")
+            print(f"[RESET PENALTY] cleared daily penalty for key=…{pair[0][-6:]} model={pair[1]}")
+
+        # ── RPM cooldowns (optional) ──────────────────────────────────────
+        if also_rpm:
+            to_del_rpm = []
+            for (k, m) in list(rpm_cooldown.keys()):
+                match_key   = (not key_suffix)   or k.endswith(key_suffix)
+                match_model = (not model_filter) or (m == model_filter)
+                if match_key and match_model:
+                    to_del_rpm.append((k, m))
+            for pair in to_del_rpm:
+                rpm_cooldown.pop(pair, None)
+                cleared_rpm.append(f"...{pair[0][-5:]}|{pair[1]}")
+                print(f"[RESET PENALTY] cleared RPM cooldown for key=…{pair[0][-6:]} model={pair[1]}")
+
+    return jsonify({
+        "status": "ok",
+        "cleared_daily_penalties": cleared_daily,
+        "cleared_rpm_cooldowns": cleared_rpm,
+        "total_cleared": len(cleared_daily) + len(cleared_rpm)
+    })
+
+
+# ─── Auto-reset scheduler ─────────────────────────────────────────────────────
+_auto_reset_timer: threading.Timer = None
+_auto_reset_lock  = threading.Lock()
+
+def _do_auto_reset():
+    """Called by the timer — clears all daily penalties and reschedules itself."""
+    with state_lock:
+        count = len(key_daily_penalty)
+        key_daily_penalty.clear()
+        print(f"[AUTO RESET] Cleared {count} daily penalty entries (scheduled reset)")
+
+def schedule_auto_reset(hours: float):
+    """Set (or replace) a recurring auto-reset every `hours` hours.
+    Pass 0 to cancel."""
+    global _auto_reset_timer
+    with _auto_reset_lock:
+        if _auto_reset_timer is not None:
+            _auto_reset_timer.cancel()
+            _auto_reset_timer = None
+        if hours <= 0:
+            print("[AUTO RESET] Cancelled")
+            return
+        def _recurring():
+            _do_auto_reset()
+            schedule_auto_reset(hours)  # reschedule
+        _auto_reset_timer = threading.Timer(hours * 3600, _recurring)
+        _auto_reset_timer.daemon = True
+        _auto_reset_timer.start()
+        print(f"[AUTO RESET] Scheduled every {hours}h")
+
+@app.route('/set_auto_reset', methods=['POST'])
+def set_auto_reset():
+    """Set or cancel the recurring auto-reset schedule.
+    Auth: Bearer password required.
+    Body: { "hours": 6 }   (0 to cancel)
+    """
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {os.environ.get('PASSWORD', '')}":
+        return jsonify({"error": "Unauthorized"}), 401
+    body  = request.json or {}
+    hours = float(body.get("hours", 0))
+    schedule_auto_reset(hours)
+    return jsonify({"status": "ok", "auto_reset_hours": hours if hours > 0 else "disabled"})
+
 
 @app.route('/ping')
 @app.route('/healthz')
