@@ -1221,7 +1221,7 @@ async function fetchData(){
   }
   btn.innerText='🔄 Refresh';
 }
-function updateUI(data){
+function updateUI(data){try{
   const m=data.metrics;
   // Build model -> list of penalized key last-5-digits
   const penData=data.penalized_keys||{};
@@ -1246,7 +1246,9 @@ function updateUI(data){
     const border=penCount>0?'#f87171':'#4ade80';
     const clickable=penCount>0?'cursor:pointer;':'';
     const keyList=penKeys.map(k=>'...'+k).join('\n');
-    const onclick=penCount>0?`onclick="alert('Penalized keys for ${esc(modelName)}:\n${keyList}')"`:'';
+    const safeModel=esc(modelName).replace(/'/g,"&#039;");
+    const safeKeys=penKeys.map(k=>'...'+k).join('\n').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const onclick=penCount>0?`onclick="alert('Penalized keys for ${safeModel}:\n${safeKeys}')"`:'';
     penHtml+=`<span class="tag" style="background:${bg};color:${color};border-color:${border};${clickable}" ${onclick}>${esc(modelName)} — ${penCount}/${totalKeys}</span>`;
   }
   if(!penHtml)penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
@@ -1294,7 +1296,7 @@ function updateUI(data){
     </tr>`;
   });
   tbody.innerHTML=html;
-}
+}catch(e){console.error('updateUI error:',e);document.getElementById('error-msg').style.display='block';document.getElementById('error-msg').innerText='⚠️ UI Error: '+e.message;}}
 function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 fetchData();setInterval(fetchData,5000);
 </script></body></html>"""
