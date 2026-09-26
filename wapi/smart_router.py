@@ -1223,24 +1223,33 @@ async function fetchData(){
 }
 function updateUI(data){
   const m=data.metrics;
-  let penHtml='';
+  // Build model -> list of penalized key last-5-digits
   const penData=data.penalized_keys||{};
-  if(Object.keys(penData).length>0){
-    // Group entries by key prefix (e.g. "AQ.Ab...5AOiA")
-    const byKey={};
-    for(const[kv,mins] of Object.entries(penData)){
-      const pipe=kv.lastIndexOf('|');
-      const keyPart=pipe>=0?kv.slice(0,pipe):kv;
-      const modelPart=pipe>=0?kv.slice(pipe+1):kv;
-      if(!byKey[keyPart])byKey[keyPart]={models:[],mins};
-      byKey[keyPart].models.push(modelPart);
-    }
-    for(const[keyPart,info] of Object.entries(byKey)){
-      const last5=keyPart.slice(-5);
-      const tooltip=info.models.join(', ')+' ('+info.mins+'m left)';
-      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="alert('Key: ...${last5}\\nModels: ${esc(info.models.join(', '))}\\nTime left: ${info.mins}m')">...${last5} (${info.mins}m)</span>`;
-    }
-  }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
+  const totalKeys=data.active_keys||0;
+  const allModels=(data.models||[]).map(m=>m.name);
+  const modelPenMap={};
+  for(const[kv] of Object.entries(penData)){
+    const pipe=kv.lastIndexOf('|');
+    if(pipe<0)continue;
+    const keyPart=kv.slice(0,pipe);
+    const modelPart=kv.slice(pipe+1);
+    const last5=keyPart.slice(-5);
+    if(!modelPenMap[modelPart])modelPenMap[modelPart]=new Set();
+    modelPenMap[modelPart].add(last5);
+  }
+  let penHtml='';
+  for(const modelName of allModels){
+    const penKeys=modelPenMap[modelName]?[...modelPenMap[modelName]]:[];
+    const penCount=penKeys.length;
+    const color=penCount>0?'#f87171':'#4ade80';
+    const bg=penCount>0?'rgba(248,113,113,.15)':'rgba(74,222,128,.1)';
+    const border=penCount>0?'#f87171':'#4ade80';
+    const clickable=penCount>0?'cursor:pointer;':'';
+    const keyList=penKeys.map(k=>'...'+k).join('\n');
+    const onclick=penCount>0?`onclick="alert('Penalized keys for ${esc(modelName)}:\n${keyList}')"`:'';
+    penHtml+=`<span class="tag" style="background:${bg};color:${color};border-color:${border};${clickable}" ${onclick}>${esc(modelName)} — ${penCount}/${totalKeys}</span>`;
+  }
+  if(!penHtml)penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
   let cdHtml='';
   if(Object.keys(data.rpm_cooldowns||{}).length>0){
     for(const[k,v]of Object.entries(data.rpm_cooldowns))
