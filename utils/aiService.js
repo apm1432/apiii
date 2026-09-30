@@ -523,8 +523,8 @@ CURRENT DATA
 - Question Text (English): ${questionData.text_eng || ""}
 - Options (Marathi): ${JSON.stringify(questionData.options)}
 - Options (English): ${JSON.stringify(questionData.options_eng || [])}
-- Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
-- Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
+ # - Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
+ # - Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
 
 Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO text outside the JSON:
 
