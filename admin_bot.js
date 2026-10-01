@@ -76,9 +76,27 @@ async function startAdminBot() {
             return;
         }
 
-        // Handle Awaiting State (e.g. asking for months)
+        // Handle Awaiting State (e.g. asking for months or max devices)
         if (adminState[chatId]) {
             const state = adminState[chatId];
+
+            if (state.action === 'awaiting_max_devices') {
+                const count = parseInt(text);
+                if (isNaN(count) || count < 1) {
+                    bot.sendMessage(chatId, "❌ Invalid number. Please enter a valid number (e.g. 1, 2, 3).");
+                    return;
+                }
+                const user = await User.findById(state.userId);
+                if (user) {
+                    user.maxDevices = count;
+                    await user.save();
+                    bot.sendMessage(chatId, `✅ Max allowed devices set to **${count}** for ${user.email}.`, { parse_mode: 'Markdown' });
+                    sendUserProfile(chatId, user._id);
+                }
+                delete adminState[chatId];
+                return;
+            }
+
             if (state.action === 'awaiting_months') {
                 const months = parseInt(text);
                 if (isNaN(months) || months <= 0) {
@@ -157,9 +175,41 @@ async function startAdminBot() {
                 sendUserProfile(chatId, userId, query.message.message_id);
             }
             else if (data.startsWith('unlock_user_')) {
+                // Disable browser lock and clear locked device
                 const userId = data.split('unlock_user_')[1];
-                await User.findByIdAndUpdate(userId, { deviceId: null });
-                bot.sendMessage(chatId, `✅ Device lock cleared!`);
+                await User.findByIdAndUpdate(userId, { deviceId: null, browserLocked: false });
+                bot.sendMessage(chatId, `✅ Browser lock disabled and device cleared!`);
+                sendUserProfile(chatId, userId, query.message.message_id);
+            }
+            else if (data.startsWith('lock_browser_')) {
+                // Enable browser lock — locks user to their current activeDeviceId
+                const userId = data.split('lock_browser_')[1];
+                const u = await User.findById(userId);
+                if (!u) { bot.sendMessage(chatId, `❌ User not found.`); return; }
+                const lockDevice = u.activeDeviceId || u.deviceId || null;
+                if (!lockDevice) {
+                    bot.sendMessage(chatId, `⚠️ No active device found. Ask the user to login first, then try again.`);
+                } else {
+                    await User.findByIdAndUpdate(userId, { browserLocked: true, deviceId: lockDevice });
+                    bot.sendMessage(chatId, `🔒 Browser lock **enabled**.\nUser \`${u.email}\` is now locked to:\n\`${lockDevice}\``, { parse_mode: 'Markdown' });
+                    sendUserProfile(chatId, userId, query.message.message_id);
+                }
+            }
+            else if (data.startsWith('set_devices_prompt_')) {
+                // Prompt admin to enter max device count
+                const userId = data.split('set_devices_prompt_')[1];
+                adminState[chatId] = { action: 'awaiting_max_devices', userId };
+                bot.sendMessage(chatId, `📱 Enter the **maximum number of devices** allowed for this user (e.g. 1, 2, 3):`, { parse_mode: 'Markdown' });
+            }
+            else if (data.startsWith('force_logout_')) {
+                // Bump tokenVersion → immediately invalidates all active sessions
+                const userId = data.split('force_logout_')[1];
+                const u = await User.findById(userId);
+                if (!u) { bot.sendMessage(chatId, `❌ User not found.`); return; }
+                u.tokenVersion = (u.tokenVersion || 0) + 1;
+                u.activeDeviceId = null;
+                await u.save();
+                bot.sendMessage(chatId, `🚪 **Force Logout Done!**\nUser \`${u.email}\` has been logged out from all devices.`, { parse_mode: 'Markdown' });
                 sendUserProfile(chatId, userId, query.message.message_id);
             }
             else if (data.startsWith('revoke_user_')) {
@@ -281,11 +331,15 @@ async function sendUserProfile(chatId, userId, messageId = null) {
     if (!user) return bot.sendMessage(chatId, "❌ User not found.");
 
     const expiry = user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : 'N/A';
+    const browserLockStatus = user.browserLocked ? `🔒 Locked (${user.deviceId ? user.deviceId.substring(0, 20) + '...' : 'device?'})` : '🔓 Unlocked';
+    const activeDevice = user.activeDeviceId ? user.activeDeviceId.substring(0, 20) + '...' : 'None';
     const text = `👤 **Profile:** ${user.email}\n` +
                  `💎 **Premium:** ${user.isSubscribed ? 'Yes ✅' : 'No ❌'}\n` +
                  `👨‍💻 **Admin:** ${user.isAdmin ? 'Yes ✅' : 'No ❌'}\n` +
                  `📅 **Expiry:** ${expiry}\n` +
-                 `📱 **Locked Device:** ${user.deviceId ? 'Yes 🔒' : 'No 🔓'}`;
+                 `🖥 **Browser Lock:** ${browserLockStatus}\n` +
+                 `📱 **Active Device:** ${activeDevice}\n` +
+                 `🔢 **Max Devices:** ${user.maxDevices || 1}`;
 
     const inline_keyboard = [];
     
@@ -301,9 +355,18 @@ async function sendUserProfile(chatId, userId, messageId = null) {
         inline_keyboard.push([{ text: "👨‍💻 Make Admin", callback_data: `make_admin_${user._id}` }]);
     }
 
-    if (user.deviceId) {
-        inline_keyboard.push([{ text: "🔓 Unlock Device", callback_data: `unlock_user_${user._id}` }]);
+    // Browser lock control
+    if (user.browserLocked) {
+        inline_keyboard.push([{ text: "🔓 Unlock Browser (Remove Lock)", callback_data: `unlock_user_${user._id}` }]);
+    } else {
+        inline_keyboard.push([{ text: "🔒 Lock Browser to Current Device", callback_data: `lock_browser_${user._id}` }]);
     }
+
+    // Max devices control
+    inline_keyboard.push([{ text: `📱 Set Max Devices (Now: ${user.maxDevices || 1})`, callback_data: `set_devices_prompt_${user._id}` }]);
+
+    // Force logout
+    inline_keyboard.push([{ text: "🚪 Force Logout (Kill Sessions)", callback_data: `force_logout_${user._id}` }]);
     
     inline_keyboard.push([{ text: "🔙 Back to List", callback_data: "list_users_1" }]);
 

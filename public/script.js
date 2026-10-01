@@ -1,5 +1,62 @@
 // ====== UI LOGIC ======
 
+// ── Session polling helpers (defined early so the fetch interceptor can use them) ──
+let _sessionPollInterval = null;
+
+function stopSessionPolling() {
+    if (_sessionPollInterval) {
+        clearInterval(_sessionPollInterval);
+        _sessionPollInterval = null;
+    }
+}
+
+function performClientLogout() {
+    // token / currentUser reassigned after var declarations below, so use localStorage directly
+    localStorage.removeItem('jwtToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('activeAiJobId');
+    localStorage.removeItem('mpsc_last_session');
+    if (window.activeAiEventSource) {
+        window.activeAiEventSource.close();
+        window.activeAiEventSource = null;
+    }
+    const panel = document.getElementById('ai-live-panel');
+    if (panel) panel.style.display = 'none';
+    // Reset module-level state
+    token = null;
+    currentUser = null;
+    if (typeof showSection === 'function') showSection('auth-section');
+    else window.location.reload();
+}
+
+// ── Global fetch interceptor: catch FORCE_LOGOUT on any API response ──
+// This ensures mid-session force-logout (e.g. during a test) is detected immediately,
+// not just during the 60-second poll.
+(function() {
+    const _origFetch = window.fetch;
+    window.fetch = async function(...args) {
+        const response = await _origFetch.apply(this, args);
+        // Only intercept our own API calls
+        const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+        if (url.startsWith('/api/') && (response.status === 401 || response.status === 400)) {
+            // Clone so the original caller can still read the body
+            const clone = response.clone();
+            try {
+                const data = await clone.json();
+                if (data && data.code === 'FORCE_LOGOUT') {
+                    // Don't show the alert if we're on the auth page already
+                    if (localStorage.getItem('jwtToken')) {
+                        stopSessionPolling();
+                        alert('⚠️ तुमचे session बंद झाले. दुसऱ्या device वरून login झाले असेल.\n(Your session was ended. Another device may have logged in.)');
+                        performClientLogout();
+                    }
+                }
+            } catch (e) { /* ignore parse errors */ }
+        }
+        return response;
+    };
+})();
+
 // State
 let token = localStorage.getItem('jwtToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null; // { email, isSubscribed }
@@ -26,6 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (token) {
         if (currentUser) updateProfileUI();
         
+        // Resume session polling (detects if kicked by new device login)
+        startSessionPolling();
+
         const sessionStr = localStorage.getItem('mpsc_last_session');
         if (sessionStr) {
             try {
@@ -155,6 +215,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
                 console.warn("Failed to fetch progress on login", e);
             }
 
+            // Start session validity polling (detects force-logout within 60s)
+            startSessionPolling();
+
             alert('Login successful!');
             window.location.reload();
         } else {
@@ -202,19 +265,46 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     }
 });
 
-function logout() {
-    token = null;
-    currentUser = null;
-    localStorage.removeItem('jwtToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('activeAiJobId');
-    if (window.activeAiEventSource) {
-        window.activeAiEventSource.close();
-        window.activeAiEventSource = null;
+// ── Force-logout detection: poll /api/auth/check-session every 60 seconds ──
+// If the server returns FORCE_LOGOUT (e.g. another device logged in), we auto-logout.
+function startSessionPolling() {
+    if (_sessionPollInterval) return; // already running
+    _sessionPollInterval = setInterval(async () => {
+        const savedToken = localStorage.getItem('jwtToken');
+        if (!savedToken) { stopSessionPolling(); return; }
+        try {
+            const res = await fetch('/api/auth/check-session', {
+                headers: { 'Authorization': `Bearer ${savedToken}` }
+            });
+            if (res.status === 401 || res.status === 400) {
+                const data = await res.json().catch(() => ({}));
+                if (data.code === 'FORCE_LOGOUT' || res.status === 401) {
+                    stopSessionPolling();
+                    alert('⚠️ तुमचे session दुसऱ्या device वर login झाल्यामुळे बंद झाले. कृपया परत login करा.\n(Session ended: another device logged in.)');
+                    performClientLogout();
+                }
+            }
+        } catch (e) {
+            // Network error — skip this poll cycle
+        }
+    }, 60000); // check every 60 seconds
+}
+
+async function logout() {
+    // Tell the server to invalidate this token (bumps tokenVersion)
+    const savedToken = localStorage.getItem('jwtToken');
+    if (savedToken) {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${savedToken}` }
+            });
+        } catch (e) {
+            // Ignore network errors — still clean up client side
+        }
     }
-    const panel = document.getElementById('ai-live-panel');
-    if (panel) panel.style.display = 'none';
-    showSection('auth-section');
+    stopSessionPolling();
+    performClientLogout();
 }
 
 // ====== PROFILE TOGGLE & UPDATE ======

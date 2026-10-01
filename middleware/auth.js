@@ -1,9 +1,14 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // ADDED THIS
+const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
 
-const authMiddleware = (req, res, next) => {
+/**
+ * authMiddleware
+ * – Verifies JWT signature + expiry
+ * – Checks tokenVersion so that logout / forced-logout truly kills the token
+ */
+const authMiddleware = async (req, res, next) => {
     let token = null;
     const authHeader = req.header('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -18,10 +23,21 @@ const authMiddleware = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // { id, email, isSubscribed }
+        // decoded = { id, email, isSubscribed, isAdmin, tokenVersion, deviceId, iat, exp }
+
+        // ── Validate tokenVersion against DB so logout truly kills the session ──
+        const user = await User.findById(decoded.id).select('tokenVersion');
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'User not found.', code: 'FORCE_LOGOUT' });
+        }
+        if (decoded.tokenVersion !== user.tokenVersion) {
+            return res.status(401).json({ success: false, message: 'Session expired. Please log in again.', code: 'FORCE_LOGOUT' });
+        }
+
+        req.user = decoded; // { id, email, isSubscribed, isAdmin, tokenVersion, deviceId }
         next();
     } catch (err) {
-        return res.status(400).json({ success: false, message: 'Invalid or Expired Token.' });
+        return res.status(400).json({ success: false, message: 'Invalid or Expired Token.', code: 'FORCE_LOGOUT' });
     }
 };
 
