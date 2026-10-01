@@ -1,12 +1,17 @@
 const axios = require('axios');
 
+// gemini-1.5-* and gemini-2.0-* are shut down by Google (they return 404).
+// Use currently supported models. Override with GEMINI_MODELS in env.
 const defaultModels = [
-    "gemini-1.5-flash", 
-    "gemini-1.5-pro", 
-    "gemini-1.5-flash-8b"
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
 ];
 
-const MODELS = process.env.GEMINI_MODELS ? process.env.GEMINI_MODELS.split(',').map(m => m.trim()).filter(Boolean) : defaultModels;
+// GEMINI_MODELS may be shared with wapi (format "name:rpm:rpd") -> keep only the name.
+const MODELS = process.env.GEMINI_MODELS
+    ? [...new Set(process.env.GEMINI_MODELS.split(',').map(m => m.split(':')[0].trim()).filter(Boolean))]
+    : defaultModels;
 
 const AiKey = require('../models/AiKey');
 
@@ -25,22 +30,24 @@ function getRpmDelayMs(modelName) {
 }
 
 async function initializeKeys() {
-    if (!keysInitialized && process.env.GEMINI_API_KEYS) {
-        const apiKeys = process.env.GEMINI_API_KEYS.split(',').map(k => k.trim()).filter(k => k);
-        for (const key of apiKeys) {
-            for (const model of MODELS) {
-                const exists = await AiKey.findOne({ key, model });
-                if (!exists) {
-                    await AiKey.create({
-                        key,
-                        model,
-                        rpmDelayMs: getRpmDelayMs(model)
-                    });
-                }
+    if (keysInitialized || !process.env.GEMINI_API_KEYS) return;
+
+    const apiKeys = [...new Set(process.env.GEMINI_API_KEYS.split(',').map(k => k.trim()).filter(Boolean))];
+
+    // Remove stale combinations from DB (old/retired models, removed keys)
+    await AiKey.deleteMany({ $or: [{ model: { $nin: MODELS } }, { key: { $nin: apiKeys } }] });
+    // Give every configured model another chance after a restart
+    await AiKey.updateMany({}, { $set: { isAvailable: true } });
+
+    for (const key of apiKeys) {
+        for (const model of MODELS) {
+            const exists = await AiKey.findOne({ key, model });
+            if (!exists) {
+                await AiKey.create({ key, model, rpmDelayMs: getRpmDelayMs(model) });
             }
         }
-        keysInitialized = true;
     }
+    keysInitialized = true;
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -54,9 +61,9 @@ async function getNextAvailableKeyAndModel() {
                 await initializeKeys();
                 const now = Date.now();
                 
-                const dbKeys = await AiKey.find({});
+                const dbKeys = await AiKey.find({ isAvailable: { $ne: false } });
                 if (dbKeys.length === 0) {
-                    throw new Error("No GEMINI_API_KEYS configured in database/env.");
+                    throw new Error("No usable Gemini key/model. Check GEMINI_API_KEYS and GEMINI_MODELS (model may be retired/404).");
                 }
 
                 let availableKeys = [];
@@ -100,6 +107,30 @@ async function getNextAvailableKeyAndModel() {
 
 async function updateModelState(key, model, status) {
     await AiKey.updateOne({ key, model }, { $set: { status } });
+}
+
+async function readErrorBody(error) {
+    try {
+        const d = error.response && error.response.data;
+        if (!d) return '';
+        if (typeof d === 'string') return d.slice(0, 300);
+        if (typeof d.on === 'function') {
+            return await new Promise(resolve => {
+                let b = '';
+                d.on('data', c => { b += c.toString(); });
+                d.on('end', () => resolve(b.slice(0, 300)));
+                d.on('error', () => resolve(b.slice(0, 300)));
+            });
+        }
+        return JSON.stringify(d).slice(0, 300);
+    } catch (e) { return ''; }
+}
+
+function extractText(data) {
+    const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    if (!Array.isArray(parts)) return '';
+    // skip "thought" parts of thinking models, keep only real output text
+    return parts.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
 }
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
@@ -614,8 +645,8 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
                             if (!dataStr) continue;
                             try {
                                 const data = JSON.parse(dataStr);
-                                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                                    const textChunk = data.candidates[0].content.parts[0].text;
+                                const textChunk = extractText(data);
+                                if (textChunk) {
                                     fullText += textChunk;
                                     if (onChunk) onChunk(textChunk);
                                 }
@@ -627,9 +658,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
                     if (buffer.trim().startsWith('data: ')) {
                         try {
                             const data = JSON.parse(buffer.trim().substring(6).trim());
-                            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                                fullText += data.candidates[0].content.parts[0].text;
-                            }
+                            fullText += extractText(data);
                         } catch(e) {}
                     }
                     resolve();
@@ -648,6 +677,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
             }
             
             const parsed = JSON.parse(cleanText.trim());
+            if (!parsed || typeof parsed !== 'object') throw new Error('AI returned invalid JSON');
             if (onChunk) onChunk(`\n\n[System] Done! Applying rate-limit delay based on model...`);
             
             let delayMs = 5000; // default 5 seconds
@@ -678,8 +708,18 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
                     await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", lastUsed: Date.now() } });
                     lastError = "Model is currently experiencing high demand (503).";
                     attempts++;
+                } else if (status === 404) {
+                    // Model does not exist / retired -> stop using it until restart
+                    const body = await readErrorBody(error);
+                    if (onChunk) onChunk(`\n[System] ERROR 404: model "${model}" not found/retired. Disabling it. ${body}`);
+                    console.error(`Model ${model} returned 404, disabling. ${body}`);
+                    await AiKey.updateMany({ model }, { $set: { isAvailable: false, status: "NotFound" } });
+                    lastError = `Model ${model} not found (404)`;
+                    attempts++;
                 } else {
-                    lastError = `API Error ${status}`;
+                    const body = await readErrorBody(error);
+                    lastError = `API Error ${status}${body ? ': ' + body : ''}`;
+                    if (onChunk) onChunk(`\n[System] ERROR ${status} on ${model}: ${body}`);
                     attempts++;
                     await sleep(2000);
                 }

@@ -3,10 +3,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const Razorpay = require('razorpay');
-const { startAdminBot } = require('./admin_bot');
+const { startAdminBot, stopAdminBot } = require('./admin_bot');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Koyeb edge -> nginx -> Node: 2 proxy hops. Needed so express-rate-limit
+// reads the real client IP from X-Forwarded-For (fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+// Override with TRUST_PROXY env if the number of hops changes.
+app.set('trust proxy', parseInt(process.env.TRUST_PROXY || '2', 10));
+
+process.on('unhandledRejection', (err) => console.error('Unhandled Rejection:', err));
+process.on('uncaughtException', (err) => console.error('Uncaught Exception:', err));
 
 // Security Middleware: Hide Express X-Powered-By Header
 app.disable('x-powered-by');
@@ -48,6 +56,16 @@ app.use('/api', apiModule.router);
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);
 });
+
+// Release the Telegram polling slot on redeploy so the new instance doesn't get 409 Conflict
+async function shutdown(signal) {
+  console.log(`${signal} received, shutting down...`);
+  try { await stopAdminBot(); } catch (e) {}
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

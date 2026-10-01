@@ -27,8 +27,35 @@ async function startAdminBot() {
     tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
     const token = tokens[0];
     
-    bot = new TelegramBot(token, { polling: true });
+    // Make sure no webhook blocks getUpdates, then start long polling
+    try {
+        const tmp = new TelegramBot(token, { polling: false });
+        await tmp.deleteWebHook();
+    } catch (e) { /* ignore */ }
+
+    bot = new TelegramBot(token, { polling: { autoStart: true, params: { timeout: 30 } } });
     console.log("🤖 Interactive Telegram Admin Bot is running...");
+
+    // Quiet, self-healing polling errors
+    let lastPollLog = 0;
+    let restarting = false;
+    bot.on('polling_error', async (err) => {
+        const msg = (err && err.message) || String(err);
+        const now = Date.now();
+        if (now - lastPollLog > 60000) { // log at most once a minute
+            console.error(`[telegram polling] ${msg}`);
+            lastPollLog = now;
+        }
+        // 409 = another instance (old deploy / local PC) is polling with the same token
+        if (/409/.test(msg) && !restarting) {
+            restarting = true;
+            try { await bot.stopPolling(); } catch (e) {}
+            setTimeout(async () => {
+                try { await bot.startPolling(); } catch (e) {}
+                restarting = false;
+            }, 20000);
+        }
+    });
 
     // Set Menu Commands
     bot.setMyCommands([
@@ -85,10 +112,10 @@ async function startAdminBot() {
                             <p style="color: #6b7280; font-size: 0.9em;">- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        let smtpUser = user.smtp_user;
+                        let smtpUser = user.assignedSmtp;
                         if (!smtpUser) {
                             smtpUser = assignSmtpToUser();
-                            user.smtp_user = smtpUser;
+                            user.assignedSmtp = smtpUser;
                             await user.save();
                         }
                         await sendEmail(smtpUser, user.email, "Premium Subscription Activated! 🎉", "Your subscription is now active.", emailHtml);
@@ -153,10 +180,10 @@ async function startAdminBot() {
                             <p>- The MPSC PYQ Team</p>
                         </div>
                         `;
-                        let smtpUser = user.smtp_user;
+                        let smtpUser = user.assignedSmtp;
                         if (!smtpUser) {
                             smtpUser = assignSmtpToUser();
-                            user.smtp_user = smtpUser;
+                            user.assignedSmtp = smtpUser;
                             await user.save();
                         }
                         await sendEmail(smtpUser, user.email, "Subscription Expired", "Your premium subscription has ended.", emailHtml);
@@ -424,4 +451,10 @@ async function runCloudResync(chatId) {
     }
 }
 
-module.exports = { startAdminBot };
+async function stopAdminBot() {
+    if (bot) {
+        try { await bot.stopPolling(); } catch (e) {}
+    }
+}
+
+module.exports = { startAdminBot, stopAdminBot };

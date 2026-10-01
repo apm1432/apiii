@@ -10,7 +10,7 @@ WORKDIR /usr/src/app
 
 # Node.js deps
 COPY package*.json ./
-RUN npm install --production
+RUN npm install --omit=dev
 
 # Python deps (wapi)
 COPY wapi/requirements.txt ./wapi/
@@ -23,7 +23,7 @@ COPY . .
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
 
-RUN chmod +x start.sh
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
 EXPOSE 8000
 

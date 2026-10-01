@@ -603,7 +603,7 @@ router.post('/payment/webhook', (req, res) => {
 const rateLimit = require('express-rate-limit');
 const submitAnswerLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 60, // Limit each IP to 60 answer submissions per windowMs
+    limit: 60, // Limit each IP to 60 answer submissions per windowMs
     message: { success: false, message: 'Too many answers submitted. Please slow down.' }
 });
 

@@ -26,7 +26,7 @@ for m in RAW_MODELS:
     MODELS.append({"name": name, "rpm": rpm, "rpd": rpd})
 
 if not MODELS:
-    MODELS = [{"name": "gemini-2.0-flash-lite", "rpm": 30, "rpd": 1500}]
+    MODELS = [{"name": "gemini-3.1-flash-lite", "rpm": 15, "rpd": 500}]
 
 # Concurrency safety margin: reserve this many RPM slots as a buffer so that
 # several requests admitted in the same instant (before their timestamps are
@@ -1703,7 +1703,7 @@ def proxy_transcriptions():
         "generationConfig": {"temperature": 0.0}
     }
 
-    TRANSCRIBE_MODEL = "gemini-1.5-flash"
+    TRANSCRIBE_MODEL = os.environ.get("TRANSCRIBE_MODEL", "gemini-3.5-flash")
     for key in API_KEYS:
         if _is_daily_penalized(key, TRANSCRIBE_MODEL):
             continue

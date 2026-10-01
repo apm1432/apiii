@@ -43,9 +43,9 @@ router.post('/register', async (req, res) => {
                     <p>Hello,</p>
                     <p>Thank you for registering on <strong>MPSC PYQ Tracker</strong>. You have taken the first step towards a structured and focused preparation!</p>
                     <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <p style="margin: 0;"><strong>Your Login Credentials:</strong></p>
+                        <p style="margin: 0;"><strong>Your Login ID:</strong></p>
                         <p style="margin: 5px 0 0 0;"><strong>User ID (Email):</strong> ${email}</p>
-                        <p style="margin: 5px 0 0 0;"><strong>Password:</strong> ${password}</p>
+                        <p style="margin: 5px 0 0 0;">Use the password you chose while registering.</p>
                     </div>
                     <p>Log in to access thousands of previous year questions with detailed explanations.</p>
                     <div style="text-align: center; margin-top: 20px;">
