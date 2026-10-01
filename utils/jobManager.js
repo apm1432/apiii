@@ -84,11 +84,16 @@ async function processJob(jobId) {
             // Update question in DB
             question.text = parsedContent.fixed_text || question.text;
             question.options = parsedContent.fixed_options || question.options;
+            if (parsedContent.fixed_text_eng) question.text_eng = parsedContent.fixed_text_eng;
+            if (Array.isArray(parsedContent.fixed_options_eng) && parsedContent.fixed_options_eng.length) {
+                question.options_eng = parsedContent.fixed_options_eng;
+            }
             if (parsedContent.correct_answer_option) {
                 if (parsedContent.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
                 } else {
-                    question.correct_answer_option = parseInt(parsedContent.correct_answer_option);
+                    const n = parseInt(parsedContent.correct_answer_option, 10);
+                    if (n >= 1 && n <= 4) question.correct_answer_option = String(n);
                 }
             }
             question.toppers_explanation_marathi = parsedContent.fixed_explanation || question.toppers_explanation_marathi;

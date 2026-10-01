@@ -109,6 +109,40 @@ async function updateModelState(key, model, status) {
     await AiKey.updateOne({ key, model }, { $set: { status } });
 }
 
+// Takes the FIRST complete {...} object from the model output and ignores anything
+// after it (models sometimes append stray "] }" or markdown fences).
+function extractFirstJsonObject(text) {
+    const start = text.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+        const c = text[i];
+        if (inStr) {
+            if (esc) esc = false;
+            else if (c === '\\') esc = true;
+            else if (c === '"') inStr = false;
+            continue;
+        }
+        if (c === '"') inStr = true;
+        else if (c === '{') depth++;
+        else if (c === '}') {
+            depth--;
+            if (depth === 0) return text.substring(start, i + 1);
+        }
+    }
+    return null; // incomplete / truncated JSON
+}
+
+function parseAiJson(rawText) {
+    let t = (rawText || '').trim().replace(/^```(?:json)?/i, '').replace(/```\s*$/, '').trim();
+    // 1) plain parse
+    try { return JSON.parse(t); } catch (e) { /* fall through */ }
+    // 2) first balanced object (drops trailing garbage)
+    const obj = extractFirstJsonObject(t);
+    if (!obj) throw new Error('AI response is not complete JSON (possibly truncated)');
+    return JSON.parse(obj);
+}
+
 async function readErrorBody(error) {
     try {
         const d = error.response && error.response.data;
@@ -633,8 +667,10 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
             // Read SSE stream properly with a buffer
             await new Promise((resolve, reject) => {
                 let buffer = '';
+                // StringDecoder keeps multi-byte (Marathi) characters intact across network chunks
+                const decoder = new (require('string_decoder').StringDecoder)('utf8');
                 resp.data.on('data', chunk => {
-                    buffer += chunk.toString();
+                    buffer += decoder.write(chunk);
                     let lines = buffer.split('\n');
                     buffer = lines.pop(); // keep incomplete line
                     
@@ -666,17 +702,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
                 resp.data.on('error', reject);
             });
 
-            let cleanText = fullText.trim();
-            if (cleanText.startsWith('\`\`\`json')) cleanText = cleanText.substring(7);
-            if (cleanText.endsWith('\`\`\`')) cleanText = cleanText.substring(0, cleanText.length - 3);
-            
-            const firstBrace = cleanText.indexOf('{');
-            const lastBrace = cleanText.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-            }
-            
-            const parsed = JSON.parse(cleanText.trim());
+            const parsed = parseAiJson(fullText);
             if (!parsed || typeof parsed !== 'object') throw new Error('AI returned invalid JSON');
             if (onChunk) onChunk(`\n\n[System] Done! Applying rate-limit delay based on model...`);
             

@@ -1,3 +1,17 @@
-node_modules/
+- Copy (2).env
+- Copy.env
 .env
+AutoSync.ps1
+FINAL_ENRICHED_MPSC_QUESTIONS - Copy.json
+FINAL_ENRICHED_MPSC_QUESTIONS.json
+PYQ_DATA/
+Start_AutoSync.bat
+admin.bat
+admin.js
+bot_manager_plan.md
 cache/
+image_mapping.json
+node_modules/
+sync.js
+sync_db.js
+telegramUpload.js
