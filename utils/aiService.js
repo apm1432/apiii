@@ -5,12 +5,15 @@ const axios = require('axios');
 const defaultModels = [
     "gemini-3.1-flash-lite",
     "gemini-3.5-flash-lite",
-    "gemini-3.6-flash"
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash"
 ];
 
 // GEMINI_MODELS may be shared with wapi (format "name:rpm:rpd") -> keep only the name.
 const MODELS = process.env.GEMINI_MODELS
-    ? [...new Set(process.env.GEMINI_MODELS.split(',').map(m => m.split(':')[0].trim()).filter(Boolean))]
+    ? [...new Set(process.env.GEMINI_MODELS.replace(/['"]/g, '').split(',').map(m => m.split(':')[0].trim()).filter(Boolean))]
     : defaultModels;
 
 const AiKey = require('../models/AiKey');
@@ -32,7 +35,7 @@ function getRpmDelayMs(modelName) {
 async function initializeKeys() {
     if (keysInitialized || !process.env.GEMINI_API_KEYS) return;
 
-    const apiKeys = [...new Set(process.env.GEMINI_API_KEYS.split(',').map(k => k.trim()).filter(Boolean))];
+    const apiKeys = [...new Set(process.env.GEMINI_API_KEYS.replace(/['"]/g, '').split(',').map(k => k.trim()).filter(Boolean))];
 
     // Remove stale combinations from DB (old/retired models, removed keys)
     await AiKey.deleteMany({ $or: [{ model: { $nin: MODELS } }, { key: { $nin: apiKeys } }] });
@@ -179,6 +182,22 @@ The goal is:
 MAXIMUM RELEVANT TOPIC COVERAGE + FACTUAL ACCURACY + COMPLETE QUESTION RECONSTRUCTION + CLEAR SEPARATE POINTS + FAST REVISION.
 
 Do not unnecessarily stretch existing points into long paragraphs when distinct information can be presented as separate numbered points.
+
+================================================================
+SINGLE QUESTION ONLY RULE — HIGHEST PRIORITY
+================================================================
+
+The image (and the OCR text) may show MORE THAN ONE question, for example the neighbouring questions on the same page, or several questions cut into one picture.
+
+You must process ONLY ONE question: the one described under CURRENT DATA (see "Question Number" and the Current Question Text there).
+
+- Find that exact question in the image by its number and by matching its wording.
+- Output ONLY that question in "fixed_text", "fixed_text_eng", "fixed_options", "fixed_options_eng", "fixed_explanation" and "fixed_options_explanation".
+- NEVER include any other question, its number, its statements or its options. Ignore every other question visible in the image.
+- Do NOT put the question number as a prefix (such as "76." or "Q.77") at the start of "fixed_text" or "fixed_text_eng".
+- Keep the same structure as the Current Question Text: do not add or remove sections that the current text does not have, only repair what is missing, broken or wrong.
+- "fixed_options" and "fixed_options_eng" must contain the options of this one question only.
+- If the Current Question Text already contains only this one question, do not replace it with a different question.
 
 ================================================================
 IMAGE-FIRST QUESTION RECONSTRUCTION RULE — MANDATORY
@@ -584,6 +603,8 @@ Before output, verify:
 CURRENT DATA
 ================================================================
 
+- Question Number: ${questionData.qnum !== undefined && questionData.qnum !== null ? questionData.qnum : "unknown"}
+- Exam: ${questionData.year_exam || questionData.official_exam_name || "unknown"}
 - Question Text (Marathi): ${questionData.text}
 - Question Text (English): ${questionData.text_eng || ""}
 - Options (Marathi): ${JSON.stringify(questionData.options)}

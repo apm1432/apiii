@@ -92,8 +92,7 @@ async function processJob(jobId) {
                 if (parsedContent.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
                 } else {
-                    const n = parseInt(parsedContent.correct_answer_option, 10);
-                    if (n >= 1 && n <= 4) question.correct_answer_option = String(n);
+                    question.correct_answer_option = parseInt(parsedContent.correct_answer_option);
                 }
             }
             question.toppers_explanation_marathi = parsedContent.fixed_explanation || question.toppers_explanation_marathi;
