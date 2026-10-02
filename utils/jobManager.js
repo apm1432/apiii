@@ -81,6 +81,18 @@ async function processJob(jobId) {
                 broadcast(jobId, { type: 'chunk', index: qIndex, chunk });
             });
 
+            // The AI solved the question WITHOUT seeing the old answer. Tell the admin if its answer differs.
+            const oldAnswer = String(question.correct_answer_option || question.final_answer_key || '').trim();
+            const newAnswer = String(parsedContent.correct_answer_option || '').trim();
+            if (newAnswer) {
+                const note = !oldAnswer
+                    ? `[System] AI answer: (${newAnswer}) (no old answer existed).`
+                    : (oldAnswer === newAnswer
+                        ? `[System] AI answer (${newAnswer}) matches the old answer.`
+                        : `[System] ⚠ AI answer CHANGED: old (${oldAnswer}) -> new (${newAnswer}). Please verify.`);
+                broadcast(jobId, { type: 'chunk', index: qIndex, chunk: `\n${note}\n` });
+            }
+
             // Update question in DB
             question.text = parsedContent.fixed_text || question.text;
             question.options = parsedContent.fixed_options || question.options;

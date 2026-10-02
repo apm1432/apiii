@@ -146,6 +146,119 @@ function parseAiJson(rawText) {
     return JSON.parse(obj);
 }
 
+// ---------------------------------------------------------------------------
+// Validation + normalisation of the AI answer BEFORE anything is saved.
+// If something is wrong the error triggers an automatic retry, so a bad AI output
+// never reaches the database.
+// ---------------------------------------------------------------------------
+const OPT_PREFIX_RE = /^\s*(\(\s*[1-6१-६]\s*\)|[1-6१-६]\s*[.)])\s*/;
+const hasOptPrefix = (t) => OPT_PREFIX_RE.test(t);
+const stripOptPrefix = (t) => t.replace(OPT_PREFIX_RE, '');
+
+// Keep the options in the SAME style as the old data in the DB:
+// old options had "(1) ..." -> new ones get "(1) ..."; old had none -> remove it.
+function matchOptionStyle(newOpts, oldOpts) {
+    const olds = (oldOpts || []).filter(o => typeof o === 'string' && o.trim());
+    if (!olds.length) return newOpts;
+    const oldHas = olds.filter(hasOptPrefix).length >= olds.length / 2;
+    return newOpts.map((o, i) => {
+        const t = o.trim();
+        if (oldHas) return hasOptPrefix(t) ? t : `(${i + 1}) ${t}`;
+        return stripOptPrefix(t);
+    });
+}
+
+function normalizeExplanation(text) {
+    let t = String(text || '').replace(/\\n/g, '\n').replace(/\*\*/g, '').trim();
+    // pointers must be on separate lines (the website turns "\n" into line breaks).
+    if (!t.includes('\n')) {
+        let pos = 0;
+        for (let k = 2; k < 200; k++) {
+            const idx = t.indexOf(` ${k}. `, pos);
+            if (idx === -1) break;
+            t = t.slice(0, idx) + '\n' + t.slice(idx + 1);
+            pos = idx + 1;
+        }
+    }
+    return t;
+}
+
+function normalizeAiFix(parsed, q) {
+    const fail = (m) => { throw new Error('Invalid AI output: ' + m); };
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const isStrArr = (a) => Array.isArray(a) && a.every(x => typeof x === 'string');
+
+    // ---- question text ----
+    let text = str(parsed.fixed_text);
+    if (!text) fail('fixed_text is missing');
+    const qn = Number(q.qnum);
+    if (Number.isFinite(qn) && qn > 0) {
+        // a leading "78." that the old text did not have -> remove it
+        if (!/^\s*\d{1,3}\s*[.)]\s/.test(q.text || '')) {
+            text = text.replace(new RegExp('^\\s*' + qn + '\\s*[.)]\\s+'), '');
+        }
+        // another question number inside the text = the AI mixed in neighbouring questions
+        const re = /^\s*(\d{2,3})\s*[.)]\s/gm;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            if (parseInt(m[1], 10) !== qn) fail(`text contains another question (${m[1]}) but this is question ${qn}`);
+        }
+    }
+    let textEng = str(parsed.fixed_text_eng);
+    if (textEng && Number.isFinite(qn) && qn > 0 && !/^\s*\d{1,3}\s*[.)]\s/.test(q.text_eng || '')) {
+        textEng = textEng.replace(new RegExp('^\\s*' + qn + '\\s*[.)]\\s+'), '');
+    }
+
+    // ---- options ----
+    if (!isStrArr(parsed.fixed_options) || parsed.fixed_options.some(o => !o.trim())) fail('fixed_options must be a list of non-empty texts');
+    const n = parsed.fixed_options.length;
+    if (n < 2 || n > 6) fail(`unexpected number of options (${n})`);
+    const options = matchOptionStyle(parsed.fixed_options, q.options);
+
+    let optionsEng = [];
+    if (parsed.fixed_options_eng !== undefined && parsed.fixed_options_eng !== null) {
+        if (!isStrArr(parsed.fixed_options_eng)) fail('fixed_options_eng must be a list');
+        const eng = parsed.fixed_options_eng.filter(o => o.trim());
+        if (eng.length) {
+            if (eng.length !== n) fail(`English options (${eng.length}) do not match Marathi options (${n})`);
+            optionsEng = matchOptionStyle(eng, (q.options_eng && q.options_eng.length) ? q.options_eng : q.options);
+        }
+    }
+
+    // ---- correct answer: "1".."n" or "#" ----
+    const rawAns = String(parsed.correct_answer_option === undefined || parsed.correct_answer_option === null ? '' : parsed.correct_answer_option).trim();
+    let answer;
+    if (rawAns === '#') {
+        answer = '#';
+    } else {
+        const m = rawAns.match(/^[^0-9#]*([1-6])[^0-9]*$/);
+        if (!m) fail(`correct_answer_option "${rawAns}" is not 1-${n} or #`);
+        if (parseInt(m[1], 10) > n) fail(`correct_answer_option ${m[1]} is outside the ${n} options`);
+        answer = m[1];
+    }
+
+    // ---- explanation ----
+    const rawExp = Array.isArray(parsed.fixed_explanation) ? parsed.fixed_explanation.join('\n') : parsed.fixed_explanation;
+    const explanation = normalizeExplanation(rawExp);
+    if (explanation.length < 40) fail('fixed_explanation is missing or too short');
+
+    // ---- option-wise explanation ----
+    const oe = parsed.fixed_options_explanation;
+    if (!isStrArr(oe) || !oe.length || oe.some(x => !x.trim())) fail('fixed_options_explanation must be a list of non-empty texts');
+    if (oe.length !== n) fail(`options explanation count (${oe.length}) does not match options (${n})`);
+
+    return {
+        ...parsed,
+        fixed_text: text,
+        fixed_text_eng: textEng,
+        fixed_options: options,
+        fixed_options_eng: optionsEng,
+        correct_answer_option: answer,
+        fixed_explanation: explanation,
+        fixed_options_explanation: oe.map(x => x.replace(/\*\*/g, '').trim())
+    };
+}
+
 async function readErrorBody(error) {
     try {
         const d = error.response && error.response.data;
@@ -176,7 +289,9 @@ const prompt = `You are an expert MPSC mentor, subject specialist, OCR verifier,
 Your task is to independently verify, reconstruct if necessary, correct, and improve the provided MPSC question data.
 
 IMPORTANT GOAL:
-Do not merely edit or copy the Current Explanation. Treat it only as reference material. Independently reconstruct the complete question when necessary, solve the question, identify the main topic and important related concepts, detect missing information, and create a substantially improved Marathi explanation.
+NOTHING from the old database record is provided to you: there is NO old answer key and NO old explanation. Independently reconstruct the complete question when necessary, solve it yourself from scratch, identify the main topic and all important related concepts, detect missing information, and write a complete, ORIGINAL Marathi explanation in your own words.
+
+Treat every question as brand new and completely unrelated to any other question. Do not rely on any memory of earlier questions or earlier answers; derive everything fresh from the question and the image.
 
 The goal is:
 MAXIMUM RELEVANT TOPIC COVERAGE + FACTUAL ACCURACY + COMPLETE QUESTION RECONSTRUCTION + CLEAR SEPARATE POINTS + FAST REVISION.
@@ -259,12 +374,12 @@ Do NOT determine the answer until the full question has been reconstructed.
 STEP 5 — INDEPENDENT SOLVING:
 After reconstructing the complete question, solve it independently using verified facts.
 
-Only AFTER independently solving the complete question should you compare your answer with the Current Final Answer Key.
+No answer key is provided. Decide the answer only from your own verified knowledge of the facts.
 
 STEP 6 — ANSWER VERIFICATION:
-If the Current Final Answer Key is wrong, correct it.
+Re-check your chosen option against EVERY option once more before you finalize it.
 
-Never modify facts merely to justify the provided answer key.
+Never bend or modify facts merely to make an option look correct.
 
 STEP 7 — EXPLANATION:
 Generate the explanation based on:
@@ -304,10 +419,10 @@ NEVER ignore the image when one is provided.
 FACT-CHECKING RULES
 ================================================================
 
-1. Do NOT blindly trust the Current Final Answer Key or Current Explanation.
-2. Solve the COMPLETE reconstructed question independently BEFORE comparing with the provided answer.
-3. Do NOT hallucinate facts to justify an option or answer key.
-4. If the provided answer key is wrong, provide the actual correct option (1-4).
+1. No answer key and no previous explanation are given. Never guess an answer key; solve the question yourself.
+2. Solve the COMPLETE reconstructed question independently.
+3. Do NOT hallucinate facts to justify an option.
+4. Provide the actual correct option (1-4) based on verified facts.
 5. If no option is exactly correct, or multiple options are genuinely correct so that no single answer is possible, set "correct_answer_option": "#".
 6. Never invent dates, statistics, names, laws, events, scientific facts, or current information.
 7. If the question contains an error, ambiguity, outdated information, or incorrect premise, clearly explain the actual factual position.
@@ -341,21 +456,16 @@ EXPLANATION RULES (fixed_explanation)
 
 1. Use numbered pointers:
 1., 2., 3., etc.
+Put EACH numbered pointer on its own NEW LINE (a line break between pointers inside the JSON string). Use plain text only: no markdown, no ** bold, no bullet symbols.
 
 2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs strong factual and conceptual understanding.
 
-3. MANDATORY MINIMUM POINTER RULE:
-The "fixed_explanation" MUST contain at least 10 numbered pointers for every question.
+3. NO LIMIT ON THE NUMBER OF POINTS:
+There is NO minimum and NO maximum number of pointers. Write as many numbered pointers as the topic genuinely needs.
 
-10 pointers is the absolute minimum, NOT the target and NOT the maximum.
+Include EVERY important fact, date, concept, person, place, law, classification, exception, comparison and related detail connected with the question and its underlying topic. Do not hold back information because of length.
 
-Never stop at 8 or 9 pointers.
-
-If the directly asked topic is narrow, use genuinely relevant information from the immediate parent topic, necessary background, related concepts, classifications, chronology, exceptions, examples, or common confusion points to reach at least 10 meaningful pointers.
-
-For broad topics, provide 15, 20, 30, or more numbered pointers whenever genuinely relevant information exists.
-
-Do NOT artificially stop at 10 if important information is still missing.
+The only restriction is correctness: never include wrong, doubtful or invented data.
 
 4. MANDATORY FACT AND CONCEPT COVERAGE CHECK:
 
@@ -407,27 +517,16 @@ Do NOT merely stretch an existing pointer by merging many independent facts into
 
 Related facts belonging to the same concept may remain together in one pointer.
 
-8. POINTER LENGTH:
+8. NO LIMIT ON LENGTH:
+There is NO word limit for a pointer or for the whole explanation. A pointer may be as long as the concept needs. Prefer separate pointers for separate facts so that revision stays easy.
 
-Keep each pointer concise but information-dense.
+Do NOT repeat the same information merely to make the explanation look bigger.
 
-Prefer approximately 20–60 words per numbered pointer when possible.
+9. WRITE FROM SCRATCH:
 
-The purpose is fast revision.
+Write the explanation entirely yourself, in your own words, from verified facts. Do not assume anything about any older explanation: none is provided.
 
-A pointer may be longer only when the concept genuinely requires additional explanation.
-
-Do NOT stretch, repeat, or rephrase the same information merely to make the explanation look detailed.
-
-9. CURRENT EXPLANATION IMPROVEMENT:
-
-The Current Explanation MUST NOT be returned unchanged merely because it appears correct.
-
-Preserve useful and accurate facts, but independently identify missing relevant information and add it.
-
-Do not assume a topic is complete simply because the existing explanation is long or the answer is correct.
-
-Before finalizing, actively check what important dates, concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts are missing.
+Actively check what important dates, concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts must be included, and include all of them.
 
 10. TOPIC COVERAGE:
 
@@ -521,9 +620,8 @@ Before producing the final JSON, check:
 - Have I omitted an important institution or committee?
 - Have I omitted an important law, article, act, amendment, policy, or scheme?
 - Have I explained only the answer instead of the complete underlying topic?
-- Are important facts present in the Current Explanation that should have been preserved or improved?
 - Did I reconstruct all missing information visible in the image?
-- Did I produce at least 10 meaningful numbered pointers?
+- Did I cover every important fact of the topic, however many pointers that needs?
 
 If any important relevant information is missing, add it before finalizing.
 
@@ -584,16 +682,14 @@ Before output, verify:
 - I reconstructed missing Marathi content from the image where necessary.
 - I reconstructed missing English content from the image where necessary.
 - I independently solved the COMPLETE question.
-- I did not blindly trust the answer key.
+- I solved the question from scratch; no old answer or old explanation was used.
 - I preserved the complete Marathi question.
 - I preserved or reconstructed the complete English question.
 - I preserved or reconstructed all options.
-- I checked the Current Explanation for missing information instead of simply copying it.
-- I added relevant missing information where possible.
+- I wrote the explanation in my own words and added all relevant information.
 - I included important dates and concepts wherever relevant.
 - I used separate numbered pointers for distinct important facts whenever appropriate.
-- I did not output fewer than 10 pointers.
-- I did not artificially stop at 10 points.
+- I did not limit myself to any number of points or words; I covered everything important and correct.
 - I covered important topic context and directly related concepts.
 - I avoided filler, repetition, irrelevant information, and hallucinated facts.
 - I explained all options factually.
@@ -609,8 +705,7 @@ CURRENT DATA
 - Question Text (English): ${questionData.text_eng || ""}
 - Options (Marathi): ${JSON.stringify(questionData.options)}
 - Options (English): ${JSON.stringify(questionData.options_eng || [])}
- # - Current Final Answer Key (Option index 1-4): ${questionData.correct_answer_option || questionData.final_answer_key}
- # - Current Options Explanation: ${JSON.stringify(questionData.options_explanation)}
+(No answer key and no previous explanation are provided. Solve and explain from scratch.)
 
 Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO text outside the JSON:
 
@@ -631,7 +726,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
     "complete English option 4"
   ],
   "correct_answer_option": "1, 2, 3, 4, or #",
-  "fixed_explanation": "Deep Marathi explanation using at least 10 concise, information-dense numbered pointers",
+  "fixed_explanation": "Complete Marathi explanation as numbered pointers: as many pointers and as many words as the topic needs, covering every important fact; only correct data",
   "fixed_options_explanation": [
     "Deep factual explanation for option 1",
     "Deep factual explanation for option 2",
@@ -723,8 +818,9 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
                 resp.data.on('error', reject);
             });
 
-            const parsed = parseAiJson(fullText);
-            if (!parsed || typeof parsed !== 'object') throw new Error('AI returned invalid JSON');
+            const rawParsed = parseAiJson(fullText);
+            if (!rawParsed || typeof rawParsed !== 'object') throw new Error('AI returned invalid JSON');
+            const parsed = normalizeAiFix(rawParsed, questionData); // throws -> automatic retry, nothing is saved
             if (onChunk) onChunk(`\n\n[System] Done! Applying rate-limit delay based on model...`);
             
             let delayMs = 5000; // default 5 seconds
@@ -783,5 +879,6 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
 }
 
 module.exports = {
-    fixQuestionWithAI
+    fixQuestionWithAI,
+    normalizeAiFix
 };
