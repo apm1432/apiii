@@ -103,6 +103,7 @@
             <header class="dash-header">
                 <h2>Exam Dashboard</h2>
                 <div class="user-controls" style="display: flex; align-items: center; gap: 15px;">
+                    <button id="btn-download-paper-dash" class="btn hidden" style="background-color: #0ea5e9; padding: 5px 10px; font-size: 0.85rem;" onclick="openDownloadPaperModal()">📥 Download</button>
                     <div class="user-profile" onclick="toggleProfileModal()" style="text-align: center; cursor: pointer;">
                         <img src="https://ui-avatars.com/api/?name=User&background=random" alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%;">
                         <div id="profile-name" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: bold; margin-top: 4px;">User</div>
@@ -174,6 +175,7 @@
                     </nav>
                 </div>
                 <div class="header-controls" style="display: flex; align-items: center;">
+                    <button id="btn-download-paper" class="btn hidden" style="background-color: #0ea5e9; margin-right: 10px; padding: 5px 10px; font-size: 0.85rem;" onclick="openDownloadPaperModal()">📥 Download Paper</button>
                     <button id="btn-ai-fix-all" class="btn hidden" style="background-color: #8b5cf6; margin-right: 10px; padding: 5px 10px; font-size: 0.85rem;" onclick="fixAllQuestions()">🤖 Fix Complete Paper</button>
                     <div class="mode-toggle">
                         <button id="btn-quiz" class="btn active" onclick="switchMode('quiz')">Quiz</button>
@@ -287,7 +289,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=8"></script>
+    <script src="script.js?v=12"></script>
         <!-- AI Live Stream Panel -->
     <div id="ai-live-panel" style="display: none; flex-direction: column; position: fixed; bottom: 20px; left: 20px; width: 400px; background: rgba(15, 23, 42, 0.95); color: #10b981; font-family: monospace; padding: 15px; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 9999; max-height: 300px;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 10px;">

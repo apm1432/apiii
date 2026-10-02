@@ -1,60 +1,32 @@
 // ====== UI LOGIC ======
 
-// ── Session polling helpers (defined early so the fetch interceptor can use them) ──
-let _sessionPollInterval = null;
-
-function stopSessionPolling() {
-    if (_sessionPollInterval) {
-        clearInterval(_sessionPollInterval);
-        _sessionPollInterval = null;
-    }
-}
-
-function performClientLogout() {
-    // token / currentUser reassigned after var declarations below, so use localStorage directly
-    localStorage.removeItem('jwtToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('activeAiJobId');
-    localStorage.removeItem('mpsc_last_session');
-    if (window.activeAiEventSource) {
-        window.activeAiEventSource.close();
-        window.activeAiEventSource = null;
-    }
-    const panel = document.getElementById('ai-live-panel');
-    if (panel) panel.style.display = 'none';
-    // Reset module-level state
-    token = null;
-    currentUser = null;
-    if (typeof showSection === 'function') showSection('auth-section');
-    else window.location.reload();
-}
-
-// ── Global fetch interceptor: catch FORCE_LOGOUT on any API response ──
-// This ensures mid-session force-logout (e.g. during a test) is detected immediately,
-// not just during the 60-second poll.
-(function() {
-    const _origFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const response = await _origFetch.apply(this, args);
-        // Only intercept our own API calls
-        const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
-        if (url.startsWith('/api/') && (response.status === 401 || response.status === 400)) {
-            // Clone so the original caller can still read the body
-            const clone = response.clone();
+// If the server says this login was replaced by a newer login elsewhere, log out automatically.
+(function () {
+    const origFetch = window.fetch.bind(window);
+    let handled = false;
+    window.fetch = async function (...args) {
+        const res = await origFetch(...args);
+        if (res.status === 401 && !handled) {
             try {
-                const data = await clone.json();
-                if (data && data.code === 'FORCE_LOGOUT') {
-                    // Don't show the alert if we're on the auth page already
-                    if (localStorage.getItem('jwtToken')) {
-                        stopSessionPolling();
-                        alert('⚠️ तुमचे session बंद झाले. दुसऱ्या device वरून login झाले असेल.\n(Your session was ended. Another device may have logged in.)');
-                        performClientLogout();
-                    }
+                const data = await res.clone().json();
+                if (data && data.code === 'SESSION_EXPIRED') {
+                    handled = true;
+                    if (typeof logout === 'function') logout();
+                    alert(data.message || 'You were logged out because your account logged in elsewhere.');
+                    window.location.reload();
                 }
-            } catch (e) { /* ignore parse errors */ }
+            } catch (e) { /* not JSON */ }
         }
-        return response;
+        return res;
     };
+    // Check every 30s (and when the tab becomes visible) so the old session is closed quickly
+    function ping() {
+        const t = localStorage.getItem('jwtToken');
+        if (!t || handled) return;
+        fetch('/api/auth/session', { headers: { 'Authorization': 'Bearer ' + t } }).catch(() => {});
+    }
+    setInterval(ping, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
 })();
 
 // State
@@ -83,9 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (token) {
         if (currentUser) updateProfileUI();
         
-        // Resume session polling (detects if kicked by new device login)
-        startSessionPolling();
-
         const sessionStr = localStorage.getItem('mpsc_last_session');
         if (sessionStr) {
             try {
@@ -215,9 +184,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
                 console.warn("Failed to fetch progress on login", e);
             }
 
-            // Start session validity polling (detects force-logout within 60s)
-            startSessionPolling();
-
             alert('Login successful!');
             window.location.reload();
         } else {
@@ -265,50 +231,32 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     }
 });
 
-// ── Force-logout detection: poll /api/auth/check-session every 60 seconds ──
-// If the server returns FORCE_LOGOUT (e.g. another device logged in), we auto-logout.
-function startSessionPolling() {
-    if (_sessionPollInterval) return; // already running
-    _sessionPollInterval = setInterval(async () => {
-        const savedToken = localStorage.getItem('jwtToken');
-        if (!savedToken) { stopSessionPolling(); return; }
-        try {
-            const res = await fetch('/api/auth/check-session', {
-                headers: { 'Authorization': `Bearer ${savedToken}` }
-            });
-            if (res.status === 401 || res.status === 400) {
-                const data = await res.json().catch(() => ({}));
-                if (data.code === 'FORCE_LOGOUT' || res.status === 401) {
-                    stopSessionPolling();
-                    alert('⚠️ तुमचे session दुसऱ्या device वर login झाल्यामुळे बंद झाले. कृपया परत login करा.\n(Session ended: another device logged in.)');
-                    performClientLogout();
-                }
-            }
-        } catch (e) {
-            // Network error — skip this poll cycle
-        }
-    }, 60000); // check every 60 seconds
-}
-
-async function logout() {
-    // Tell the server to invalidate this token (bumps tokenVersion)
-    const savedToken = localStorage.getItem('jwtToken');
-    if (savedToken) {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${savedToken}` }
-            });
-        } catch (e) {
-            // Ignore network errors — still clean up client side
-        }
+function logout() {
+    token = null;
+    currentUser = null;
+    localStorage.removeItem('jwtToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('activeAiJobId');
+    if (window.activeAiEventSource) {
+        window.activeAiEventSource.close();
+        window.activeAiEventSource = null;
     }
-    stopSessionPolling();
-    performClientLogout();
+    const panel = document.getElementById('ai-live-panel');
+    if (panel) panel.style.display = 'none';
+    showSection('auth-section');
 }
 
 // ====== PROFILE TOGGLE & UPDATE ======
+window.syncAdminDownloadButtons = function() {
+    const isAdmin = !!(currentUser && currentUser.isAdmin);
+    ['btn-download-paper', 'btn-download-paper-dash'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', !isAdmin);
+    });
+};
+
 window.updateProfileUI = function() {
+    window.syncAdminDownloadButtons();
     if (!currentUser) return;
     try {
         document.getElementById('profile-name').innerText = currentUser.email.split('@')[0];
@@ -439,6 +387,7 @@ async function resetPasswordWithOtp() {
 
 // ====== DASHBOARD ======
 async function loadDashboard() {
+    if (window.syncAdminDownloadButtons) window.syncAdminDownloadButtons();
     const grid = document.getElementById('exam-grid');
     grid.innerHTML = '<p style="color:var(--text-secondary);">Loading exams...</p>';
 
@@ -766,9 +715,13 @@ async function openTest(yearExam, subject = null, restoreState = null) {
             if (currentUser && currentUser.isAdmin) {
                 const btnFixAll = document.getElementById('btn-ai-fix-all');
                 if (btnFixAll) btnFixAll.classList.remove('hidden');
+                const btnDl = document.getElementById('btn-download-paper');
+                if (btnDl) btnDl.classList.remove('hidden');
             } else {
                 const btnFixAll = document.getElementById('btn-ai-fix-all');
                 if (btnFixAll) btnFixAll.classList.add('hidden');
+                const btnDl = document.getElementById('btn-download-paper');
+                if (btnDl) btnDl.classList.add('hidden');
             }
         } else {
             if (data.message && data.message.includes('Subscription')) {
@@ -1541,6 +1494,126 @@ window.panImage = function(dx, dy) {
         modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
     }
 }
+
+// ====== DOWNLOAD PAPER AS TXT (ADMIN) ======
+window.openDownloadPaperModal = function() {
+    if (!currentUser || !currentUser.isAdmin) return;
+    if (document.getElementById('dl-paper-modal')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'dl-paper-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const selStyle = 'width:100%;padding:8px;margin:2px 0 10px 0;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;';
+    overlay.innerHTML = `
+        <div style="background:#fff;color:#111827;border-radius:12px;padding:20px;max-width:460px;width:100%;font-family:inherit;max-height:90vh;overflow-y:auto;">
+            <h3 style="margin:0 0 12px 0;">📥 Download (.txt)</h3>
+
+            <div style="font-weight:600;margin-bottom:4px;">What to download</div>
+            <label style="display:block;padding:6px 0 0 0;cursor:pointer;">
+                <input type="radio" name="dl-scope" value="paper" checked> Complete paper (one exam)
+            </label>
+            <select id="dl-exam" style="${selStyle}"><option value="">Loading papers...</option></select>
+
+            <label style="display:block;padding:6px 0 0 0;cursor:pointer;">
+                <input type="radio" name="dl-scope" value="subject"> Subject-wise (all exams, year-wise new → old)
+            </label>
+            <select id="dl-subject" style="${selStyle}" disabled><option value="">Loading subjects...</option></select>
+
+            <div style="font-weight:600;margin-bottom:4px;">Include</div>
+            <div style="font-size:.85rem;color:#6b7280;margin-bottom:6px;">Questions &amp; options (Marathi + English) are always included.</div>
+            <label style="display:block;padding:5px 0;cursor:pointer;"><input type="radio" name="dl-mode" value="questions" checked> Only questions &amp; options</label>
+            <label style="display:block;padding:5px 0;cursor:pointer;"><input type="radio" name="dl-mode" value="answers"> + Include answers</label>
+            <label style="display:block;padding:5px 0;cursor:pointer;"><input type="radio" name="dl-mode" value="full"> + Include answers and explanations</label>
+
+            <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+                <button class="btn btn-secondary" id="dl-cancel">Cancel</button>
+                <button class="btn" id="dl-go" style="background:#0ea5e9;color:#fff;">Download</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    const examSel = document.getElementById('dl-exam');
+    const subjSel = document.getElementById('dl-subject');
+    const getScope = () => (overlay.querySelector('input[name="dl-scope"]:checked') || {}).value || 'paper';
+    const setScope = (v) => {
+        const r = overlay.querySelector(`input[name="dl-scope"][value="${v}"]`);
+        if (r) r.checked = true;
+        examSel.disabled = v !== 'paper';
+        subjSel.disabled = v !== 'subject';
+    };
+    overlay.querySelectorAll('input[name="dl-scope"]').forEach(r => r.addEventListener('change', () => setScope(getScope())));
+    // touching a dropdown switches to its option automatically
+    examSel.addEventListener('focus', () => setScope('paper'));
+    subjSel.addEventListener('focus', () => setScope('subject'));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.getElementById('dl-cancel').onclick = close;
+
+    const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const fill = (sel, list, placeholder, empty) => {
+        sel.innerHTML = list.length
+            ? `<option value="">${placeholder}</option>` + list.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')
+            : `<option value="">${empty}</option>`;
+    };
+
+    // load every available paper and subject
+    fetch('/api/admin/download-options', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => {
+            const exams = (d && d.success && Array.isArray(d.exams)) ? d.exams : [];
+            const subjects = (d && d.success && Array.isArray(d.subjects)) ? d.subjects : [];
+            fill(examSel, exams, '-- Select paper --', 'No papers found');
+            fill(subjSel, subjects, '-- Select subject --', 'No subjects found');
+            // pre-select what is currently open, if any
+            if (window.activeYearExam && exams.includes(window.activeYearExam)) examSel.value = window.activeYearExam;
+            if (window.activeSubject && subjects.includes(window.activeSubject)) subjSel.value = window.activeSubject;
+        })
+        .catch(() => {
+            examSel.innerHTML = '<option value="">Could not load papers</option>';
+            subjSel.innerHTML = '<option value="">Could not load subjects</option>';
+        });
+
+    document.getElementById('dl-go').onclick = async () => {
+        const scope = getScope();
+        const mode = (overlay.querySelector('input[name="dl-mode"]:checked') || {}).value || 'questions';
+        const exam = examSel.value;
+        const subject = subjSel.value;
+        if (scope === 'paper' && !exam) { alert('Please select a paper.'); return; }
+        if (scope === 'subject' && !subject) { alert('Please select a subject.'); return; }
+
+        const goBtn = document.getElementById('dl-go');
+        goBtn.disabled = true; goBtn.innerText = '⏳ Preparing...';
+        try {
+            const res = await fetch('/api/admin/download-paper', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ scope, mode, year_exam: exam, subject })
+            });
+            if (!res.ok) {
+                let msg = 'Download failed.';
+                try { msg = (await res.json()).message || msg; } catch (e) {}
+                alert(msg);
+                goBtn.disabled = false; goBtn.innerText = 'Download';
+                return;
+            }
+            const blob = await res.blob();
+            const suffix = { questions: 'questions', answers: 'with_answers', full: 'with_answers_explanations' }[mode];
+            const base = scope === 'subject' ? `${subject}_all_exams` : exam;
+            const safeName = base.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_').trim() || 'paper';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${safeName}_${suffix}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            close();
+        } catch (e) {
+            alert('Network error. Try again.');
+            goBtn.disabled = false; goBtn.innerText = 'Download';
+        }
+    };
+};
 
 // ====== AI FIX QUESTION LOGIC (ADMIN) ======
 window.fixQuestion = async function(qId, mode = 'quiz') {

@@ -31,7 +31,15 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   deviceId: {
-    type: String, // FingerprintJS visitorId (used only when browserLocked = true)
+    type: String, // browser id the account is bound to (used only when deviceLockEnabled)
+    default: null
+  },
+  deviceLockEnabled: {
+    type: Boolean, // set ONLY by admin (Telegram bot). false = user may login from any browser
+    default: false
+  },
+  sessionId: {
+    type: String, // id of the one active login session; a new login replaces it
     default: null
   },
   createdAt: {
@@ -45,30 +53,6 @@ const userSchema = new mongoose.Schema({
   resetOtpExpiry: {
     type: Date,
     default: null
-  },
-
-  // ── Admin-controlled browser/device lock ──
-  browserLocked: {
-    type: Boolean,
-    default: false   // Only lock when admin explicitly enables it
-  },
-
-  // ── Single-device session enforcement ──
-  // Incremented on logout or forced-logout; tokens carrying old version become invalid
-  tokenVersion: {
-    type: Number,
-    default: 0
-  },
-  // The deviceId of the currently active session (null = no active session)
-  activeDeviceId: {
-    type: String,
-    default: null
-  },
-
-  // ── Admin-controlled access limit ──
-  maxDevices: {
-    type: Number,
-    default: 1   // Default: only 1 device at a time
   }
 });
 

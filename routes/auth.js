@@ -3,7 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { JWT_SECRET, authMiddleware } = require('../middleware/auth');
+const crypto = require('crypto');
+const { JWT_SECRET, authMiddleware, setActiveSession } = require('../middleware/auth');
 const { assignSmtpToUser, sendEmail } = require('../utils/smtpService');
 
 // REGISTER
@@ -71,13 +72,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// ──────────────────────────────────────────────────────────────
 // LOGIN
-// Rules:
-//  1. No automatic device lock — lock happens only if admin enables browserLocked
-//  2. Single-device session: new login forces logout of old session by bumping tokenVersion
-//  3. Token valid for 2 months
-// ──────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
     try {
         const { email, password, deviceId } = req.body;
@@ -98,36 +93,30 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
         }
 
-        // ── Admin-controlled Browser/Device Lock ──
-        // Only enforced when admin has explicitly locked this user to a device
-        if (user.isSubscribed && user.browserLocked && user.deviceId) {
-            if (deviceId && user.deviceId !== deviceId) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Your account is locked to a specific device. Please contact admin to unlock.',
-                    code: 'DEVICE_LOCKED'
-                });
+        // Device Lock: applies ONLY when the admin has locked this user.
+        // Otherwise the user may login from any browser/device.
+        if (user.deviceLockEnabled) {
+            if (!deviceId) {
+                return res.status(403).json({ success: false, message: 'Device could not be identified. Please try again.' });
+            }
+            if (!user.deviceId) {
+                user.deviceId = deviceId; // first login after admin locked -> bind this browser
+            } else if (user.deviceId !== deviceId) {
+                return res.status(403).json({ success: false, message: 'Account is locked to another device. Please contact admin to unlock.' });
             }
         }
 
-        // ── Single-device session: force-logout any existing session ──
-        // Bump tokenVersion so any token issued under the previous version becomes invalid
-        user.tokenVersion = (user.tokenVersion || 0) + 1;
-        user.activeDeviceId = deviceId || null;
+        // Single active session: this login replaces any older session (older one is logged out automatically)
+        const sid = crypto.randomBytes(16).toString('hex');
+        user.sessionId = sid;
         await user.save();
+        setActiveSession(user._id, sid);
 
-        // Generate JWT — 2 months validity
+        // Generate JWT
         const token = jwt.sign(
-            {
-                id: user._id,
-                email: user.email,
-                isSubscribed: user.isSubscribed,
-                isAdmin: user.isAdmin,
-                tokenVersion: user.tokenVersion,   // embedded so middleware can compare
-                deviceId: deviceId || null
-            },
+            { id: user._id, email: user.email, isSubscribed: user.isSubscribed, isAdmin: user.isAdmin, sid },
             JWT_SECRET,
-            { expiresIn: '60d' } // 2 months
+            { expiresIn: '7d' } // Token valid for 7 days
         );
 
         res.json({ 
@@ -149,30 +138,9 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// ──────────────────────────────────────────────────────────────
-// LOGOUT  — kills the token by incrementing tokenVersion
-// ──────────────────────────────────────────────────────────────
-router.post('/logout', authMiddleware, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (user) {
-            user.tokenVersion = (user.tokenVersion || 0) + 1;
-            user.activeDeviceId = null;
-            await user.save();
-        }
-        res.json({ success: true, message: 'Logged out successfully.' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error during logout' });
-    }
-});
-
-// ──────────────────────────────────────────────────────────────
-// CHECK SESSION — lets the frontend poll to detect force-logout
-// Returns 401 with FORCE_LOGOUT if the session was killed server-side
-// ──────────────────────────────────────────────────────────────
-router.get('/check-session', authMiddleware, (req, res) => {
-    res.json({ success: true, valid: true });
+// SESSION CHECK - used by the browser to find out quickly if it was logged out by a newer login
+router.get('/session', authMiddleware, (req, res) => {
+    res.json({ success: true });
 });
 
 // FORGOT PASSWORD - Request OTP
@@ -245,9 +213,6 @@ router.post('/verify-reset-password', async (req, res) => {
         user.password = await bcrypt.hash(newPassword, salt);
         user.resetOtp = null;
         user.resetOtpExpiry = null;
-        // Also invalidate any existing sessions after password reset
-        user.tokenVersion = (user.tokenVersion || 0) + 1;
-        user.activeDeviceId = null;
         await user.save();
 
         res.json({ success: true, message: 'Password reset successfully. You can now login.' });

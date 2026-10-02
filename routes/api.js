@@ -19,9 +19,10 @@ const User = require('../models/User');
 const Progress = require('../models/Progress');
 
 // Middleware & Services
-const { authMiddleware, requireSubscription } = require('../middleware/auth');
+const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
 const { fixQuestionWithAI } = require('../utils/aiService');
+const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -205,6 +206,86 @@ router.get('/admin/fix-stream/:jobId', authMiddleware, async (req, res) => {
     }
     } catch (err) {
         res.status(500).end();
+    }
+});
+
+// Admin: all available papers (exams, newest first) and all subjects, for the download dropdowns
+router.get('/admin/download-options', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        const valid = v => typeof v === 'string' && v.trim() && v !== 'null';
+        const exams = (await Question.distinct('year_exam')).filter(valid)
+            .sort((a, b) => (examYear(b) - examYear(a)) || a.localeCompare(b));
+        const subjects = (await Question.distinct('subject')).filter(valid)
+            .sort((a, b) => a.localeCompare(b));
+        res.json({ success: true, exams, subjects });
+    } catch (err) {
+        console.error('download-options error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// Admin: list of all subjects (kept for compatibility)
+router.get('/admin/subjects', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        const subjects = (await Question.distinct('subject'))
+            .filter(s => typeof s === 'string' && s.trim() && s !== 'null')
+            .sort((a, b) => a.localeCompare(b));
+        res.json({ success: true, data: subjects });
+    } catch (err) {
+        console.error('subjects error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// Admin: Download a .txt file
+// body: { scope: 'paper' | 'subject', year_exam (scope=paper), subject (scope=subject), mode: 'questions' | 'answers' | 'full' }
+//  - paper   : one complete exam paper
+//  - subject : one subject from ALL exams, year-wise newest -> oldest
+router.post('/admin/download-paper', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+
+        const scope = req.body.scope === 'subject' ? 'subject' : 'paper';
+        const mode = MODES.includes(req.body.mode) ? req.body.mode : 'questions';
+        let text;
+
+        if (scope === 'subject') {
+            const subject = typeof req.body.subject === 'string' ? req.body.subject.trim() : '';
+            if (!subject) return res.status(400).json({ success: false, message: 'subject is required' });
+            const questions = await Question.find({ subject }).lean();
+            if (!questions.length) return res.status(404).json({ success: false, message: 'No questions found for this subject.' });
+            text = buildSubjectText(questions, { subject, mode });
+        } else {
+            const year_exam = req.body.year_exam;
+            if (!year_exam) return res.status(400).json({ success: false, message: 'year_exam is required' });
+
+            let query;
+            if (year_exam === 'Passage Comprehension') {
+                query = { $or: [
+                    { passage_marathi: { $exists: true, $nin: [null, "null"] } },
+                    { passage_english: { $exists: true, $nin: [null, "null"] } },
+                    { passage_text: { $exists: true, $nin: [null, "null"] } }
+                ] };
+            } else {
+                query = { year_exam };
+            }
+            const questions = await Question.find(query).lean();
+            if (!questions.length) return res.status(404).json({ success: false, message: 'No questions found for this exam.' });
+            questions.sort((a, b) => (a.qnum || 0) - (b.qnum || 0));
+            text = buildPaperText(questions, { title: year_exam, mode });
+        }
+
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.send(text);
+    } catch (err) {
+        console.error('download-paper error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
     }
 });
 
@@ -783,10 +864,14 @@ router.get('/image/:fileId', async (req, res) => {
         
         const jwt = require('jsonwebtoken');
         const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
+        let decodedImgToken;
         try {
-            jwt.verify(token, JWT_SECRET);
+            decodedImgToken = jwt.verify(token, JWT_SECRET);
         } catch (err) {
             return res.status(401).send('Unauthorized. Invalid token.');
+        }
+        if (!(await isSessionActive(decodedImgToken))) {
+            return res.status(401).send('Session expired. Please login again.');
         }
 
         const rawFileId = req.params.fileId;

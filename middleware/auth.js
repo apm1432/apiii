@@ -1,13 +1,37 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../models/User'); // ADDED THIS
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
 
-/**
- * authMiddleware
- * – Verifies JWT signature + expiry
- * – Checks tokenVersion so that logout / forced-logout truly kills the token
- */
+// ---- Single active session -------------------------------------------------
+// Every login creates a new sessionId (stored in DB + inside the JWT). Only the
+// newest sessionId is valid, so an older login is rejected on its next request.
+// Cache = userId -> active sessionId (this app runs as ONE node process).
+const sessionCache = new Map();
+
+function setActiveSession(userId, sid) {
+    sessionCache.set(String(userId), sid);
+}
+
+async function isSessionActive(decoded) {
+    if (!decoded || !decoded.id || !decoded.sid) return false; // old tokens without sid -> must login again
+    const uid = String(decoded.id);
+    let active = sessionCache.get(uid);
+    if (active === undefined) {
+        const u = await User.findById(uid).select('sessionId').lean();
+        if (!u) return false;
+        active = u.sessionId || null;
+        if (active) sessionCache.set(uid, active);
+    }
+    return active === decoded.sid;
+}
+
+const SESSION_EXPIRED_RESPONSE = {
+    success: false,
+    code: 'SESSION_EXPIRED',
+    message: 'तुमचे खाते दुसऱ्या ठिकाणी login झाले आहे. कृपया पुन्हा login करा. (Logged in elsewhere)'
+};
+
 const authMiddleware = async (req, res, next) => {
     let token = null;
     const authHeader = req.header('Authorization');
@@ -21,24 +45,24 @@ const authMiddleware = async (req, res, next) => {
         return res.status(401).json({ success: false, message: 'Access Denied. No token provided.' });
     }
 
+    let decoded;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        // decoded = { id, email, isSubscribed, isAdmin, tokenVersion, deviceId, iat, exp }
-
-        // ── Validate tokenVersion against DB so logout truly kills the session ──
-        const user = await User.findById(decoded.id).select('tokenVersion');
-        if (!user) {
-            return res.status(401).json({ success: false, message: 'User not found.', code: 'FORCE_LOGOUT' });
-        }
-        if (decoded.tokenVersion !== user.tokenVersion) {
-            return res.status(401).json({ success: false, message: 'Session expired. Please log in again.', code: 'FORCE_LOGOUT' });
-        }
-
-        req.user = decoded; // { id, email, isSubscribed, isAdmin, tokenVersion, deviceId }
-        next();
+        decoded = jwt.verify(token, JWT_SECRET);
     } catch (err) {
-        return res.status(400).json({ success: false, message: 'Invalid or Expired Token.', code: 'FORCE_LOGOUT' });
+        return res.status(400).json({ success: false, message: 'Invalid or Expired Token.' });
     }
+
+    try {
+        if (!(await isSessionActive(decoded))) {
+            return res.status(401).json(SESSION_EXPIRED_RESPONSE);
+        }
+    } catch (err) {
+        console.error('Session check error:', err);
+        return res.status(500).json({ success: false, message: 'Internal auth error' });
+    }
+
+    req.user = decoded; // { id, email, isSubscribed, sid }
+    next();
 };
 
 const requireSubscription = async (req, res, next) => {
@@ -70,6 +94,8 @@ const requireSubscription = async (req, res, next) => {
 
 module.exports = {
     authMiddleware,
+    setActiveSession,
+    isSessionActive,
     requireSubscription,
     JWT_SECRET
 };
