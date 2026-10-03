@@ -784,7 +784,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
 
     if (q.original_image_url) {
         const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
     }
 
     if (currentUser && currentUser.isAdmin) {
@@ -1035,7 +1035,7 @@ function renderFullPaper(questions = currentQuestions) {
         
         if (q.original_image_url) {
             const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}')">👁 View Original Image</button>`;
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
         }
         
         if (currentUser && currentUser.isAdmin) {
@@ -1361,7 +1361,7 @@ const modalImg = document.getElementById('modal-img');
 const closeBtn = document.querySelector('.close-modal');
 let zoomLevel = 1;
 
-window.openImageModal = function(src) {
+window.openImageModal = function(src, qid) {
     showGlobalLoader("Loading Image...");
     modal.style.display = 'flex';
     void modal.offsetWidth; 
@@ -1387,6 +1387,7 @@ window.openImageModal = function(src) {
     if (userToken) {
         src += `?token=${userToken}`;
     }
+    if (qid) src += (src.includes('?') ? '&' : '?') + 'q=' + qid;
     modalImg.src = src;
     
     zoomLevel = 1;
@@ -1772,6 +1773,7 @@ window.connectAiLiveStream = function(jobId) {
             if (qIndex > -1) {
                 currentQuestions[qIndex] = data.question;
             }
+            if (window.paperRefresh) window.paperRefresh();
             // Answer key may have changed -> re-evaluate the user's saved answer so score/progress update instantly
             const ua = userAnswers[data.question._id];
             if (ua && typeof ua.selected === 'number') {
@@ -1836,6 +1838,7 @@ async function syncProgressFromServer() {
             const quizView = document.getElementById('quiz-view');
             if (quizView && quizView.style.display !== 'none') renderQuizQuestion(currentQIndex, visible);
             else { const y = window.scrollY; renderFullPaper(visible); window.scrollTo(0, y); }
+            if (window.paperRefresh) window.paperRefresh();
         }
     } catch (e) { console.warn('Progress sync failed', e); }
 }

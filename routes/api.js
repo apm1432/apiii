@@ -858,6 +858,30 @@ async function cleanupCache() {
     }
 }
 
+// ---- Image cache index: questionId -> cached filename (so an OLD image is deleted when a question gets a NEW file id)
+const IMG_INDEX_FILE = path.join(os.tmpdir(), 'mpscpyq_image_index.json');
+let imgIndex = {};
+try { imgIndex = JSON.parse(fs.readFileSync(IMG_INDEX_FILE, 'utf8')) || {}; } catch (e) { imgIndex = {}; }
+let imgIndexTimer = null;
+function saveImgIndexSoon() {
+    if (imgIndexTimer) return;
+    imgIndexTimer = setTimeout(() => {
+        imgIndexTimer = null;
+        fsPromises.writeFile(IMG_INDEX_FILE, JSON.stringify(imgIndex)).catch(() => {});
+    }, 5000);
+}
+// same filename -> nothing happens (cache is used). New filename -> remember it and delete the old cached file
+function trackQuestionImage(qId, newFilename) {
+    if (!qId || !/^[a-f0-9]{24}$/i.test(qId)) return;
+    const prev = imgIndex[qId];
+    if (prev === newFilename) return;
+    imgIndex[qId] = newFilename;
+    saveImgIndexSoon();
+    if (prev && !Object.values(imgIndex).includes(prev)) {   // no other question uses the old image
+        fsPromises.unlink(path.join(CACHE_DIR, prev)).catch(() => {});
+    }
+}
+
 router.get('/image/:fileId', async (req, res) => {
     try {
         let token = req.query.token;
@@ -901,12 +925,14 @@ router.get('/image/:fileId', async (req, res) => {
         // Sanitize filename
         const safeFilename = firstAvailableId.replace(/[^a-zA-Z0-9-_]/g, '') + '.jpg';
         const cachePath = path.join(CACHE_DIR, safeFilename);
+        trackQuestionImage(req.query.q, safeFilename);
 
         // 1. Check Cache
         if (fs.existsSync(cachePath)) {
             // Update modified time for LRU
             const now = new Date();
             try { fs.utimesSync(cachePath, now, now); } catch (e) {} // ignore if fails
+            res.setHeader('Cache-Control', 'private, max-age=86400');
             return res.sendFile(cachePath);
         }
 
@@ -931,6 +957,7 @@ router.get('/image/:fileId', async (req, res) => {
                     const writer = fs.createWriteStream(cachePath);
                     imgRes.data.pipe(writer);
                     
+                    res.setHeader('Cache-Control', 'private, max-age=86400');
                     if (imgRes.headers['content-type']) {
                         res.setHeader('Content-Type', imgRes.headers['content-type']);
                     }
