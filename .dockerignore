@@ -3,3 +3,5 @@ node_modules
 .git
 FINAL_ENRICHED_MPSC_QUESTIONS.json
 PYQ_DATA
+new_papers
+requirements_add_exam.txt

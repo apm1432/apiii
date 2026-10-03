@@ -15,3 +15,8 @@ node_modules/
 sync.js
 sync_db.js
 telegramUpload.js
+
+# add_exam.py working folders
+new_papers/
+PYQ_DATA/
+image_mapping.json
