@@ -24,7 +24,7 @@
         expl: null,                    // question id whose explanation is open
         nw: 0, nh: 0, loadId: 0,
         ptrs: new Map(), g: null, lastTap: null, raf: 0,
-        cache: new Map(), els: {}, built: false
+        cache: new Map(), els: {}, built: false, serverExtras: new Map(), sibKey: ''
     };
 
     try {
@@ -82,26 +82,75 @@
         return Math.min(n, LETTERS.length);
     }
 
-    /* ---------------- pages = questions grouped by image ---------------- */
+    /* ---------------- pages = questions grouped by image ----------------
+       Core questions  = the ones in the selected subject/topic filter.
+       Extra questions = other questions printed on the SAME image (other subject / not
+       categorised) - they are shown too, so the user can attempt the whole image.        */
     function buildPages() {
         const list = (typeof getFilteredQuestions === 'function') ? getFilteredQuestions() : currentQuestions;
         const pages = [];
-        let cur = null;
+        const idToPage = new Map(), msgToPage = new Map();
+
         list.forEach(q => {
             const ids = fileIds(q);
             const msg = q.telegram_msg_id || null;
-            const sameImage = cur && cur.hasImage && ids.length &&
-                (ids.some(x => cur.ids.has(x)) || (msg && cur.msgs.has(msg)));
-            if (sameImage) {
-                cur.qs.push(q);
-                ids.forEach(x => cur.ids.add(x));
-                if (msg) cur.msgs.add(msg);
-            } else {
-                cur = { qs: [q], ids: new Set(ids), msgs: new Set(msg ? [msg] : []), hasImage: ids.length > 0, url: imageUrl(q) };
-                pages.push(cur);
+            let pg = null;
+            for (const i of ids) { if (idToPage.has(i)) { pg = idToPage.get(i); break; } }
+            if (!pg && msg && msgToPage.has(msg)) pg = msgToPage.get(msg);
+            if (pg) pg.qs.push(q);
+            else {
+                pg = { qs: [q], extra: new Set(), ids: new Set(), hasImage: ids.length > 0, url: imageUrl(q) };
+                pages.push(pg);
             }
+            ids.forEach(i => { pg.ids.add(i); idToPage.set(i, pg); });
+            if (msg) msgToPage.set(msg, pg);
+        });
+
+        // ---- add the other questions that sit on the same image
+        const coreIds = new Set(list.map(q => String(q._id)));
+        const pool = new Map();
+        (typeof currentQuestions !== 'undefined' ? currentQuestions : []).forEach(q => pool.set(String(q._id), q));
+        PM.serverExtras.forEach((q, id) => { if (!pool.has(id)) pool.set(id, q); });
+
+        pool.forEach((q, id) => {
+            if (coreIds.has(id)) return;
+            const ids = fileIds(q);
+            const msg = q.telegram_msg_id || null;
+            let pg = null;
+            for (const i of ids) { if (idToPage.has(i)) { pg = idToPage.get(i); break; } }
+            if (!pg && msg && msgToPage.has(msg)) pg = msgToPage.get(msg);
+            if (pg && !pg.qs.some(x => String(x._id) === id)) { pg.qs.push(q); pg.extra.add(id); }
+        });
+        pages.forEach(pg => {
+            if (pg.extra.size) pg.qs.sort((x, y) => (x.qnum || 0) - (y.qnum || 0));
         });
         return pages;
+    }
+
+    // Ask the server for questions that share an image with ours (needed when the paper was opened
+    // as "Subject (All Exams)", so other subjects are not loaded on the client).
+    async function fetchSiblings() {
+        const list = getFilteredQuestions().filter(q => q.original_image_url);
+        const ids = list.map(q => q._id);
+        if (!ids.length) return;
+        const key = ids.join(',');
+        if (PM.sibKey === key) return;
+        PM.sibKey = key;
+        try {
+            const r = await fetch('/api/questions/siblings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwtToken')}` },
+                body: JSON.stringify({ questionIds: ids.slice(0, 600) })
+            });
+            const d = await r.json();
+            if (d && d.success && Array.isArray(d.data) && PM.open) {
+                d.data.forEach(q => PM.serverExtras.set(String(q._id), q));
+                const keep = PM.pi;
+                PM.pages = buildPages();
+                PM.pi = Math.min(keep, PM.pages.length - 1);
+                if (PM.pages.length) renderPanel();
+            }
+        } catch (e) { console.warn('siblings fetch failed', e); }
     }
 
     function posKey() {
@@ -136,6 +185,7 @@
 .pm-nb.primary{background:#8b5cf6}
 .pm-nb:disabled{opacity:.35}
 .pm-count{flex:1;background:transparent;color:#e5e7eb;border:1px solid #374151;border-radius:10px;height:40px;font-size:.85rem}
+.pm-cap{font-size:.68rem;color:#a78bfa;margin:6px 0 -2px 2px}
 .pm-row{display:flex;align-items:center;gap:6px;margin:6px 0}
 .pm-qn{flex:0 0 38px;font-size:.8rem;color:#9ca3af;font-weight:700}
 .pm-opts{display:flex;gap:6px;flex:1}
@@ -424,7 +474,7 @@
     /* ---------------- panel ---------------- */
     function stats() {
         let c = 0, w = 0;
-        const list = PM.pages.flatMap(p => p.qs);
+        const list = PM.pages.flatMap(p => p.qs.filter(q => !p.extra.has(String(q._id))));
         list.forEach(q => {
             const a = userAnswers[q._id];
             if (a) {
@@ -484,6 +534,9 @@
                     else if (ans.selected === ci.idx) res = `<span class="pm-res ok">✔ Correct</span>`;
                     else res = `<span class="pm-res bad">✖ Ans: ${LETTERS[ci.idx] || '?'}</span>`;
                 }
+                if (pg.extra.has(String(q._id))) {
+                    html += `<div class="pm-cap">📌 Same image · ${esc(q.subject || 'Other subject')}</div>`;
+                }
                 html += `<div class="pm-row"><span class="pm-qn">Q${esc(q.qnum || '')}</span><div class="pm-opts">${btns}</div>${res}
                     <button class="pm-ex ${String(PM.expl) === String(q._id) ? 'on' : ''}" data-a="ex" data-q="${q._id}" ${ans ? '' : 'disabled'} title="${ans ? 'Explanation' : 'Answer first'}">💡</button></div>`;
             });
@@ -536,6 +589,8 @@
         const list = (typeof getFilteredQuestions === 'function') ? getFilteredQuestions() : [];
         if (!list.length) { alert('No questions to show.'); return; }
         buildDom();
+        PM.serverExtras = PM.serverExtras || new Map();
+        PM.sibKey = '';
         PM.pages = buildPages();
         PM.open = true;
         PM.els.root.classList.add('open');
@@ -545,12 +600,13 @@
 
         let start = parseInt(localStorage.getItem(posKey()) || '', 10);
         if (isNaN(start) || start >= PM.pages.length) {
-            start = PM.pages.findIndex(p => p.qs.some(q => !userAnswers[q._id]));
+            start = PM.pages.findIndex(p => p.qs.some(q => !p.extra.has(String(q._id)) && !userAnswers[q._id]));
             if (start < 0) start = 0;
         }
         PM.tx = 0; PM.ty = 0;
         PM.nw = PM.nh = 0;
         showPage(start);
+        fetchSiblings();
     };
 
     function closePaper(fromPop) {
@@ -585,8 +641,9 @@
         el.textContent = msg; el.style.opacity = '1';
         clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
     }
-    window.paperRefresh = function (changedId) {
+    window.paperRefresh = function (changedId, newQ) {
         if (!PM.open) return;
+        if (newQ && PM.serverExtras.has(String(changedId))) PM.serverExtras.set(String(changedId), newQ);
         const keep = PM.pi;
         PM.pages = buildPages();
         PM.pi = Math.min(keep, PM.pages.length - 1);

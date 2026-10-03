@@ -683,6 +683,66 @@ router.post('/payment/webhook', (req, res) => {
 // -------------------------------------
 
 const rateLimit = require('express-rate-limit');
+// Questions that share the SAME original image with the given questions (other subject / uncategorised).
+// Used by Paper Mode so a user can attempt every question printed on an image.
+router.post('/questions/siblings', authMiddleware, async (req, res) => {
+    try {
+        const ids = Array.isArray(req.body.questionIds) ? req.body.questionIds.slice(0, 600) : [];
+        if (!ids.length || !ids.every(i => /^[a-f0-9]{24}$/i.test(String(i)))) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const user = await User.findById(req.user.id);
+        const subscribed = user && user.isSubscribed && user.subscriptionExpiry && new Date() <= user.subscriptionExpiry;
+
+        const base = await Question.find({ _id: { $in: ids } }, 'year_exam original_image_url telegram_msg_id').lean();
+
+        // same access rule as /questions: subscribers, or the free tests
+        let allowedYears = new Set();
+        if (subscribed) {
+            base.forEach(q => allowedYears.add(q.year_exam));
+        } else if (user && user.hasUsedFreeTrial && cachedHierarchy && cachedHierarchy.length) {
+            const yr = (str) => {
+                const m = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+                const e = (str || '').replace(/[०-९]/g, c => m[c]);
+                const mt = e.match(/\b(19\d{2}|20\d{2})\b/);
+                return mt ? parseInt(mt[1], 10) : 0;
+            };
+            const free = [...cachedHierarchy].sort((a, b) => {
+                const ya = yr(a._id || ''), yb = yr(b._id || '');
+                return ya !== yb ? yb - ya : (a._id || '').localeCompare(b._id || '');
+            }).slice(0, 2).map(e => e._id);
+            base.forEach(q => { if (free.includes(q.year_exam)) allowedYears.add(q.year_exam); });
+        }
+        if (!allowedYears.size) return res.json({ success: true, data: [] });
+
+        const conds = [];
+        base.forEach(q => {
+            if (!allowedYears.has(q.year_exam)) return;
+            let o = q.original_image_url;
+            if (typeof o === 'string' && o.trim().startsWith('{')) { try { o = JSON.parse(o); } catch (e) {} }
+            if (o && typeof o === 'object') {
+                Object.entries(o).forEach(([k, v]) => { if (v && /^\d+$/.test(k)) conds.push({ [`original_image_url.${k}`]: v }); });
+            } else if (typeof o === 'string' && o) {
+                conds.push({ original_image_url: o });
+            }
+            if (q.telegram_msg_id) conds.push({ telegram_msg_id: q.telegram_msg_id });
+        });
+        if (!conds.length) return res.json({ success: true, data: [] });
+
+        const found = await Question.find({
+            year_exam: { $in: [...allowedYears] },
+            _id: { $nin: ids },
+            $or: conds
+        }).lean();
+
+        res.json({ success: true, data: found });
+    } catch (err) {
+        console.error('siblings error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
 const submitAnswerLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     limit: 60, // Limit each IP to 60 answer submissions per windowMs

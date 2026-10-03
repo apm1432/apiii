@@ -1810,7 +1810,7 @@ window.connectAiLiveStream = function(jobId) {
                 ua.isCorrect = !ua.isCancelled && ua.selected === (parseInt(keyStr) - 1);
                 localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
             }
-            if (window.paperRefresh) window.paperRefresh(data.question._id);   // after answers are re-evaluated
+            if (window.paperRefresh) window.paperRefresh(data.question._id, data.question);   // after answers are re-evaluated
             const btn = document.getElementById(`btn-fix-full-${data.question._id}`) || document.getElementById(`btn-fix-${data.question._id}`);
             if (btn) {
                 btn.innerText = "✅ Fixed!";
