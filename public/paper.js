@@ -474,7 +474,7 @@
     /* ---------------- panel ---------------- */
     function stats() {
         let c = 0, w = 0;
-        const list = PM.pages.flatMap(p => p.qs.filter(q => !p.extra.has(String(q._id))));
+        const list = PM.pages.flatMap(p => p.qs);   // subject questions + other questions on the same images
         list.forEach(q => {
             const a = userAnswers[q._id];
             if (a) {
