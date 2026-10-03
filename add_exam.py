@@ -98,30 +98,40 @@ class AllExhausted(Exception):
 
 class Gemini:
     def __init__(self, keys, models):
-        self.combos = [(m, k) for m in models for k in keys]   # strongest model first, all keys, then next model
+        self.keys, self.models = list(keys), list(models)
+        self.combos = [(m, k) for m in self.models for k in self.keys]
         self.next_ok = {c: 0.0 for c in self.combos}
         self.dead = set()
+        self.rr = {m: 0 for m in self.models}      # round-robin pointer (next key to use) per model
         self.lock = threading.Lock()
 
     @staticmethod
     def delay_for(model):
-        return 5 if 'lite' in model else 15      # 14 RPM / 4 RPM safe pacing
+        return 5 if 'lite' in model else 15      # flash: 15s, lite: 5s rest before the SAME key+model is used again
 
     def _pick(self):
-        """Thread-safe: reserves a ready (model, key) so two workers never hit the same combo together."""
+        """Round-robin over API keys. Strongest model first: key1 -> key2 -> key3 -> key1 ...
+        A key+model that was just used rests (15s flash / 5s lite) while the next key is used.
+        Only if every key of a model is resting, the next (lite) model is tried; if everything is resting, wait.
+        Thread-safe: a picked combo is reserved, so two workers never use the same key+model together."""
+        n = len(self.keys)
         while True:
             with self.lock:
+                now = time.time()
                 alive = [c for c in self.combos if c not in self.dead]
                 if not alive:
                     return None
-                now = time.time()
-                ready = [c for c in alive if self.next_ok[c] <= now]
-                if ready:
-                    c = ready[0]
-                    self.next_ok[c] = now + self.delay_for(c[0])
-                    return c
+                for m in self.models:
+                    for step in range(n):
+                        ki = (self.rr[m] + step) % n
+                        c = (m, self.keys[ki])
+                        if c in self.dead or self.next_ok[c] > now:
+                            continue
+                        self.rr[m] = (ki + 1) % n
+                        self.next_ok[c] = now + self.delay_for(m)
+                        return c
                 wait = min(self.next_ok[c] for c in alive) - now
-            time.sleep(max(0.5, min(wait, 5)))
+            time.sleep(max(0.3, min(wait, 5)))
 
     def generate(self, parts, want_json=True, label=''):
         payload = {"contents": [{"parts": parts}],
@@ -676,8 +686,12 @@ def pick_jobs(jobs, title):
         print("  चुकीची निवड, पुन्हा टाका.")
 
 
+def default_workers():
+    return max(1, min(len(env_list('GEMINI_API_KEYS')) or 1, 8))     # one worker per API key keeps every key busy
+
+
 def make_args(**kw):
-    base = dict(papers='new_papers', only='', dpi=130, workers=3, no_upload=False, no_db=False,
+    base = dict(papers='new_papers', only='', dpi=130, workers=default_workers(), no_upload=False, no_db=False,
                 overwrite=False, redo=False, confirm_name=False)
     base.update(kw)
     return argparse.Namespace(**base)
@@ -823,7 +837,7 @@ def menu(papers_dir):
             kw = {'no_db': True, 'no_upload': True, 'confirm_name': False}
 
         args = make_args(**kw)
-        w = ask(f"\nएकावेळी किती pages parallel चालवायचे? (जास्त = जलद, पण API limit लवकर लागते) [{args.workers}]: ", None, str(args.workers))
+        w = ask(f"\nएकावेळी किती pages parallel चालवायचे? (तुमच्या API keys इतके = सगळ्या keys round-robin ने busy) [{args.workers}]: ", None, str(args.workers))
         args.workers = int(w) if w.isdigit() and int(w) > 0 else args.workers
         run_jobs(jobs, args)
         ask("\nEnter दाबा menu वर परत जाण्यासाठी...", None, '')
@@ -834,7 +848,7 @@ def main():
     ap.add_argument('--papers', default='new_papers', help="PDF(s)/image folders असलेला folder (default: new_papers)")
     ap.add_argument('--only', default='', help="फक्त नावात हा text असलेले papers")
     ap.add_argument('--dpi', type=int, default=130)
-    ap.add_argument('--workers', type=int, default=3, help="parallel pages (default 3)")
+    ap.add_argument('--workers', type=int, default=default_workers(), help="parallel pages (default: API keys ची संख्या, max 8)")
     ap.add_argument('--no-upload', action='store_true', help="Telegram upload करू नका")
     ap.add_argument('--no-db', action='store_true', help="DB मध्ये काही add करू नका (फक्त extract)")
     ap.add_argument('--overwrite', action='store_true', help="DB मध्ये paper आधीच असेल तर बदला")
