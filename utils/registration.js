@@ -1,12 +1,14 @@
 const crypto = require('crypto');
 const PendingRegistration = require('../models/PendingRegistration');
 const User = require('../models/User');
+const DeviceLog = require('../models/DeviceLog');
 
 const TRIAL_HOURS = 24;
 
-// 12 random bytes -> 16 chars of [A-Za-z0-9_-]  (valid Telegram /start payload, limit is 64)
-function newToken() {
-    return crypto.randomBytes(12).toString('base64url');
+// 1 prefix char + 15 random chars = 16 chars of [A-Za-z0-9_-]  (valid Telegram /start payload, limit is 64)
+// prefix tells the bot what the token is for: r = registration, p = password reset, v = recover old account
+function newToken(prefix = 'r') {
+    return prefix + crypto.randomBytes(12).toString('base64url').slice(0, 15);
 }
 
 const isValidToken = (t) => typeof t === 'string' && /^[A-Za-z0-9_-]{15,20}$/.test(t);
@@ -24,13 +26,19 @@ function withTimeout(promise, ms, label = 'operation') {
  * Used by BOTH the email-OTP route and the Telegram bot.
  * Returns { ok:true, user } or { ok:false, code:'EXPIRED'|'TG_USED'|'EMAIL_USED' }
  */
-async function completeRegistration(tgToken, { telegramId } = {}) {
-    const pending = await PendingRegistration.findOneAndUpdate(
-        { tgToken, status: 'pending' },
-        { status: 'done' },
-        { new: false }
-    );
-    if (!pending) return { ok: false, code: 'EXPIRED' };
+async function completeRegistration(tgToken, { telegramId, via = 'email' } = {}) {
+    // Telegram can only finish a repeat-registrant's signup after the email OTP step is done;
+    // the email path can never finish it (Telegram is still required).
+    const filter = { tgToken, status: 'pending' };
+    if (via === 'telegram') filter.$or = [{ requireBoth: { $ne: true } }, { emailVerified: true }];
+    else filter.requireBoth = { $ne: true };
+
+    const pending = await PendingRegistration.findOneAndUpdate(filter, { status: 'done' }, { new: false });
+    if (!pending) {
+        const p = await PendingRegistration.findOne({ tgToken, status: 'pending' }).select('requireBoth emailVerified').lean();
+        if (p && p.requireBoth && !p.emailVerified && via === 'telegram') return { ok: false, code: 'NEED_EMAIL' };
+        return { ok: false, code: 'EXPIRED' };
+    }
 
     const expiry = new Date(Date.now() + TRIAL_HOURS * 60 * 60 * 1000);
     try {
@@ -44,6 +52,8 @@ async function completeRegistration(tgToken, { telegramId } = {}) {
             subscriptionExpiry: expiry,
             telegramId: telegramId ? String(telegramId) : undefined
         });
+        DeviceLog.create({ userId: user._id, deviceId: pending.deviceId, cookieId: pending.cookieId, ip: pending.ip })
+            .catch(e => console.error('DeviceLog error:', e.message));
         return { ok: true, user };
     } catch (err) {
         if (err && err.code === 11000) {

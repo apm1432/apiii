@@ -8,6 +8,8 @@ const { JWT_SECRET, authMiddleware, setActiveSession } = require('../middleware/
 const { assignSmtpToUser, sendEmail } = require('../utils/smtpService');
 const rateLimit = require('express-rate-limit');
 const PendingRegistration = require('../models/PendingRegistration');
+const AuthRequest = require('../models/AuthRequest');
+const { ensureCookieId, getCookie, cleanDeviceId, assess, oldAccountEmails, maskEmail } = require('../utils/deviceGuard');
 const { parseGmail, normalizeGmail } = require('../utils/gmail');
 const { newToken, isValidToken, sha256, withTimeout, completeRegistration, TRIAL_HOURS } = require('../utils/registration');
 const { getBotUsername } = require('../admin_bot');
@@ -31,9 +33,9 @@ function tgLinkFor(token) {
     return bot ? `https://t.me/${bot}?start=${token}` : null;
 }
 
-async function sendOtpEmail(to, otp) {
+async function sendOtpEmail(to, otp, purpose = 'Verification') {
     const smtpUser = assignSmtpToUser();
-    const subject = 'MPSC PYQ Tracker - Verification OTP';
+    const subject = `MPSC PYQ Tracker - ${purpose} OTP`;
     const text = `Your verification OTP is: ${otp}. It is valid for ${OTP_VALID_MIN} minutes.`;
     const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
@@ -48,11 +50,26 @@ async function sendOtpEmail(to, otp) {
     await withTimeout(sendEmail(smtpUser, to, subject, text, html), 12000, 'SMTP');
 }
 
+// Recovery help shown to someone who already registered from this device
+async function recoveryInfo(guard) {
+    if (!guard.hasOldAccount) return {};
+    let recoverTgLink = null;
+    if (getBotUsername()) {
+        const tok = newToken('v');
+        await AuthRequest.create({ type: 'recover', tgToken: tok });
+        recoverTgLink = tgLinkFor(tok);
+    }
+    return { hasOldAccount: true, recoverTgLink };
+}
+
 // REGISTER STEP 1 - validate, store pending registration, send OTP or return Telegram link
 router.post('/register/start', startLimiter, async (req, res) => {
     try {
-        const { email, password, deviceId } = req.body || {};
-        const method = req.body && req.body.method === 'telegram' ? 'telegram' : 'email';
+        const { email, password } = req.body || {};
+        let method = req.body && req.body.method === 'telegram' ? 'telegram' : 'email';
+        const deviceId = cleanDeviceId(req.body && req.body.deviceId);
+        const cookieId = ensureCookieId(req, res);
+        const ip = req.ip || null;
 
         const g = parseGmail(email);
         if (!g.ok) return res.status(400).json({ success: false, message: g.message });
@@ -60,31 +77,41 @@ router.post('/register/start', startLimiter, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Password किमान 6 अक्षरांचा हवा (min 6 characters)' });
         }
 
+        const guard = await assess({ deviceId, cookieId, ip });
+        const recov = await recoveryInfo(guard);
+
         const exists = await User.exists({ $or: [{ email: g.email }, { emailNormalized: g.normalized }] });
-        if (exists) return res.status(400).json({ success: false, message: 'User already exists' });
+        if (exists) return res.status(400).json({ success: false, message: 'User already exists. कृपया Login करा.', ...recov });
 
         // email resend cool-down for the same address
         const prev = await PendingRegistration.findOne({ emailNormalized: g.normalized, status: 'pending' });
-        if (prev && prev.otpSentAt && Date.now() - prev.otpSentAt.getTime() < OTP_RESEND_SEC * 1000 && method === 'email') {
+        if (prev && prev.otpSentAt && Date.now() - prev.otpSentAt.getTime() < OTP_RESEND_SEC * 1000 && (method === 'email' || guard.requireBoth)) {
             return res.status(429).json({ success: false, message: `कृपया ${OTP_RESEND_SEC} सेकंद थांबा आणि पुन्हा प्रयत्न करा.` });
         }
         await PendingRegistration.deleteMany({ emailNormalized: g.normalized });
 
-        const tgToken = newToken();
+        const tgToken = newToken('r');
         const pending = new PendingRegistration({
             email: g.email,
             emailNormalized: g.normalized,
             passwordHash: await bcrypt.hash(password, 10),
-            deviceId: deviceId || null,
+            deviceId, cookieId, ip,
+            requireBoth: guard.requireBoth,
             tgToken
         });
 
         const tgLink = tgLinkFor(tgToken);
 
+        // Repeat registrant: email OTP first, then Telegram - both compulsory, no fallback
+        if (guard.requireBoth) {
+            if (!tgLink) return res.status(503).json({ success: false, message: 'Telegram bot सध्या उपलब्ध नाही. थोड्या वेळाने प्रयत्न करा.', ...recov });
+            method = 'email';
+        }
+
         if (method === 'telegram') {
-            if (!tgLink) return res.status(503).json({ success: false, message: 'Telegram bot सध्या उपलब्ध नाही. Email OTP वापरा.' });
+            if (!tgLink) return res.status(503).json({ success: false, message: 'Telegram bot सध्या उपलब्ध नाही. Email OTP वापरा.', ...recov });
             await pending.save();
-            return res.json({ success: true, method: 'telegram', tgToken, tgLink });
+            return res.json({ success: true, method: 'telegram', tgToken, tgLink, ...recov });
         }
 
         // email OTP
@@ -96,18 +123,23 @@ router.post('/register/start', startLimiter, async (req, res) => {
 
         try {
             await sendOtpEmail(g.email, otp);
-            return res.json({ success: true, method: 'email', tgToken, tgLink, message: 'OTP तुमच्या Gmail वर पाठवला आहे.' });
+            return res.json({
+                success: true, method: 'email', tgToken, tgLink, requireBoth: guard.requireBoth, ...recov,
+                message: guard.requireBoth
+                    ? 'या device वरून आधी account तयार झाले आहे, म्हणून Email OTP आणि Telegram दोन्ही verify करावे लागतील.'
+                    : 'OTP तुमच्या Gmail वर पाठवला आहे.'
+            });
         } catch (mailErr) {
             console.error('Registration OTP email failed:', mailErr.message);
-            // SMTP problem must never block the user -> switch to Telegram verification
-            if (tgLink) {
+            // SMTP problem must never block a normal user -> switch to Telegram verification
+            if (tgLink && !guard.requireBoth) {
                 return res.json({
-                    success: true, method: 'telegram', smtpFailed: true, tgToken, tgLink,
+                    success: true, method: 'telegram', smtpFailed: true, tgToken, tgLink, ...recov,
                     message: 'Email पाठवता आला नाही. कृपया Telegram ने verify करा.'
                 });
             }
             await PendingRegistration.deleteOne({ tgToken });
-            return res.status(503).json({ success: false, message: 'Verification सध्या उपलब्ध नाही. थोड्या वेळाने प्रयत्न करा.' });
+            return res.status(503).json({ success: false, message: 'Email सेवा सध्या उपलब्ध नाही. थोड्या वेळाने प्रयत्न करा.', ...recov });
         }
     } catch (err) {
         console.error(err);
@@ -139,7 +171,15 @@ router.post('/register/verify-otp', otpLimiter, async (req, res) => {
             return res.status(400).json({ success: false, message: 'चुकीचा OTP' });
         }
 
-        const r = await completeRegistration(tgToken);
+        if (pending.requireBoth) {
+            // email step done - Telegram verification is still compulsory for this device
+            await PendingRegistration.updateOne({ _id: pending._id }, { emailVerified: true });
+            const link = tgLinkFor(tgToken);
+            if (!link) return res.status(503).json({ success: false, message: 'Telegram bot सध्या उपलब्ध नाही. थोड्या वेळाने प्रयत्न करा.' });
+            return res.json({ success: true, next: 'telegram', tgLink: link, message: 'Email verify झाला ✅ आता Telegram ने verify करा.' });
+        }
+
+        const r = await completeRegistration(tgToken, { via: 'email' });
         if (!r.ok) {
             const msg = r.code === 'EMAIL_USED' ? 'User already exists' : 'Session संपले. कृपया पुन्हा Register करा.';
             return res.status(400).json({ success: false, expired: true, message: msg });
@@ -174,6 +214,9 @@ router.post('/register/resend-otp', otpLimiter, async (req, res) => {
             res.json({ success: true, message: 'नवीन OTP पाठवला आहे.' });
         } catch (mailErr) {
             console.error('Resend OTP failed:', mailErr.message);
+            if (pending.requireBoth) {
+                return res.json({ success: false, message: 'Email पाठवता आला नाही. थोड्या वेळाने पुन्हा प्रयत्न करा.' });
+            }
             res.json({ success: false, smtpFailed: true, tgLink: tgLinkFor(tgToken), message: 'Email पाठवता आला नाही. Telegram ने verify करा.' });
         }
     } catch (err) {
@@ -215,6 +258,153 @@ function sendWelcomeEmail(email) {
             .catch(err => console.error("Failed to send welcome email:", err.message));
     } catch (e) { console.error("Email setup failed:", e.message); }
 }
+
+// ---------------------------------------------------------------------------
+// OLD ACCOUNT RECOVERY (for someone who registers again from the same device)
+// ---------------------------------------------------------------------------
+const recoverEmailLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, limit: 3,
+    message: { success: false, message: 'खूप प्रयत्न झाले. कृपया नंतर प्रयत्न करा.' }
+});
+const recentRecoverMail = new Map(); // email -> last sent time (10 min cool-down)
+
+router.post('/recover/email', recoverEmailLimiter, async (req, res) => {
+    try {
+        const deviceId = cleanDeviceId(req.body && req.body.deviceId);
+        const cookieId = getCookie(req, 'mpsc_did');
+        const emails = await oldAccountEmails({ deviceId, cookieId });
+        if (!emails.length) {
+            return res.json({ success: true, message: 'या device वरून तयार झालेल्या account च्या email वर User ID पाठवला आहे.' });
+        }
+        const sent = [];
+        for (const em of emails.slice(0, 3)) {
+            const last = recentRecoverMail.get(em) || 0;
+            if (Date.now() - last < 10 * 60 * 1000) { sent.push(maskEmail(em)); continue; }
+            try {
+                const smtpUser = assignSmtpToUser();
+                const html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                        <h2 style="color: #2563eb; text-align: center;">Your MPSC PYQ account</h2>
+                        <p>Someone asked to recover the account registered with this email.</p>
+                        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                            <p style="margin: 0;"><strong>User ID (Email):</strong> ${em}</p>
+                            <p style="margin: 5px 0 0 0;">For security your password cannot be shown. If you forgot it, use <strong>Forgot Password</strong> on the login page.</p>
+                        </div>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="${SITE_URL}" style="background-color: #2563eb; color: white; text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold;">Go to Login</a>
+                        </div>
+                        <p style="margin-top: 20px; font-size: 12px; color: #777;">If this wasn't you, ignore this email.</p>
+                    </div>`;
+                await withTimeout(sendEmail(smtpUser, em, 'MPSC PYQ Tracker - Your User ID', `Your User ID: ${em}. Use Forgot Password on the login page if you forgot your password.`, html), 12000, 'SMTP');
+                recentRecoverMail.set(em, Date.now());
+                sent.push(maskEmail(em));
+            } catch (e) { console.error('Recover email failed:', e.message); }
+        }
+        if (!sent.length) return res.status(503).json({ success: false, message: 'Email पाठवता आला नाही. Telegram पर्याय वापरा.' });
+        res.json({ success: true, message: `User ID इथे पाठवला आहे: ${sent.join(', ')}` });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// FORGOT PASSWORD VIA TELEGRAM
+//  - account already linked to a Telegram -> only THAT Telegram account can finish the reset
+//  - account registered by email (no Telegram yet) -> email OTP is compulsory FIRST, then the
+//    Telegram account that opens the link gets linked. (Otherwise anyone could attach their
+//    own Telegram to someone else's email.)
+// ---------------------------------------------------------------------------
+async function findUserByLogin(email) {
+    const em = String(email || '').trim().toLowerCase();
+    const norm = normalizeGmail(em);
+    const lookups = [{ email: String(email) }, { email: em }];
+    if (norm) lookups.push({ emailNormalized: norm });
+    return User.findOne({ $or: lookups });
+}
+
+router.post('/forgot-password/telegram/start', startLimiter, async (req, res) => {
+    try {
+        const { email, newPassword } = req.body || {};
+        if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+        if (typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 100) {
+            return res.status(400).json({ success: false, message: 'Password किमान 6 अक्षरांचा हवा (min 6 characters)' });
+        }
+        if (!getBotUsername()) return res.status(503).json({ success: false, message: 'Telegram bot सध्या उपलब्ध नाही. Email OTP वापरा.' });
+
+        const user = await findUserByLogin(email);
+        if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+
+        await AuthRequest.deleteMany({ type: 'reset', userId: user._id });
+        const tgToken = newToken('p');
+        const needEmailOtp = !user.telegramId;
+        const ar = new AuthRequest({
+            type: 'reset', tgToken, userId: user._id,
+            newPasswordHash: await bcrypt.hash(newPassword, 10),
+            emailVerified: !needEmailOtp
+        });
+
+        if (!needEmailOtp) {
+            await ar.save();
+            return res.json({ success: true, needEmailOtp: false, tgToken, tgLink: tgLinkFor(tgToken) });
+        }
+
+        const otp = String(crypto.randomInt(100000, 1000000));
+        ar.otpHash = sha256(otp);
+        ar.otpExpiry = new Date(Date.now() + OTP_VALID_MIN * 60 * 1000);
+        ar.otpSentAt = new Date();
+        await ar.save();
+        try {
+            await sendOtpEmail(user.email, otp, 'Password Reset');
+        } catch (mailErr) {
+            console.error('TG-reset OTP email failed:', mailErr.message);
+            await AuthRequest.deleteOne({ _id: ar._id });
+            return res.status(503).json({ success: false, message: 'या account ला Telegram जोडलेले नाही, त्यामुळे आधी Email OTP आवश्यक आहे. पण Email सध्या जात नाहीये - थोड्या वेळाने प्रयत्न करा.' });
+        }
+        res.json({ success: true, needEmailOtp: true, tgToken, message: 'आधी Email verify करा - OTP तुमच्या email वर पाठवला आहे.' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+router.post('/forgot-password/telegram/verify-email', otpLimiter, async (req, res) => {
+    try {
+        const { tgToken, otp } = req.body || {};
+        if (!isValidToken(tgToken) || !/^\d{6}$/.test(String(otp || ''))) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+        const ar = await AuthRequest.findOne({ tgToken, type: 'reset', status: 'pending' });
+        if (!ar || !ar.otpHash) return res.status(400).json({ success: false, expired: true, message: 'Session संपले. कृपया पुन्हा प्रयत्न करा.' });
+        if (ar.otpAttempts >= OTP_MAX_ATTEMPTS) {
+            await AuthRequest.deleteOne({ _id: ar._id });
+            return res.status(429).json({ success: false, expired: true, message: 'खूप चुकीचे प्रयत्न. कृपया पुन्हा प्रयत्न करा.' });
+        }
+        if (new Date() > ar.otpExpiry) return res.status(400).json({ success: false, message: 'OTP expire झाला. पुन्हा सुरू करा.' });
+        const a = Buffer.from(sha256(otp)), b = Buffer.from(ar.otpHash);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+            await AuthRequest.updateOne({ _id: ar._id }, { $inc: { otpAttempts: 1 } });
+            return res.status(400).json({ success: false, message: 'चुकीचा OTP' });
+        }
+        await AuthRequest.updateOne({ _id: ar._id }, { emailVerified: true });
+        res.json({ success: true, tgLink: tgLinkFor(tgToken), message: 'Email verify झाला ✅ आता Telegram उघडून START दाबा.' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+router.get('/forgot-password/telegram/status/:tgToken', otpLimiter, async (req, res) => {
+    try {
+        const { tgToken } = req.params;
+        if (!isValidToken(tgToken)) return res.json({ success: true, status: 'expired' });
+        const ar = await AuthRequest.findOne({ tgToken, type: 'reset' }).select('status failReason').lean();
+        if (!ar) return res.json({ success: true, status: 'expired' });
+        res.json({ success: true, status: ar.status, reason: ar.failReason || null });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
 
 // Direct registration is disabled - verification is mandatory
 router.post('/register', (req, res) => {

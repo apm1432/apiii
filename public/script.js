@@ -218,6 +218,18 @@ function resetRegisterFlow() {
     regSession = null;
     const box = document.getElementById('reg-verify-box');
     if (box) box.classList.add('hidden');
+    const old = document.getElementById('reg-old-account');
+    if (old) old.classList.add('hidden');
+}
+
+// "You already have an account from this device" helper (Telegram link + send-to-email)
+function showOldAccountBox(data) {
+    const box = document.getElementById('reg-old-account');
+    if (!data || !data.hasOldAccount) return box.classList.add('hidden');
+    const tg = document.getElementById('reg-recover-tg');
+    if (data.recoverTgLink) { tg.href = data.recoverTgLink; tg.classList.remove('hidden'); }
+    else { tg.classList.add('hidden'); }
+    box.classList.remove('hidden');
 }
 
 function showRegPanel(which) {
@@ -311,6 +323,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
             body: JSON.stringify({ email, password, method, deviceId: currentDeviceId })
         });
         const data = await res.json();
+        showOldAccountBox(data);
         if (!data.success) return setAuthMsg(data.message || 'Registration failed.', 'var(--error)');
 
         regSession = { tgToken: data.tgToken, tgLink: data.tgLink, email };
@@ -321,7 +334,9 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
             document.getElementById('reg-otp-info').innerText = `OTP ${email} वर पाठवला आहे (10 मिनिटे valid).`;
             document.getElementById('reg-otp').value = '';
             showRegPanel('email');
-            setAuthMsg('');
+            // repeat registrants must finish Telegram too - hide the "skip to Telegram" shortcut
+            document.getElementById('reg-switch-tg').classList.toggle('hidden', !!data.requireBoth);
+            setAuthMsg(data.requireBoth ? data.message : '', 'var(--text-secondary)');
         }
     } catch (err) {
         setAuthMsg('Server error. Try again.', 'var(--error)');
@@ -339,6 +354,11 @@ document.getElementById('reg-otp-verify-btn').addEventListener('click', async ()
             body: JSON.stringify({ tgToken: regSession.tgToken, otp })
         });
         const data = await res.json();
+        if (data.success && data.next === 'telegram') {
+            regSession.tgLink = data.tgLink;
+            showRegPanel('telegram');
+            return setAuthMsg(data.message, 'var(--success)');
+        }
         if (data.success) return finishRegSuccess(data.email);
         if (data.expired) return finishRegFlowWithError(data.message);
         setAuthMsg(data.message || 'Verification failed.', 'var(--error)');
@@ -467,6 +487,24 @@ window.toggleJumpGrid = function() {
     }
 };
 
+document.getElementById('reg-recover-email-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    setAuthMsg('Sending...');
+    try {
+        const res = await fetch('/api/auth/recover/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: currentDeviceId })
+        });
+        const data = await res.json();
+        setAuthMsg(data.message || (data.success ? 'Sent.' : 'Failed.'), data.success ? 'var(--success)' : 'var(--error)');
+    } catch (err) {
+        setAuthMsg('Server error. Try again.', 'var(--error)');
+    }
+    setTimeout(() => { btn.disabled = false; }, 15000);
+});
+
 // ====== FORGOT PASSWORD ======
 function toggleForgotPasswordModal() {
     const modal = document.getElementById('forgot-password-modal');
@@ -477,10 +515,106 @@ function toggleForgotPasswordModal() {
         modal.style.display = 'flex';
         void modal.offsetWidth; // trigger reflow
         modal.classList.add('show');
-        document.getElementById('fp-step-1').classList.remove('hidden');
-        document.getElementById('fp-step-2').classList.add('hidden');
+        fpShowStep('fp-step-1');
         document.getElementById('fp-message').innerText = '';
     }
+    fpStopPolling();
+}
+
+// ---- Forgot password via Telegram ----
+let fpTgToken = null;
+let fpPollTimer = null;
+const FP_STEPS = ['fp-step-1', 'fp-step-2', 'fp-tg-form', 'fp-tg-otp', 'fp-tg-link'];
+
+function fpShowStep(id) {
+    FP_STEPS.forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+}
+function fpStopPolling() { if (fpPollTimer) { clearInterval(fpPollTimer); fpPollTimer = null; } }
+function fpMsg(text, color) {
+    const m = document.getElementById('fp-message');
+    m.innerText = text || ''; m.style.color = color || 'var(--text-color)';
+}
+
+function fpTgShowForm() {
+    const email = document.getElementById('fp-email').value.trim();
+    if (!email) return fpMsg('Please enter your email.', 'red');
+    fpMsg('');
+    fpShowStep('fp-tg-form');
+}
+
+function fpTgOpenLink(tgLink) {
+    document.getElementById('fp-tg-open').href = tgLink;
+    fpShowStep('fp-tg-link');
+    fpStopPolling();
+    const startedAt = Date.now();
+    fpPollTimer = setInterval(async () => {
+        if (!fpTgToken || Date.now() - startedAt > 15 * 60 * 1000) {
+            fpStopPolling();
+            fpShowStep('fp-step-1');
+            return fpMsg('Link expire झाली. पुन्हा प्रयत्न करा.', 'red');
+        }
+        try {
+            const res = await fetch('/api/auth/forgot-password/telegram/status/' + encodeURIComponent(fpTgToken));
+            const data = await res.json();
+            if (data.status === 'done') {
+                fpStopPolling();
+                fpMsg('Password बदलला! ✅ आता नवीन password ने Login करा.', 'green');
+                setTimeout(() => toggleForgotPasswordModal(), 3000);
+            } else if (data.status === 'failed') {
+                fpStopPolling();
+                fpShowStep('fp-step-1');
+                fpMsg(data.reason === 'WRONG_TG'
+                    ? 'हे account दुसऱ्या Telegram account शी जोडलेले आहे.'
+                    : 'हा Telegram account आधीच दुसऱ्या account शी जोडलेला आहे.', 'red');
+            } else if (data.status === 'expired') {
+                fpStopPolling();
+                fpShowStep('fp-step-1');
+                fpMsg('Session संपले. पुन्हा प्रयत्न करा.', 'red');
+            }
+        } catch (e) { /* keep polling */ }
+    }, 3000);
+}
+
+async function fpTgStart() {
+    const email = document.getElementById('fp-email').value.trim();
+    const newPassword = document.getElementById('fp-tg-password').value;
+    if (newPassword.length < 6) return fpMsg('Password किमान 6 अक्षरांचा हवा.', 'red');
+    fpMsg('Please wait...');
+    try {
+        const res = await fetch('/api/auth/forgot-password/telegram/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, newPassword })
+        });
+        const data = await res.json();
+        if (!data.success) return fpMsg(data.message || 'Error.', 'red');
+        fpTgToken = data.tgToken;
+        if (data.needEmailOtp) {
+            document.getElementById('fp-tg-otp-input').value = '';
+            fpShowStep('fp-tg-otp');
+            fpMsg(data.message, 'green');
+        } else {
+            fpMsg('');
+            fpTgOpenLink(data.tgLink);
+        }
+    } catch (e) { fpMsg('Network error.', 'red'); }
+}
+
+async function fpTgVerifyOtp() {
+    const otp = document.getElementById('fp-tg-otp-input').value.trim();
+    if (!/^\d{6}$/.test(otp)) return fpMsg('6 अंकी OTP टाका.', 'red');
+    fpMsg('Verifying...');
+    try {
+        const res = await fetch('/api/auth/forgot-password/telegram/verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tgToken: fpTgToken, otp })
+        });
+        const data = await res.json();
+        if (data.success) { fpMsg(data.message, 'green'); return fpTgOpenLink(data.tgLink); }
+        if (data.expired) { fpShowStep('fp-step-1'); }
+        fpMsg(data.message || 'Verification failed.', 'red');
+    } catch (e) { fpMsg('Network error.', 'red'); }
 }
 
 async function requestOtp() {

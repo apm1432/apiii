@@ -7,6 +7,11 @@ const pendingSchema = new mongoose.Schema({
   emailNormalized: { type: String, required: true, index: true },
   passwordHash:    { type: String, required: true }, // bcrypt hash, never plain text
   deviceId:        { type: String, default: null },
+  cookieId:        { type: String, default: null },
+  ip:              { type: String, default: null },
+  // true for repeat registrants: email OTP AND Telegram are both compulsory
+  requireBoth:     { type: Boolean, default: false },
+  emailVerified:   { type: Boolean, default: false },
   // 16 char token: used as the Telegram deep-link payload AND as the browser's session key
   tgToken:         { type: String, required: true, unique: true },
   otpHash:         { type: String, default: null },

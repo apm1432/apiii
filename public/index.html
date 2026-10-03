@@ -107,6 +107,14 @@
                         <a href="#" id="reg-cancel" style="color: rgba(255,255,255,0.7); font-size: 0.85rem; text-align:center;">← Back</a>
                     </div>
                     <div id="auth-message" class="message"></div>
+
+                    <!-- Shown when this device already created an account -->
+                    <div id="reg-old-account" class="hidden" style="flex-direction:column;gap:10px;margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,0.25);border-radius:10px;background:rgba(0,0,0,0.25);">
+                        <small style="color:#fff;">⚠️ या device वरून आधीच account तयार झाले आहे. नवीन account ऐवजी जुने account वापरा:</small>
+                        <a id="reg-recover-tg" href="#" target="_blank" rel="noopener" class="btn" style="background:#229ED9;color:#fff;border-color:#229ED9;text-align:center;text-decoration:none;">✈️ Telegram वर माझा User ID मिळवा</a>
+                        <button type="button" class="btn" id="reg-recover-email-btn">📧 Email ला User ID पाठवा</button>
+                        <small style="color:rgba(255,255,255,0.85);">Password विसरला असल्यास <a href="#" onclick="toggleForgotPasswordModal();return false;" style="color:var(--accent);">Forgot Password</a> वापरा.</small>
+                    </div>
                 </div>
             </div>
 
@@ -281,6 +289,28 @@
                 <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">Enter your registered email to receive an OTP.</p>
                 <input type="email" id="fp-email" placeholder="Email Address" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);" required>
                 <button class="btn btn-primary" onclick="requestOtp()" style="width: 100%; padding: 10px;">Send OTP</button>
+                <button class="btn" onclick="fpTgShowForm()" style="width: 100%; padding: 10px; margin-top: 10px; background:#229ED9; color:#fff; border-color:#229ED9;">✈️ Reset via Telegram</button>
+            </div>
+
+            <!-- Telegram reset: A) choose new password -->
+            <div id="fp-tg-form" class="hidden">
+                <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">Email आणि नवीन password टाका. नंतर Telegram वर verify कराल.</p>
+                <input type="password" id="fp-tg-password" placeholder="New Password (min 6 characters)" minlength="6" autocomplete="new-password" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);">
+                <button class="btn btn-primary" onclick="fpTgStart()" style="width: 100%; padding: 10px;">Continue</button>
+            </div>
+
+            <!-- Telegram reset: B) email OTP first (only if the account has no Telegram linked yet) -->
+            <div id="fp-tg-otp" class="hidden">
+                <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">या account ला अजून Telegram जोडलेले नाही. सुरक्षेसाठी आधी Email OTP टाका.</p>
+                <input type="text" id="fp-tg-otp-input" placeholder="6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);">
+                <button class="btn btn-primary" onclick="fpTgVerifyOtp()" style="width: 100%; padding: 10px;">Verify OTP</button>
+            </div>
+
+            <!-- Telegram reset: C) open Telegram -->
+            <div id="fp-tg-link" class="hidden">
+                <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">खालील बटण दाबा → Telegram उघडेल → bot मध्ये <strong>START</strong> दाबा. Password आपोआप बदलला जाईल.</p>
+                <a id="fp-tg-open" href="#" target="_blank" rel="noopener" class="btn" style="display:block; width:100%; box-sizing:border-box; padding: 10px; text-align:center; text-decoration:none; background:#229ED9; color:#fff; border-color:#229ED9;">✈️ Open Telegram &amp; Reset</a>
+                <p style="font-size: 0.85rem; margin-top: 12px; text-align:center; color: var(--text-secondary);">⏳ Telegram verification ची वाट पाहत आहे...</p>
             </div>
 
             <!-- Step 2: Verify OTP & Reset -->
