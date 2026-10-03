@@ -10,6 +10,20 @@ const userSchema = new mongoose.Schema({
     type: String, // In a real app, this should be hashed
     required: true
   },
+  emailNormalized: {
+    type: String, // gmail with dots/+alias removed - used only to block duplicate signups
+    unique: true,
+    sparse: true
+  },
+  telegramId: {
+    type: String, // Telegram account that verified this user (one account = one registration)
+    unique: true,
+    sparse: true
+  },
+  subscriptionPlan: {
+    type: String,
+    default: null
+  },
   isSubscribed: {
     type: Boolean,
     default: false

@@ -7,8 +7,10 @@ const axios = require('axios');
 const User = require('./models/User');
 const Question = require('./models/Question');
 const { sendEmail, assignSmtpToUser } = require('./utils/smtpService');
+const { completeRegistration, isValidToken, TRIAL_HOURS } = require('./utils/registration');
 
 let bot = null;
+let botUsername = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim() || null;
 let tokens = [];
 
 // Track state for dynamic input
@@ -35,6 +37,12 @@ async function startAdminBot() {
 
     bot = new TelegramBot(token, { polling: { autoStart: true, params: { timeout: 30 } } });
     console.log("🤖 Interactive Telegram Admin Bot is running...");
+
+    // Bot username is needed to build the registration deep link (https://t.me/<username>?start=<token>)
+    try {
+        const me = await bot.getMe();
+        if (me && me.username) botUsername = me.username;
+    } catch (e) { console.error('[telegram] getMe failed:', e.message); }
 
     // Quiet, self-healing polling errors
     let lastPollLog = 0;
@@ -66,6 +74,13 @@ async function startAdminBot() {
     bot.on('message', async (msg) => {
         const chatId = msg.chat.id;
         const text = msg.text || '';
+
+        // Website registration deep link: /start <token>  (open to everyone, not only admin)
+        const reg = text.match(/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]{15,20})\s*$/);
+        if (reg && isValidToken(reg[1])) {
+            return handleRegistrationStart(msg, reg[1]);
+        }
+
         const rawAdminId = process.env.ADMIN_TG_ID || '';
         const adminId = rawAdminId.replace(/['"]/g, '').trim();
 
@@ -460,10 +475,45 @@ async function runCloudResync(chatId) {
     }
 }
 
+// ---------- Website registration via Telegram deep link ----------
+const SITE_URL = process.env.SITE_URL || 'https://apiii-apm1432.koyeb.app';
+
+async function handleRegistrationStart(msg, token) {
+    const chatId = msg.chat.id;
+    if (msg.chat.type !== 'private' || !msg.from || msg.from.is_bot) return;
+    try {
+        const r = await completeRegistration(token, { telegramId: msg.from.id });
+        if (!r.ok) {
+            const reply = {
+                TG_USED: '❌ या Telegram account वरून आधीच registration झाले आहे. एका Telegram account वरून एकच registration चालते.\n(This Telegram account is already registered.)',
+                EMAIL_USED: '❌ हा email आधीच registered आहे. कृपया Login करा.',
+                EXPIRED: '⌛ ही link expire झाली किंवा आधीच वापरली आहे. कृपया website वर पुन्हा Register करा.'
+            }[r.code] || '❌ Registration failed. कृपया पुन्हा प्रयत्न करा.';
+            return bot.sendMessage(chatId, reply);
+        }
+        const expiry = r.user.subscriptionExpiry.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+        const name = (msg.from.first_name || '').trim();
+        await bot.sendMessage(chatId,
+            `🎉 स्वागत आहे${name ? ' ' + name : ''}! Welcome to MPSC PYQ Tracker!\n\n` +
+            `✅ तुमचे registration पूर्ण झाले आहे.\n\n` +
+            `👤 User ID: ${r.user.email}\n` +
+            `🔑 Password: Register करताना तुम्ही set केलेला password\n\n` +
+            `🎁 ${TRIAL_HOURS} तास सर्व tests free — ${expiry} पर्यंत.\n\n` +
+            `🌐 Login करा: ${SITE_URL}`,
+            { disable_web_page_preview: true }
+        );
+    } catch (err) {
+        console.error('[telegram] registration error:', err);
+        bot.sendMessage(chatId, '❌ काहीतरी चूक झाली. कृपया थोड्या वेळाने पुन्हा प्रयत्न करा.').catch(() => {});
+    }
+}
+
+function getBotUsername() { return botUsername; }
+
 async function stopAdminBot() {
     if (bot) {
         try { await bot.stopPolling(); } catch (e) {}
     }
 }
 
-module.exports = { startAdminBot, stopAdminBot };
+module.exports = { startAdminBot, stopAdminBot, getBotUsername };

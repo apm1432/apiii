@@ -138,6 +138,7 @@ function toggleAuth(type) {
     msg.innerText = '';
 
     tabs.forEach(t => t.classList.remove('active'));
+    resetRegisterFlow();
     
     if (type === 'login') {
         loginForm.classList.remove('hidden');
@@ -196,39 +197,194 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
 });
 
+// ====== REGISTRATION (Gmail + Email OTP / Telegram verification) ======
+let regSession = null;      // { tgToken, tgLink, email }
+let regPollTimer = null;
+let regResendTimer = null;
+
+function setAuthMsg(text, color) {
+    const msg = document.getElementById('auth-message');
+    msg.innerText = text || '';
+    msg.style.color = color || 'var(--text-secondary)';
+}
+
+function stopRegPolling() {
+    if (regPollTimer) { clearInterval(regPollTimer); regPollTimer = null; }
+}
+
+function resetRegisterFlow() {
+    stopRegPolling();
+    if (regResendTimer) { clearInterval(regResendTimer); regResendTimer = null; }
+    regSession = null;
+    const box = document.getElementById('reg-verify-box');
+    if (box) box.classList.add('hidden');
+}
+
+function showRegPanel(which) {
+    document.getElementById('register-form').classList.add('hidden');
+    document.getElementById('reg-verify-box').classList.remove('hidden');
+    document.getElementById('reg-otp-panel').classList.toggle('hidden', which !== 'email');
+    document.getElementById('reg-tg-panel').classList.toggle('hidden', which !== 'telegram');
+    if (which === 'telegram') {
+        document.getElementById('reg-tg-link').href = regSession.tgLink;
+        startRegPolling();
+    } else {
+        stopRegPolling();
+        startResendCooldown(60);
+    }
+}
+
+function startResendCooldown(sec) {
+    const btn = document.getElementById('reg-otp-resend-btn');
+    if (regResendTimer) clearInterval(regResendTimer);
+    let left = sec;
+    btn.disabled = true;
+    btn.innerText = `Resend OTP (${left}s)`;
+    regResendTimer = setInterval(() => {
+        left--;
+        if (left <= 0) {
+            clearInterval(regResendTimer); regResendTimer = null;
+            btn.disabled = false; btn.innerText = 'Resend OTP';
+        } else {
+            btn.innerText = `Resend OTP (${left}s)`;
+        }
+    }, 1000);
+}
+
+function startRegPolling() {
+    stopRegPolling();
+    const startedAt = Date.now();
+    regPollTimer = setInterval(async () => {
+        if (!regSession) return stopRegPolling();
+        if (Date.now() - startedAt > 15 * 60 * 1000) {
+            stopRegPolling();
+            return finishRegFlowWithError('Link expire झाली. कृपया पुन्हा Register करा.');
+        }
+        try {
+            const res = await fetch('/api/auth/register/status/' + encodeURIComponent(regSession.tgToken));
+            const data = await res.json();
+            if (data.status === 'done') {
+                finishRegSuccess(data.email || regSession.email);
+            } else if (data.status === 'failed') {
+                const m = data.reason === 'TG_USED'
+                    ? 'या Telegram account वरून आधीच registration झाले आहे.'
+                    : 'हा email आधीच registered आहे. कृपया Login करा.';
+                finishRegFlowWithError(m);
+            } else if (data.status === 'expired') {
+                finishRegFlowWithError('Session संपले. कृपया पुन्हा Register करा.');
+            }
+        } catch (e) { /* network hiccup - keep polling */ }
+    }, 3000);
+}
+
+function finishRegFlowWithError(text) {
+    resetRegisterFlow();
+    document.getElementById('register-form').classList.remove('hidden');
+    setAuthMsg(text, 'var(--error)');
+}
+
+function finishRegSuccess(email) {
+    resetRegisterFlow();
+    toggleAuth('login');
+    document.getElementById('login-email').value = email || '';
+    setAuthMsg('Registration successful! 🎉 24 तास सर्व tests free. तुम्ही set केलेल्या password ने Login करा.', 'var(--success)');
+}
+
 document.getElementById('register-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('reg-email').value;
+    const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
-    const msg = document.getElementById('auth-message');
-    msg.innerText = 'Registering...';
-    msg.style.color = 'var(--text-secondary)';
+    const method = (e.submitter && e.submitter.dataset.method) || 'email';
 
+    if (!/^[^@\s]+@gmail\.com$/i.test(email)) {
+        return setAuthMsg('फक्त @gmail.com email चालतो.', 'var(--error)');
+    }
+    if (password.length < 6) {
+        return setAuthMsg('Password किमान 6 अक्षरांचा हवा.', 'var(--error)');
+    }
+
+    setAuthMsg('Please wait...');
     try {
-        const res = await fetch('/api/auth/register', {
+        const res = await fetch('/api/auth/register/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, deviceId: currentDeviceId })
+            body: JSON.stringify({ email, password, method, deviceId: currentDeviceId })
         });
         const data = await res.json();
-        
-        if (data.success) {
-            msg.innerText = 'Registration successful! Please login.';
-            msg.style.color = 'var(--success)';
-            setTimeout(() => {
-                toggleAuth('login');
-                const newMsg = document.getElementById('auth-message');
-                newMsg.innerText = 'Registration successful! Please login.';
-                newMsg.style.color = 'var(--success)';
-            }, 1500);
+        if (!data.success) return setAuthMsg(data.message || 'Registration failed.', 'var(--error)');
+
+        regSession = { tgToken: data.tgToken, tgLink: data.tgLink, email };
+        if (data.method === 'telegram') {
+            showRegPanel('telegram');
+            setAuthMsg(data.smtpFailed ? data.message : '', 'var(--text-secondary)');
         } else {
-            msg.innerText = data.message || 'Registration failed.';
-            msg.style.color = 'var(--error)';
+            document.getElementById('reg-otp-info').innerText = `OTP ${email} वर पाठवला आहे (10 मिनिटे valid).`;
+            document.getElementById('reg-otp').value = '';
+            showRegPanel('email');
+            setAuthMsg('');
         }
     } catch (err) {
-        msg.innerText = 'Server error. Try again.';
-        msg.style.color = 'var(--error)';
+        setAuthMsg('Server error. Try again.', 'var(--error)');
     }
+});
+
+document.getElementById('reg-otp-verify-btn').addEventListener('click', async () => {
+    const otp = document.getElementById('reg-otp').value.trim();
+    if (!/^\d{6}$/.test(otp)) return setAuthMsg('6 अंकी OTP टाका.', 'var(--error)');
+    setAuthMsg('Verifying...');
+    try {
+        const res = await fetch('/api/auth/register/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tgToken: regSession.tgToken, otp })
+        });
+        const data = await res.json();
+        if (data.success) return finishRegSuccess(data.email);
+        if (data.expired) return finishRegFlowWithError(data.message);
+        setAuthMsg(data.message || 'Verification failed.', 'var(--error)');
+    } catch (err) {
+        setAuthMsg('Server error. Try again.', 'var(--error)');
+    }
+});
+
+document.getElementById('reg-otp-resend-btn').addEventListener('click', async () => {
+    if (!regSession) return;
+    setAuthMsg('Sending OTP...');
+    try {
+        const res = await fetch('/api/auth/register/resend-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tgToken: regSession.tgToken })
+        });
+        const data = await res.json();
+        if (data.success) {
+            setAuthMsg(data.message, 'var(--success)');
+            startResendCooldown(60);
+        } else if (data.smtpFailed && data.tgLink) {
+            regSession.tgLink = data.tgLink;
+            showRegPanel('telegram');
+            setAuthMsg(data.message, 'var(--error)');
+        } else if (data.expired) {
+            finishRegFlowWithError(data.message);
+        } else {
+            setAuthMsg(data.message || 'Failed to resend.', 'var(--error)');
+        }
+    } catch (err) {
+        setAuthMsg('Server error. Try again.', 'var(--error)');
+    }
+});
+
+document.getElementById('reg-switch-tg').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (regSession && regSession.tgLink) { setAuthMsg(''); showRegPanel('telegram'); }
+    else setAuthMsg('Telegram सध्या उपलब्ध नाही.', 'var(--error)');
+});
+
+document.getElementById('reg-cancel').addEventListener('click', (e) => {
+    e.preventDefault();
+    resetRegisterFlow();
+    document.getElementById('register-form').classList.remove('hidden');
+    setAuthMsg('');
 });
 
 function logout() {
