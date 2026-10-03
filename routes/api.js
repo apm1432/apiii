@@ -157,6 +157,7 @@ async function fetchTelegramImageBase64(rawFileId) {
 global.fetchImageForAI = fetchTelegramImageBase64;
 
 const { createJob, addClientToJob, retryQuestion } = require('../utils/jobManager');
+const { reconcileUserProgress } = require('../utils/progressSync');
 
 // Admin: Start Background Job for Fixing Paper
 router.post('/admin/fix-paper-bg', authMiddleware, async (req, res) => {
@@ -733,7 +734,7 @@ router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, r
 
         // Save detailed answer
         if (!existingAnswer) {
-            progress.answers.set(questionId, { selected: selectedOption, isCorrect, section });
+            progress.answers.set(questionId, { selected: selectedOption, isCorrect, isCancelled, section });
             progress.lastSolvedQuestion = questionId;
             await progress.save();
         }
@@ -761,6 +762,9 @@ router.get('/progress/dashboard', authMiddleware, async (req, res) => {
         if (!progress) {
             return res.json({ success: true, data: { totalSolved: 0, totalCorrect: 0, sectionWise: {}, answers: {} } });
         }
+
+        // Self-heal: re-check saved answers against the current (maybe AI-fixed) answer keys
+        try { await reconcileUserProgress(progress); } catch (e) { console.error('reconcile failed:', e); }
         
         const unescapedSectionWise = {};
         for (const [key, val] of progress.sectionWise.entries()) {

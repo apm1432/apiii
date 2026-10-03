@@ -1,5 +1,6 @@
 const { fixQuestionWithAI } = require('./aiService');
 const Question = require('../models/Question');
+const { recalcProgressForQuestion } = require('./progressSync');
 
 const jobs = {}; // jobId -> { status: 'running|done', questions: [], clients: Set, qIndex: 0 }
 
@@ -113,6 +114,14 @@ async function processJob(jobId) {
             question.ai_fixed_at = new Date();
 
             await question.save();
+
+            // Re-evaluate every user's saved answer for this question (score/progress stays correct)
+            try {
+                const n = await recalcProgressForQuestion(question);
+                if (n > 0) broadcast(jobId, { type: 'chunk', index: qIndex, chunk: `\n[System] Progress updated for ${n} user(s).\n` });
+            } catch (e) {
+                console.error('Progress recalc failed:', e);
+            }
 
             qObj.status = 'done';
             broadcast(jobId, { type: 'question_done', index: qIndex, question: question });

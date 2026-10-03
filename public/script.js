@@ -691,7 +691,7 @@ async function openTest(yearExam, subject = null, restoreState = null) {
                 if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
             }
             
-            // Render Filters
+            // Render Filters (resets active subject/topic)
             renderSubjectFilters();
             
             // Initially show all
@@ -715,11 +715,15 @@ async function openTest(yearExam, subject = null, restoreState = null) {
             if (currentUser && currentUser.isAdmin) {
                 const btnFixAll = document.getElementById('btn-ai-fix-all');
                 if (btnFixAll) btnFixAll.classList.remove('hidden');
+                const aiFab = document.getElementById('ai-fab');
+                if (aiFab) aiFab.classList.remove('hidden');
                 const btnDl = document.getElementById('btn-download-paper');
                 if (btnDl) btnDl.classList.remove('hidden');
             } else {
                 const btnFixAll = document.getElementById('btn-ai-fix-all');
                 if (btnFixAll) btnFixAll.classList.add('hidden');
+                const aiFab = document.getElementById('ai-fab');
+                if (aiFab) aiFab.classList.add('hidden');
                 const btnDl = document.getElementById('btn-download-paper');
                 if (btnDl) btnDl.classList.add('hidden');
             }
@@ -848,13 +852,34 @@ function renderQuizQuestion(index, questions = currentQuestions) {
 
     qContainer.innerHTML = html;
     document.getElementById('quiz-progress-text').innerText = `${index + 1} / ${questions.length}`;
+    updateFloatingStats(questions);
 }
 
 // ====== FILTER LOGIC ======
 let activeSubject = null;
 let activeTopic = null;
 
+// Questions currently visible (after subject/topic filter) - single source of truth
+function getFilteredQuestions() {
+    let list = currentQuestions;
+    if (activeSubject) list = list.filter(q => q.subject === activeSubject);
+    if (activeTopic) list = list.filter(q => q.topic === activeTopic);
+    return list;
+}
+
+// "Fix Complete Paper" button shows exactly what it will fix
+function updateFixAllButton() {
+    const btn = document.getElementById('btn-ai-fix-all');
+    if (!btn || btn.disabled) return;
+    const n = getFilteredQuestions().length;
+    if (activeTopic) btn.innerText = `🤖 Fix Topic (${n})`;
+    else if (activeSubject) btn.innerText = `🤖 Fix Subject (${n})`;
+    else btn.innerText = `🤖 Fix Complete Paper (${n})`;
+}
+
 function renderSubjectFilters() {
+    activeSubject = null;
+    activeTopic = null;
     const subjectContainer = document.getElementById('subject-filters');
     const topicContainer = document.getElementById('topic-filters');
     if (!subjectContainer) return;
@@ -873,6 +898,7 @@ function renderSubjectFilters() {
         document.querySelectorAll('#subject-filters .filter-btn').forEach(b => b.classList.remove('active'));
         btnAll.classList.add('active');
         activeSubject = null;
+        activeTopic = null;
         topicContainer.classList.add('hidden');
         filterQuestions(null, null);
     };
@@ -887,6 +913,7 @@ function renderSubjectFilters() {
             document.querySelectorAll('#subject-filters .filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             activeSubject = sub;
+            activeTopic = null;
             renderTopicFilters(sub);
             filterQuestions(sub, null);
         };
@@ -933,9 +960,10 @@ function renderTopicFilters(subject) {
 }
 
 function filterQuestions(subject, topic) {
-    let filtered = currentQuestions;
-    if (subject) filtered = filtered.filter(q => q.subject === subject);
-    if (topic) filtered = filtered.filter(q => q.topic === topic);
+    activeSubject = subject || null;
+    activeTopic = topic || null;
+    const filtered = getFilteredQuestions();
+    updateFixAllButton();
 
     renderFullPaper(filtered);
     
@@ -944,7 +972,9 @@ function filterQuestions(subject, topic) {
         currentQIndex = 0;
         renderQuizQuestion(currentQIndex, filtered);
     } else {
-        document.getElementById('quiz-view').innerHTML = '<p style="padding: 20px;">No questions found for this filter.</p>';
+        document.getElementById('quiz-question-container').innerHTML = '<p style="padding: 20px;">No questions found for this filter.</p>';
+        document.getElementById('quiz-progress-text').innerText = '0 / 0';
+        updateFloatingStats(filtered);
     }
 }
 
@@ -1114,19 +1144,28 @@ function updateFloatingStats(questions) {
     const statCorrect = document.getElementById('stat-correct');
     if (statAttempted) statAttempted.innerText = totalAttempted;
     if (statCorrect) statCorrect.innerText = totalCorrect;
+
+    const quizScore = document.getElementById('quiz-score-bar');
+    if (quizScore) {
+        const wrong = totalAttempted - totalCorrect;
+        quizScore.innerHTML = `<span>Attempted: <b>${totalAttempted}/${questions.length}</b></span>` +
+            `<span style="color:#10b981;">✔ <b>${totalCorrect}</b></span>` +
+            `<span style="color:#ef4444;">✖ <b>${wrong}</b></span>`;
+    }
 }
 
 function prevQuestion() {
     if (currentQIndex > 0) {
         currentQIndex--;
-        renderQuizQuestion(currentQIndex);
+        renderQuizQuestion(currentQIndex, getFilteredQuestions());
     }
 }
 
 function nextQuestion() {
-    if (currentQIndex < currentQuestions.length - 1) {
+    const list = getFilteredQuestions();
+    if (currentQIndex < list.length - 1) {
         currentQIndex++;
-        renderQuizQuestion(currentQIndex);
+        renderQuizQuestion(currentQIndex, list);
     }
 }
 
@@ -1137,7 +1176,7 @@ async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
     
     parent.classList.add('answered');
 
-    const q = currentQuestions[mode === 'full' ? index : currentQIndex];
+    const q = getFilteredQuestions()[mode === 'full' ? index : currentQIndex];
     const sectionName = q.year_exam;
     
     const correctStr = String(q.correct_answer_option || q.final_answer_key || q.answer_key).trim();
@@ -1201,9 +1240,9 @@ async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
                 gridBtn.style.background = '#ef4444'; // red
             }
         }
-        // Update Stats UI
-        updateFloatingStats(currentQuestions);
     }
+    // Update score (floating stats + quiz score bar)
+    updateFloatingStats(getFilteredQuestions());
 
     // Fire and forget the progress save to backend
     fetch('/api/progress/save', {
@@ -1654,17 +1693,19 @@ window.fixQuestion = async function(qId, mode = 'quiz') {
 };
 
 window.fixAllQuestions = async function() {
-    if (!confirm("Are you sure you want to run AI Fix on ALL questions currently displayed? This will take some time.")) return;
-    
+    // Only the questions of the selected subject / topic (same list the user is seeing)
+    const questionsToFix = getFilteredQuestions();
+    if (questionsToFix.length === 0) { alert("No questions to fix."); return; }
+    const scope = activeTopic ? `topic "${activeTopic}" (${activeSubject})`
+                : activeSubject ? `subject "${activeSubject}"`
+                : 'the complete paper';
+    if (!confirm(`Run AI Fix on ${questionsToFix.length} questions of ${scope}? This will take some time.`)) return;
+
     const btnAll = document.getElementById('btn-ai-fix-all');
     if(btnAll) {
         btnAll.disabled = true;
+        btnAll.innerText = '⏳ Fixing...';
     }
-    
-    // We only process the filtered questions currently displayed
-    let questionsToFix = currentQuestions;
-    if (activeSubject) questionsToFix = questionsToFix.filter(q => q.subject === activeSubject);
-    if (activeTopic) questionsToFix = questionsToFix.filter(q => q.topic === activeTopic);
 
     const questionIds = questionsToFix.map(q => q._id);
     
@@ -1684,21 +1725,22 @@ window.fixAllQuestions = async function() {
             connectAiLiveStream(data.jobId);
         } else {
             alert("Failed to start background job.");
-            if(btnAll) btnAll.disabled = false;
+            if(btnAll) { btnAll.disabled = false; updateFixAllButton(); }
         }
     } catch (err) {
         console.error(err);
         alert("Network error.");
-        if(btnAll) btnAll.disabled = false;
+        if(btnAll) { btnAll.disabled = false; updateFixAllButton(); }
     }
 };
 
 window.connectAiLiveStream = function(jobId) {
     if (!jobId) return;
     
-    const panel = document.getElementById('ai-live-panel');
     const content = document.getElementById('ai-live-content');
-    if (panel) panel.style.display = 'flex';
+    const fab = document.getElementById('ai-fab');
+    if (fab) { fab.classList.remove('hidden'); fab.classList.add('running'); }
+    if (!content) return;
     
     if (window.activeAiEventSource) {
         window.activeAiEventSource.close();
@@ -1708,6 +1750,8 @@ window.connectAiLiveStream = function(jobId) {
     
     es.onmessage = function(event) {
         const data = JSON.parse(event.data);
+        // keep the log light on phones
+        if (content.innerHTML.length > 20000) content.innerHTML = content.innerHTML.slice(-10000);
         
         if (data.type === 'error') {
             content.innerHTML += `<br/><span style="color: #ef4444;">[System] Error: ${data.message}</span>`;
@@ -1728,20 +1772,32 @@ window.connectAiLiveStream = function(jobId) {
             if (qIndex > -1) {
                 currentQuestions[qIndex] = data.question;
             }
+            // Answer key may have changed -> re-evaluate the user's saved answer so score/progress update instantly
+            const ua = userAnswers[data.question._id];
+            if (ua && typeof ua.selected === 'number') {
+                const keyStr = String(data.question.correct_answer_option || data.question.final_answer_key || '').trim();
+                ua.isCancelled = keyStr === '#';
+                ua.isCorrect = !ua.isCancelled && ua.selected === (parseInt(keyStr) - 1);
+                localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+            }
             const btn = document.getElementById(`btn-fix-full-${data.question._id}`) || document.getElementById(`btn-fix-${data.question._id}`);
             if (btn) {
                 btn.innerText = "✅ Fixed!";
                 btn.style.background = "#10b981";
             }
             setTimeout(() => {
+                const visible = getFilteredQuestions();
                 const quizView = document.getElementById('quiz-view');
                 if (quizView && quizView.style.display !== 'none') {
-                    if (qIndex === currentQIndex) {
-                        renderQuizQuestion(currentQIndex, currentQuestions);
+                    const shownQ = visible[currentQIndex];
+                    if (shownQ && shownQ._id === data.question._id) {
+                        renderQuizQuestion(currentQIndex, visible);
+                    } else {
+                        updateFloatingStats(visible);
                     }
                 } else {
                     const scrollPos = window.scrollY;
-                    renderFullPaper(currentQuestions);
+                    renderFullPaper(visible);
                     window.scrollTo(0, scrollPos);
                 }
             }, 500);
@@ -1752,17 +1808,50 @@ window.connectAiLiveStream = function(jobId) {
             content.innerHTML += `<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`;
             es.close();
             localStorage.removeItem('activeAiJobId');
+            const fabDone = document.getElementById('ai-fab');
+            if (fabDone) fabDone.classList.remove('running');
             const btnAll = document.getElementById('btn-ai-fix-all');
             if(btnAll) {
-                btnAll.innerText = '🤖 Fix Complete Paper';
                 btnAll.disabled = false;
+                updateFixAllButton();
             }
+            // Sync score/progress with server (server already re-evaluated all answers)
+            syncProgressFromServer();
         }
     };
     
     es.onerror = function() {
         content.innerHTML += `<br/><span style="color: #ef4444;">[System] Connection lost. Trying to reconnect...</span>`;
     };
+};
+
+async function syncProgressFromServer() {
+    try {
+        const r = await fetch('/api/progress/dashboard', { headers: { 'Authorization': `Bearer ${token}` } });
+        const d = await r.json();
+        if (d.success && d.data && d.data.answers) {
+            userAnswers = d.data.answers;
+            localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+            const visible = getFilteredQuestions();
+            const quizView = document.getElementById('quiz-view');
+            if (quizView && quizView.style.display !== 'none') renderQuizQuestion(currentQIndex, visible);
+            else { const y = window.scrollY; renderFullPaper(visible); window.scrollTo(0, y); }
+        }
+    } catch (e) { console.warn('Progress sync failed', e); }
+}
+
+// Floating AI log button: open / close + compact / large size
+window.toggleAiPanel = function() {
+    const panel = document.getElementById('ai-live-panel');
+    if (!panel) return;
+    panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
+};
+window.cycleAiPanelSize = function() {
+    const panel = document.getElementById('ai-live-panel');
+    if (!panel) return;
+    const sizes = ['s', 'm', 'l'];
+    const cur = panel.dataset.size || 's';
+    panel.dataset.size = sizes[(sizes.indexOf(cur) + 1) % sizes.length];
 };
 
 window.retryAiQuestion = async function(jobId, questionId) {
@@ -1788,7 +1877,7 @@ window.retryAiQuestion = async function(jobId, questionId) {
 // Auto-connect if job was running
 window.addEventListener('load', () => {
     const activeJobId = localStorage.getItem('activeAiJobId');
-    if (activeJobId && document.getElementById('ai-live-panel')) {
+    if (activeJobId && document.getElementById('ai-live-panel') && currentUser && currentUser.isAdmin) {
         connectAiLiveStream(activeJobId);
     }
 });

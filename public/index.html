@@ -197,6 +197,7 @@
             <main id="main-content">
                 <!-- Quiz Mode View -->
                 <div id="quiz-view" class="view-mode active">
+                    <div id="quiz-score-bar" class="quiz-score-bar"></div>
                     <div class="question-container" id="quiz-question-container">
                         <!-- Injected via JS -->
                     </div>
@@ -291,17 +292,17 @@
 
     <script src="script.js?v=12"></script>
         <!-- AI Live Stream Panel -->
-    <div id="ai-live-panel" style="display: none; flex-direction: column; position: fixed; bottom: 20px; left: 20px; width: 400px; background: rgba(15, 23, 42, 0.95); color: #10b981; font-family: monospace; padding: 15px; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 9999; max-height: 300px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 10px;">
-            <strong style="color: #38bdf8; font-family: 'Inter', sans-serif;">🤖 AI Smart Queue & Live Stream</strong>
+    <button id="ai-fab" class="ai-fab hidden" onclick="toggleAiPanel()" title="AI Fix log">🤖</button>
+    <div id="ai-live-panel" class="ai-live-panel" data-size="s">
+        <div class="ai-live-head">
+            <strong>🤖 AI Fix Log</strong>
             <div>
-                <button onclick="navigator.clipboard.writeText(document.getElementById('ai-live-content').innerText); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Logs',2000);" style="background: #334155; border: none; color: white; cursor: pointer; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; margin-right: 10px;">Copy Logs</button>
-                <button onclick="document.getElementById('ai-live-panel').style.display = 'none';" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.2rem;">&times;</button>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('ai-live-content').innerText); this.innerText='✔'; setTimeout(()=>this.innerText='Copy',2000);" class="ai-live-btn">Copy</button>
+                <button onclick="cycleAiPanelSize()" class="ai-live-btn" title="Change size">⤢</button>
+                <button onclick="toggleAiPanel()" class="ai-live-btn" style="font-size:1.1rem;">&times;</button>
             </div>
         </div>
-        <div id="ai-live-content" style="overflow-y: auto; flex: 1; font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap;">
-            Waiting for AI Queue to start...
-        </div>
+        <div id="ai-live-content" class="ai-live-content">Waiting for AI Queue to start...</div>
     </div>
 </body>
 </html>
