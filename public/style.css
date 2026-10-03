@@ -511,3 +511,18 @@ header {
   .floating-stats .btn { padding:4px 8px !important; margin-left:4px !important; font-size:.75rem; }
   #btn-ai-fix-all { font-size:.72rem !important; padding:4px 8px !important; margin-right:6px !important; }
 }
+
+
+/* ===== Mobile: header buttons never overflow (Quiz | Full Paper | Paper) ===== */
+@media (max-width: 800px) {
+  .header-controls { flex-wrap: wrap; gap: 8px; }
+  .mode-toggle { order: -1; width: 100%; }
+  .mode-toggle .btn { flex: 1; padding: 8px 4px; font-size: .85rem; white-space: nowrap; }
+  #btn-download-paper, #btn-ai-fix-all { margin-right: 0 !important; }
+  .test-filters { padding: 6px 10px; max-height: 38vh; overflow-y: auto; }
+  .filter-group { gap: 6px; margin-bottom: 6px; }
+  .filter-btn { padding: 5px 10px; font-size: .78rem; }
+}
+
+/* ===== Skip layout/paint of off-screen questions -> subject/topic switch stays smooth ===== */
+.question-item { content-visibility: auto; contain-intrinsic-size: auto 420px; }

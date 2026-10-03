@@ -427,7 +427,11 @@
         const list = PM.pages.flatMap(p => p.qs);
         list.forEach(q => {
             const a = userAnswers[q._id];
-            if (a && !a.isCancelled) { a.isCorrect ? c++ : w++; }
+            if (a) {
+                const ci = correctInfo(q);
+                if (ci.cancelled) return;
+                (a.selected === ci.idx) ? c++ : w++;   // always judged against the current (AI-fixed) key
+            }
         });
         return { c, w, n: list.length };
     }
@@ -569,11 +573,28 @@
     }
 
     // called when AI Fix changed questions / progress was re-synced while Paper Mode is open
-    window.paperRefresh = function () {
+    function toast(msg) {
+        if (!PM.els.stage) return;
+        let el = document.getElementById('pm-toast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'pm-toast';
+            el.style.cssText = 'position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#8b5cf6;color:#fff;padding:7px 14px;border-radius:20px;font-size:.82rem;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s;white-space:nowrap';
+            PM.els.stage.appendChild(el);
+        }
+        el.textContent = msg; el.style.opacity = '1';
+        clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+    }
+    window.paperRefresh = function (changedId) {
         if (!PM.open) return;
         const keep = PM.pi;
         PM.pages = buildPages();
         PM.pi = Math.min(keep, PM.pages.length - 1);
-        renderPanel();
+        renderPanel();     // options / explanation / score use the new AI-fixed answer
+        const pg = PM.pages[PM.pi];
+        if (changedId && pg) {
+            const q = pg.qs.find(x => String(x._id) === String(changedId));
+            if (q) toast('✨ Q' + (q.qnum || '') + ' updated by AI');
+        }
     };
 })();

@@ -758,7 +758,6 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         <div class="q-text" style="clear: both; padding-top: 10px;">`;
         
         // Handle Passages
-        console.log('[PASSAGE DEBUG] Q' + (q.qnum || index) + ' passage_text:', !!q.passage_text, 'passage_marathi:', !!q.passage_marathi, 'has_diagram_or_passage:', q.has_diagram_or_passage);
         if (q.passage_text && q.passage_text !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
         } else if (q.passage_marathi && q.passage_marathi !== "null") {
@@ -979,19 +978,7 @@ function filterQuestions(subject, topic) {
 }
 
 // ====== RENDER FULL PAPER ======
-function renderFullPaper(questions = currentQuestions) {
-    const list = document.getElementById('full-questions-list');
-    const jumpGrid = document.getElementById('jump-grid');
-    list.innerHTML = '';
-    jumpGrid.innerHTML = '';
-
-    
-    if (questions.length === 0) {
-        list.innerHTML = '<p style="padding: 20px;">No questions found.</p>';
-        return;
-    }
-
-    questions.forEach((q, idx) => {
+function buildFullQuestionEl(q, idx) {
         // Build list item
         const qDiv = document.createElement('div');
         qDiv.className = 'question-item glass-panel';
@@ -1011,7 +998,6 @@ function renderFullPaper(questions = currentQuestions) {
             </div>
         `;
         // Handle Passages
-        console.log('[PASSAGE DEBUG FULL] Q' + (q.qnum || idx) + ' passage_text:', !!q.passage_text, 'passage_marathi:', !!q.passage_marathi);
         if (q.passage_text && q.passage_text !== "null") {
             html += `<div style="margin-bottom: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #2563eb; font-size: 0.95rem; line-height: 1.8; color: #1f2937; max-height: 400px; overflow-y: auto;"><strong style="color: #2563eb;">📖 उतारा (Passage):</strong><br><br>${q.passage_text.replace(/\n/g, '<br>')}</div>`;
         } else if (q.passage_marathi && q.passage_marathi !== "null") {
@@ -1104,22 +1090,54 @@ function renderFullPaper(questions = currentQuestions) {
             </div>
         `;
         qDiv.innerHTML = html;
-        list.appendChild(qDiv);
-    });
+        return qDiv;
+}
+
+function gridBtnStyle(q) {
+    const a = userAnswers[q._id];
+    if (!a) return '';
+    if (a.isCancelled) return 'background: #f59e0b; color: white; border-color: transparent;';
+    return a.isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
+}
+
+// Re-draw ONLY one question of the Full Paper (used after AI Fix) - no full re-render, no lag
+function refreshFullQuestion(qId) {
+    const visible = getFilteredQuestions();
+    const idx = visible.findIndex(q => q._id === qId);
+    if (idx < 0) return;
+    const old = document.getElementById(`full-q-${idx}`);
+    if (old) old.replaceWith(buildFullQuestionEl(visible[idx], idx));
+    const gb = document.getElementById(`grid-btn-${idx}`);
+    if (gb) {
+        const st = gridBtnStyle(visible[idx]);
+        gb.style.cssText = st;
+        if (st) gb.classList.remove('btn-outline'); else gb.classList.add('btn-outline');
+    }
+    updateFloatingStats(visible);
+}
+
+function renderFullPaper(questions = currentQuestions) {
+    const list = document.getElementById('full-questions-list');
+    const jumpGrid = document.getElementById('jump-grid');
+    list.innerHTML = '';
+    jumpGrid.innerHTML = '';
+
+    
+    if (questions.length === 0) {
+        list.innerHTML = '<p style="padding: 20px;">No questions found.</p>';
+        return;
+    }
+
+    const frag = document.createDocumentFragment();
+    questions.forEach((q, idx) => frag.appendChild(buildFullQuestionEl(q, idx)));
+    list.appendChild(frag);
 
     let gridHtml = `
         <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
     `;
     
     questions.forEach((q, idx) => {
-        let btnColor = '';
-        if (userAnswers[q._id]) {
-            if (userAnswers[q._id].isCancelled) {
-                btnColor = 'background: #f59e0b; color: white; border-color: transparent;'; // Orange
-            } else {
-                btnColor = userAnswers[q._id].isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
-            }
-        }
+        const btnColor = gridBtnStyle(q);
         gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${q.qnum || idx + 1}</button>`;
     });
     
@@ -1746,34 +1764,44 @@ window.connectAiLiveStream = function(jobId) {
     if (window.activeAiEventSource) {
         window.activeAiEventSource.close();
     }
+    // Buffered log: write to the DOM at most every 400ms and keep it short (mobile friendly)
+    let pending = '', logTimer = null;
+    const flushLog = () => {
+        logTimer = null;
+        if (!pending) return;
+        content.insertAdjacentHTML('beforeend', pending);
+        pending = '';
+        while (content.childNodes.length > 300) content.removeChild(content.firstChild);
+        const panelEl = document.getElementById('ai-live-panel');
+        if (panelEl && panelEl.style.display === 'flex') content.scrollTop = content.scrollHeight;
+    };
+    const logAppend = (h) => { pending += h; if (!logTimer) logTimer = setTimeout(flushLog, 400); };
+    const escHtml = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const es = new EventSource(`/api/admin/fix-stream/${jobId}?token=${token}`);
     window.activeAiEventSource = es;
     
     es.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        // keep the log light on phones
-        if (content.innerHTML.length > 20000) content.innerHTML = content.innerHTML.slice(-10000);
         
         if (data.type === 'error') {
-            content.innerHTML += `<br/><span style="color: #ef4444;">[System] Error: ${data.message}</span>`;
+            logAppend(`<br/><span style="color: #ef4444;">[System] Error: ${data.message}</span>`);
             es.close();
             localStorage.removeItem('activeAiJobId');
         } else if (data.type === 'init') {
-            content.innerHTML += `<br/><span style="color: #64748b;">[Queue] Job attached. Processing...</span>`;
+            logAppend(`<br/><span style="color: #64748b;">[Queue] Job attached. Processing...</span>`);
         } else if (data.type === 'chunk') {
-            content.innerHTML += data.chunk;
-            content.scrollTop = content.scrollHeight;
+            logAppend(escHtml(data.chunk));
         } else if (data.type === 'question_start') {
-            content.innerHTML = `<span style="color: #f59e0b;">[Queue] Starting Question ${data.index + 1}...</span><br/>`;
+            content.innerHTML = ''; pending = '';
+            logAppend(`<span style="color: #f59e0b;">[Queue] Starting Question ${data.index + 1}...</span><br/>`);
         } else if (data.type === 'question_done') {
-            content.innerHTML += `<br/><span style="color: #10b981;">[Queue] Question ${data.index + 1} Fixed Successfully!</span>`;
+            logAppend(`<br/><span style="color: #10b981;">[Queue] Question ${data.index + 1} Fixed Successfully!</span>`);
             
             // Update local state and UI
             const qIndex = currentQuestions.findIndex(q => q._id === data.question._id);
             if (qIndex > -1) {
                 currentQuestions[qIndex] = data.question;
             }
-            if (window.paperRefresh) window.paperRefresh();
             // Answer key may have changed -> re-evaluate the user's saved answer so score/progress update instantly
             const ua = userAnswers[data.question._id];
             if (ua && typeof ua.selected === 'number') {
@@ -1782,6 +1810,7 @@ window.connectAiLiveStream = function(jobId) {
                 ua.isCorrect = !ua.isCancelled && ua.selected === (parseInt(keyStr) - 1);
                 localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
             }
+            if (window.paperRefresh) window.paperRefresh(data.question._id);   // after answers are re-evaluated
             const btn = document.getElementById(`btn-fix-full-${data.question._id}`) || document.getElementById(`btn-fix-${data.question._id}`);
             if (btn) {
                 btn.innerText = "✅ Fixed!";
@@ -1792,22 +1821,17 @@ window.connectAiLiveStream = function(jobId) {
                 const quizView = document.getElementById('quiz-view');
                 if (quizView && quizView.style.display !== 'none') {
                     const shownQ = visible[currentQIndex];
-                    if (shownQ && shownQ._id === data.question._id) {
-                        renderQuizQuestion(currentQIndex, visible);
-                    } else {
-                        updateFloatingStats(visible);
-                    }
+                    if (shownQ && shownQ._id === data.question._id) renderQuizQuestion(currentQIndex, visible);
+                    else updateFloatingStats(visible);
                 } else {
-                    const scrollPos = window.scrollY;
-                    renderFullPaper(visible);
-                    window.scrollTo(0, scrollPos);
+                    refreshFullQuestion(data.question._id);   // only this one question, not the whole paper
                 }
-            }, 500);
+            }, 300);
 
         } else if (data.type === 'question_failed') {
-            content.innerHTML += `<br/><span style="color: #ef4444;">[Queue] Question ${data.index + 1} Failed: ${data.error}</span><br/><button onclick="retryAiQuestion('${jobId}', '${data.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; cursor:pointer; margin-top:5px; border-radius:3px;">Retry Question ${data.index + 1}</button>`;
+            logAppend(`<br/><span style="color: #ef4444;">[Queue] Question ${data.index + 1} Failed: ${data.error}</span><br/><button onclick="retryAiQuestion('${jobId}', '${data.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; cursor:pointer; margin-top:5px; border-radius:3px;">Retry Question ${data.index + 1}</button>`);
         } else if (data.type === 'job_done') {
-            content.innerHTML += `<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`;
+            logAppend(`<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`);
             es.close();
             localStorage.removeItem('activeAiJobId');
             const fabDone = document.getElementById('ai-fab');
@@ -1823,7 +1847,7 @@ window.connectAiLiveStream = function(jobId) {
     };
     
     es.onerror = function() {
-        content.innerHTML += `<br/><span style="color: #ef4444;">[System] Connection lost. Trying to reconnect...</span>`;
+        logAppend(`<br/><span style="color: #ef4444;">[System] Connection lost. Trying to reconnect...</span>`);
     };
 };
 
