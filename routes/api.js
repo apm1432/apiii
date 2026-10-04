@@ -21,6 +21,7 @@ const Progress = require('../models/Progress');
 // Middleware & Services
 const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
+const { PLANS, applyPayment } = require('../utils/payments');
 const { fixQuestionWithAI, chatAboutQuestion } = require('../utils/aiService');
 const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
@@ -607,12 +608,8 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
         const userId = req.user.id;
         const { planId } = req.body;
         
-        const planPrices = {
-            '1_month': 50,
-            '2_years': 100
-        };
-        
-        const price = planPrices[planId];
+        const plan = PLANS[planId];
+        const price = plan && plan.price;
         if (!price) {
             return res.status(400).json({ success: false, message: 'Invalid Plan' });
         }
@@ -641,48 +638,58 @@ router.post('/payment/create-order', authMiddleware, async (req, res) => {
 // -------------------------------------
 router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId } = req.body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
         const userId = req.user.id;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
             return res.status(400).json({ success: false, message: 'Missing payment parameters' });
         }
 
-        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
-        hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-        const generatedSignature = hmac.digest('hex');
-
-        if (generatedSignature === razorpay_signature) {
-            // Update User Subscription
-            let expiry = new Date();
-            if (planId === '1_month') {
-                expiry.setDate(expiry.getDate() + 30); // 30 days access
-            } else if (planId === '2_years') {
-                expiry.setFullYear(expiry.getFullYear() + 2); // 2 years access
-            }
-
-            const updatedUser = await User.findByIdAndUpdate(userId, { 
-                isSubscribed: true,
-                subscriptionPlan: planId,
-                subscriptionExpiry: expiry
-            }, { new: true });
-
-            res.json({ 
-                success: true, 
-                message: 'Payment verified successfully!',
-                user: {
-                    email: updatedUser.email,
-                    isSubscribed: updatedUser.isSubscribed,
-                    subscriptionPlan: updatedUser.subscriptionPlan,
-                    subscriptionExpiry: updatedUser.subscriptionExpiry
-                }
-            });
-        } else {
-            res.status(400).json({ success: false, message: 'Invalid signature' });
+        const generatedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(razorpay_order_id + "|" + razorpay_payment_id).digest('hex');
+        const a1 = Buffer.from(generatedSignature), b1 = Buffer.from(String(razorpay_signature));
+        if (a1.length !== b1.length || !crypto.timingSafeEqual(a1, b1)) {
+            return res.status(400).json({ success: false, message: 'Invalid signature' });
         }
+
+        // The PLAN and the OWNER come from the Razorpay order that WE created - never from the browser.
+        let order;
+        try {
+            order = await razorpay.orders.fetch(razorpay_order_id);
+        } catch (e) {
+            console.error('verify-payment: could not fetch order:', e && e.message);
+            return res.status(503).json({ success: false, message: 'Payment received. Activation is taking a moment - your plan will be activated automatically within a minute. Do not pay again.' });
+        }
+        const notes = (order && order.notes) || {};
+        if (String(notes.userId) !== String(userId)) {
+            return res.status(403).json({ success: false, message: 'This payment belongs to another account.' });
+        }
+
+        const result = await applyPayment({
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
+            userId,
+            planId: notes.planId,
+            amountPaise: order.amount,
+            source: 'verify'
+        });
+
+        const u = result.user;
+        res.json({
+            success: true,
+            message: 'Payment verified successfully!',
+            user: {
+                email: u.email,
+                isSubscribed: u.isSubscribed,
+                subscriptionPlan: u.subscriptionPlan,
+                subscriptionExpiry: u.subscriptionExpiry,
+                hasUsedFreeTrial: u.hasUsedFreeTrial,
+                isAdmin: !!u.isAdmin
+            }
+        });
     } catch (err) {
         console.error('Verify Payment Error:', err);
-        res.status(500).json({ success: false, message: 'Server error during verification' });
+        res.status(500).json({ success: false, message: 'Payment received but activation hit an error. It will be activated automatically within a minute. Do not pay again.' });
     }
 });
 
@@ -690,58 +697,49 @@ router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
 // 3. PAYMENT API (Webhook Verification)
 // -------------------------------------
 
-// 4. Webhook for Payment Verification (Unprotected, called by Razorpay)
-router.post('/payment/webhook', (req, res) => {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'YOUR_WEBHOOK_SECRET';
-    const signature = req.headers['x-razorpay-signature'];
-
-    if (!req.rawBody) {
-        return res.status(400).send('Missing raw body');
+// 4. Webhook for Payment Verification (Unprotected, called by Razorpay).
+// This is the safety net: it activates the plan even if the user closed the tab / lost network right after paying.
+router.post('/payment/webhook', async (req, res) => {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+        // Webhook is OPTIONAL. Without a secret it stays switched off (never a guessable default secret,
+        // anyone could forge a "payment" with that). Payments are still activated by the browser verification.
+        return res.status(200).send('Webhook disabled');
     }
+    const signature = String(req.headers['x-razorpay-signature'] || '');
+    if (!req.rawBody) return res.status(400).send('Missing raw body');
 
     try {
-        const expectedSignature = crypto
-            .createHmac('sha256', secret)
-            .update(req.rawBody)
-            .digest('hex');
+        const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+        const x = Buffer.from(expected), y = Buffer.from(signature);
+        if (x.length !== y.length || !crypto.timingSafeEqual(x, y)) {
+            return res.status(400).send('Invalid signature');
+        }
 
-        if (expectedSignature === signature) {
-            const event = req.body;
-            
-            if (event.event === 'payment.captured') {
-                const paymentData = event.payload.payment.entity;
-                console.log(`Payment Captured! Amount: ${paymentData.amount / 100}`);
-                const assignedSmtp = smtpService.assignSmtpToUser();
-                console.log(`Assigned SMTP [${assignedSmtp}] to user.`);
-
-                // Update User Subscription
-                const userId = paymentData.notes.userId;
-                const planId = paymentData.notes.planId;
-                
-                if (userId) {
-                    let expiry = new Date();
-                    if (planId === '1_day') {
-                        expiry.setDate(expiry.getDate() + 1);
-                    } else if (planId === '2_years') {
-                        expiry.setFullYear(expiry.getFullYear() + 2);
-                    }
-                    
-                    User.findByIdAndUpdate(userId, { 
-                        isSubscribed: true, 
-                        subscriptionExpiry: expiry,
-                        assignedSmtp: assignedSmtp 
-                    }).exec();
-                    console.log(`User ${userId} upgraded to ${planId}. Expiry: ${expiry}`);
+        const event = req.body;
+        if (event.event === 'payment.captured') {
+            const pay = event.payload && event.payload.payment && event.payload.payment.entity;
+            if (pay && pay.order_id) {
+                // plan + user are stored on the ORDER (not copied to the payment), so read the order
+                const order = await razorpay.orders.fetch(pay.order_id);
+                const notes = (order && order.notes) || {};
+                if (notes.userId && notes.planId) {
+                    const r = await applyPayment({
+                        paymentId: pay.id,
+                        orderId: pay.order_id,
+                        userId: notes.userId,
+                        planId: notes.planId,
+                        amountPaise: pay.amount,
+                        source: 'webhook'
+                    });
+                    console.log(`Payment ${pay.id}: ${r.alreadyApplied ? 'already applied' : 'applied'} (${notes.planId}) for user ${notes.userId}`);
                 }
             }
-            
-            res.status(200).send('Webhook verified');
-        } else {
-            res.status(400).send('Invalid signature');
         }
+        res.status(200).send('Webhook verified');
     } catch (err) {
         console.error('Webhook Error:', err);
-        res.status(500).send('Webhook Server Error');
+        res.status(500).send('Webhook Server Error'); // 5xx -> Razorpay retries later
     }
 });
 

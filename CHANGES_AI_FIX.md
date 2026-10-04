@@ -37,3 +37,29 @@ Changed files: utils/aiService.js, routes/api.js
   a gmail-alias account, no longer clash. Also tries password with/without trailing space + unicode NFC, case-insensitive email
   fallback for old accounts, and accepts + upgrades very old plain-text passwords. Failure reason is written to the server log only.
 - index.html: autocapitalize/autocorrect off on email + password fields (mobile keyboards were changing what users typed).
+
+## Update 5: payments (website purchase -> instant access, and safer)
+- NEW utils/payments.js + models/Payment.js: one function applyPayment() used by BOTH the browser verify and the Razorpay webhook.
+  Each paymentId applies exactly once (unique index + atomic claim), so replays / retries / verify+webhook race can't extend or reset access.
+- verify-payment: plan and owner are read from the Razorpay ORDER (server side), not from the browser (before: a Rs.50 order could be
+  verified as the 2-year plan). Paid amount must equal the plan price. Signature compared in constant time.
+- webhook: fixed - it handled '1_day' (no such plan) so a '1_month' payment set expiry = NOW and could cancel the access right after
+  it was given. It also read userId/planId from the payment (empty for order payments); now it reads them from the order.
+  It no longer has a default secret: without RAZORPAY_WEBHOOK_SECRET it rejects every call (503).
+- Renewal keeps the days still left. Verify response now includes isAdmin / hasUsedFreeTrial.
+- After payment the user is also notified through the live channel (Welcome message without reload on other tabs/devices).
+
+## Update 6: AI fix retries + webhook optional
+- aiService.js: the layout guard no longer counts the answer-option lines that old DB texts contain ("(1) ...", "(2) ...").
+  This was the cause of "layout lost (old text had 10 lines, new has 6)" and the endless retries.
+- Rejected answers now tell the AI the exact reason on the next attempt (blind retries repeated the same mistake).
+- Option text that drifted from the paper reading (e.g. English text in the Marathi list) is repaired from the paper reading instead of rejected.
+- Attempts per pass 10 -> 6, verification rounds 3 -> 2 (fewer wasted API calls).
+- jobManager.js: atomic updateOne instead of question.save() (fixes "No matching document found ... version" VersionError).
+- Payment webhook is optional: without RAZORPAY_WEBHOOK_SECRET it just answers 200 and does nothing. Browser verification still activates the plan.
+
+## Update 7: deeper explanations
+- Prompt: new DEPTH TARGET rule (background, chronology, facts behind every statement and option, parent topic, confusion points; 8-15 pointers for rich topics).
+- New deepening pass (after answer/order/format are verified): if the explanation has fewer than 12 pointers or is short, the AI extends it with
+  more certain facts. The old points are kept; accepted only if clearly deeper (+2 pointers, +20% length), no year/number dropped, answer unchanged.
+  If the AI finds a mistake in the old explanation it is only reported in the log. On any failure the verified explanation is kept (never fails the fix).

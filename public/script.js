@@ -1618,7 +1618,7 @@ async function initiatePayment(planId) {
                 amount: data.order.amount,
                 currency: data.order.currency,
                 name: "MPSC PYQ Portal",
-                description: "Premium Lifetime Access",
+                description: "MPSC PYQ Premium Access",
                 order_id: data.order.id,
                 handler: async function (response) {
                     try {
@@ -1643,7 +1643,7 @@ async function initiatePayment(planId) {
                             alert("Payment Successful! Refreshing your account...");
                             window.location.reload();
                         } else {
-                            alert("Payment verification failed: " + verifyData.message);
+                            alert((verifyData.message || "Payment verification failed.") + "\n\n(तुमचे पैसे सुरक्षित आहेत. पुन्हा पैसे भरू नका; plan आपोआप active होईल.)");
                         }
                     } catch (err) {
                         alert("Error during payment verification.");

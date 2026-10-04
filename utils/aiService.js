@@ -307,13 +307,30 @@ function assertSameOrder(newOpts, refOpts, label) {
 const LINE_ITEM_RE = /^\s*(\(?[a-dA-D]\)?|\(?[ivxIVX]{1,4}\)?|\(?[1-9]\)?|[अ-ड])\s*[.)\-:]\s*\S/gm;
 const countLineItems = (t) => (String(t || '').match(LINE_ITEM_RE) || []).length;
 
-function assertSameLayout(newText, oldText, label) {
-    const oldN = String(oldText || '').trim(), newN = String(newText || '').trim();
+// Old DB texts often contain the answer options as extra lines at the end ("(1) ...", "(2) ...").
+// The AI correctly keeps options in fixed_options only, so option lines must NOT count as "layout".
+function stripOptionLines(text, optionLists) {
+    const opts = [];
+    (optionLists || []).forEach(l => (Array.isArray(l) ? l : []).forEach(o => { if (typeof o === 'string' && o.trim()) opts.push(o); }));
+    return String(text || '').split('\n').filter(line => {
+        const t = line.trim();
+        if (!t) return false;
+        // numbered / lettered option label at the start AND the rest looks like one of the options
+        if (/^\(?[1-6A-Da-d]\)?\s*[.)\-:]?\s*\S/.test(t)) {
+            const body = stripOptPrefix(t);
+            if (opts.some(o => similarity(body, o) >= 0.75)) return false;
+        }
+        return !opts.some(o => normForCompare(o) && normForCompare(o) === normForCompare(t));
+    }).join('\n');
+}
+
+function assertSameLayout(newText, oldText, label, optionLists) {
+    const oldN = stripOptionLines(oldText, optionLists).trim(), newN = stripOptionLines(newText, optionLists).trim();
     if (!oldN) return;
     const oldLines = oldN.split('\n').filter(l => l.trim()).length;
     const newLines = newN.split('\n').filter(l => l.trim()).length;
     if (oldLines >= 3 && newLines < oldLines - 1) {
-        throw new Error(`${label}: layout lost (old text had ${oldLines} lines, new has ${newLines}). Statements / match-the-following rows must stay on separate lines.`);
+        throw new Error(`${label}: layout lost (old text had ${oldLines} lines without options, new has ${newLines}). Keep every statement / Group A / Group B row on its own line.`);
     }
     const oi = countLineItems(oldN), ni = countLineItems(newN);
     if (oi >= 2 && ni < oi) {
@@ -326,9 +343,12 @@ function assertOrderAndFormat(parsed, q, rawParsed, hasImage) {
     // 1) the options must be the repaired version of what the AI itself read from the image, in the same order
     const img = rawParsed && rawParsed.image_options_in_paper_order;
     if (Array.isArray(img) && img.length === parsed.fixed_options.length && img.every(x => typeof x === 'string' && x.trim())) {
-        parsed.fixed_options.forEach((o, i) => {
-            if (similarity(o, img[i]) < 0.6) throw new Error(`fixed_options[${i + 1}] does not match option ${i + 1} printed in the paper (order or content changed)`);
-        });
+        const drift = parsed.fixed_options.some((o, i) => similarity(o, img[i]) < 0.6);
+        if (drift) {
+            // the AI wrote option text that differs from what it read in the paper (often English text in the
+            // Marathi list). Take the paper reading instead of throwing the whole answer away.
+            parsed.fixed_options = matchOptionStyle(img.map(x => stripOptPrefix(x.trim())), q.options);
+        }
         assertSameOrder(parsed.fixed_options, img, 'vs image');
     }
     // 2) WITHOUT an image the old DB order is the only reference -> must not be shuffled.
@@ -346,14 +366,14 @@ function assertOrderAndFormat(parsed, q, rawParsed, hasImage) {
     if (parsed.fixed_options_eng && parsed.fixed_options_eng.length && Array.isArray(rawParsed && rawParsed.image_options_in_paper_order_eng)) {
         const ie = rawParsed.image_options_in_paper_order_eng;
         if (ie.length === parsed.fixed_options_eng.length) {
-            parsed.fixed_options_eng.forEach((o, i) => {
-                if (similarity(o, ie[i]) < 0.6) throw new Error(`English option ${i + 1} does not match the paper order`);
-            });
+            if (parsed.fixed_options_eng.some((o, i) => similarity(o, ie[i]) < 0.6) && ie.every(x => typeof x === 'string' && x.trim())) {
+                parsed.fixed_options_eng = matchOptionStyle(ie.map(x => stripOptPrefix(x.trim())), (q.options_eng && q.options_eng.length) ? q.options_eng : q.options);
+            }
         }
     }
     // 3) question layout (statements, match the following) must survive
-    assertSameLayout(parsed.fixed_text, q.text, 'Marathi question');
-    if (parsed.fixed_text_eng && q.text_eng) assertSameLayout(parsed.fixed_text_eng, q.text_eng, 'English question');
+    assertSameLayout(parsed.fixed_text, q.text, 'Marathi question', [q.options, parsed.fixed_options]);
+    if (parsed.fixed_text_eng && q.text_eng) assertSameLayout(parsed.fixed_text_eng, q.text_eng, 'English question', [q.options_eng, q.options, parsed.fixed_options_eng, parsed.fixed_options]);
 }
 
 // ---------------------------------------------------------------------------
@@ -697,7 +717,15 @@ There is NO word limit for a pointer or for the whole explanation. A pointer may
 
 Do NOT repeat the same information merely to make the explanation look bigger.
 
-9. WRITE FROM SCRATCH:
+9. DEPTH TARGET (IMPORTANT):
+The explanation must go DEEP, not stop at the one fact that decides the answer. Besides the decisive fact, always add (wherever genuinely relevant and 100% certain):
+- the background / origin and the full chronology (exact dates and years),
+- the facts behind EVERY statement and EVERY option of the question (not only the correct one), because the same topic is asked again with the other options,
+- the parent topic around it: related persons, laws, articles, committees, places, schemes, numbers, comparisons and exceptions,
+- common confusion points (what students mix up) and exam-relevant extra facts.
+A rich topic normally deserves 8 to 15 numbered pointers. Fewer pointers are acceptable only when the topic truly has nothing more that is certain. Never pad with doubtful or invented facts.
+
+10. WRITE FROM SCRATCH:
 
 Write the explanation entirely yourself, in your own words, from verified facts. Do not assume anything about any older explanation: none is provided.
 
@@ -918,9 +946,10 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
 }
 
 // Generic Gemini call with key/model rotation + retry. processFn(parsedJson) may throw -> retry.
-async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 10) {
+async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, firstHint = '') {
     let attempts = 0;
     let lastError = null;
+    let hint = firstHint || '';
 
     while (attempts < maxAttempts) {
         const { key, model, waitTime } = await getNextAvailableKeyAndModel();
@@ -944,7 +973,7 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
                 }
             });
         }
-        parts.push({ text: prompt });
+        parts.push({ text: prompt + hint });
 
         const payload = {
             contents: [{ parts: parts }],
@@ -1054,6 +1083,8 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
             } else {
                 if (onChunk) onChunk(`\n[System] Parsing/Internal Error: ${error.message}. Retrying...\n`);
                 lastError = error.message;
+                // Feed the reason back so the next attempt fixes exactly this (blind retries just repeat the mistake)
+                hint = `\n\n================================================================\nYOUR PREVIOUS ANSWER WAS REJECTED\n================================================================\nReason: ${String(error.message).slice(0, 400)}\nReturn the complete corrected JSON again. Fix exactly this problem. Keep "thought_process" under 600 characters and do not put the answer options inside "fixed_text" (they belong only in "fixed_options").`;
                 attempts++;
                 await sleep(2000);
             }
@@ -1064,20 +1095,100 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
 }
 
 
+
+// ---------------------------------------------------------------------------
+// DEEPER EXPLANATION: when the explanation is still thin, ask the AI to extend it with MORE certain facts.
+// The old points are kept; the result is accepted only if it is clearly deeper and drops nothing.
+// If anything fails the original explanation is kept (this step never makes a fix fail).
+// ---------------------------------------------------------------------------
+const toAsciiDigits = (t) => String(t || '').replace(/[०-९]/g, c => String('०१२३४५६७८९'.indexOf(c)));
+const countPointers = (t) => (String(t || '').match(/^\s*\d{1,3}\s*[.)]\s/gm) || []).length;
+const importantNumbers = (t) => new Set((toAsciiDigits(t).match(/\d{3,4}/g) || []));
+
+// pure check, exported for tests. Throws when `deep` is not an acceptable extension of `base`.
+function validateDeeper(base, deep) {
+    if (deep.length < base.length * 1.2) throw new Error('The new explanation is not clearly deeper than the old one. Add more NEW certain facts as new numbered pointers.');
+    if (countPointers(deep) < countPointers(base) + 2) throw new Error('Add at least 2 more numbered pointers with new facts (keep every old pointer).');
+    const have = importantNumbers(deep);
+    const lost = [...importantNumbers(base)].filter(n => !have.has(n));
+    if (lost.length) throw new Error('You dropped facts from the old explanation (years/numbers missing: ' + lost.slice(0, 6).join(', ') + '). Keep every old fact.');
+    return deep;
+}
+
+function buildDeepenPrompt(fixed, q) {
+    const opts = (fixed.fixed_options || []).map((o, i) => `${i + 1}) ${o}`).join('\n');
+    return `You are an expert MPSC subject teacher. The question below is already reconstructed and its correct answer is verified. Your job is ONLY to make the existing Marathi explanation DEEPER.
+
+QUESTION (Marathi):
+${fixed.fixed_text}
+
+OPTIONS:
+${opts}
+
+VERIFIED CORRECT ANSWER: ${fixed.correct_answer_option}
+
+EXISTING EXPLANATION:
+${fixed.fixed_explanation}
+
+TASK:
+1. Keep EVERY existing pointer and every fact in it (do not shorten or delete anything).
+2. Add the important facts that are still missing, as NEW numbered pointers (continue the numbering, one pointer per line): exact dates/years and chronology, background/origin, the facts behind each statement and each option, related persons/laws/articles/committees/places/schemes/numbers, comparisons, exceptions and common confusion points of the parent topic.
+3. Add ONLY facts you are 100% sure about. Never invent or guess dates, numbers, names, laws or current information. If the question is about something that changes with time, state the position as of the exam and mention that it may have changed.
+4. Plain Marathi text. No markdown, no ** bold, no bullet symbols. Each numbered pointer on its own line (use \\n between pointers inside the JSON string). Technical terms may stay in English in brackets.
+5. If an existing fact is WRONG, set "contradiction_found": true and explain it in "note" (do not silently change it).
+6. If the topic really has nothing more that is certain to add, set "nothing_more_to_add": true.
+
+Return STRICTLY valid JSON, no markdown:
+{
+  "correct_answer_option": "${fixed.correct_answer_option}",
+  "contradiction_found": false,
+  "nothing_more_to_add": false,
+  "note": "",
+  "deep_explanation": "1. ...\\n2. ...\\n3. ..."
+}`;
+}
+
+async function deepenExplanation(fixed, q, onChunk) {
+    const log = (m) => { if (onChunk) onChunk(m); };
+    const base = fixed.fixed_explanation;
+    if (countPointers(base) >= 12 && base.length >= 2500) return base; // already deep
+    try {
+        log(`\n[System] Explanation has ${countPointers(base)} pointers - trying to make it deeper...\n`);
+        const res = await runGemini(buildDeepenPrompt(fixed, q), null, onChunk, (raw) => {
+            if (raw.contradiction_found === true) return { skip: 'contradiction', note: raw.note };
+            if (raw.nothing_more_to_add === true) return { skip: 'nothing_more', note: raw.note };
+            if (String(raw.correct_answer_option === undefined ? '' : raw.correct_answer_option).trim() !== String(fixed.correct_answer_option)) {
+                throw new Error('The correct answer must stay exactly the same.');
+            }
+            const rawExp = Array.isArray(raw.deep_explanation) ? raw.deep_explanation.join('\n') : raw.deep_explanation;
+            return { text: validateDeeper(base, normalizeExplanation(rawExp)) };
+        }, 3);
+
+        if (res.skip === 'contradiction') { log(`\n[System] ⚠ Deepening found a possible mistake in the old explanation: ${String(res.note || '').slice(0, 300)} (kept the old explanation - please check).\n`); return base; }
+        if (res.skip === 'nothing_more') { log(`\n[System] Explanation is already complete - nothing more to add.\n`); return base; }
+        log(`\n[System] ✔ Explanation made deeper: ${countPointers(base)} → ${countPointers(res.text)} pointers.\n`);
+        return res.text;
+    } catch (e) {
+        log(`\n[System] Could not deepen the explanation (${String(e.message).slice(0, 200)}). Kept the verified explanation.\n`);
+        return base;
+    }
+}
+
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
     const prompt = buildFixPrompt(questionData, !!imageBase64);
     const log = (m) => { if (onChunk) onChunk(m); };
-    const MAX_ROUNDS = 3;
+    const MAX_ROUNDS = 2;
     let lastErr = null;
 
     for (let round = 1; round <= MAX_ROUNDS; round++) {
         try {
             // PASS 1: reconstruct + solve. Normalisation AND order/format guards run before accepting.
+            const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was rejected during verification: ${String(lastErr.message).slice(0, 300)}. Re-read the image carefully and avoid this.` : '';
             const fixed = await runGemini(prompt, imageBase64, onChunk, (raw) => {
                 const n = normalizeAiFix(raw, questionData);
                 assertOrderAndFormat(n, questionData, raw, !!imageBase64);
                 return n;
-            });
+            }, 6, roundHint);
 
             // PASS 2: independent re-verification (answer + option order + format) before anything is saved.
             log(`\n\n[System] Verification pass ${round}/${MAX_ROUNDS}: re-reading the paper and re-solving the question...\n`);
@@ -1086,6 +1197,8 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 
             log(`\n[System] ✔ Verified: answer (${vAns}) confirmed independently; option order and format match the paper.\n`);
             fixed.verified = true;
+            // answer + order + format are verified: now make the explanation deeper (never fails the fix)
+            fixed.fixed_explanation = await deepenExplanation(fixed, questionData, onChunk);
             // tell the admin when the old DB options were in a different (wrong) order
             try {
                 const oldO = (questionData.options || []).filter(o => typeof o === 'string' && o.trim());
@@ -1219,5 +1332,7 @@ module.exports = {
     assertSameOrder,
     assertSameLayout,
     assertOrderAndFormat,
-    checkVerification
+    checkVerification,
+    validateDeeper,
+    countPointers
 };

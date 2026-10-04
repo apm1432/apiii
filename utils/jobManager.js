@@ -113,7 +113,18 @@ async function processJob(jobId) {
             question.is_ai_fixed = true;
             question.ai_fixed_at = new Date();
 
-            await question.save();
+            // Atomic $set: the AI works for minutes, so the loaded document can be stale. question.save() then fails with
+            // "No matching document found ... version" (VersionError). updateOne has no version check.
+            const setDoc = {
+                text: question.text, options: question.options,
+                toppers_explanation_marathi: question.toppers_explanation_marathi,
+                options_explanation: question.options_explanation,
+                is_ai_fixed: true, ai_fixed_at: question.ai_fixed_at
+            };
+            if (parsedContent.fixed_text_eng) setDoc.text_eng = question.text_eng;
+            if (Array.isArray(parsedContent.fixed_options_eng) && parsedContent.fixed_options_eng.length) setDoc.options_eng = question.options_eng;
+            if (parsedContent.correct_answer_option) setDoc.correct_answer_option = question.correct_answer_option;
+            await question.constructor.updateOne({ _id: question._id }, { $set: setDoc });
 
             // Re-evaluate every user's saved answer for this question (score/progress stays correct)
             try {
