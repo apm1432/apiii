@@ -2052,6 +2052,70 @@ window.fixQuestion = async function(qId, mode = 'quiz') {
     }
 };
 
+// Which questions does the admin want to fix?  mode 'all' = from the start (everything shown),
+// mode 'range' = from question no. A to question no. B (both included). usePos = numbers are positions in the list
+// (used when the list mixes several papers, because printed question numbers repeat there).
+function selectFixRange(list, mode, from, to, usePos) {
+    const numOf = (q, i) => (usePos ? i + 1 : (q.qnum && Number.isFinite(+q.qnum) ? +q.qnum : i + 1));
+    if (mode !== 'range') return list.slice();
+    const nums = list.map(numOf);
+    const lo = (from === '' || from == null || isNaN(+from)) ? Math.min(...nums) : +from;
+    const hi = (to === '' || to == null || isNaN(+to)) ? Math.max(...nums) : +to;
+    return list.filter((q, i) => nums[i] >= lo && nums[i] <= hi);
+}
+
+// Small dialog: "From start" or "From question no. __ to __"
+function pickFixRange(list, scope) {
+    return new Promise(resolve => {
+        const usePos = !window.activeYearExam;
+        const nums = list.map((q, i) => (usePos ? i + 1 : (q.qnum && Number.isFinite(+q.qnum) ? +q.qnum : i + 1)));
+        const min = Math.min(...nums), max = Math.max(...nums);
+
+        const ov = document.createElement('div');
+        ov.className = 'xm-overlay show';
+        ov.innerHTML =
+            '<div class="xm-box" style="width:460px">' +
+            '<div class="xm-head"><b>🤖 AI Fix – ' + escapeHtmlX(scope) + '</b><button class="xm-x" data-x="1">✕</button></div>' +
+            '<div class="xm-body">' +
+            '<label class="xm-chk" style="margin-bottom:10px"><input type="radio" name="fr-mode" value="all" checked> <span><b>From the start</b> – all ' + list.length + ' questions</span></label>' +
+            '<label class="xm-chk"><input type="radio" name="fr-mode" value="range"> <span><b>Choose range</b> – ' + (usePos ? 'position in this list' : 'question number') + '</span></label>' +
+            '<div class="xm-row" style="margin-left:22px">' +
+            '<input type="number" id="fr-from" min="' + min + '" max="' + max + '" placeholder="From (' + min + ')" disabled>' +
+            '<span style="align-self:center">to</span>' +
+            '<input type="number" id="fr-to" min="' + min + '" max="' + max + '" placeholder="To (' + max + ')" disabled>' +
+            '</div>' +
+            '<p class="xm-note" style="margin-left:22px">Leave "To" empty to go up to the end. Both numbers are included.</p>' +
+            '<p id="fr-info" style="font-weight:600;margin:12px 0 4px"></p>' +
+            '<p id="fr-err" style="color:#b91c1c;margin:0;min-height:1.2em"></p>' +
+            '<div class="xm-row" style="justify-content:flex-end">' +
+            '<button class="btn" data-x="1">Cancel</button><button class="btn btn-primary" id="fr-go">Start AI Fix</button>' +
+            '</div></div></div>';
+        document.body.appendChild(ov);
+
+        const $ = (sel) => ov.querySelector(sel);
+        const mode = () => ov.querySelector('input[name="fr-mode"]:checked').value;
+        const picked = () => selectFixRange(list, mode(), $('#fr-from').value, $('#fr-to').value, usePos);
+        const refresh = () => {
+            const isRange = mode() === 'range';
+            $('#fr-from').disabled = !isRange; $('#fr-to').disabled = !isRange;
+            const f = $('#fr-from').value, t = $('#fr-to').value;
+            const bad = isRange && f !== '' && t !== '' && +f > +t;
+            const n = bad ? 0 : picked().length;
+            $('#fr-err').textContent = bad ? '"From" cannot be bigger than "To".' : (n === 0 ? 'No question in this range.' : '');
+            $('#fr-info').textContent = n + ' question' + (n === 1 ? '' : 's') + ' will be fixed' + (isRange && n ? ' (' + picked()[0].qnum + ' … ' + picked()[n - 1].qnum + ')' : '');
+            $('#fr-go').disabled = n === 0;
+        };
+        const done = (val) => { ov.remove(); resolve(val); };
+
+        ov.querySelectorAll('input[name="fr-mode"]').forEach(r => r.onchange = refresh);
+        ['#fr-from', '#fr-to'].forEach(id => $(id).oninput = refresh);
+        ov.querySelectorAll('[data-x]').forEach(b => b.onclick = () => done(null));
+        ov.addEventListener('click', (e) => { if (e.target === ov) done(null); });
+        $('#fr-go').onclick = () => { const out = picked(); done(out.length ? out : null); };
+        refresh();
+    });
+}
+
 window.fixAllQuestions = async function() {
     // Only the questions of the selected subject / topic (same list the user is seeing)
     const questionsToFix = getFilteredQuestions();
@@ -2059,7 +2123,8 @@ window.fixAllQuestions = async function() {
     const scope = activeTopic ? `topic "${activeTopic}" (${activeSubject})`
                 : activeSubject ? `subject "${activeSubject}"`
                 : 'the complete paper';
-    if (!confirm(`Run AI Fix on ${questionsToFix.length} questions of ${scope}? This will take some time.`)) return;
+    const picked = await pickFixRange(questionsToFix, scope);
+    if (!picked || picked.length === 0) return; // cancelled
 
     const btnAll = document.getElementById('btn-ai-fix-all');
     if(btnAll) {
@@ -2067,7 +2132,7 @@ window.fixAllQuestions = async function() {
         btnAll.innerText = '⏳ Fixing...';
     }
 
-    const questionIds = questionsToFix.map(q => q._id);
+    const questionIds = picked.map(q => q._id);
     
     try {
         const res = await fetch('/api/admin/fix-paper-bg', {

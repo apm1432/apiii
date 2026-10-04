@@ -75,3 +75,7 @@ Changed files: utils/aiService.js, routes/api.js
   only that group's subjects and opens only that group's questions; "All Exams" = every visible paper.
   Admin: "Manage Exams" button (public/examadmin.js): create / rename / delete groups, tick papers -> add/remove to group, hide/show.
   Hidden papers show dimmed with a Show/Hide button for admins. Students inside a paper that gets hidden are moved back to the dashboard.
+
+## Update 9: "Fix Complete Paper" range
+- public/script.js: the Fix button opens a dialog: "From the start" (everything shown) or "Choose range" = from question no. A to B
+  (both included, empty "To" = up to the end), with a live count. In a subject-wise list that mixes several papers the numbers are positions in the list.
