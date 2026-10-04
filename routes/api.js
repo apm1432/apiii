@@ -21,7 +21,7 @@ const Progress = require('../models/Progress');
 // Middleware & Services
 const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
-const { fixQuestionWithAI } = require('../utils/aiService');
+const { fixQuestionWithAI, chatAboutQuestion } = require('../utils/aiService');
 const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
 // Initialize Razorpay
@@ -309,6 +309,69 @@ router.post('/admin/fix-retry', authMiddleware, async (req, res) => {
     }
 });
 
+
+// -------------------------------------
+// Student "Ask AI" chat for ONE question (stateless: nothing is saved)
+// -------------------------------------
+const chatLimits = new Map(); // userId -> [timestamps]
+const CHAT_PER_10MIN = 15, CHAT_PER_DAY = 80;
+function chatRateOk(userId) {
+    const now = Date.now();
+    const arr = (chatLimits.get(userId) || []).filter(t => now - t < 24 * 3600 * 1000);
+    const last10 = arr.filter(t => now - t < 10 * 60 * 1000).length;
+    if (last10 >= CHAT_PER_10MIN || arr.length >= CHAT_PER_DAY) { chatLimits.set(userId, arr); return false; }
+    arr.push(now); chatLimits.set(userId, arr); return true;
+}
+setInterval(() => { // drop old entries so the map does not grow forever
+    const now = Date.now();
+    for (const [k, v] of chatLimits) { const f = v.filter(t => now - t < 24 * 3600 * 1000); if (f.length) chatLimits.set(k, f); else chatLimits.delete(k); }
+}, 3600 * 1000).unref();
+
+router.post('/question-chat', authMiddleware, async (req, res) => {
+    try {
+        const { questionId, message, history } = req.body || {};
+        if (typeof questionId !== 'string' || !/^[a-f0-9]{24}$/i.test(questionId)) {
+            return res.status(400).json({ success: false, message: 'Invalid question.' });
+        }
+        if (typeof message !== 'string' || !message.trim()) {
+            return res.status(400).json({ success: false, message: 'Please type a question.' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+
+        const question = await Question.findById(questionId).lean();
+        if (!question) return res.status(404).json({ success: false, message: 'Question not found.' });
+
+        // Same access rule as /questions: subscribed users, or the free-trial papers
+        const subscribed = user.isSubscribed && user.subscriptionExpiry && new Date() <= user.subscriptionExpiry;
+        let isFreeExam = false;
+        if (!subscribed && user.hasUsedFreeTrial && cachedHierarchy && cachedHierarchy.length) {
+            const exams = [...cachedHierarchy].sort((x, y) => (extractYear(y._id || '') - extractYear(x._id || '')) || (x._id || '').localeCompare(y._id || ''));
+            isFreeExam = exams.slice(0, 2).map(e => e._id).includes(question.year_exam);
+        }
+        if (!subscribed && !isFreeExam) {
+            return res.status(403).json({ success: false, message: 'Subscription required.' });
+        }
+
+        if (!chatRateOk(String(req.user.id))) {
+            return res.status(429).json({ success: false, message: 'Too many questions. Please wait a few minutes and try again.' });
+        }
+
+        let imageBase64 = null;
+        if (question.original_image_url) {
+            try { imageBase64 = await fetchTelegramImageBase64(question.original_image_url); } catch (e) { imageBase64 = null; }
+        }
+
+        const reply = await chatAboutQuestion(question, imageBase64, history, message);
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, reply });
+    } catch (err) {
+        console.error('question-chat error:', err.message);
+        res.status(500).json({ success: false, message: err.message || 'AI error' });
+    }
+});
+
 // Admin: Fix Question with AI
 router.post('/admin/fix-question', authMiddleware, async (req, res) => {
     try {
@@ -331,9 +394,11 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
         const fixedData = await fixQuestionWithAI(question, imageBase64);
 
         if (fixedData) {
-            // Apply fixes
+            // Apply fixes (fixedData is already validated + independently re-verified in aiService)
             if (fixedData.fixed_text) question.text = fixedData.fixed_text;
-            if (fixedData.fixed_options && fixedData.fixed_options.length === 4) question.options = fixedData.fixed_options;
+            if (fixedData.fixed_text_eng) question.text_eng = fixedData.fixed_text_eng;
+            if (Array.isArray(fixedData.fixed_options) && fixedData.fixed_options.length >= 2) question.options = fixedData.fixed_options;
+            if (Array.isArray(fixedData.fixed_options_eng) && fixedData.fixed_options_eng.length) question.options_eng = fixedData.fixed_options_eng;
             if (fixedData.correct_answer_option) {
                 if (fixedData.correct_answer_option === "#") {
                     question.correct_answer_option = "#";
@@ -343,7 +408,9 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
             }
             if (fixedData.fixed_explanation) question.toppers_explanation_marathi = fixedData.fixed_explanation;
             if (fixedData.fixed_options_explanation && fixedData.fixed_options_explanation.length > 0) question.options_explanation = fixedData.fixed_options_explanation;
-            
+            question.is_ai_fixed = true;
+            question.ai_fixed_at = new Date();
+
             await question.save();
             return res.json({ success: true, message: 'Question fixed and saved.', question });
         } else {

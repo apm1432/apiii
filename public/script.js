@@ -1076,6 +1076,8 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
     }
 
+    html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || index + 1}')">🤖 Ask AI</button>`;
+
     if (currentUser && currentUser.isAdmin) {
         html += `<button class="btn" id="btn-fix-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}')">🤖 AI Fix</button>`;
     }
@@ -1313,6 +1315,8 @@ function buildFullQuestionEl(q, idx) {
             const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
             html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
         }
+        
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || idx + 1}')">🤖 Ask AI</button>`;
         
         if (currentUser && currentUser.isAdmin) {
             html += `<button class="btn" id="btn-fix-full-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}', 'full')">🤖 AI Fix</button>`;
