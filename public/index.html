@@ -74,8 +74,8 @@
                     </div>
                     
                     <form id="login-form">
-                        <input type="email" id="login-email" placeholder="Email" required>
-                        <input type="password" id="login-password" placeholder="Password" required>
+                        <input type="email" id="login-email" placeholder="Email" required autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
                         <button type="submit" class="btn btn-primary">Login</button>
                         <div style="text-align: right; margin-top: 10px;">
                             <a href="#" onclick="toggleForgotPasswordModal()" style="color: var(--accent); font-size: 0.85rem; text-decoration: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">Forgot Password?</a>
@@ -83,8 +83,8 @@
                     </form>
 
                     <form id="register-form" class="hidden">
-                        <input type="email" id="reg-email" placeholder="Gmail (example@gmail.com)" required autocomplete="email">
-                        <input type="password" id="reg-password" placeholder="Create Password (min 6 characters)" minlength="6" required autocomplete="new-password">
+                        <input type="email" id="reg-email" placeholder="Gmail (example@gmail.com)" required autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        <input type="password" id="reg-password" placeholder="Create Password (min 6 characters)" minlength="6" required autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
                         <small style="color: rgba(255,255,255,0.85);">🎁 Register करा आणि <strong>24 तास सर्व tests free</strong> मिळवा! Verify करण्याचा मार्ग निवडा:</small>
                         <button type="submit" class="btn btn-primary" data-method="email">📧 Verify with Email OTP</button>
                         <button type="submit" class="btn" data-method="telegram" style="background:#229ED9;color:#fff;border-color:#229ED9;">✈️ Verify with Telegram</button>
@@ -287,7 +287,7 @@
             <!-- Step 1: Request OTP -->
             <div id="fp-step-1">
                 <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">Enter your registered email to receive an OTP.</p>
-                <input type="email" id="fp-email" placeholder="Email Address" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);" required>
+                <input type="email" id="fp-email" placeholder="Email Address" autocapitalize="off" autocorrect="off" spellcheck="false" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);" required>
                 <button class="btn btn-primary" onclick="requestOtp()" style="width: 100%; padding: 10px;">Send OTP</button>
                 <button class="btn" onclick="fpTgShowForm()" style="width: 100%; padding: 10px; margin-top: 10px; background:#229ED9; color:#fff; border-color:#229ED9;">✈️ Reset via Telegram</button>
             </div>
@@ -295,7 +295,7 @@
             <!-- Telegram reset: A) choose new password -->
             <div id="fp-tg-form" class="hidden">
                 <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-secondary);">Email आणि नवीन password टाका. नंतर Telegram वर verify कराल.</p>
-                <input type="password" id="fp-tg-password" placeholder="New Password (min 6 characters)" minlength="6" autocomplete="new-password" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);">
+                <input type="password" id="fp-tg-password" placeholder="New Password (min 6 characters)" minlength="6" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--hover-color); color: var(--text-color);">
                 <button class="btn btn-primary" onclick="fpTgStart()" style="width: 100%; padding: 10px;">Continue</button>
             </div>
 
@@ -343,6 +343,7 @@
     <script src="script.js?v=17"></script>
     <script src="paper.js?v=5"></script>
     <script src="qchat.js?v=1"></script>
+    <script src="accountsync.js?v=1"></script>
         <!-- AI Live Stream Panel -->
     <button id="ai-fab" class="ai-fab hidden" onclick="toggleAiPanel()" title="AI Fix log">🤖</button>
     <div id="ai-live-panel" class="ai-live-panel" data-size="s">

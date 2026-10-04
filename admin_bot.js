@@ -10,6 +10,7 @@ const { sendEmail, assignSmtpToUser } = require('./utils/smtpService');
 const { completeRegistration, isValidToken, TRIAL_HOURS } = require('./utils/registration');
 const AuthRequest = require('./models/AuthRequest');
 const { setActiveSession } = require('./middleware/auth');
+const { notifyUser } = require('./utils/userEvents');
 
 let bot = null;
 let botUsername = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim() || null;
@@ -115,6 +116,7 @@ async function startAdminBot() {
                     user.isSubscribed = true;
                     user.subscriptionExpiry = expiry;
                     await user.save();
+                    notifyUser(user._id); // instant update in the user's open browser
                     
                     bot.sendMessage(chatId, `✅ **Success!**\nUser ${user.email} is now subscribed for **${months} Months** (until ${expiry.toLocaleDateString()}).`, { parse_mode: 'Markdown' });
                     sendUserProfile(chatId, user._id);
@@ -193,6 +195,7 @@ async function startAdminBot() {
             else if (data.startsWith('revoke_user_')) {
                 const userId = data.split('revoke_user_')[1];
                 const user = await User.findByIdAndUpdate(userId, { isSubscribed: false, subscriptionExpiry: null });
+                notifyUser(userId);
                 bot.sendMessage(chatId, `✅ Premium Revoked!`);
                 sendUserProfile(chatId, userId, query.message.message_id);
 
@@ -223,12 +226,14 @@ async function startAdminBot() {
             else if (data.startsWith('make_admin_')) {
                 const userId = data.split('make_admin_')[1];
                 await User.findByIdAndUpdate(userId, { isAdmin: true });
+                notifyUser(userId);
                 bot.sendMessage(chatId, `✅ Admin rights granted!`);
                 sendUserProfile(chatId, userId, query.message.message_id);
             }
             else if (data.startsWith('remove_admin_')) {
                 const userId = data.split('remove_admin_')[1];
                 await User.findByIdAndUpdate(userId, { isAdmin: false });
+                notifyUser(userId);
                 bot.sendMessage(chatId, `✅ Admin rights removed!`);
                 sendUserProfile(chatId, userId, query.message.message_id);
             }

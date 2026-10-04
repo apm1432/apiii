@@ -26,3 +26,14 @@ Changed files: utils/aiService.js, routes/api.js
 - Nothing is saved: no DB, no localStorage; history stays in browser memory and is cleared on close / other question / reload.
 - Limits: 15 messages / 10 min and 80 / day per user, message max 1000 chars, last 8 turns sent.
 - Optional env CHAT_USE_SEARCH=1 turns on Gemini Google Search so current-affairs answers can be live (default off).
+
+## Update 4: instant subscription/admin updates + login fix
+- Instant account sync (no logout/login): utils/userEvents.js (new), GET /api/auth/events (SSE push), GET /api/auth/me (fresh DB data),
+  admin_bot.js notifies the user after give premium / revoke / make admin / remove admin, public/accountsync.js (new) shows the
+  welcome / revoked / admin message, updates the profile and refreshes the screen. Fallback: polls /me every 15 s + on tab focus.
+  Revoke while a paid paper is open -> user is moved back to the dashboard immediately.
+- Login (routes/auth.js): no longer takes "the first matching user". All candidate accounts are collected and ranked (exact email
+  first, gmail-alias second); the first whose password matches signs in. So two users with the SAME password, or an old account +
+  a gmail-alias account, no longer clash. Also tries password with/without trailing space + unicode NFC, case-insensitive email
+  fallback for old accounts, and accepts + upgrades very old plain-text passwords. Failure reason is written to the server log only.
+- index.html: autocapitalize/autocorrect off on email + password fields (mobile keyboards were changing what users typed).

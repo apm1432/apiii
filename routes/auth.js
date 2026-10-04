@@ -13,6 +13,7 @@ const { ensureCookieId, getCookie, cleanDeviceId, assess, oldAccountEmails, mask
 const { parseGmail, normalizeGmail } = require('../utils/gmail');
 const { newToken, isValidToken, sha256, withTimeout, completeRegistration, TRIAL_HOURS } = require('../utils/registration');
 const { getBotUsername } = require('../admin_bot');
+const { addClient } = require('../utils/userEvents');
 
 const SITE_URL = process.env.SITE_URL || 'https://apiii-apm1432.koyeb.app';
 const OTP_VALID_MIN = 10;
@@ -420,20 +421,63 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
         }
 
-        // Check user (exact match for old accounts, lower-case / normalised gmail for new ones)
-        const em = String(email).trim().toLowerCase();
+        // ---- Find the account --------------------------------------------------------------
+        // Several accounts can match one typed email (an old account with the exact email AND a newer
+        // gmail-alias account), and different users may even share the same password. So we do NOT
+        // just take "the first match": we collect ALL candidates, rank them (exact email first, then
+        // gmail-alias matches) and sign in to the first one whose password is correct.
+        const typed = String(email).trim();
+        const em = typed.toLowerCase();
         const norm = normalizeGmail(em);
-        const lookups = [{ email }, { email: em }];
+        const lookups = [{ email: typed }, { email: em }];
         if (norm) lookups.push({ emailNormalized: norm });
-        const user = await User.findOne({ $or: lookups });
-        if (!user) {
+        let candidates = await User.find({ $or: lookups });
+        if (!candidates.length) {
+            // stored with different capital letters (old accounts)
+            const esc = em.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            candidates = await User.find({ email: new RegExp('^' + esc + '$', 'i') }).limit(5);
+        }
+        if (!candidates.length) {
+            console.warn(`[login] no account for "${em}"`);
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
         }
+        const rank = (u) => (u.email === typed ? 0 : (String(u.email).toLowerCase() === em ? 1 : 2));
+        candidates.sort((x, y) => rank(x) - rank(y));
 
-        // Validate password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
+        // ---- Check the password -----------------------------------------------------------
+        // Mobile keyboards often add a trailing space / change unicode form, so try a few safe variants.
+        const pwVariants = [...new Set([
+            String(password),
+            String(password).trim(),
+            String(password).normalize('NFC'),
+            String(password).normalize('NFC').trim()
+        ])];
+        const looksHashed = (h) => typeof h === 'string' && /^\$2[aby]\$\d{2}\$/.test(h);
+        const safeEq = (x, y) => {
+            const bx = Buffer.from(String(x)), by = Buffer.from(String(y));
+            return bx.length === by.length && crypto.timingSafeEqual(bx, by);
+        };
+
+        let user = null, matchedPw = null;
+        for (const cand of candidates) {
+            for (const pw of pwVariants) {
+                let ok = false;
+                if (looksHashed(cand.password)) ok = await bcrypt.compare(pw, cand.password);
+                else if (cand.password) ok = safeEq(pw, cand.password); // very old account stored without hashing
+                if (ok) { user = cand; matchedPw = pw; break; }
+            }
+            if (user) break;
+        }
+        if (!user) {
+            console.warn(`[login] wrong password for "${em}" (${candidates.length} candidate account(s))`);
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
+        }
+        if (candidates.length > 1) {
+            console.warn(`[login] "${em}" matched ${candidates.length} accounts; signed in to ${user.email}`);
+        }
+        // upgrade a plain-text legacy password to a proper hash
+        if (!looksHashed(user.password)) {
+            user.password = await bcrypt.hash(matchedPw, 10);
         }
 
         // Device Lock: applies ONLY when the admin has locked this user.
@@ -479,6 +523,45 @@ router.post('/login', async (req, res) => {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error during login' });
     }
+});
+
+
+// FRESH ACCOUNT INFO - the browser calls this (on push / every few seconds) so a subscription or admin change
+// shows up WITHOUT logging out and in again. Always reads the DB, never the old token.
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const u = await User.findById(req.user.id).select('email isSubscribed isAdmin subscriptionPlan subscriptionExpiry hasUsedFreeTrial').lean();
+        if (!u) return res.status(401).json({ success: false, message: 'User not found' });
+        const active = !!(u.isSubscribed && (!u.subscriptionExpiry || new Date(u.subscriptionExpiry) > new Date()));
+        res.set('Cache-Control', 'no-store');
+        res.json({
+            success: true,
+            user: {
+                email: u.email,
+                isSubscribed: active,
+                subscriptionPlan: u.subscriptionPlan,
+                subscriptionExpiry: u.subscriptionExpiry,
+                hasUsedFreeTrial: u.hasUsedFreeTrial,
+                isAdmin: !!u.isAdmin
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// LIVE PUSH (Server-Sent Events): admin changed something -> browser is told instantly.
+// EventSource cannot send headers, so the token comes in the query string (authMiddleware accepts that).
+router.get('/events', authMiddleware, (req, res) => {
+    res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    });
+    res.flushHeaders();
+    res.write('retry: 5000\n\n');
+    addClient(req.user.id, res);
 });
 
 // SESSION CHECK - used by the browser to find out quickly if it was logged out by a newer login
