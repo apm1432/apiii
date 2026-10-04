@@ -40,6 +40,8 @@ window.saveSession = function() {
             const state = {
                 yearExam: window.activeYearExam,
                 subject: window.activeSubject,
+                yearExams: window.activeYearExams || null,
+                scopeLabel: window.activeScopeLabel || null,
                 qIndex: currentQIndex,
                 mode: document.getElementById('quiz-view').style.display !== 'none' ? 'quiz' : 'full',
                 scrollPos: window.scrollY
@@ -61,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const state = JSON.parse(sessionStr);
                 if (state.yearExam || state.subject) {
                     showSection('test-section');
-                    openTest(state.yearExam, state.subject, state);
+                    openTest(state.yearExam, state.subject, state, state.yearExams || null);
                     return;
                 }
             } catch(e) {}
@@ -715,9 +717,12 @@ async function loadDashboard() {
             
             // Store fetched data globally for filtering
             window.allExamsData = data.data;
+            window.examGroups = data.groups || [];
             window.progressSectionWise = progressSectionWise;
             
-            renderExamGrid();
+            renderDashTabs();
+            if (window.syncExamAdminUI) window.syncExamAdminUI();
+            if (window.dashboardMode === 'subject') renderSubjectGrid(); else renderExamGrid();
         } else {
             grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard.</p>';
         }
@@ -727,14 +732,59 @@ async function loadDashboard() {
 }
 
 // Exam filtering and rendering
+const escapeHtmlX = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MAINS_RE = /main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i;
+
+// Tabs on top of the dashboard: All / Prelims / Mains + one tab per admin-made group (e.g. "MPSC Group A").
+// The same tab is used in Exam-Wise AND Subject-Wise mode.
+function renderDashTabs() {
+    const box = document.getElementById('exam-tabs');
+    if (!box) return;
+    const groups = window.examGroups || [];
+    if (window.currentExamFilter && window.currentExamFilter.startsWith('g:') &&
+        !groups.some(g => 'g:' + g._id === window.currentExamFilter)) {
+        window.currentExamFilter = 'all'; // the group was deleted
+    }
+    const cur = window.currentExamFilter || 'all';
+    box.innerHTML = '';
+    const mk = (key, label) => {
+        const b = document.createElement('button');
+        b.className = 'btn tab-btn' + (cur === key ? ' active' : '');
+        b.style.minWidth = '100px';
+        b.textContent = label;
+        b.onclick = () => filterExams(key, b);
+        box.appendChild(b);
+    };
+    mk('all', 'All Exams');
+    mk('prelims', 'Prelims');
+    mk('mains', 'Mains');
+    groups.forEach(g => mk('g:' + g._id, g.name));
+}
+
+// The papers that belong to the selected tab (+ a label for the cards)
+function getTabInfo() {
+    const filter = window.currentExamFilter || 'all';
+    let exams = [...(window.allExamsData || [])];
+    let label = 'All Exams';
+    if (filter === 'mains') {
+        exams = exams.filter(e => MAINS_RE.test(e._id)); label = 'Mains';
+    } else if (filter === 'prelims') {
+        exams = exams.filter(e => !MAINS_RE.test(e._id)); label = 'Prelims';
+    } else if (filter.startsWith('g:')) {
+        const g = (window.examGroups || []).find(x => 'g:' + x._id === filter);
+        if (g) { const set = new Set(g.exams); exams = exams.filter(e => set.has(e._id)); label = g.name; }
+    }
+    return { exams, label, filter };
+}
+
 function filterExams(category, btnElement) {
     window.currentExamFilter = category;
-    
-    // Update active tab UI
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Update active tab UI (only the exam tabs, not the Exam-Wise / Subject-Wise switch)
+    document.querySelectorAll('#exam-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
     if (btnElement) btnElement.classList.add('active');
-    
-    renderExamGrid();
+
+    if (window.dashboardMode === 'subject') renderSubjectGrid(); else renderExamGrid();
 }
 
 window.dashboardMode = 'exam';
@@ -744,52 +794,52 @@ window.switchDashboardMode = function(mode) {
     document.getElementById('mode-exam-btn').classList.remove('active');
     document.getElementById('mode-subject-btn').classList.remove('active');
     document.getElementById('mode-' + mode + '-btn').classList.add('active');
-    
-    if (mode === 'subject') {
-        document.getElementById('exam-tabs').style.display = 'none';
-        renderSubjectGrid();
-    } else {
-        document.getElementById('exam-tabs').style.display = 'flex';
-        renderExamGrid();
-    }
+
+    document.getElementById('exam-tabs').style.display = 'flex'; // tabs work in both modes
+    if (mode === 'subject') renderSubjectGrid(); else renderExamGrid();
 }
 
+// Subject-Wise: subjects of the selected tab only (hidden papers never count)
 function renderSubjectGrid() {
     const grid = document.getElementById('exam-grid');
     if (!grid || !window.allExamsData) return;
     grid.innerHTML = '';
-    
-    // Group by Subject
+
+    const { exams, label, filter } = getTabInfo();
+    const usable = exams.filter(e => !e.hidden);
+
     const subjectMap = {};
-    window.allExamsData.forEach(examGroup => {
-        if (examGroup.exams) {
-            examGroup.exams.forEach(ex => {
-                if (!subjectMap[ex.subject]) subjectMap[ex.subject] = { count: 0, subject: ex.subject };
-                subjectMap[ex.subject].count += ex.count;
-            });
-        }
+    usable.forEach(examGroup => {
+        (examGroup.exams || []).forEach(ex => {
+            if (!subjectMap[ex.subject]) subjectMap[ex.subject] = { count: 0, subject: ex.subject };
+            subjectMap[ex.subject].count += ex.count;
+        });
     });
-    
+
     const subjects = Object.values(subjectMap).sort((a, b) => b.count - a.count);
-    
+
     if (subjects.length === 0) {
         grid.innerHTML = '<p style="color:var(--text-secondary);">No subjects found.</p>';
         return;
     }
-    
+
+    // "All Exams" = every visible paper (server removes hidden ones); other tabs = exactly that tab's papers
+    const examIds = filter === 'all' ? null : usable.map(e => e._id).filter(id => id && id !== 'Passage Comprehension');
+
     subjects.forEach(sub => {
         const card = document.createElement('div');
         card.className = 'exam-card';
         card.style.position = 'relative';
-        
         card.innerHTML = `
-            <h3 title="${sub.subject}">${sub.subject}</h3>
-            <p>All Exams</p>
+            <h3 title="${escapeHtmlX(sub.subject)}">${escapeHtmlX(sub.subject)}</h3>
+            <p>${escapeHtmlX(label)}</p>
             <span class="meta">${sub.count} Total Questions</span>
         `;
-        
-        // Pass null for examId, and sub.subject for subject
-        card.onclick = () => openTest(null, sub.subject);
+        card.onclick = () => {
+            window.activeScopeLabel = label;
+            if (sub.subject === 'All Passages') openTest('Passage Comprehension');
+            else openTest(null, sub.subject, null, examIds);
+        };
         grid.appendChild(card);
     });
 }
@@ -798,90 +848,76 @@ function renderExamGrid() {
     if (window.dashboardMode !== 'exam') return;
     const grid = document.getElementById('exam-grid');
     if (!grid || !window.allExamsData) return;
-    
+
     grid.innerHTML = '';
-    
-    // Identify the first 2 tests for the '2 Free Tests' offer
-    let freeTests = [];
-    if (window.allExamsData && window.allExamsData.length > 0) {
-        let examsForFree = [...window.allExamsData];
-        const extractYear = (str) => {
-            const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
-            const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
-            const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
-            return match ? parseInt(match[1], 10) : 0;
-        };
-        examsForFree.sort((a, b) => {
-            const idA = a._id || '';
-            const idB = b._id || '';
-            const yearA = extractYear(idA);
-            const yearB = extractYear(idB);
-            if (yearA !== yearB) return yearB - yearA; 
-            return idA.localeCompare(idB);
-        });
-        freeTests = examsForFree.slice(0, 2).map(e => e._id);
-    }
-    
-    // Process and sort exams
-    let exams = [...window.allExamsData];
-    
-    // Sort by year (descending) extracted from name
+    const isAdminUser = !!(currentUser && currentUser.isAdmin);
+
     const extractYearMain = (str) => {
         const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
         const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
         const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
         return match ? parseInt(match[1], 10) : 0;
     };
-    exams.sort((a, b) => {
-        const idA = a._id || '';
-        const idB = b._id || '';
-        const yearA = extractYearMain(idA);
-        const yearB = extractYearMain(idB);
+    const byYear = (a, b) => {
+        const idA = a._id || '', idB = b._id || '';
+        const yearA = extractYearMain(idA), yearB = extractYearMain(idB);
         if (yearA !== yearB) return yearB - yearA; // Newest first
         return idA.localeCompare(idB);
-    });
-    
-    // Filter based on selected tab
-    const filter = window.currentExamFilter || 'all';
-    if (filter === 'mains') {
-        exams = exams.filter(e => /main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i.test(e._id));
-    } else if (filter === 'prelims') {
-        exams = exams.filter(e => !(/main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i.test(e._id)));
-    }
-    
+    };
+
+    // The first 2 VISIBLE tests are the '2 Free Tests' (same rule as the server)
+    const freeTests = [...window.allExamsData].filter(e => !e.hidden).sort(byYear).slice(0, 2).map(e => e._id);
+
+    let exams = getTabInfo().exams.sort(byYear);
+
     if (exams.length === 0) {
         grid.innerHTML = '<p style="color:var(--text-secondary);">No exams found in this category.</p>';
         return;
     }
-    
+
     exams.forEach(yearGroup => {
         const yearExam = yearGroup._id;
-        
-        // Calculate total questions across all subjects
+        const isHidden = !!yearGroup.hidden; // only admins ever receive hidden papers
+
         const totalQuestions = yearGroup.exams.reduce((sum, exam) => sum + exam.count, 0);
-        
         const stats = window.progressSectionWise[yearExam] || { solved: 0, correct: 0 };
-        const isFree = freeTests.includes(yearExam) && currentUser && currentUser.hasUsedFreeTrial;
-        
+        const isFree = !isHidden && freeTests.includes(yearExam) && currentUser && currentUser.hasUsedFreeTrial;
+
         const card = document.createElement('div');
         card.className = 'exam-card';
         card.style.position = 'relative';
-        if (isFree) {
-            card.style.border = '2px solid var(--accent)';
-        }
-        
+        if (isFree) card.style.border = '2px solid var(--accent)';
+        if (isHidden) { card.style.opacity = '0.6'; card.style.border = '2px dashed #9ca3af'; }
+
         card.innerHTML = `
             ${isFree ? '<span style="position:absolute; top:-10px; right:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">FREE</span>' : ''}
-            <h3 title="${yearExam || 'Unknown Exam'}">${yearExam || 'Unknown Exam'}</h3>
+            ${isHidden ? '<span style="position:absolute; top:-10px; right:10px; background:#6b7280; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">HIDDEN from users</span>' : ''}
+            <h3 title="${escapeHtmlX(yearExam || 'Unknown Exam')}">${escapeHtmlX(yearExam || 'Unknown Exam')}</h3>
             <p>${yearGroup.exams.length} Subjects Included</p>
             <span class="meta">${totalQuestions} Total Questions</span>
             <div style="margin-top: 10px; font-size: 0.9rem; color: var(--accent);">
                 Attempted: ${stats.solved} / ${totalQuestions}
             </div>
-            ${stats.solved > 0 ? `<button class="btn btn-outline" style="width: 100%; margin-top: 15px; font-size: 0.85rem; padding: 5px; border-color: var(--error); color: var(--error);" onclick="event.stopPropagation(); resetProgress('${yearExam}')">Reset Progress</button>` : ''}
         `;
-        
-        card.onclick = () => openTest(yearExam);
+
+        if (stats.solved > 0) {
+            const rb = document.createElement('button');
+            rb.className = 'btn btn-outline';
+            rb.style.cssText = 'width: 100%; margin-top: 15px; font-size: 0.85rem; padding: 5px; border-color: var(--error); color: var(--error);';
+            rb.textContent = 'Reset Progress';
+            rb.onclick = (ev) => { ev.stopPropagation(); resetProgress(yearExam); };
+            card.appendChild(rb);
+        }
+        if (isAdminUser && yearExam && yearExam !== 'Passage Comprehension') {
+            const hb = document.createElement('button');
+            hb.className = 'btn btn-outline';
+            hb.style.cssText = 'width: 100%; margin-top: 10px; font-size: 0.85rem; padding: 5px;';
+            hb.textContent = isHidden ? '👁 Show on website' : '🙈 Hide from website';
+            hb.onclick = (ev) => { ev.stopPropagation(); if (window.adminSetHidden) window.adminSetHidden([yearExam], !isHidden); };
+            card.appendChild(hb);
+        }
+
+        card.onclick = () => { window.activeScopeLabel = null; openTest(yearExam); };
         grid.appendChild(card);
     });
 }
@@ -939,13 +975,14 @@ window.hideGlobalLoader = function() {
     if (loader) loader.style.display = 'none';
 }
 
-async function openTest(yearExam, subject = null, restoreState = null) {
+async function openTest(yearExam, subject = null, restoreState = null, yearExams = null) {
     showGlobalLoader("Loading Exam Paper...");
     // Attempt to load questions
     try {
         const bodyData = {};
         if (yearExam) bodyData.year_exam = yearExam;
         if (subject) bodyData.subject = subject;
+        if (!yearExam && Array.isArray(yearExams) && yearExams.length) bodyData.year_exams = yearExams;
 
         const res = await fetch('/api/questions', {
             method: 'POST',
@@ -968,15 +1005,19 @@ async function openTest(yearExam, subject = null, restoreState = null) {
             currentQuestions = data.data;
             window.activeYearExam = yearExam;
             window.activeSubject = subject;
+            window.activeYearExams = (!yearExam && Array.isArray(yearExams) && yearExams.length) ? yearExams : null;
+            if (restoreState && restoreState.scopeLabel) window.activeScopeLabel = restoreState.scopeLabel;
+            if (yearExam) window.activeScopeLabel = null;
+            const scopeText = window.activeScopeLabel || 'All Exams';
             if (currentQuestions.length === 0) {
                 alert("No questions found for this selection.");
                 return;
             }
             
             if (document.getElementById('test-title')) {
-                document.getElementById('test-title').innerText = yearExam ? `${yearExam}` : `${subject} (All Exams)`;
+                document.getElementById('test-title').innerText = yearExam ? `${yearExam}` : `${subject} (${scopeText})`;
             } else if (document.getElementById('crumb-year')) {
-                document.getElementById('crumb-year').innerText = yearExam ? `${yearExam}` : `${subject} (All Exams)`;
+                document.getElementById('crumb-year').innerText = yearExam ? `${yearExam}` : `${subject} (${scopeText})`;
                 if (document.getElementById('crumb-exam')) document.getElementById('crumb-exam').innerText = '';
                 if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
             }
@@ -1018,7 +1059,13 @@ async function openTest(yearExam, subject = null, restoreState = null) {
                 if (btnDl) btnDl.classList.add('hidden');
             }
         } else {
-            if (data.message && data.message.includes('Subscription')) {
+            if (data.code === 'EXAM_HIDDEN') {
+                // the admin hid this paper: it no longer exists for students
+                localStorage.removeItem('mpsc_last_session');
+                alert(data.message || 'This exam is not available right now.');
+                showSection('dashboard-section');
+                loadDashboard();
+            } else if (data.message && data.message.includes('Subscription')) {
                 showSection('payment-section');
             } else {
                 alert(data.message || 'Error fetching questions.');

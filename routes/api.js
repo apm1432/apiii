@@ -22,6 +22,11 @@ const Progress = require('../models/Progress');
 const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
 const { PLANS, applyPayment } = require('../utils/payments');
+const examCatalog = require('../utils/examCatalog');
+const ExamGroup = require('../models/ExamGroup');
+const ExamHidden = require('../models/ExamHidden');
+const { broadcast } = require('../utils/userEvents');
+const jwtLib = require('jsonwebtoken');
 const { fixQuestionWithAI, chatAboutQuestion } = require('../utils/aiService');
 const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
@@ -46,40 +51,64 @@ function extractYear(str) {
     return 0;
 }
 
+let cachedPassageByExam = {}; // year_exam -> number of passage questions
+
+// Builds the FULL exam list (hidden papers included). Hiding is applied per request, so an admin
+// change is instant and never needs this cache to be rebuilt.
+async function buildHierarchyBase() {
+    const hierarchy = await Question.aggregate([
+        { $group: { _id: { year_exam: "$year_exam", subject: "$subject" }, count: { $sum: 1 } } },
+        { $group: { _id: "$_id.year_exam", exams: { $push: { subject: "$_id.subject", count: "$count" } } } }
+    ]);
+    hierarchy.sort((a, b) => extractYear(b._id) - extractYear(a._id));
+
+    const passages = await Question.aggregate([
+        { $match: { $or: [
+            { passage_marathi: { $exists: true, $nin: [null, "null"] } },
+            { passage_english: { $exists: true, $nin: [null, "null"] } },
+            { passage_text: { $exists: true, $nin: [null, "null"] } }
+        ] } },
+        { $group: { _id: "$year_exam", count: { $sum: 1 } } }
+    ]);
+    const byExam = {};
+    passages.forEach(p => { byExam[String(p._id)] = p.count; });
+
+    cachedHierarchy = hierarchy;
+    cachedPassageByExam = byExam;
+    lastCacheTime = Date.now();
+    return hierarchy;
+}
+
 async function preloadHierarchy() {
     try {
         console.log("⏳ Preloading exam hierarchy into server memory...");
-        const hierarchy = await require('../models/Question').aggregate([
-            {
-                $group: {
-                    _id: {
-                        year_exam: "$year_exam",
-                        subject: "$subject"
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.year_exam",
-                    exams: {
-                        $push: {
-                            subject: "$_id.subject",
-                            count: "$count"
-                        }
-                    }
-                }
-            }
-        ]);
-        
-        hierarchy.sort((a, b) => extractYear(b._id) - extractYear(a._id));
-        
-        cachedHierarchy = hierarchy;
-        lastCacheTime = Date.now();
+        await buildHierarchyBase();
         console.log("✅ Hierarchy preloaded successfully!");
     } catch (err) {
         console.error("❌ Failed to preload hierarchy:", err);
     }
+}
+
+// The two papers that are free for trial users = the 2 newest papers that are NOT hidden.
+function freeExamIds(hiddenSet) {
+    if (!cachedHierarchy || !cachedHierarchy.length) return [];
+    return [...cachedHierarchy]
+        .filter(e => !hiddenSet.has(e._id))
+        .sort((x, y) => (extractYear(y._id || '') - extractYear(x._id || '')) || (x._id || '').localeCompare(y._id || ''))
+        .slice(0, 2)
+        .map(e => e._id);
+}
+
+// Is this request from a logged-in admin? (the hierarchy route is public, so we read the token ourselves)
+async function isAdminRequest(req) {
+    try {
+        const h = req.header('Authorization');
+        if (!h || !h.startsWith('Bearer ')) return false;
+        const decoded = jwtLib.verify(h.split(' ')[1], require('../middleware/auth').JWT_SECRET);
+        if (!(await isSessionActive(decoded))) return false;
+        const u = await User.findById(decoded.id).select('isAdmin').lean();
+        return !!(u && u.isAdmin);
+    } catch (e) { return false; }
 }
 
 // Admin: Clear Cache (Called by bot_manager.js after sync)
@@ -344,12 +373,17 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
         const question = await Question.findById(questionId).lean();
         if (!question) return res.status(404).json({ success: false, message: 'Question not found.' });
 
+        // hidden papers do not exist for normal users
+        const { hidden } = await examCatalog.getCatalog();
+        if (hidden.has(question.year_exam) && !user.isAdmin) {
+            return res.status(404).json({ success: false, message: 'Question not found.' });
+        }
+
         // Same access rule as /questions: subscribed users, or the free-trial papers
         const subscribed = user.isSubscribed && user.subscriptionExpiry && new Date() <= user.subscriptionExpiry;
         let isFreeExam = false;
-        if (!subscribed && user.hasUsedFreeTrial && cachedHierarchy && cachedHierarchy.length) {
-            const exams = [...cachedHierarchy].sort((x, y) => (extractYear(y._id || '') - extractYear(x._id || '')) || (x._id || '').localeCompare(y._id || ''));
-            isFreeExam = exams.slice(0, 2).map(e => e._id).includes(question.year_exam);
+        if (!subscribed && user.hasUsedFreeTrial) {
+            isFreeExam = freeExamIds(hidden).includes(question.year_exam);
         }
         if (!subscribed && !isFreeExam) {
             return res.status(403).json({ success: false, message: 'Subscription required.' });
@@ -370,6 +404,98 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
     } catch (err) {
         console.error('question-chat error:', err.message);
         res.status(500).json({ success: false, message: err.message || 'AI error' });
+    }
+});
+
+
+// -------------------------------------
+// Admin: exam groups + hide / unhide exam papers
+// -------------------------------------
+async function adminOnly(req, res) {
+    const user = await User.findById(req.user.id);
+    if (!user || !user.isAdmin) { res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' }); return null; }
+    return user;
+}
+const cleanExamList = (list) => (Array.isArray(list) ? list : [])
+    .filter(x => typeof x === 'string' && x.trim() && x.length <= 300 && x !== 'Passage Comprehension')
+    .slice(0, 500);
+const catalogChanged = () => { examCatalog.invalidate(); try { broadcast('catalog'); } catch (e) {} };
+
+// hide / unhide papers: { examIds: [...], hidden: true|false }
+router.post('/admin/exams/visibility', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const ids = cleanExamList(req.body.examIds);
+        if (!ids.length) return res.status(400).json({ success: false, message: 'Select at least one exam.' });
+        if (req.body.hidden === true) {
+            await ExamHidden.bulkWrite(ids.map(examId => ({ updateOne: { filter: { examId }, update: { $setOnInsert: { examId, hiddenAt: new Date() } }, upsert: true } })));
+        } else {
+            await ExamHidden.deleteMany({ examId: { $in: ids } });
+        }
+        catalogChanged();
+        res.json({ success: true });
+    } catch (err) {
+        console.error('exam visibility error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// create a group: { name, exams?: [...] }
+router.post('/admin/exam-groups', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const name = String(req.body.name || '').trim().slice(0, 60);
+        if (!name) return res.status(400).json({ success: false, message: 'Group name is required.' });
+        const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const dup = await ExamGroup.findOne({ name: new RegExp('^' + esc + '$', 'i') });
+        if (dup) return res.status(400).json({ success: false, message: 'A group with this name already exists.' });
+        const count = await ExamGroup.countDocuments();
+        const g = await ExamGroup.create({ name, exams: cleanExamList(req.body.exams), order: count });
+        catalogChanged();
+        res.json({ success: true, group: { _id: String(g._id), name: g.name, exams: g.exams } });
+    } catch (err) {
+        console.error('create group error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// edit a group: { name?, addExams?: [...], removeExams?: [...], exams?: [...] (replace all) }
+router.put('/admin/exam-groups/:id', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid group.' });
+        const g = await ExamGroup.findById(req.params.id);
+        if (!g) return res.status(404).json({ success: false, message: 'Group not found.' });
+
+        if (typeof req.body.name === 'string') {
+            const name = req.body.name.trim().slice(0, 60);
+            if (!name) return res.status(400).json({ success: false, message: 'Group name is required.' });
+            g.name = name;
+        }
+        if (Array.isArray(req.body.exams)) g.exams = cleanExamList(req.body.exams);
+        const add = cleanExamList(req.body.addExams);
+        if (add.length) g.exams = [...new Set([...g.exams, ...add])];
+        const rem = new Set(cleanExamList(req.body.removeExams));
+        if (rem.size) g.exams = g.exams.filter(x => !rem.has(x));
+        await g.save();
+        catalogChanged();
+        res.json({ success: true, group: { _id: String(g._id), name: g.name, exams: g.exams } });
+    } catch (err) {
+        console.error('edit group error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.delete('/admin/exam-groups/:id', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid group.' });
+        await ExamGroup.deleteOne({ _id: req.params.id });
+        catalogChanged();
+        res.json({ success: true });
+    } catch (err) {
+        console.error('delete group error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
     }
 });
 
@@ -425,56 +551,32 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
 });
 
 // 1. Fetch Hierarchy (For Dashboard Selection)
+// Normal users get only the papers that are NOT hidden. Admins get everything, hidden ones flagged `hidden: true`.
 router.get('/exams/hierarchy', async (req, res) => {
     try {
-        if (cachedHierarchy && (Date.now() - lastCacheTime < 3600000)) { // 1 hour cache
-            return res.json({ success: true, data: cachedHierarchy });
+        if (!cachedHierarchy || Date.now() - lastCacheTime >= 3600000) await buildHierarchyBase(); // 1 hour cache
+
+        const isAdmin = await isAdminRequest(req);
+        const { hidden, groups } = await examCatalog.getCatalog();
+
+        let data = cachedHierarchy
+            .filter(e => isAdmin || !hidden.has(e._id))
+            .map(e => (hidden.has(e._id) ? { ...e, hidden: true } : e));
+
+        // passage practice = passages of the papers that are visible
+        let passageCount = 0;
+        Object.entries(cachedPassageByExam).forEach(([exam, n]) => { if (!hidden.has(exam)) passageCount += n; });
+        if (passageCount > 0) {
+            data = [{ _id: 'Passage Comprehension', exams: [{ subject: 'All Passages', count: passageCount }] }, ...data];
         }
 
-        const hierarchy = await Question.aggregate([
-            {
-                $group: {
-                    _id: {
-                        year_exam: "$year_exam",
-                        subject: "$subject"
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.year_exam",
-                    exams: {
-                        $push: {
-                            subject: "$_id.subject",
-                            count: "$count"
-                        }
-                    }
-                }
-            }
-        ]);
-        
-        hierarchy.sort((a, b) => extractYear(b._id) - extractYear(a._id));
-        
-        const passageCount = await Question.countDocuments({
-            $or: [
-                { passage_marathi: { $exists: true, $nin: [null, "null"] } },
-                { passage_english: { $exists: true, $nin: [null, "null"] } },
-                { passage_text: { $exists: true, $nin: [null, "null"] } }
-            ]
-        });
-        
-        if (passageCount > 0) {
-            hierarchy.unshift({
-                _id: 'Passage Comprehension',
-                exams: [{ subject: 'All Passages', count: passageCount }]
-            });
-        }
-        
-        cachedHierarchy = hierarchy;
-        lastCacheTime = Date.now();
-        
-        res.json({ success: true, data: hierarchy });
+        const visibleIds = new Set(data.map(e => e._id));
+        const outGroups = groups
+            .map(g => ({ _id: g._id, name: g.name, exams: g.exams.filter(x => visibleIds.has(x)) }))
+            .filter(g => isAdmin || g.exams.length > 0);
+
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, data, groups: outGroups });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to load exam hierarchy' });
@@ -485,34 +587,24 @@ router.get('/exams/hierarchy', async (req, res) => {
 router.post('/questions', authMiddleware, async (req, res) => {
     try {
         const { year_exam, subject, limit } = req.body;
-        
+        // optional: only these papers (the dashboard tab / group the student is in). Hidden papers are always removed.
+        const yearExams = Array.isArray(req.body.year_exams)
+            ? req.body.year_exams.filter(x => typeof x === 'string' && x.length <= 300).slice(0, 300)
+            : null;
+
         // --- Security & Free Bypass Check ---
         const user = await User.findById(req.user.id);
-        
-        // Dynamically get the first 2 tests from hierarchy
-        let freeTests = [];
-        if (cachedHierarchy && cachedHierarchy.length > 0) {
-            let exams = [...cachedHierarchy];
-            // Sort by year descending (same as frontend)
-            const extractYearForFree = (str) => {
-                const marathiToEnglish = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
-                const engStr = (str || '').replace(/[०-९]/g, m => marathiToEnglish[m]);
-                const match = engStr.match(/\b(19\d{2}|20\d{2})\b/);
-                return match ? parseInt(match[1], 10) : 0;
-            };
-            exams.sort((a, b) => {
-                const idA = a._id || '';
-                const idB = b._id || '';
-                const yearA = extractYearForFree(idA);
-                const yearB = extractYearForFree(idB);
-                if (yearA !== yearB) return yearB - yearA; 
-                return idA.localeCompare(idB);
-            });
-            freeTests = exams.slice(0, 2).map(e => e._id);
+        const isAdmin = !!(user && user.isAdmin);
+        const { hidden } = await examCatalog.getCatalog();
+
+        // a hidden paper does not exist for normal users
+        if (year_exam && year_exam !== 'Passage Comprehension' && hidden.has(year_exam) && !isAdmin) {
+            return res.status(404).json({ success: false, code: 'EXAM_HIDDEN', message: 'This exam is not available right now.' });
         }
 
+        const freeTests = freeExamIds(hidden);
         const isFree = freeTests.includes(year_exam) && user && user.hasUsedFreeTrial;
-        
+
         if (!isFree) {
             if (!user || !user.isSubscribed || !user.subscriptionExpiry || new Date() > user.subscriptionExpiry) {
                 return res.status(403).json({ success: false, message: 'Subscription required or expired' });
@@ -521,7 +613,7 @@ router.post('/questions', authMiddleware, async (req, res) => {
         // ------------------------------------
 
         let query = {};
-        
+
         if (year_exam === 'Passage Comprehension') {
             query = {
                 $or: [
@@ -530,28 +622,26 @@ router.post('/questions', authMiddleware, async (req, res) => {
                     { passage_text: { $exists: true, $nin: [null, "null"] } }
                 ]
             };
+            if (hidden.size) query.year_exam = { $nin: [...hidden] };
         } else if (year_exam) {
             query.year_exam = year_exam;
+        } else if (yearExams && yearExams.length) {
+            // subject-wise inside a group / tab: only that group's papers (minus hidden ones)
+            query.year_exam = { $in: yearExams.filter(x => !hidden.has(x)) };
+        } else if (hidden.size) {
+            // subject-wise over all papers: never include a hidden paper
+            query.year_exam = { $nin: [...hidden] };
         }
         if (subject) query.subject = subject;
 
-        const progress = await Progress.findOne({ userId: req.user.id });
-        const answeredMap = progress ? progress.answers : new Map();
-
         let questions = await Question.find(query).lean();
-        
+
         // Sort in memory to avoid MongoDB 32MB sort limit
         questions.sort((a, b) => (a.qnum || 0) - (b.qnum || 0));
-        
+
         if (limit) {
             questions = questions.slice(0, parseInt(limit));
         }
-
-        // STRIP SENSITIVE DATA block removed so that answers are available offline on the frontend.
-        questions = questions.map(q => {
-            // Data is sent in full so the frontend can work offline
-            return q;
-        });
 
         res.json({ success: true, data: questions });
     } catch (err) {
@@ -762,21 +852,14 @@ router.post('/questions/siblings', authMiddleware, async (req, res) => {
 
         const base = await Question.find({ _id: { $in: ids } }, 'year_exam original_image_url telegram_msg_id').lean();
 
-        // same access rule as /questions: subscribers, or the free tests
+        // same access rule as /questions: subscribers, or the free tests (hidden papers never, except for admins)
+        const { hidden } = await examCatalog.getCatalog();
+        const isAdminUser = !!(user && user.isAdmin);
         let allowedYears = new Set();
         if (subscribed) {
-            base.forEach(q => allowedYears.add(q.year_exam));
-        } else if (user && user.hasUsedFreeTrial && cachedHierarchy && cachedHierarchy.length) {
-            const yr = (str) => {
-                const m = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
-                const e = (str || '').replace(/[०-९]/g, c => m[c]);
-                const mt = e.match(/\b(19\d{2}|20\d{2})\b/);
-                return mt ? parseInt(mt[1], 10) : 0;
-            };
-            const free = [...cachedHierarchy].sort((a, b) => {
-                const ya = yr(a._id || ''), yb = yr(b._id || '');
-                return ya !== yb ? yb - ya : (a._id || '').localeCompare(b._id || '');
-            }).slice(0, 2).map(e => e._id);
+            base.forEach(q => { if (isAdminUser || !hidden.has(q.year_exam)) allowedYears.add(q.year_exam); });
+        } else if (user && user.hasUsedFreeTrial) {
+            const free = freeExamIds(hidden);
             base.forEach(q => { if (free.includes(q.year_exam)) allowedYears.add(q.year_exam); });
         }
         if (!allowedYears.size) return res.json({ success: true, data: [] });

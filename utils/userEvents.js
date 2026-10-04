@@ -26,4 +26,13 @@ setInterval(() => {
     for (const set of clients.values()) for (const res of set) { try { res.write(': ping\n\n'); } catch (e) {} }
 }, 25000).unref();
 
-module.exports = { addClient, notifyUser };
+// tell EVERY connected browser that something site-wide changed (exam hidden / groups edited)
+function broadcast(eventName) {
+    for (const set of clients.values()) {
+        for (const res of set) {
+            try { res.write(`event: ${eventName}\ndata: ${Date.now()}\n\n`); } catch (e) { /* closed */ }
+        }
+    }
+}
+
+module.exports = { addClient, notifyUser, broadcast };

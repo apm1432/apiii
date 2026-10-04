@@ -548,3 +548,29 @@ header {
 .qchat-send:disabled { opacity: .5; cursor: not-allowed; }
 .qchat-note { font-size: .68rem; color: #6b7280; text-align: center; padding: 0 8px 6px; background: #fff; }
 @media (max-width: 600px) { .qchat { right: 0; bottom: 0; width: 100vw; max-width: 100vw; height: 78vh; border-radius: 14px 14px 0 0; } }
+
+/* ===== Manage Exams (admin) ===== */
+.xm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 9998; padding: 12px; }
+.xm-overlay.show { display: flex; }
+.xm-box { background: #fff; color: #1f2937; width: 760px; max-width: 100%; max-height: 92vh; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.xm-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #8b5cf6; color: #fff; }
+.xm-x { background: transparent; border: 0; color: #fff; font-size: 1.1rem; cursor: pointer; }
+.xm-body { padding: 14px 16px; overflow-y: auto; }
+.xm-body h4 { margin: 0 0 8px; }
+.xm-body small, .xm-note { color: #6b7280; font-size: .8rem; font-weight: normal; }
+.xm-row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+.xm-row input, .xm-row select, .xm-actions select { flex: 1; min-width: 140px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; font-size: .9rem; }
+.xm-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.xm-actions .btn { padding: 6px 10px; font-size: .82rem; }
+.xm-chk { font-size: .85rem; display: flex; gap: 4px; align-items: center; }
+.xm-grow { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px; }
+.xm-gname { font-weight: 600; flex: 1; }
+.xm-small { padding: 3px 8px; font-size: .78rem; }
+.xm-danger { color: #b91c1c; border-color: #fecaca; }
+#xm-list { margin-top: 6px; }
+.xm-prow { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+.xm-prow:hover { background: #f8fafc; }
+.xm-hidden { opacity: .6; }
+.xm-badge { display: inline-block; font-size: .7rem; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; margin-right: 3px; }
+.xm-b-hide { background: #e5e7eb; color: #374151; font-weight: 700; }
+@media (max-width: 600px) { .xm-overlay { padding: 0; align-items: flex-end; } .xm-box { max-height: 94vh; border-radius: 14px 14px 0 0; } }

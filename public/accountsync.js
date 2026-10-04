@@ -30,6 +30,8 @@
         box._t = setTimeout(() => { box.style.display = 'none'; }, 9000);
     }
 
+    window.acctToast = toast;
+
     function describe(oldU, newU) {
         const msgs = [];
         if (!oldU.isSubscribed && newU.isSubscribed) {
@@ -100,6 +102,7 @@
         try {
             es = new EventSource('/api/auth/events?token=' + encodeURIComponent(t));
             es.addEventListener('account', () => sync());
+            es.addEventListener('catalog', () => { if (window.onCatalogChanged) window.onCatalogChanged(); });
             es.onerror = () => {
                 // closed for good (e.g. token no longer valid) -> polling keeps working
                 if (es && es.readyState === 2) { es.close(); es = null; }

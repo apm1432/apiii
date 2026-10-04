@@ -63,3 +63,15 @@ Changed files: utils/aiService.js, routes/api.js
 - New deepening pass (after answer/order/format are verified): if the explanation has fewer than 12 pointers or is short, the AI extends it with
   more certain facts. The old points are kept; accepted only if clearly deeper (+2 pointers, +20% length), no year/number dropped, answer unchanged.
   If the AI finds a mistake in the old explanation it is only reported in the log. On any failure the verified explanation is kept (never fails the fix).
+
+## Update 8: exam groups (dashboard tabs) + hide exams
+- NEW models/ExamGroup.js, models/ExamHidden.js, utils/examCatalog.js (+ broadcast() in utils/userEvents.js)
+- routes/api.js: /exams/hierarchy returns {data, groups}; hidden papers removed for students (admins get them flagged `hidden`),
+  passage count ignores hidden papers. /questions: hidden paper -> EXAM_HIDDEN for students, subject-wise never includes hidden papers,
+  new optional body.year_exams = only the papers of the selected tab/group. Free-trial papers = 2 newest VISIBLE papers (server + dashboard).
+  /question-chat and /questions/siblings also respect hidden papers.
+  Admin: POST /admin/exams/visibility, POST/PUT/DELETE /admin/exam-groups. Every change is pushed live to online students ("catalog" event).
+- Frontend: dashboard tabs = All / Prelims / Mains + one tab per group, in BOTH Exam-Wise and Subject-Wise. Subject-Wise inside a group shows
+  only that group's subjects and opens only that group's questions; "All Exams" = every visible paper.
+  Admin: "Manage Exams" button (public/examadmin.js): create / rename / delete groups, tick papers -> add/remove to group, hide/show.
+  Hidden papers show dimmed with a Show/Hide button for admins. Students inside a paper that gets hidden are moved back to the dashboard.
