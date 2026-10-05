@@ -57,7 +57,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 let keyMutex = Promise.resolve();
 
-async function getNextAvailableKeyAndModel() {
+async function getNextAvailableKeyAndModel(opts = {}) {
     return new Promise((resolve, reject) => {
         keyMutex = keyMutex.then(async () => {
             try {
@@ -77,6 +77,12 @@ async function getNextAvailableKeyAndModel() {
                         waitTime = doc.rpmDelayMs - timeSinceLastUse;
                     }
                     availableKeys.push({ key: doc.key, model: doc.model, waitTime, status: doc.status, rpmDelayMs: doc.rpmDelayMs });
+                }
+
+                // Logic / maths / tie-break calls: prefer the stronger (non-"lite") models when any exists
+                if (opts.preferStrong) {
+                    const strong = availableKeys.filter(k => !/lite/i.test(k.model));
+                    if (strong.length) availableKeys = strong;
                 }
 
                 // Sort by waitTime ascending to pick the most "ready" key (Round-Robin)
@@ -381,6 +387,66 @@ function assertOrderAndFormat(parsed, q, rawParsed, hasImage) {
 // The verifier gets the reconstructed question (NOT the first answer), re-reads the options
 // from the image and solves it again. Answers must agree, otherwise nothing is updated.
 // ---------------------------------------------------------------------------
+
+// Reasoning / maths / puzzle questions (seating arrangement, series, ratio ...) need real step-by-step working and a
+// stronger model: the small "lite" models often guess the answer without solving.
+const REASONING_META_RE = /reason|aptitude|math|quant|logic|puzzle|बुद्धि|गणित|अंकगणित|तर्क|आकडेमोड/i;
+const REASONING_TEXT_RE = /sitting|seated|arrange|in a row|in a circle|series|ratio|percent|profit|speed|बसल्या|बसले|वर्तुळ|रांगेत|क्रमाने|गुणोत्तर|टक्के|नफा|वेग|मालिका/i;
+function needsStrongModel(q) {
+    const meta = [q && q.subject, q && q.topic, q && q.sub_topic].filter(Boolean).join(' ');
+    if (REASONING_META_RE.test(meta)) return true;
+    const txt = String((q && q.text) || '') + ' ' + String((q && q.text_eng) || '');
+    return REASONING_TEXT_RE.test(txt) && /[A-F]\b|\d/.test(txt);
+}
+
+
+// BLIND verification (used whenever the paper image exists). The verifier gets NO question text, NO options and
+// NO answer from the first pass - so there is nothing to copy. It reads the options from the image and solves the
+// question itself; the CODE then compares both readings (options in the same order) and both answers.
+function buildBlindVerifyPrompt(fixed, q) {
+    const start = oneLine(q.text, 70);
+    return `You are a strict MPSC exam checker. Use ONLY the attached image of the exam paper. Nothing else is provided on purpose.
+
+Find question number ${q.qnum !== undefined && q.qnum !== null ? q.qnum : '(unknown)'} in the image. It starts with: "${start}".
+Process ONLY that question; ignore every other question in the image.
+
+1. Copy the OPTIONS of this question exactly as printed, in the printed order, into "paper_options" (Marathi) and "paper_options_eng" (English, [] if not printed). Do not reorder, merge or correct them.
+2. Write the question statement in one or two lines in "question_gist".
+3. SOLVE it yourself from verified facts, using the options in PRINTED order. FIRST write your complete step-by-step working in "working" (seating / arrangement puzzles: put every person at a numbered position and check EVERY clue; maths: show the calculation; match-the-following: work out every pair; facts: state the deciding fact). Only AFTER that working write "answer": it MUST be the option your working ended with. "answer" is the option NUMBER in printed order ("1".."4"), or "#" when no single option is correct.
+
+Output STRICTLY a valid JSON object, no markdown, no extra text:
+{
+  "paper_options": ["..."],
+  "paper_options_eng": ["..."],
+  "question_gist": "...",
+  "working": "your complete step-by-step working (BEFORE the answer)",
+  "answer": "1, 2, 3, 4 or #"
+}`;
+}
+
+// Compares the blind reading with the first pass. Throws only when the output is unusable.
+function parseBlindVerification(v, fixed) {
+    if (!v || typeof v !== 'object') throw new Error('Verifier returned invalid JSON');
+    const po = v.paper_options;
+    if (!Array.isArray(po) || po.length < 2 || po.some(x => typeof x !== 'string' || !x.trim())) {
+        throw new Error('Verifier did not return the printed options');
+    }
+    let structural = null;
+    if (po.length !== fixed.fixed_options.length) {
+        structural = `Independent reading of the paper found ${po.length} options but the fix has ${fixed.fixed_options.length}.`;
+    } else {
+        const bad = fixed.fixed_options.findIndex((o, i) => similarity(o, po[i]) < 0.5);
+        if (bad >= 0) structural = `Option ${bad + 1} does not match an independent reading of the paper ("${String(po[bad]).slice(0, 60)}").`;
+        else {
+            try { assertSameOrder(fixed.fixed_options, po, 'independent paper reading'); } catch (e) { structural = e.message; }
+        }
+    }
+    const raw = String(v.answer === undefined || v.answer === null ? '' : v.answer).trim();
+    const m = raw === '#' ? ['#', '#'] : raw.match(/^[^0-9#]*([1-6])[^0-9]*$/);
+    if (!m) throw new Error(`Verifier answer "${raw}" is not valid`);
+    return { answer: m[1], working: String(v.working || '').trim(), structural, paperOptions: po };
+}
+
 function buildVerifyPrompt(fixed, q) {
     return `You are a strict MPSC exam verifier. You are given a RECONSTRUCTED question and (if available) the image of the original exam paper.
 
@@ -389,7 +455,7 @@ Do these tasks independently:
 TASK 1 — READ THE PAPER: Look at the image and copy the options of THIS question exactly as printed, in the printed order, into "paper_options" (and "paper_options_eng" if English options are printed, else []).
 TASK 2 — ORDER CHECK: Compare the reconstructed options below with the paper_options. "options_order_ok" is true ONLY if reconstructed option 1 = paper option 1, 2 = 2, 3 = 3, 4 = 4 (same content, same position; small OCR/spelling repairs are fine). If options are shuffled, merged or missing, it is false.
 TASK 3 — FORMAT CHECK: "format_ok" is true ONLY if the reconstructed question text keeps all statements / Group A / Group B / match-the-following rows / numbers / years exactly like the paper. Otherwise false.
-TASK 4 — SOLVE: Solve the question yourself from verified facts, using the options in PAPER order. Do not guess. "answer" is "1".."${fixed.fixed_options.length}", or "#" when no single option is correct. For match-the-following, work out every pair first and then find the option whose pairs are exactly right.
+TASK 4 — SOLVE: Solve the question yourself, using the options in PAPER order. Do not guess. FIRST write your complete step-by-step working in "working" (for seating / arrangement puzzles: put every person at a numbered position and check EVERY clue; for maths: show the calculation; for match-the-following: work out every pair; for facts: state the deciding fact). Only AFTER that working, write "answer": it MUST be exactly the option your working ended with. "answer" is "1".."${fixed.fixed_options.length}", or "#" when no single option is correct.
 
 Question Number: ${q.qnum !== undefined && q.qnum !== null ? q.qnum : 'unknown'}
 
@@ -409,34 +475,49 @@ Output STRICTLY a valid JSON object, no markdown, no extra text:
   "options_order_ok": true,
   "format_ok": true,
   "problems": "short note if any check is false, else empty",
-  "answer": "1, 2, 3, 4 or #",
-  "reason": "one or two lines of factual reasoning"
+  "working": "your complete step-by-step working (do this BEFORE the answer)",
+  "answer": "1, 2, 3, 4 or #  (the result of the working above)"
 }`;
 }
 
-function checkVerification(v, fixed, hasImage) {
+// Reads the verifier output. Throws ONLY when the output is unusable (-> the verifier call is repeated).
+// A real disagreement about order / format / answer is RETURNED, never thrown: repeating the same verifier prompt
+// would just give the same opinion again.
+function parseVerification(v, fixed, hasImage) {
     if (!v || typeof v !== 'object') throw new Error('Verifier returned invalid JSON');
+    let structural = null;
     if (hasImage) {
-        if (v.options_order_ok === false) throw new Error('Verification failed: options order differs from the paper. ' + (v.problems || ''));
-        if (v.format_ok === false) throw new Error('Verification failed: question format differs from the paper. ' + (v.problems || ''));
-        const po = v.paper_options;
-        if (Array.isArray(po) && po.length === fixed.fixed_options.length) {
-            fixed.fixed_options.forEach((o, i) => {
-                if (typeof po[i] === 'string' && po[i].trim() && similarity(o, po[i]) < 0.5) {
-                    throw new Error(`Verification failed: option ${i + 1} does not match the paper`);
-                }
-            });
-            assertSameOrder(fixed.fixed_options, po, 'verifier image reading');
+        if (v.options_order_ok === false) structural = 'Verification failed: options order differs from the paper. ' + (v.problems || '');
+        else if (v.format_ok === false) structural = 'Verification failed: question format differs from the paper. ' + (v.problems || '');
+        else {
+            const po = v.paper_options;
+            if (Array.isArray(po) && po.length === fixed.fixed_options.length) {
+                try {
+                    fixed.fixed_options.forEach((o, i) => {
+                        if (typeof po[i] === 'string' && po[i].trim() && similarity(o, po[i]) < 0.5) {
+                            throw new Error(`Verification failed: option ${i + 1} does not match the paper`);
+                        }
+                    });
+                    assertSameOrder(fixed.fixed_options, po, 'verifier image reading');
+                } catch (e) { structural = e.message; }
+            }
         }
     }
     const raw = String(v.answer === undefined || v.answer === null ? '' : v.answer).trim();
     const m = raw === '#' ? ['#', '#'] : raw.match(/^[^0-9#]*([1-6])[^0-9]*$/);
     if (!m) throw new Error(`Verifier answer "${raw}" is not valid`);
-    const vAns = m[1];
-    if (vAns !== String(fixed.correct_answer_option)) {
-        throw new Error(`Answer mismatch: first pass = ${fixed.correct_answer_option}, verifier = ${vAns}`);
+    const working = String(v.working || v.reason || '').trim();
+    return { answer: m[1], working, structural };
+}
+
+// Strict version (throws on any disagreement) - kept for tests / other callers
+function checkVerification(v, fixed, hasImage) {
+    const r = parseVerification(v, fixed, hasImage);
+    if (r.structural) throw new Error(r.structural);
+    if (r.answer !== String(fixed.correct_answer_option)) {
+        throw new Error(`Answer mismatch: first pass = ${fixed.correct_answer_option}, verifier = ${r.answer}`);
     }
-    return vAns;
+    return r.answer;
 }
 
 async function readErrorBody(error) {
@@ -462,6 +543,8 @@ function extractText(data) {
     // skip "thought" parts of thinking models, keep only real output text
     return parts.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
 }
+
+const oneLine = (t, n) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, n).replace(/"/g, "'");
 
 function buildFixPrompt(questionData, hasImage) {
 const prompt = `You are an expert MPSC mentor, subject specialist, OCR verifier, and fact-checker.
@@ -499,15 +582,15 @@ SINGLE QUESTION ONLY RULE — HIGHEST PRIORITY
 
 The image (and the OCR text) may show MORE THAN ONE question, for example the neighbouring questions on the same page, or several questions cut into one picture.
 
-You must process ONLY ONE question: the one described under CURRENT DATA (see "Question Number" and the Current Question Text there).
+You must process ONLY ONE question: the one described under CURRENT DATA (see "Question Number" and the question start there).
 
 - Find that exact question in the image by its number and by matching its wording.
 - Output ONLY that question in "fixed_text", "fixed_text_eng", "fixed_options", "fixed_options_eng", "fixed_explanation" and "fixed_options_explanation".
 - NEVER include any other question, its number, its statements or its options. Ignore every other question visible in the image.
 - Do NOT put the question number as a prefix (such as "76." or "Q.77") at the start of "fixed_text" or "fixed_text_eng".
-- Keep the same structure as the Current Question Text: do not add or remove sections that the current text does not have, only repair what is missing, broken or wrong.
+- Keep exactly the structure printed in the paper: do not add sections that the paper does not have and do not drop sections that it has.
 - "fixed_options" and "fixed_options_eng" must contain the options of this one question only.
-- If the Current Question Text already contains only this one question, do not replace it with a different question.
+- Never replace it with a different question.
 
 ================================================================
 IMAGE-FIRST QUESTION RECONSTRUCTION RULE — MANDATORY
@@ -904,8 +987,11 @@ CURRENT DATA
 
 - Question Number: ${questionData.qnum !== undefined && questionData.qnum !== null ? questionData.qnum : "unknown"}
 - Exam: ${questionData.year_exam || questionData.official_exam_name || "unknown"}
-- Question Text (Marathi): ${questionData.text}
-- Question Text (English): ${questionData.text_eng || ""}
+${hasImage
+? `- Question start (ONLY to find the right question in the image): "${oneLine(questionData.text, 70)}"
+- The old database question text is DELIBERATELY NOT PROVIDED because it may be broken, incomplete or wrong, and copying it would copy its mistakes. Read the COMPLETE question (Marathi and English) ONLY from the image.`
+: `- Question Text (Marathi): ${questionData.text}
+- Question Text (English): ${questionData.text_eng || ""}`}
 ${hasImage
 ? `- Options: the old database options are DELIBERATELY NOT PROVIDED because they may be shuffled, broken or wrong. Read ALL options (Marathi and English) ONLY from the image, in exactly the order printed in the paper. Never guess or invent options from memory.`
 : `- Options (Marathi): ${JSON.stringify(questionData.options)}
@@ -916,7 +1002,7 @@ ${hasImage
 Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO text outside the JSON:
 
 {
-  "thought_process": "Brief factual verification summary only. Do not provide hidden chain-of-thought or an internal scratchpad. Give only concise, verifiable reasoning and conclusions.",
+  "thought_process": "Concise factual verification summary. For reasoning / maths / series / seating-arrangement / puzzle questions write the CONCRETE step-by-step working here (numbered positions, calculations, every clue checked; up to about 2500 characters) BEFORE you choose correct_answer_option, and correct_answer_option must be the result of that working.",
   "image_options_in_paper_order": ["Marathi option 1 exactly as printed in the image", "option 2", "option 3", "option 4"],
   "image_options_in_paper_order_eng": ["English option 1 exactly as printed", "option 2", "option 3", "option 4"],
   "fixed_text": "Corrected and complete Marathi question text, reconstructed from the image when necessary",
@@ -946,13 +1032,13 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
 }
 
 // Generic Gemini call with key/model rotation + retry. processFn(parsedJson) may throw -> retry.
-async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, firstHint = '') {
+async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, firstHint = '', opts = {}) {
     let attempts = 0;
     let lastError = null;
     let hint = firstHint || '';
 
     while (attempts < maxAttempts) {
-        const { key, model, waitTime } = await getNextAvailableKeyAndModel();
+        const { key, model, waitTime } = await getNextAvailableKeyAndModel(opts);
         
         if (waitTime > 0) {
             if (onChunk) onChunk(`\n[System] Waiting ${Math.round(waitTime/1000)}s for RPM limit on ${model}...\n`);
@@ -1084,7 +1170,7 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
                 if (onChunk) onChunk(`\n[System] Parsing/Internal Error: ${error.message}. Retrying...\n`);
                 lastError = error.message;
                 // Feed the reason back so the next attempt fixes exactly this (blind retries just repeat the mistake)
-                hint = `\n\n================================================================\nYOUR PREVIOUS ANSWER WAS REJECTED\n================================================================\nReason: ${String(error.message).slice(0, 400)}\nReturn the complete corrected JSON again. Fix exactly this problem. Keep "thought_process" under 600 characters and do not put the answer options inside "fixed_text" (they belong only in "fixed_options").`;
+                hint = `\n\n================================================================\nYOUR PREVIOUS ANSWER WAS REJECTED\n================================================================\nReason: ${String(error.message).slice(0, 400)}\nReturn the complete corrected JSON again. Fix exactly this problem. Do not put the answer options inside "fixed_text" (they belong only in "fixed_options"). Keep "thought_process" focused and finish the JSON completely.`;
                 attempts++;
                 await sleep(2000);
             }
@@ -1162,7 +1248,7 @@ async function deepenExplanation(fixed, q, onChunk) {
             }
             const rawExp = Array.isArray(raw.deep_explanation) ? raw.deep_explanation.join('\n') : raw.deep_explanation;
             return { text: validateDeeper(base, normalizeExplanation(rawExp)) };
-        }, 3);
+        }, 3, '', { preferStrong: needsStrongModel(q) });
 
         if (res.skip === 'contradiction') { log(`\n[System] ⚠ Deepening found a possible mistake in the old explanation: ${String(res.note || '').slice(0, 300)} (kept the old explanation - please check).\n`); return base; }
         if (res.skip === 'nothing_more') { log(`\n[System] Explanation is already complete - nothing more to add.\n`); return base; }
@@ -1179,21 +1265,44 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
     const log = (m) => { if (onChunk) onChunk(m); };
     const MAX_ROUNDS = 2;
     let lastErr = null;
+    const strong = needsStrongModel(questionData);
+    if (strong) log('\n[System] Reasoning / maths question detected - using the stronger models and requiring full working.\n');
 
     for (let round = 1; round <= MAX_ROUNDS; round++) {
         try {
             // PASS 1: reconstruct + solve. Normalisation AND order/format guards run before accepting.
-            const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was rejected during verification: ${String(lastErr.message).slice(0, 300)}. Re-read the image carefully and avoid this.` : '';
+            const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was NOT accepted: ${String(lastErr.message).slice(0, 700)}\nSolve the question again completely from scratch and check every clue / fact yourself. Do not simply copy any answer mentioned above.` : '';
             const fixed = await runGemini(prompt, imageBase64, onChunk, (raw) => {
+                if (strong && String(raw.thought_process || '').trim().length < 200) {
+                    throw new Error('This is a reasoning / maths question: write the complete step-by-step working in "thought_process" BEFORE choosing the answer.');
+                }
                 const n = normalizeAiFix(raw, questionData);
                 assertOrderAndFormat(n, questionData, raw, !!imageBase64);
                 return n;
-            }, 6, roundHint);
+            }, 6, roundHint, { preferStrong: strong });
 
             // PASS 2: independent re-verification (answer + option order + format) before anything is saved.
+            // The verifier is asked ONCE (repeating the same prompt only repeats its opinion).
             log(`\n\n[System] Verification pass ${round}/${MAX_ROUNDS}: re-reading the paper and re-solving the question...\n`);
-            const vPrompt = buildVerifyPrompt(fixed, questionData);
-            const vAns = await runGemini(vPrompt, imageBase64, onChunk, (v) => checkVerification(v, fixed, !!imageBase64), 4);
+            const vPrompt = imageBase64 ? buildBlindVerifyPrompt(fixed, questionData) : buildVerifyPrompt(fixed, questionData);
+            const vParse = imageBase64 ? (v) => parseBlindVerification(v, fixed) : (v) => parseVerification(v, fixed, false);
+            if (imageBase64) log('[System] (blind check: the verifier is NOT shown the first answer, question or options - it reads the paper itself)\n');
+            const v1 = await runGemini(vPrompt, imageBase64, onChunk, vParse, 3, '', { preferStrong: strong });
+            if (v1.structural) throw new Error(v1.structural);
+
+            let vAns = v1.answer;
+            if (v1.answer !== String(fixed.correct_answer_option)) {
+                // The two disagree: ask a THIRD time (strongest model) instead of guessing who is right.
+                log(`\n[System] Solver says ${fixed.correct_answer_option}, verifier says ${v1.answer}. Asking a tie-breaker...\n`);
+                const v2 = await runGemini(vPrompt, imageBase64, onChunk, vParse, 3, '', { preferStrong: true });
+                if (v2.structural) throw new Error(v2.structural);
+                if (v2.answer !== String(fixed.correct_answer_option)) {
+                    throw new Error(`Answer disagreement: solver = ${fixed.correct_answer_option}, verifier = ${v1.answer}, tie-breaker = ${v2.answer}. ` +
+                        `The verifier's working: ${v1.working.slice(0, 400)}`);
+                }
+                vAns = v2.answer;
+                log(`\n[System] Tie-breaker agrees with the solver (${vAns}) - accepted by 2 of 3.\n`);
+            }
 
             log(`\n[System] ✔ Verified: answer (${vAns}) confirmed independently; option order and format match the paper.\n`);
             fixed.verified = true;
@@ -1333,6 +1442,11 @@ module.exports = {
     assertSameLayout,
     assertOrderAndFormat,
     checkVerification,
+    parseVerification,
+    parseBlindVerification,
+    buildBlindVerifyPrompt,
+    buildFixPrompt,
+    needsStrongModel,
     validateDeeper,
     countPointers
 };

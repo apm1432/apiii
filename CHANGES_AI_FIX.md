@@ -79,3 +79,24 @@ Changed files: utils/aiService.js, routes/api.js
 ## Update 9: "Fix Complete Paper" range
 - public/script.js: the Fix button opens a dialog: "From the start" (everything shown) or "Choose range" = from question no. A to B
   (both included, empty "To" = up to the end), with a live count. In a subject-wise list that mixes several papers the numbers are positions in the list.
+
+## Update 10: why one question took 20+ AI calls (verification redesign)
+Cause (seen in the Q2 seating-puzzle log):
+1. A verifier disagreement was thrown INSIDE the verifier call, so the same verifier prompt was repeated 4 times (same opinion each time), then the whole solve+verify round was repeated.
+2. The verifier JSON had "answer" BEFORE "reason": the model committed to an answer first (its own working ended with E = option 1, but it still wrote answer 2).
+3. Logic puzzles were solved by the small "lite" model, and the first pass sometimes answered without solving (earlier hint also limited thought_process to 600 characters).
+Fix (utils/aiService.js):
+- The verifier is asked ONCE per round. If it disagrees, a tie-breaker (strongest model) is asked; 2 of 3 agreeing = accepted. If all differ, the next round re-solves with the verifiers' reasoning as a hint.
+- Verifier JSON now has "working" BEFORE "answer".
+- Reasoning / maths / seating questions (needsStrongModel) use non-"lite" models for solve, verify and deepen, and must show step-by-step working in thought_process.
+- Typical cost: 2-3 calls (+1 deepen) instead of 20+. Worst case (permanent disagreement): 6 calls, then "Not updated" - nothing is saved.
+
+## Update 11: blind verification (stop the AI copy-pasting what it is shown)
+Problem: Gemini copies whatever data it is handed (right or wrong).
+- Pass 1 (when the paper image exists): the old question text and old options are NOT sent any more, only the question number and the first ~70 characters
+  (just to find the question in the image). The AI must read question + options from the image itself.
+- Verifier (when the image exists) is BLIND: it gets no question text, no options and no answer from pass 1. It reads the printed options from the image
+  and solves the question itself. The CODE then compares: (1) its options vs the fixed options, same order, same count; (2) its answer vs the first answer.
+  Disagreement -> tie-breaker (2 of 3), otherwise a re-solve.
+- Without an image there is nothing to read from, so the old options/text are used as before.
+- A different explanation never fails a fix: only options (order + content) and the answer are verified. The explanation deepening step stays optional.
