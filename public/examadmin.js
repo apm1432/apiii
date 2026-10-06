@@ -18,9 +18,11 @@
 
     // show / hide the "Manage Exams" button
     window.syncExamAdminUI = function () {
-        const b = document.getElementById('btn-manage-exams');
-        if (!b) return;
-        if (isAdmin()) b.classList.remove('hidden'); else b.classList.add('hidden');
+        ['btn-manage-exams', 'btn-cache-manager'].forEach(id => {
+            const b = document.getElementById(id);
+            if (!b) return;
+            if (isAdmin()) b.classList.remove('hidden'); else b.classList.add('hidden');
+        });
     };
 
     // hide / unhide papers (used by the card buttons and by the manager)

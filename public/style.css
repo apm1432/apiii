@@ -574,3 +574,25 @@ header {
 .xm-badge { display: inline-block; font-size: .7rem; background: #ede9fe; color: #5b21b6; padding: 1px 7px; border-radius: 10px; margin-right: 3px; }
 .xm-b-hide { background: #e5e7eb; color: #374151; font-weight: 700; }
 @media (max-width: 600px) { .xm-overlay { padding: 0; align-items: flex-end; } .xm-box { max-height: 94vh; border-radius: 14px 14px 0 0; } }
+
+/* ===== Server cache manager (admin) ===== */
+.cm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.cm-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; background: #f8fafc; }
+.cm-t { font-size: .75rem; color: #6b7280; }
+.cm-v { font-size: 1.15rem; font-weight: 700; margin: 2px 0; }
+.cm-bar { height: 10px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin: 6px 0; }
+.cm-bar > div { height: 100%; }
+#cm-bar-fill { width: 0; transition: width .4s; }
+.cm-job { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: .88rem; }
+.cm-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.cm-table th { text-align: left; color: #6b7280; font-weight: 600; padding: 4px 6px; border-bottom: 1px solid #e5e7eb; }
+.cm-table td { padding: 5px 6px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.cm-table td:last-child { white-space: nowrap; text-align: right; }
+
+/* ===== Image editor (admin) ===== */
+.ie-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.ie-card { width: 130px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px; text-align: center; background: #fff; }
+.ie-card img { width: 100%; height: 150px; object-fit: contain; background: #f3f4f6; border-radius: 6px; }
+.ie-lab { font-size: .75rem; color: #374151; margin: 4px 0; word-break: break-word; }
+.ie-card .btn { width: 100%; margin-top: 4px; }
+.ie-main { border: 2px solid #8b5cf6; }

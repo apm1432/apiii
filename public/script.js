@@ -1119,13 +1119,14 @@ function renderQuizQuestion(index, questions = currentQuestions) {
     `;
 
     if (q.original_image_url) {
-        const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
+        const nImg = 1 + ((q.extra_images || []).length);
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionImages('${q._id}')">👁 View Original Image${nImg > 1 ? ' (' + nImg + ' pages)' : ''}</button>`;
     }
 
     html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || index + 1}')">🤖 Ask AI</button>`;
 
     if (currentUser && currentUser.isAdmin) {
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageEditor('${q._id}')">🖼 Set Image</button>`;
         html += `<button class="btn" id="btn-fix-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}')">🤖 AI Fix</button>`;
     }
 
@@ -1359,13 +1360,14 @@ function buildFullQuestionEl(q, idx) {
         if (!q.text && !q.text_eng) html += `<p>No text available</p>`;
         
         if (q.original_image_url) {
-            const fileIdStr = typeof q.original_image_url === 'object' ? encodeURIComponent(JSON.stringify(q.original_image_url)) : q.original_image_url;
-            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageModal('${fileIdStr}', '${q._id}')">👁 View Original Image</button>`;
+            const nImg = 1 + ((q.extra_images || []).length);
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionImages('${q._id}')">👁 View Original Image${nImg > 1 ? ' (' + nImg + ' pages)' : ''}</button>`;
         }
         
         html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || idx + 1}')">🤖 Ask AI</button>`;
         
         if (currentUser && currentUser.isAdmin) {
+            html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageEditor('${q._id}')">🖼 Set Image</button>`;
             html += `<button class="btn" id="btn-fix-full-${q._id}" style="margin-bottom: 15px; background: #8b5cf6; color: #fff;" onclick="fixQuestion('${q._id}', 'full')">🤖 AI Fix</button>`;
         }
         
@@ -1762,7 +1764,46 @@ window.openImageModal = function(src, qid) {
     modalImg.style.maxWidth = '';
 }
 
+// all page images of a question: main image first, then the extra pages an admin added
+const encImg = (o) => (typeof o === 'object' ? encodeURIComponent(JSON.stringify(o)) : o);
+window.getQuestionImageList = function(q) {
+    const raw = [q.original_image_url, ...(q.extra_images || [])].filter(Boolean);
+    const out = [];
+    raw.forEach((r, i) => { const e = encImg(r); if (!out.some(x => x.enc === e)) out.push({ enc: e, main: i === 0 }); });
+    return out;
+};
+let imgNavState = { list: [], i: 0, qid: null };
+function ensureImgNav() {
+    let nav = document.getElementById('img-nav');
+    if (nav) return nav;
+    nav = document.createElement('div');
+    nav.id = 'img-nav';
+    nav.style.cssText = 'position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:none;gap:10px;align-items:center;background:rgba(0,0,0,.65);color:#fff;padding:6px 12px;border-radius:20px;z-index:5;font-size:.9rem;';
+    nav.innerHTML = '<button id="img-nav-prev" style="background:#fff;border:0;border-radius:14px;padding:3px 12px;cursor:pointer">◀</button><span id="img-nav-count"></span><button id="img-nav-next" style="background:#fff;border:0;border-radius:14px;padding:3px 12px;cursor:pointer">▶</button>';
+    modal.querySelector('.modal-content-wrapper').appendChild(nav);
+    nav.querySelector('#img-nav-prev').onclick = (e) => { e.stopPropagation(); showQuestionImageAt(imgNavState.i - 1); };
+    nav.querySelector('#img-nav-next').onclick = (e) => { e.stopPropagation(); showQuestionImageAt(imgNavState.i + 1); };
+    return nav;
+}
+function showQuestionImageAt(i) {
+    const n = imgNavState.list.length;
+    if (!n) return;
+    imgNavState.i = (i + n) % n;
+    const it = imgNavState.list[imgNavState.i];
+    openImageModal(it.enc, it.main ? imgNavState.qid : null);   // the question id is sent only for the MAIN image
+    const nav = ensureImgNav();
+    nav.style.display = n > 1 ? 'flex' : 'none';
+    nav.querySelector('#img-nav-count').textContent = 'Page ' + (imgNavState.i + 1) + ' / ' + n;
+}
+window.openQuestionImages = function(qid) {
+    const q = (currentQuestions || []).find(x => String(x._id) === String(qid));
+    if (!q) return;
+    imgNavState = { list: window.getQuestionImageList(q), i: 0, qid: q._id };
+    showQuestionImageAt(0);
+};
+
 window.closeImageModal = function() {
+    const nav = document.getElementById('img-nav'); if (nav) nav.style.display = 'none';
     modal.classList.remove('show');
     setTimeout(() => {
         modal.style.display = "none";

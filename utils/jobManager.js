@@ -74,8 +74,10 @@ async function processJob(jobId) {
 
             // fetchImageForAI is bound to global in api.js for simplicity
             let imageBase64 = null;
-            if (global.fetchImageForAI && question.original_image_url) {
-                imageBase64 = await global.fetchImageForAI(question.original_image_url);
+            if (question.original_image_url) {
+                // main page image + any extra page images the admin added (the AI reads all of them)
+                if (global.fetchQuestionImagesForAI) imageBase64 = await global.fetchQuestionImagesForAI(question);
+                else if (global.fetchImageForAI) imageBase64 = await global.fetchImageForAI(question.original_image_url);
             }
 
             const parsedContent = await fixQuestionWithAI(question, imageBase64, (chunk) => {
@@ -125,6 +127,7 @@ async function processJob(jobId) {
             if (Array.isArray(parsedContent.fixed_options_eng) && parsedContent.fixed_options_eng.length) setDoc.options_eng = question.options_eng;
             if (parsedContent.correct_answer_option) setDoc.correct_answer_option = question.correct_answer_option;
             await question.constructor.updateOne({ _id: question._id }, { $set: setDoc });
+            try { require('./dataCache').invalidateExam(question.year_exam); } catch (e) {} // students must see the fix at once
 
             // Re-evaluate every user's saved answer for this question (score/progress stays correct)
             try {

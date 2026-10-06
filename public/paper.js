@@ -42,8 +42,7 @@
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const nl2br = (t) => String(t || '').replace(/\n/g, '<br>');
 
-    function imgObj(q) {
-        let o = q.original_image_url;
+    function normRaw(o) {
         if (!o) return null;
         if (typeof o === 'string') {
             const t = o.trim();
@@ -51,14 +50,16 @@
         }
         return o;
     }
+    function imgObj(q) { return normRaw(q.original_image_url); }
     function fileIds(q) {
         const o = imgObj(q);
         if (!o) return [];
         if (typeof o === 'string') return [o.replace('/api/image/', '')];
         return Object.values(o).filter(Boolean).map(String);
     }
-    function imageUrl(q) {
-        const o = imgObj(q);
+    // url of one stored image. `qid` is sent ONLY for the question's main image (the server uses it to drop a stale cached file)
+    function urlOfRaw(raw, qid) {
+        const o = normRaw(raw);
         if (!o) return null;
         let src;
         if (typeof o === 'string') {
@@ -68,7 +69,14 @@
         }
         const t = localStorage.getItem('jwtToken');
         if (t) src += (src.includes('?') ? '&' : '?') + 'token=' + t;
-        return src + (src.includes('?') ? '&' : '?') + 'q=' + q._id;   // server drops the old cached file if this question's image id changed
+        return qid ? src + (src.includes('?') ? '&' : '?') + 'q=' + qid : src;
+    }
+    function imageUrl(q) { return urlOfRaw(q.original_image_url, q._id); }
+    // extra page images an admin attached to the questions of a page (de-duplicated)
+    function extraUrlsOf(qs) {
+        const out = [];
+        qs.forEach(q => (q.extra_images || []).forEach(r => { const u = urlOfRaw(r, null); if (u && !out.includes(u)) out.push(u); }));
+        return out;
     }
 
     function correctInfo(q) {
@@ -99,7 +107,7 @@
             if (!pg && msg && msgToPage.has(msg)) pg = msgToPage.get(msg);
             if (pg) pg.qs.push(q);
             else {
-                pg = { qs: [q], extra: new Set(), ids: new Set(), hasImage: ids.length > 0, url: imageUrl(q) };
+                pg = { qs: [q], extra: new Set(), ids: new Set(), hasImage: ids.length > 0, url: imageUrl(q), urls: [], cur: 0 };
                 pages.push(pg);
             }
             ids.forEach(i => { pg.ids.add(i); idToPage.set(i, pg); });
@@ -123,6 +131,8 @@
         });
         pages.forEach(pg => {
             if (pg.extra.size) pg.qs.sort((x, y) => (x.qnum || 0) - (y.qnum || 0));
+            pg.urls = pg.url ? [pg.url, ...extraUrlsOf(pg.qs)] : [];   // main page image + extra pages of the same question
+            pg.cur = 0;
         });
         return pages;
     }
@@ -406,11 +416,12 @@
         const pg = PM.pages[PM.pi];
         const el = PM.els;
         const id = ++PM.loadId;
+        const curUrl = (pg.urls && pg.urls[pg.cur || 0]) || pg.url;
 
         renderPanel();
         showMessage('');
 
-        if (!pg.url) {
+        if (!curUrl) {
             // no image for this question -> show its text
             el.img.style.visibility = 'hidden';
             el.spin.style.display = 'none';
@@ -442,8 +453,8 @@
             PM.nw = PM.nh = 0;
             showMessage(`<div>⚠️ Image could not be loaded</div><button class="pm-nb primary" style="flex:none;padding:0 18px" data-a="retry">Retry</button>`);
         };
-        if (el.img.getAttribute('src') === pg.url && el.img.complete && el.img.naturalWidth) done();
-        else el.img.src = pg.url;
+        if (el.img.getAttribute('src') === curUrl && el.img.complete && el.img.naturalWidth) done();
+        else el.img.src = curUrl;
     }
     function go(d) {
         const n = PM.pi + d;
@@ -498,6 +509,7 @@
         const label = pg.qs.length > 1 ? `Q${first.qnum || ''}–${last.qnum || ''}` : `Q${first.qnum || ''}`;
         let html = `<div class="pm-nav">
             <button class="pm-nb" data-a="prev" ${PM.pi === 0 ? 'disabled' : ''}>◀ Prev</button>
+            ${pg.urls && pg.urls.length > 1 ? `<button class="pm-nb" data-a="sub" title="This question has more than one page image">🖼 ${(pg.cur || 0) + 1}/${pg.urls.length}</button>` : ''}
             <button class="pm-count" data-a="min">${PM.pi + 1} / ${PM.pages.length} · ${label} ${PM.min ? '▴' : '▾'}</button>
             <button class="pm-nb primary" data-a="next" ${PM.pi >= PM.pages.length - 1 ? 'disabled' : ''}>Next ▶</button>
         </div>`;
@@ -563,6 +575,7 @@
             case 'ex': PM.expl = String(PM.expl) === b.dataset.q ? null : b.dataset.q; renderPanel(); break;
             case 'exclose': PM.expl = null; renderPanel(); break;
             case 'retry': showPage(PM.pi); break;
+            case 'sub': { const pg = PM.pages[PM.pi]; if (pg && pg.urls && pg.urls.length > 1) { pg.cur = ((pg.cur || 0) + 1) % pg.urls.length; showPage(PM.pi); } break; }
         }
     }
     function onKey(e) {
@@ -643,10 +656,12 @@
     }
     window.paperRefresh = function (changedId, newQ) {
         if (!PM.open) return;
-        if (newQ && PM.serverExtras.has(String(changedId))) PM.serverExtras.set(String(changedId), newQ);
+        if (newQ === 'images') { PM.sibKey = ''; }   // an admin changed images: pages are rebuilt below
+        if (newQ && newQ !== 'images' && PM.serverExtras.has(String(changedId))) PM.serverExtras.set(String(changedId), newQ);
         const keep = PM.pi;
         PM.pages = buildPages();
         PM.pi = Math.min(keep, PM.pages.length - 1);
+        if (newQ === 'images') { showPage(PM.pi); return; }   // image changed by an admin: reload the picture too
         renderPanel();     // options / explanation / score use the new AI-fixed answer
         const pg = PM.pages[PM.pi];
         if (changedId && pg) {

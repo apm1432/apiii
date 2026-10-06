@@ -100,3 +100,43 @@ Problem: Gemini copies whatever data it is handed (right or wrong).
   Disagreement -> tie-breaker (2 of 3), otherwise a re-solve.
 - Without an image there is nothing to read from, so the old options/text are used as before.
 - A different explanation never fails a fix: only options (order + content) and the answer are verified. The explanation deepening step stays optional.
+
+## Update 12: option comparison ignores cosmetic differences
+Option comparison between the first pass and the blind verifier (utils/aiService.js: matchScore + optionsProblem) now accepts:
+extra spaces, capital letters, punctuation / symbols, option labels ("2.", "(2)", "B)") and one or a few extra words
+("president" = "president is" = "the president of India" = "2. president."), also for short options ("E" = "E is", "5" = "5 years").
+Still rejected: a different option, a wrong option count, two options swapped, and numbers that differ ("20" vs "2019").
+So a cosmetic difference never causes a retry.
+
+## Update 13: server disk cache (less DB / Telegram / bandwidth, faster pages)
+NEW utils/dataCache.js, utils/imageStore.js, models/AppSetting.js, public/cacheadmin.js
+- Question data: one gzip file per exam in os.tmpdir()/mpscpyq_data + small RAM layer. /api/questions is answered from it with a PRE-GZIPPED response
+  (little CPU, little bandwidth). 10 students opening the same exam = 1 database read (even after a restart: read from disk, zero DB reads).
+  Loaded in the background at startup (WARM_DATA_ON_START=0 turns that off) so the first student is fast too.
+  Freshness: max 1 cheap DB probe per minute (document count). Exams whose count changed (new exam / questions added by add_exam.py) are dropped
+  and the exam list refreshes automatically. AI fixes, /admin/clear-cache and the admin buttons invalidate at once. Safety TTL: DATA_CACHE_TTL_HOURS (default 6)
+  for edits that do not change the count.
+- Images: downloaded from Telegram ONCE, then served from disk (browser keeps them 30 days). Simultaneous requests for a new image = 1 Telegram download.
+  Atomic writes (no half-downloaded file can be served). 429 from Telegram is waited out and retried. Size limit (IMAGE_CACHE_MAX_MB, default 900; changeable
+  in the admin screen, saved in the database); least-recently-used images are deleted when full.
+- Admin "💾 Server Cache" button (dashboard header): images cached / total / remaining, disk used vs limit, server free space, data cached per exam,
+  requests saved, per-exam table; actions: cache images of ONE exam or ALL exams (background job with progress + Stop), clear one exam / all images,
+  reduce to N MB, set size limit, load ALL exams' data to disk, re-read from database, clear data cache.
+- Endpoints (admin only): GET /admin/cache/status, GET /admin/cache/job, POST /admin/cache/images/{precache,stop,clear,trim}, /admin/cache/settings,
+  /admin/cache/data/{warm,clear}
+- NOTE: os.tmpdir() is wiped when the container is redeployed; the cache is simply rebuilt (data) / re-downloaded (images) on demand.
+
+## Update 14: set / add page images per question + wider AI chat
+Images (admin, "🖼 Set Image" button on every question; students see the result at once):
+- Use as MAIN image: e.g. Q1 is printed on page 2 but its image is the blank page 1 -> give Q1 the image of Q2 (page 2). Paper mode then shows Q1 together with Q2
+  on that page. The first original image is remembered (original_image_backup) so "Reset" restores it.
+- + Extra image: a question that continues on another page gets more page images (extra_images, max 5). View Original Image shows all pages with ◀ ▶;
+  Paper mode gets a "🖼 1/2" switch.
+- Source: tap a page of the same paper (thumbnails grouped by image, with the question numbers on it) or type exam + question number (ANY question, also from another exam).
+- AI Fix and Ask AI now read ALL page images of the question (solver, blind verifier, chat).
+- Server: POST /api/admin/question-image {questionId, action: use|add|removeExtra|reset, sourceQuestionId | sourceExam+sourceQnum, index}; the exam's disk data cache
+  is invalidated; admin cache numbers count extra images too.
+Ask AI (utils/aiService.js buildChatSystemPrompt): the question is only the STARTING POINT. It now answers other items of the same category
+(other minerals / organizations / rivers / schemes ...), their latest position for current affairs, comparisons and extra exam-relevant facts. It refuses only
+clearly unrelated requests (chit-chat, coding, personal advice, other subjects, attempts to change its rules). Reply limit raised to 2500 tokens.
+- (Update 14b) "✕ Remove" on the MAIN image too: the first extra page (if any) becomes the main image, otherwise the question has no image. "Reset" brings the original back.

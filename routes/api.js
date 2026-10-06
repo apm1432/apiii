@@ -8,10 +8,9 @@ const path = require('path');
 const os = require('os');
 const axios = require('axios');
 
-const CACHE_DIR = path.join(os.tmpdir(), 'mpscpyq_images');
-if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-}
+const imageStore = require('../utils/imageStore');
+const dataCache = require('../utils/dataCache');
+const CACHE_DIR = imageStore.CACHE_DIR; // os.tmpdir()/mpscpyq_images
 
 // Models
 const Question = require('../models/Question');
@@ -84,6 +83,13 @@ async function preloadHierarchy() {
         console.log("⏳ Preloading exam hierarchy into server memory...");
         await buildHierarchyBase();
         console.log("✅ Hierarchy preloaded successfully!");
+        await imageStore.loadSettings();
+        // new / changed papers noticed by the data cache -> refresh the exam list too
+        dataCache.onDataChanged(() => { cachedHierarchy = null; lastCacheTime = 0; buildHierarchyBase().catch(() => {}); });
+        // load every paper into the disk cache in the background, so the FIRST student is fast too
+        if (process.env.WARM_DATA_ON_START !== '0') {
+            dataCache.warm(cachedHierarchy.map(e => e._id), false).catch(() => {});
+        }
     } catch (err) {
         console.error("❌ Failed to preload hierarchy:", err);
     }
@@ -112,79 +118,40 @@ async function isAdminRequest(req) {
 }
 
 // Admin: Clear Cache (Called by bot_manager.js after sync)
-router.post('/admin/clear-cache', (req, res) => {
+router.post('/admin/clear-cache', async (req, res) => {
     cachedHierarchy = null;
     lastCacheTime = 0;
+    await dataCache.invalidateAll().catch(() => {}); // question data on disk is rebuilt from the database
     preloadHierarchy(); // Start preloading again in background
     res.json({ success: true });
 });
 
-// Admin: Fetch Telegram Image as Base64 (Using Cache)
+// Admin / AI: Telegram image as Base64 (disk cache first, Telegram only when the file is not on disk yet)
 async function fetchTelegramImageBase64(rawFileId) {
     if (!rawFileId) return null;
-    
-    let fileIdsObj = {};
-    if (typeof rawFileId === 'object') {
-        fileIdsObj = rawFileId;
-    } else {
-        try {
-            const decoded = decodeURIComponent(rawFileId);
-            fileIdsObj = JSON.parse(decoded);
-        } catch (e) {
-            fileIdsObj = { "0": rawFileId };
-        }
+    const r = await imageStore.ensureImage(rawFileId);
+    if (!r) return null;
+    try { return (await fsPromises.readFile(r.full)).toString('base64'); } catch (e) { return null; }
+}
+
+// All page images of a question (main image + the extra pages an admin added) for the AI. null = no image.
+async function fetchQuestionImages(question) {
+    const raws = [question.original_image_url, ...(Array.isArray(question.extra_images) ? question.extra_images : [])].filter(Boolean).slice(0, 4);
+    const out = [];
+    const seen = new Set();
+    for (const raw of raws) {
+        const f = imageStore.filenameFor(raw);
+        if (!f || seen.has(f)) continue;
+        seen.add(f);
+        try { const b = await fetchTelegramImageBase64(raw); if (b) out.push(b); } catch (e) {}
     }
-
-    const allFileIds = Object.values(fileIdsObj);
-    if (allFileIds.length === 0 || !allFileIds[0]) return null;
-
-    // Check Cache First
-    const firstAvailableId = allFileIds[0];
-    const safeFilename = firstAvailableId.replace(/[^a-zA-Z0-9-_]/g, '') + '.jpg';
-    const cachePath = path.join(CACHE_DIR, safeFilename);
-
-    if (fs.existsSync(cachePath)) {
-        try {
-            const fileData = fs.readFileSync(cachePath);
-            return Buffer.from(fileData).toString('base64');
-        } catch (e) {
-            console.error("Failed to read from cache", e);
-        }
-    }
-
-    // Not in cache, fetch from Telegram
-    const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
-    if (!tokensStr) return null;
-    const tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
-    
-    for (const token of tokens) {
-        for (const fId of allFileIds) {
-            if (!fId) continue;
-            try {
-                const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
-                if (!fileRes.data.ok) continue;
-
-                const filePath = fileRes.data.result.file_path;
-                const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
-                
-                const imgRes = await axios.get(imgUrl, { responseType: 'arraybuffer' });
-                
-                // Save to cache for future
-                try {
-                    fs.writeFileSync(cachePath, imgRes.data);
-                } catch(e) {}
-                
-                return Buffer.from(imgRes.data).toString('base64');
-            } catch (err) {
-                continue;
-            }
-        }
-    }
-    return null;
+    if (!out.length) return null;
+    return out.length === 1 ? out[0] : out;
 }
 
 // Expose fetchImageForAI to global so jobManager can use it
 global.fetchImageForAI = fetchTelegramImageBase64;
+global.fetchQuestionImagesForAI = fetchQuestionImages;
 
 const { createJob, addClientToJob, retryQuestion } = require('../utils/jobManager');
 const { reconcileUserProgress } = require('../utils/progressSync');
@@ -395,7 +362,7 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
 
         let imageBase64 = null;
         if (question.original_image_url) {
-            try { imageBase64 = await fetchTelegramImageBase64(question.original_image_url); } catch (e) { imageBase64 = null; }
+            try { imageBase64 = await fetchQuestionImages(question); } catch (e) { imageBase64 = null; }
         }
 
         const reply = await chatAboutQuestion(question, imageBase64, history, message);
@@ -499,6 +466,189 @@ router.delete('/admin/exam-groups/:id', authMiddleware, async (req, res) => {
     }
 });
 
+
+// -------------------------------------
+// Admin: server cache (question data + Telegram images on the server disk)
+// -------------------------------------
+const examList = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.length <= 300).slice(0, 1000) : null);
+
+router.get('/admin/cache/status', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const [images, data] = await Promise.all([imageStore.status(req.query.refresh === '1'), dataCache.stats()]);
+        const totalExams = (cachedHierarchy || []).length;
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, images, data: { ...data, totalExams }, examList: (cachedHierarchy || []).map(e => e._id).filter(Boolean), imageJob: imageStore.jobStatus(), dataJob: dataCache.warmStatus() });
+    } catch (err) {
+        console.error('cache status error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// light polling endpoint (progress bars)
+router.get('/admin/cache/job', authMiddleware, async (req, res) => {
+    if (!(await adminOnly(req, res))) return;
+    res.set('Cache-Control', 'no-store');
+    res.json({ success: true, imageJob: imageStore.jobStatus(), dataJob: dataCache.warmStatus() });
+});
+
+router.post('/admin/cache/images/precache', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const ids = req.body.all ? null : examList(req.body.examIds);
+        if (!req.body.all && (!ids || !ids.length)) return res.status(400).json({ success: false, message: 'Choose an exam or "all".' });
+        await imageStore.startPrecache(ids);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+});
+
+router.post('/admin/cache/images/stop', authMiddleware, async (req, res) => {
+    if (!(await adminOnly(req, res))) return;
+    imageStore.stopJob(); dataCache.stopWarm();
+    res.json({ success: true });
+});
+
+router.post('/admin/cache/images/clear', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const ids = req.body.all ? null : examList(req.body.examIds);
+        if (!req.body.all && (!ids || !ids.length)) return res.status(400).json({ success: false, message: 'Choose an exam or "all".' });
+        res.json({ success: true, ...(await imageStore.clearImages(ids)) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// reduce the image folder to <= maxMb (oldest-used images are deleted first)
+router.post('/admin/cache/images/trim', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const mb = Number(req.body.maxMb);
+        if (!(mb >= 0)) return res.status(400).json({ success: false, message: 'Enter a size in MB.' });
+        res.json({ success: true, ...(await imageStore.trimTo(Math.round(mb * 1024 * 1024))) });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/admin/cache/settings', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const v = await imageStore.setMaxMb(req.body.maxImageMb);
+        res.json({ success: true, maxImageMb: v });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/admin/cache/data/warm', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        let ids = req.body.all ? (cachedHierarchy || []).map(e => e._id) : examList(req.body.examIds);
+        if (!ids || !ids.length) return res.status(400).json({ success: false, message: 'Choose an exam or "all".' });
+        await dataCache.warm(ids, !!req.body.refresh);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+});
+
+router.post('/admin/cache/data/clear', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        if (req.body.all) await dataCache.invalidateAll();
+        else { const ids = examList(req.body.examIds) || []; for (const id of ids) await dataCache.invalidateExam(id); }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+
+// -------------------------------------
+// Admin: change which page image a question shows
+//   use       -> the main image becomes the image of another question
+//   add       -> the image of another question is added as an EXTRA image (question continues on another page)
+//   removeMain  -> no main image any more (first extra, if any, becomes the main one)
+//   removeExtra / reset
+// -------------------------------------
+const imgKey = (raw) => imageStore.filenameFor(raw) || JSON.stringify(raw);
+const imgView = (q) => ({ _id: String(q._id), original_image_url: q.original_image_url || null, extra_images: q.extra_images || [], customized: !!q.original_image_backup || !!(q.extra_images && q.extra_images.length) });
+
+router.post('/admin/question-image', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const { questionId, action } = req.body || {};
+        const okId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
+        if (!okId(questionId)) return res.status(400).json({ success: false, message: 'Invalid question.' });
+        const q = await Question.findById(questionId);
+        if (!q) return res.status(404).json({ success: false, message: 'Question not found.' });
+
+        if (action === 'reset') {
+            if (q.original_image_backup) q.original_image_url = q.original_image_backup;
+            q.original_image_backup = undefined;
+            q.extra_images = undefined;
+        } else if (action === 'removeMain') {
+            // take the main image away; if the question has extra pages, the first extra page becomes the main image
+            if (!q.original_image_url) return res.status(400).json({ success: false, message: 'This question has no main image.' });
+            if (!q.original_image_backup) q.original_image_backup = q.original_image_url;
+            if (Array.isArray(q.extra_images) && q.extra_images.length) {
+                q.original_image_url = q.extra_images[0];
+                q.extra_images = q.extra_images.slice(1);
+                if (!q.extra_images.length) q.extra_images = undefined;
+                q.markModified('extra_images');
+            } else {
+                q.original_image_url = undefined;
+            }
+        } else if (action === 'removeExtra') {
+            const i = Number(req.body.index);
+            if (!Array.isArray(q.extra_images) || !(i >= 0 && i < q.extra_images.length)) return res.status(400).json({ success: false, message: 'No such extra image.' });
+            q.extra_images.splice(i, 1);
+            if (!q.extra_images.length) q.extra_images = undefined;
+            q.markModified('extra_images');
+        } else if (action === 'use' || action === 'add') {
+            // find the question whose image we copy: by id, or by (exam, question number)
+            let src = null;
+            if (okId(req.body.sourceQuestionId)) src = await Question.findById(req.body.sourceQuestionId).lean();
+            else if (Number(req.body.sourceQnum) > 0) {
+                src = await Question.findOne({ year_exam: String(req.body.sourceExam || q.year_exam), qnum: Number(req.body.sourceQnum), original_image_url: { $exists: true, $nin: [null, ''] } }).lean();
+            }
+            if (!src || !src.original_image_url) return res.status(404).json({ success: false, message: 'That question has no image (or was not found).' });
+
+            if (action === 'use') {
+                if (!q.original_image_backup && q.original_image_url) q.original_image_backup = q.original_image_url; // remember the first original
+                q.original_image_url = src.original_image_url;
+                // an extra that is now identical to the main image is pointless
+                if (Array.isArray(q.extra_images)) {
+                    q.extra_images = q.extra_images.filter(x => imgKey(x) !== imgKey(src.original_image_url));
+                    if (!q.extra_images.length) q.extra_images = undefined;
+                    q.markModified('extra_images');
+                }
+            } else {
+                const key = imgKey(src.original_image_url);
+                if (imgKey(q.original_image_url) === key || (q.extra_images || []).some(x => imgKey(x) === key)) {
+                    return res.status(400).json({ success: false, message: 'This question already shows that image.' });
+                }
+                if ((q.extra_images || []).length >= 5) return res.status(400).json({ success: false, message: 'At most 5 extra images.' });
+                q.extra_images = [...(q.extra_images || []), src.original_image_url];
+                q.markModified('extra_images');
+            }
+        } else {
+            return res.status(400).json({ success: false, message: 'Unknown action.' });
+        }
+
+        q.markModified('original_image_url');
+        await q.save();
+        dataCache.invalidateExam(q.year_exam).catch(() => {}); // students must see the new image at once
+        res.json({ success: true, question: imgView(q) });
+    } catch (err) {
+        console.error('question-image error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
 // Admin: Fix Question with AI
 router.post('/admin/fix-question', authMiddleware, async (req, res) => {
     try {
@@ -515,7 +665,7 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
 
         let imageBase64 = null;
         if (question.original_image_url) {
-            imageBase64 = await fetchTelegramImageBase64(question.original_image_url);
+            imageBase64 = await fetchQuestionImages(question);
         }
 
         const fixedData = await fixQuestionWithAI(question, imageBase64);
@@ -539,6 +689,7 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
             question.ai_fixed_at = new Date();
 
             await question.save();
+            dataCache.invalidateExam(question.year_exam).catch(() => {});
             return res.json({ success: true, message: 'Question fixed and saved.', question });
         } else {
             return res.status(500).json({ success: false, message: 'AI returned empty result.' });
@@ -612,38 +763,25 @@ router.post('/questions', authMiddleware, async (req, res) => {
         }
         // ------------------------------------
 
-        let query = {};
+        // Which papers? (hidden papers are always excluded)
+        if (!cachedHierarchy) await buildHierarchyBase();
+        const visibleIds = () => cachedHierarchy.map(e => e._id).filter(id => !hidden.has(id));
+        let examIds, passageOnly = false;
+        if (year_exam === 'Passage Comprehension') { passageOnly = true; examIds = visibleIds(); }
+        else if (year_exam) examIds = [year_exam];
+        else if (yearExams && yearExams.length) examIds = yearExams.filter(x => !hidden.has(x));
+        else examIds = visibleIds();
 
-        if (year_exam === 'Passage Comprehension') {
-            query = {
-                $or: [
-                    { passage_marathi: { $exists: true, $nin: [null, "null"] } },
-                    { passage_english: { $exists: true, $nin: [null, "null"] } },
-                    { passage_text: { $exists: true, $nin: [null, "null"] } }
-                ]
-            };
-            if (hidden.size) query.year_exam = { $nin: [...hidden] };
-        } else if (year_exam) {
-            query.year_exam = year_exam;
-        } else if (yearExams && yearExams.length) {
-            // subject-wise inside a group / tab: only that group's papers (minus hidden ones)
-            query.year_exam = { $in: yearExams.filter(x => !hidden.has(x)) };
-        } else if (hidden.size) {
-            // subject-wise over all papers: never include a hidden paper
-            query.year_exam = { $nin: [...hidden] };
+        // Served from the server disk cache: the database is read once per paper, not once per student
+        await dataCache.checkFreshness();
+        const buf = await dataCache.responseFor({ examIds, subject: subject || null, passageOnly, limit: limit ? parseInt(limit) : 0 });
+
+        res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-cache', 'Vary': 'Accept-Encoding' });
+        if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+            res.set('Content-Encoding', 'gzip');
+            return res.send(buf);
         }
-        if (subject) query.subject = subject;
-
-        let questions = await Question.find(query).lean();
-
-        // Sort in memory to avoid MongoDB 32MB sort limit
-        questions.sort((a, b) => (a.qnum || 0) - (b.qnum || 0));
-
-        if (limit) {
-            questions = questions.slice(0, parseInt(limit));
-        }
-
-        res.json({ success: true, data: questions });
+        return res.send(await require('util').promisify(require('zlib').gunzip)(buf));
     } catch (err) {
         console.error("API /questions Error:", err);
         res.status(500).json({ success: false, message: 'Server Error', error: err.message });
@@ -1033,39 +1171,6 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
 // 5. IMAGE PROXY API
 // -------------------------------------
 
-const MAX_CACHE_SIZE = 900 * 1024 * 1024; // 900 MB
-const TARGET_CACHE_SIZE = 700 * 1024 * 1024; // 700 MB
-
-async function cleanupCache() {
-    try {
-        const files = await fsPromises.readdir(CACHE_DIR);
-        let totalSize = 0;
-        const fileStats = [];
-
-        for (const file of files) {
-            const filePath = path.join(CACHE_DIR, file);
-            const stats = await fsPromises.stat(filePath);
-            totalSize += stats.size;
-            fileStats.push({ filePath, mtime: stats.mtime.getTime(), size: stats.size });
-        }
-
-        if (totalSize > MAX_CACHE_SIZE) {
-            console.log(`Cache size (${(totalSize / 1024 / 1024).toFixed(2)} MB) exceeded limit. Cleaning up...`);
-            // Sort by oldest first (LRU approximation based on modified/access time)
-            fileStats.sort((a, b) => a.mtime - b.mtime);
-
-            while (totalSize > TARGET_CACHE_SIZE && fileStats.length > 0) {
-                const oldest = fileStats.shift();
-                await fsPromises.unlink(oldest.filePath);
-                totalSize -= oldest.size;
-            }
-            console.log(`Cache cleanup done. New size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-        }
-    } catch (err) {
-        console.error("Cache cleanup error:", err.message);
-    }
-}
-
 // ---- Image cache index: questionId -> cached filename (so an OLD image is deleted when a question gets a NEW file id)
 const IMG_INDEX_FILE = path.join(os.tmpdir(), 'mpscpyq_image_index.json');
 let imgIndex = {};
@@ -1097,7 +1202,7 @@ router.get('/image/:fileId', async (req, res) => {
             token = req.headers.authorization.split(' ')[1];
         }
         if (!token) return res.status(401).send('Unauthorized. Token missing.');
-        
+
         const jwt = require('jsonwebtoken');
         const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
         let decodedImgToken;
@@ -1111,88 +1216,23 @@ router.get('/image/:fileId', async (req, res) => {
         }
 
         const rawFileId = req.params.fileId;
-        const tokensStr = process.env.TELEGRAM_BOT_TOKENS;
-        if (!tokensStr) return res.status(500).send('No bot tokens configured');
-        
-        const tokens = tokensStr.split(',').map(t => t.replace(/['"]/g, '').trim()).filter(Boolean);
-        
-        let fileIdsObj = {};
-        try {
-            // Attempt to decode and parse JSON (from new Redundancy DB)
-            const decoded = decodeURIComponent(rawFileId);
-            fileIdsObj = JSON.parse(decoded);
-        } catch (e) {
-            // Fallback for single string backwards compatibility
-            fileIdsObj = { "0": rawFileId };
-        }
+        if (!process.env.TELEGRAM_BOT_TOKENS) return res.status(500).send('No bot tokens configured');
 
-        // We will try the first available fileId to use as the cache filename
-        const firstAvailableId = Object.values(fileIdsObj)[0];
-        if (!firstAvailableId) return res.status(404).send('Invalid file metadata');
+        const fname = imageStore.filenameFor(rawFileId);
+        if (!fname) return res.status(404).send('Invalid file metadata');
+        trackQuestionImage(req.query.q, fname);
 
-        // Sanitize filename
-        const safeFilename = firstAvailableId.replace(/[^a-zA-Z0-9-_]/g, '') + '.jpg';
-        const cachePath = path.join(CACHE_DIR, safeFilename);
-        trackQuestionImage(req.query.q, safeFilename);
+        // disk first; Telegram only the very first time (de-duplicated, atomic write)
+        const img = await imageStore.ensureImage(rawFileId);
+        if (!img) return res.status(404).send('Image not available on any bot.');
 
-        // 1. Check Cache
-        if (fs.existsSync(cachePath)) {
-            // Update modified time for LRU
-            const now = new Date();
-            try { fs.utimesSync(cachePath, now, now); } catch (e) {} // ignore if fails
-            res.setHeader('Cache-Control', 'private, max-age=86400');
-            return res.sendFile(cachePath);
-        }
-
-        // 2. Not in Cache - Try fetching from Telegram Bots
-        const allFileIds = Object.values(fileIdsObj);
-        let success = false;
-        
-        for (const token of tokens) {
-            if (success) break;
-            
-            for (const fId of allFileIds) {
-                if (!fId) continue;
-                try {
-                    const fileRes = await axios.get(`https://api.telegram.org/bot${token}/getFile?file_id=${fId}`);
-                    if (!fileRes.data.ok) continue;
-
-                    const filePath = fileRes.data.result.file_path;
-                    const imgUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
-                    
-                    const imgRes = await axios.get(imgUrl, { responseType: 'stream' });
-                    
-                    const writer = fs.createWriteStream(cachePath);
-                    imgRes.data.pipe(writer);
-                    
-                    res.setHeader('Cache-Control', 'private, max-age=86400');
-                    if (imgRes.headers['content-type']) {
-                        res.setHeader('Content-Type', imgRes.headers['content-type']);
-                    }
-                    
-                    imgRes.data.pipe(res);
-
-                    writer.on('finish', () => {
-                        cleanupCache();
-                    });
-
-                    success = true;
-                    break; // Successfully served, break out of inner loop
-                } catch (err) {
-                    console.error(`Failed fetching ${fId} with token ${token.substring(0, 5)}...:`, err.message);
-                    continue; // Try next fileId
-                }
-            }
-        }
-        
-        if (success) return;
-
-        // If all bots failed
-        res.status(404).send('Image not available on any bot.');
-
+        // a Telegram file never changes -> let the browser keep it for 30 days
+        res.setHeader('Cache-Control', 'private, max-age=2592000, immutable');
+        res.setHeader('Content-Type', 'image/jpeg');
+        return res.sendFile(img.full);
     } catch (err) {
         console.error('Image Proxy Error:', err.message);
-        res.status(500).send('Error fetching image');
+        if (!res.headersSent) res.status(500).send('Error fetching image');
     }
 });
 

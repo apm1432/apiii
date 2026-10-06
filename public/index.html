@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MPSC PYQ Portal</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=10">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
@@ -130,6 +130,7 @@
             <header class="dash-header">
                 <h2>Exam Dashboard</h2>
                 <div class="user-controls" style="display: flex; align-items: center; gap: 15px;">
+                    <button id="btn-cache-manager" class="btn hidden" style="background-color: #0ea5e9; padding: 5px 10px; font-size: 0.85rem;" onclick="openCacheManager()">💾 Server Cache</button>
                     <button id="btn-manage-exams" class="btn hidden" style="background-color: #8b5cf6; padding: 5px 10px; font-size: 0.85rem;" onclick="openExamManager()">⚙ Manage Exams</button>
                     <button id="btn-download-paper-dash" class="btn hidden" style="background-color: #0ea5e9; padding: 5px 10px; font-size: 0.85rem;" onclick="openDownloadPaperModal()">📥 Download</button>
                     <div class="user-profile" onclick="toggleProfileModal()" style="text-align: center; cursor: pointer;">
@@ -341,11 +342,13 @@
         </div>
     </div>
 
-    <script src="script.js?v=19"></script>
+    <script src="script.js?v=20"></script>
     <script src="paper.js?v=5"></script>
     <script src="qchat.js?v=1"></script>
     <script src="accountsync.js?v=2"></script>
-    <script src="examadmin.js?v=1"></script>
+    <script src="examadmin.js?v=2"></script>
+    <script src="cacheadmin.js?v=1"></script>
+    <script src="imageadmin.js?v=2"></script>
         <!-- AI Live Stream Panel -->
     <button id="ai-fab" class="ai-fab hidden" onclick="toggleAiPanel()" title="AI Fix log">🤖</button>
     <div id="ai-live-panel" class="ai-live-panel" data-size="s">

@@ -15,6 +15,8 @@ const questionSchema = new mongoose.Schema({
   topic: { type: String, index: true },
   sub_topic: { type: String },
   original_image_url: { type: mongoose.Schema.Types.Mixed }, // Map of Token Index -> File ID
+  original_image_backup: { type: mongoose.Schema.Types.Mixed }, // the image the question had before an admin replaced it (for "reset")
+  extra_images: { type: [mongoose.Schema.Types.Mixed], default: undefined }, // more page images of the same question (admin added)
   telegram_msg_id: { type: Number }, // Optional Message ID from Telegram
   year_exam: { type: String, index: true }, // e.g., "2018 group b pre" or official name + date
   official_exam_name: { type: String, index: true },
