@@ -140,3 +140,12 @@ Ask AI (utils/aiService.js buildChatSystemPrompt): the question is only the STAR
 (other minerals / organizations / rivers / schemes ...), their latest position for current affairs, comparisons and extra exam-relevant facts. It refuses only
 clearly unrelated requests (chit-chat, coding, personal advice, other subjects, attempts to change its rules). Reply limit raised to 2500 tokens.
 - (Update 14b) "✕ Remove" on the MAIN image too: the first extra page (if any) becomes the main image, otherwise the question has no image. "Reset" brings the original back.
+
+## Update 15: fix failed after an image change (log analysis)
+Cause: after the image change the page image shows SEVERAL questions. The blind verifier answered with a JSON ARRAY (one object per question) and the code only
+accepted a single object -> "Verifier did not return the printed options" 3x -> round lost. In round 1 the verifier hit truncated output + 503s and also lost the round.
+Fix (utils/aiService.js):
+- An array answer is accepted: the object whose printed options match OUR question is used (the prompt also asks for ONE object, working < 1500 characters).
+- 503 / 429 no longer use up the attempts (up to 12 "busy" waits with a short pause), they only mean the service is busy.
+- If only the VERIFIER cannot run (busy / unusable output), the good solver result is kept and only the verification is repeated in the next round
+  (the solver is not run again).

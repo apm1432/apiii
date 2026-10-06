@@ -436,6 +436,25 @@ function needsStrongModel(q) {
 }
 
 
+
+// The verifier sees a whole page image that can hold several questions and may answer with an ARRAY (one object per
+// question). Pick the object whose printed options match OUR question's options best.
+function pickVerifierObject(v, fixed) {
+    if (!Array.isArray(v)) return v;
+    const objs = v.filter(x => x && typeof x === 'object' && !Array.isArray(x));
+    if (!objs.length) return null;
+    let best = null, bestScore = -1;
+    for (const o of objs) {
+        const po = o.paper_options;
+        if (!Array.isArray(po) || !po.length) continue;
+        let sc = 0;
+        fixed.fixed_options.forEach((f, i) => { if (typeof po[i] === 'string') sc += matchScore(f, po[i]); });
+        sc /= fixed.fixed_options.length;
+        if (sc > bestScore) { best = o; bestScore = sc; }
+    }
+    return best || objs[0];
+}
+
 // BLIND verification (used whenever the paper image exists). The verifier gets NO question text, NO options and
 // NO answer from the first pass - so there is nothing to copy. It reads the options from the image and solves the
 // question itself; the CODE then compares both readings (options in the same order) and both answers.
@@ -450,6 +469,7 @@ Process ONLY that question; ignore every other question in the image.
 2. Write the question statement in one or two lines in "question_gist".
 3. SOLVE it yourself from verified facts, using the options in PRINTED order. FIRST write your complete step-by-step working in "working" (seating / arrangement puzzles: put every person at a numbered position and check EVERY clue; maths: show the calculation; match-the-following: work out every pair; facts: state the deciding fact). Only AFTER that working write "answer": it MUST be the option your working ended with. "answer" is the option NUMBER in printed order ("1".."4"), or "#" when no single option is correct.
 
+The image may show several questions: answer ONLY question ${q.qnum !== undefined && q.qnum !== null ? q.qnum : '(unknown)'}. Output ONE single JSON object (NOT an array, not one object per question). Keep "working" under about 1500 characters.
 Output STRICTLY a valid JSON object, no markdown, no extra text:
 {
   "paper_options": ["..."],
@@ -462,6 +482,7 @@ Output STRICTLY a valid JSON object, no markdown, no extra text:
 
 // Compares the blind reading with the first pass. Throws only when the output is unusable.
 function parseBlindVerification(v, fixed) {
+    v = pickVerifierObject(v, fixed);
     if (!v || typeof v !== 'object') throw new Error('Verifier returned invalid JSON');
     const po = v.paper_options;
     if (!Array.isArray(po) || po.length < 2 || po.some(x => typeof x !== 'string' || !x.trim())) {
@@ -513,6 +534,7 @@ Output STRICTLY a valid JSON object, no markdown, no extra text:
 // A real disagreement about order / format / answer is RETURNED, never thrown: repeating the same verifier prompt
 // would just give the same opinion again.
 function parseVerification(v, fixed, hasImage) {
+    v = pickVerifierObject(v, fixed);
     if (!v || typeof v !== 'object') throw new Error('Verifier returned invalid JSON');
     let structural = null;
     if (hasImage) {
@@ -1057,6 +1079,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
 // Generic Gemini call with key/model rotation + retry. processFn(parsedJson) may throw -> retry.
 async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, firstHint = '', opts = {}) {
     let attempts = 0;
+    let transient = 0;      // 503 / 429: the SERVICE is busy, not our answer wrong -> these must not burn the few attempts we have
     let lastError = null;
     let hint = firstHint || '';
 
@@ -1164,12 +1187,13 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
                     // Just set status to Exhausted and lastUsed to now, so it goes to back of queue based on rpmDelayMs
                     await AiKey.updateMany({ key: key }, { $set: { status: "Exhausted", lastUsed: Date.now() } });
                     lastError = "Rate limited (429).";
-                    attempts++;
+                    if (++transient > 12) attempts++;
                 } else if (status === 503) {
                     if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Pushing to back of queue...`);
                     await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", lastUsed: Date.now() } });
                     lastError = "Model is currently experiencing high demand (503).";
-                    attempts++;
+                    if (++transient > 12) attempts++;
+                    await sleep(Math.min(1500 * transient, 8000)); // do not hammer a busy model
                 } else if (status === 404) {
                     // Model does not exist / retired -> stop using it until restart
                     const body = await readErrorBody(error);
@@ -1284,6 +1308,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
     const log = (m) => { if (onChunk) onChunk(m); };
     const MAX_ROUNDS = 2;
     let lastErr = null;
+    let keep = null;   // a good solver result whose VERIFIER could not run (busy / unusable output): do not solve it again
     const strong = needsStrongModel(questionData);
     if (strong) log('\n[System] Reasoning / maths question detected - using the stronger models and requiring full working.\n');
 
@@ -1291,7 +1316,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
         try {
             // PASS 1: reconstruct + solve. Normalisation AND order/format guards run before accepting.
             const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was NOT accepted: ${String(lastErr.message).slice(0, 700)}\nSolve the question again completely from scratch and check every clue / fact yourself. Do not simply copy any answer mentioned above.` : '';
-            const fixed = await runGemini(prompt, imageBase64, onChunk, (raw) => {
+            const fixed = keep || await runGemini(prompt, imageBase64, onChunk, (raw) => {
                 if (strong && String(raw.thought_process || '').trim().length < 200) {
                     throw new Error('This is a reasoning / maths question: write the complete step-by-step working in "thought_process" BEFORE choosing the answer.');
                 }
@@ -1299,6 +1324,8 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
                 assertOrderAndFormat(n, questionData, raw, !!imageBase64);
                 return n;
             }, 6, roundHint, { preferStrong: strong });
+            if (keep) log('\n[System] Re-using the solver result of the previous round; only the verification is repeated.\n');
+            keep = null;
 
             // PASS 2: independent re-verification (answer + option order + format) before anything is saved.
             // The verifier is asked ONCE (repeating the same prompt only repeats its opinion).
@@ -1306,14 +1333,18 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
             const vPrompt = imageBase64 ? buildBlindVerifyPrompt(fixed, questionData) : buildVerifyPrompt(fixed, questionData);
             const vParse = imageBase64 ? (v) => parseBlindVerification(v, fixed) : (v) => parseVerification(v, fixed, false);
             if (imageBase64) log('[System] (blind check: the verifier is NOT shown the first answer, question or options - it reads the paper itself)\n');
-            const v1 = await runGemini(vPrompt, imageBase64, onChunk, vParse, 3, '', { preferStrong: strong });
+            const ask = async (strongModels) => {
+                try { return await runGemini(vPrompt, imageBase64, onChunk, vParse, 4, '', { preferStrong: strongModels }); }
+                catch (e) { e.keepFixed = fixed; throw e; }   // the verifier could not run: the solver result itself is still fine
+            };
+            const v1 = await ask(strong);
             if (v1.structural) throw new Error(v1.structural);
 
             let vAns = v1.answer;
             if (v1.answer !== String(fixed.correct_answer_option)) {
                 // The two disagree: ask a THIRD time (strongest model) instead of guessing who is right.
                 log(`\n[System] Solver says ${fixed.correct_answer_option}, verifier says ${v1.answer}. Asking a tie-breaker...\n`);
-                const v2 = await runGemini(vPrompt, imageBase64, onChunk, vParse, 3, '', { preferStrong: true });
+                const v2 = await ask(true);
                 if (v2.structural) throw new Error(v2.structural);
                 if (v2.answer !== String(fixed.correct_answer_option)) {
                     throw new Error(`Answer disagreement: solver = ${fixed.correct_answer_option}, verifier = ${v1.answer}, tie-breaker = ${v2.answer}. ` +
@@ -1341,6 +1372,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
             return fixed;
         } catch (e) {
             lastErr = e;
+            if (e && e.keepFixed) keep = e.keepFixed;
             log(`\n[System] ⚠ Verification rejected the result (round ${round}/${MAX_ROUNDS}): ${e.message}\n`);
         }
     }
@@ -1468,6 +1500,7 @@ module.exports = {
     matchScore,
     optionsProblem,
     parseBlindVerification,
+    pickVerifierObject,
     buildBlindVerifyPrompt,
     buildFixPrompt,
     needsStrongModel,
