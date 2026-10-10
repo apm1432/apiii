@@ -47,7 +47,13 @@ mongoose.connect(process.env.MONGO_URI)
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // Serve Static Frontend UI
-app.use(express.static('public'));
+// Static files: scripts / styles are versioned (?v=NN), so the phone may keep them for 30 days (repeat visits load instantly,
+// even on a slow connection). index.html and anything without ?v= is re-checked every time (cheap 304 answer).
+app.use((req, res, next) => {
+    if (req.query && req.query.v && /\.(js|css)$/.test(req.path)) res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    next();
+});
+app.use(express.static('public', { etag: true, lastModified: true }));
 
 // API Routes
 const apiModule = require('./routes/api');

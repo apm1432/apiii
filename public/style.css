@@ -596,3 +596,27 @@ header {
 .ie-lab { font-size: .75rem; color: #374151; margin: 4px 0; word-break: break-word; }
 .ie-card .btn { width: 100%; margin-top: 4px; }
 .ie-main { border: 2px solid #8b5cf6; }
+
+/* ===== smooth loading: no full-screen loader, light skeletons ===== */
+#global-loader {
+  position: fixed !important; top: 10px !important; left: 50% !important; transform: translateX(-50%);
+  width: auto !important; height: auto !important; background: rgba(17,24,39,.9) !important; backdrop-filter: none !important;
+  padding: 7px 14px; border-radius: 20px; flex-direction: row !important; gap: 10px; pointer-events: none;
+}
+#global-loader .spinner { width: 16px !important; height: 16px !important; border-width: 2px !important; }
+#global-loader #global-loader-text { margin: 0 !important; font-size: .82rem !important; letter-spacing: 0 !important; }
+
+@keyframes sk-shimmer { 0% { background-position: -300px 0; } 100% { background-position: 300px 0; } }
+.sk-card, .sk-line, .sk-box {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 600px 100%;
+  animation: sk-shimmer 1.2s infinite linear; border-radius: 10px;
+}
+.sk-card { height: 120px; }
+.sk-line { height: 14px; margin: 10px 0; width: 100%; }
+.sk-w60 { width: 60%; } .sk-w80 { width: 80%; }
+.sk-box { height: 70px; margin: 12px 0 26px; }
+#test-skeleton { display: none; padding: 16px; max-width: 900px; margin: 0 auto; }
+#main-content.sk-loading #test-skeleton { display: block; }
+#main-content.sk-loading > .view-mode { display: none !important; }
+#exam-grid { min-height: 140px; }
+@media (prefers-reduced-motion: reduce) { .sk-card, .sk-line, .sk-box { animation: none; } }

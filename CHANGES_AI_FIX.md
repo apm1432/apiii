@@ -149,3 +149,18 @@ Fix (utils/aiService.js):
 - 503 / 429 no longer use up the attempts (up to 12 "busy" waits with a short pause), they only mean the service is busy.
 - If only the VERIFIER cannot run (busy / unusable output), the good solver result is kept and only the verification is repeated in the next round
   (the solver is not run again).
+
+## Update 16: no blank page after Back, smooth + light on slow internet
+Blank after "Back": the app had no browser-history entries for its screens, so the phone's Back button left the page / showed an empty shell and only a refresh helped.
+Fix (public/script.js):
+- History: an entry is pushed when an exam opens, Back (button or phone gesture) returns to the dashboard INSIDE the app. pageshow / visibilitychange / popstate
+  run a self-repair: if no screen is visible, or the dashboard grid is empty, it is restored and reloaded by itself (no refresh needed).
+- Exam screen opens at once with a light skeleton; the full-screen "Loading Exam Paper" overlay is gone (the small loader is now a tiny non-blocking pill).
+  Back works while loading (the request is cancelled, a late answer is ignored).
+- Questions of an exam are saved on the phone (IndexedDB, per user, 24 exams). Re-opening shows them instantly; the server copy is fetched in the background and
+  only replaces them if something changed (e.g. an AI fix). Saved copies are used only for paid users / admins and are wiped on logout; the server still checks access.
+- Finger-down (or mouse-over) on an exam / subject card already starts downloading its questions; opening then reuses it.
+- Dashboard: shows the saved list from the last visit instantly, never empties the grid while loading (skeleton cards only on the very first visit), loads the exam list
+  and the progress numbers in parallel (list is painted first). Several callers share one request.
+- Nothing of an exam is loaded until the student opens it (only the exam list is loaded at start).
+- Static files: scripts/styles versioned with ?v= are cached by the phone for 30 days (server.js); nginx gzips text files (nginx.conf).

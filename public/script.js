@@ -69,12 +69,64 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {}
         }
         
+        try { if (history.state && history.state.v === 'test') history.replaceState({ v: 'app' }, ''); } catch (e) { }
         showSection('dashboard-section');
         loadDashboard();
     } else {
         showSection('auth-section');
     }
 });
+
+// ====== NAVIGATION: the phone's Back button must walk the app, never leave a blank page ======
+// history: [base "app" entry] -> [test entry, pushed when an exam opens] -> [paper entry, pushed by paper mode]
+try { history.replaceState({ v: 'app' }, ''); } catch (e) { }
+
+function pushTestHistory() {
+    try { if (!history.state || history.state.v !== 'test') history.pushState({ v: 'test' }, ''); } catch (e) { }
+}
+
+function toDashboard() {
+    showSection('dashboard-section');
+    loadDashboard();      // shows what it already has at once, refreshes quietly in the background
+}
+
+// the "← Back" buttons call this
+window.goDashboard = function (fromPop) {
+    if (window.abortOpenTest) window.abortOpenTest();
+    if (!fromPop && history.state && history.state.v === 'test') {
+        try { history.back(); } catch (e) { }                 // popstate below shows the dashboard
+        setTimeout(() => {                                    // some webviews do not fire popstate
+            const d = document.getElementById('dashboard-section');
+            if (d && !d.classList.contains('active')) toDashboard();
+        }, 250);
+        return;
+    }
+    toDashboard();
+};
+
+// If, for any reason, no screen is visible (bfcache restore, killed tab, an error) repair it by itself - no refresh needed.
+function ensureSection() {
+    try {
+        const active = document.querySelector('.view-section.active');
+        if (!active) {
+            if (token) toDashboard(); else showSection('auth-section');
+            return;
+        }
+        if (active.id === 'dashboard-section') {
+            const grid = document.getElementById('exam-grid');
+            if (grid && !grid.children.length) loadDashboard();
+        }
+    } catch (e) { console.warn('ensureSection', e); }
+}
+window.addEventListener('popstate', (e) => {
+    const st = e.state;
+    const act = document.querySelector('.view-section.active');
+    // we landed on the base entry while an exam / payment screen was open -> that is "Back to the dashboard"
+    if (token && act && act.id !== 'dashboard-section' && act.id !== 'auth-section' && (!st || st.v === 'app')) window.goDashboard(true);
+    setTimeout(ensureSection, 60);
+});
+window.addEventListener('pageshow', () => ensureSection());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureSection(); });
 
 // View Switching (SPA)
 function showSection(sectionId) {
@@ -415,6 +467,8 @@ function logout() {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('activeAiJobId');
+    localStorage.removeItem('mpsc_dash_cache_v1');
+    if (window.QCache) window.QCache.clear();
     if (window.activeAiEventSource) {
         window.activeAiEventSource.close();
         window.activeAiEventSource = null;
@@ -678,57 +732,86 @@ async function resetPasswordWithOtp() {
 }
 
 // ====== DASHBOARD ======
-async function loadDashboard() {
-    if (window.syncAdminDownloadButtons) window.syncAdminDownloadButtons();
-    const grid = document.getElementById('exam-grid');
-    grid.innerHTML = '<p style="color:var(--text-secondary);">Loading exams...</p>';
+// ----- dashboard: stale-while-revalidate (instant on slow internet, never a blank grid) -----
+const DASH_CACHE_KEY = 'mpsc_dash_cache_v1';
+let dashLoading = null, dashNext = null;
 
+function dashUserKey() { return (currentUser && currentUser.email ? currentUser.email : '') + '|' + (currentUser && currentUser.isAdmin ? 'a' : 'u'); }
+function readDashCache() {
     try {
-        const res = await fetch('/api/exams/hierarchy', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            // Fetch progress for this user to display attempted stats
-            let progressSectionWise = {};
-            try {
-                const progRes = await fetch('/api/progress/dashboard', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const progData = await progRes.json();
-                if (progData.success && progData.data) {
-                    if (progData.data.sectionWise) {
-                        progressSectionWise = progData.data.sectionWise;
-                    }
-                    if (progData.data.answers) {
-                        localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers));
-                        userAnswers = progData.data.answers;
-                    }
-                }
-            } catch (e) { console.warn("Failed to fetch dashboard progress stats"); }
+        const c = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+        if (c && c.u === dashUserKey() && Array.isArray(c.data)) return c;
+    } catch (e) { }
+    return null;
+}
+function saveDashCache() {
+    try {
+        localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ u: dashUserKey(), at: Date.now(), data: window.allExamsData, groups: window.examGroups || [], progress: window.progressSectionWise || {} }));
+    } catch (e) { /* storage full: not important */ }
+}
+function paintDashboard() {
+    renderDashTabs();
+    if (window.syncExamAdminUI) window.syncExamAdminUI();
+    if (window.dashboardMode === 'subject') renderSubjectGrid(); else renderExamGrid();
+}
+function dashSkeleton(grid) {
+    grid.innerHTML = '<div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>';
+}
 
-            grid.innerHTML = '';
-            
-            // Global variable for current filter state
-            if (typeof window.currentExamFilter === 'undefined') {
-                window.currentExamFilter = 'all';
-            }
-            
-            // Store fetched data globally for filtering
-            window.allExamsData = data.data;
-            window.examGroups = data.groups || [];
-            window.progressSectionWise = progressSectionWise;
-            
-            renderDashTabs();
-            if (window.syncExamAdminUI) window.syncExamAdminUI();
-            if (window.dashboardMode === 'subject') renderSubjectGrid(); else renderExamGrid();
-        } else {
-            grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard.</p>';
-        }
-    } catch (err) {
-        grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard.</p>';
+async function loadDashboard() {
+    // a load is already running: callers share ONE follow-up load (so a caller that just changed something still gets fresh data)
+    if (dashLoading) {
+        if (!dashNext) dashNext = dashLoading.then(() => { dashNext = null; return loadDashboard(); });
+        return dashNext;
     }
+    dashLoading = (async () => {
+        if (window.syncAdminDownloadButtons) window.syncAdminDownloadButtons();
+        const grid = document.getElementById('exam-grid');
+        if (typeof window.currentExamFilter === 'undefined') window.currentExamFilter = 'all';
+
+        // 1) paint immediately from memory / the last visit - the grid is never emptied while we wait
+        if (!window.allExamsData) {
+            const c = readDashCache();
+            if (c) {
+                window.allExamsData = c.data; window.examGroups = c.groups || []; window.progressSectionWise = c.progress || {};
+                paintDashboard();
+            } else {
+                dashSkeleton(grid);
+            }
+        } else {
+            paintDashboard();
+        }
+
+        // 2) both requests together; the exam list is painted as soon as IT arrives (progress is added when ready)
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const progP = fetch('/api/progress/dashboard', { headers }).then(r => r.json()).catch(() => null);
+        try {
+            const res = await fetch('/api/exams/hierarchy', { headers });
+            const data = await res.json();
+            if (data.success) {
+                window.allExamsData = data.data;
+                window.examGroups = data.groups || [];
+                if (!window.progressSectionWise) window.progressSectionWise = {};
+                paintDashboard();
+            } else if (!window.allExamsData) {
+                grid.innerHTML = '<p style="color:var(--error);">Failed to load dashboard. <button class="btn" onclick="loadDashboard()">Retry</button></p>';
+            }
+        } catch (err) {
+            if (!window.allExamsData) grid.innerHTML = '<p style="color:var(--error);">No connection. <button class="btn" onclick="loadDashboard()">Retry</button></p>';
+        }
+
+        const progData = await progP;
+        if (progData && progData.success && progData.data) {
+            if (progData.data.sectionWise) window.progressSectionWise = progData.data.sectionWise;
+            if (progData.data.answers) {
+                try { localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers)); } catch (e) { }
+                userAnswers = progData.data.answers;
+            }
+            if (window.allExamsData) paintDashboard();
+        }
+        if (window.allExamsData) saveDashCache();
+    })().finally(() => { dashLoading = null; });
+    return dashLoading;
 }
 
 // Exam filtering and rendering
@@ -835,6 +918,7 @@ function renderSubjectGrid() {
             <p>${escapeHtmlX(label)}</p>
             <span class="meta">${sub.count} Total Questions</span>
         `;
+        if (sub.subject !== 'All Passages') card.addEventListener('pointerdown', () => window.prefetchExam(null, sub.subject, examIds), { passive: true });
         card.onclick = () => {
             window.activeScopeLabel = label;
             if (sub.subject === 'All Passages') openTest('Passage Comprehension');
@@ -917,6 +1001,9 @@ function renderExamGrid() {
             card.appendChild(hb);
         }
 
+        const warmUp = () => window.prefetchExam(yearExam);
+        card.addEventListener('pointerdown', warmUp, { passive: true });
+        card.addEventListener('mouseenter', warmUp);
         card.onclick = () => { window.activeScopeLabel = null; openTest(yearExam); };
         grid.appendChild(card);
     });
@@ -975,106 +1062,240 @@ window.hideGlobalLoader = function() {
     if (loader) loader.style.display = 'none';
 }
 
-async function openTest(yearExam, subject = null, restoreState = null, yearExams = null) {
-    showGlobalLoader("Loading Exam Paper...");
-    // Attempt to load questions
-    try {
-        const bodyData = {};
-        if (yearExam) bodyData.year_exam = yearExam;
-        if (subject) bodyData.subject = subject;
-        if (!yearExam && Array.isArray(yearExams) && yearExams.length) bodyData.year_exams = yearExams;
-
-        const res = await fetch('/api/questions', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify(bodyData)
+// ----- exam data: memory + IndexedDB cache (instant re-open), network refresh in the background -----
+window.QCache = (function () {
+    const DB = 'mpsc_qcache', STORE = 'q', MAX = 24;
+    let dbp = null;
+    function open() {
+        if (dbp) return dbp;
+        dbp = new Promise((res, rej) => {
+            try {
+                const r = indexedDB.open(DB, 1);
+                r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'k' });
+                r.onsuccess = () => res(r.result);
+                r.onerror = () => rej(r.error);
+            } catch (e) { rej(e); }
         });
-        
-        const data = await res.json();
-        
-        if (res.status === 403 && data.code === 'SUBSCRIPTION_REQUIRED') {
-            // User not subscribed
+        dbp.catch(() => { dbp = null; });
+        return dbp;
+    }
+    async function get(k) {
+        try {
+            const db = await open();
+            return await new Promise(res => { const q = db.transaction(STORE).objectStore(STORE).get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); });
+        } catch (e) { return null; }
+    }
+    async function trim(db) {
+        try {
+            const all = await new Promise(res => { const q = db.transaction(STORE).objectStore(STORE).getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
+            if (all.length <= MAX) return;
+            all.sort((a, b) => a.at - b.at);
+            const tx = db.transaction(STORE, 'readwrite');
+            all.slice(0, all.length - MAX).forEach(x => tx.objectStore(STORE).delete(x.k));
+        } catch (e) { }
+    }
+    async function set(k, text) {
+        try {
+            const db = await open();
+            await new Promise(res => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put({ k, text, at: Date.now() }); tx.oncomplete = res; tx.onerror = res; tx.onabort = res; });
+            trim(db);
+        } catch (e) { }
+    }
+    async function clear() {
+        try { const db = await open(); db.transaction(STORE, 'readwrite').objectStore(STORE).clear(); } catch (e) { }
+    }
+    return { get, set, clear };
+})();
+
+const memQ = new Map();            // key -> response text (this visit)
+const prefetching = new Map();     // key -> { p, at }  (started when a finger touches an exam card)
+let openTestSeq = 0, openTestCtl = null;
+
+function qKey(yearExam, subject, yearExams) {
+    return JSON.stringify([(currentUser && currentUser.email) || '', yearExam || '', subject || '', (!yearExam && Array.isArray(yearExams) && yearExams.length) ? yearExams : null]);
+}
+function qBody(yearExam, subject, yearExams) {
+    const b = {};
+    if (yearExam) b.year_exam = yearExam;
+    if (subject) b.subject = subject;
+    if (!yearExam && Array.isArray(yearExams) && yearExams.length) b.year_exams = yearExams;
+    return b;
+}
+function fetchQuestionsNet(body, signal) {
+    return fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body),
+        signal
+    }).then(async (res) => {
+        const text = await res.text();
+        let data = null; try { data = JSON.parse(text); } catch (e) { }
+        return { status: res.status, text, data };
+    });
+}
+// a finger / mouse is on an exam card: start loading its questions now, so the tap opens it at once
+window.prefetchExam = function (yearExam, subject, yearExams) {
+    try {
+        if (!token || !currentUser) return;
+        const key = qKey(yearExam, subject, yearExams);
+        prefetching.forEach((v, k) => { if (Date.now() - v.at > 30000) prefetching.delete(k); });
+        const hit = prefetching.get(key);
+        if (memQ.has(key) || (hit && Date.now() - hit.at < 30000)) return;
+        prefetching.set(key, { at: Date.now(), p: fetchQuestionsNet(qBody(yearExam, subject, yearExams)).catch(() => null) });
+    } catch (e) { }
+};
+window.abortOpenTest = function () {
+    openTestSeq++;                                            // any answer still on its way is ignored
+    if (openTestCtl) { try { openTestCtl.abort(); } catch (e) { } openTestCtl = null; }
+    const m = document.getElementById('main-content'); if (m) m.classList.remove('sk-loading');
+};
+
+// cached questions may be used at once only when the user has paid access (the server re-checks in the background)
+function mayUseCachedExam() {
+    if (!currentUser) return false;
+    if (currentUser.isAdmin) return true;
+    return !!(currentUser.isSubscribed && (!currentUser.subscriptionExpiry || new Date(currentUser.subscriptionExpiry) > new Date()));
+}
+
+function testTitleText(yearExam, subject) {
+    const scopeText = window.activeScopeLabel || 'All Exams';
+    return yearExam ? `${yearExam}` : `${subject} (${scopeText})`;
+}
+function setTestTitle(text) {
+    if (document.getElementById('test-title')) {
+        document.getElementById('test-title').innerText = text;
+    } else if (document.getElementById('crumb-year')) {
+        document.getElementById('crumb-year').innerText = text;
+        if (document.getElementById('crumb-exam')) document.getElementById('crumb-exam').innerText = '';
+        if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
+    }
+}
+
+// put the questions on the screen (first time)
+function showQuestionsOnScreen(restoreState) {
+    renderSubjectFilters();          // resets active subject/topic
+    filterQuestions(null, null);     // initially show all
+    const m = document.getElementById('main-content'); if (m) m.classList.remove('sk-loading');
+    if (restoreState) {
+        currentQIndex = restoreState.qIndex || 0;
+        renderQuizQuestion(currentQIndex, currentQuestions);
+        switchMode(restoreState.mode || 'full');
+        if (restoreState.scrollPos) setTimeout(() => window.scrollTo(0, restoreState.scrollPos), 100);
+    } else {
+        switchMode('full');          // default: Full Paper mode
+    }
+    // Admin features
+    const admin = !!(currentUser && currentUser.isAdmin);
+    ['btn-ai-fix-all', 'ai-fab', 'btn-download-paper'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { if (admin) el.classList.remove('hidden'); else el.classList.add('hidden'); }
+    });
+}
+
+// fresh data arrived while the cached copy was already shown: update quietly, keep the place the student is at
+function refreshQuestionsQuietly() {
+    try {
+        const visible = getFilteredQuestions();
+        if (currentQIndex >= visible.length) currentQIndex = Math.max(0, visible.length - 1);
+        const quizView = document.getElementById('quiz-view');
+        if (quizView && quizView.style.display !== 'none') renderQuizQuestion(currentQIndex, visible);
+        else if (typeof renderFullPaper === 'function') renderFullPaper(visible);
+        if (typeof updateFloatingStats === 'function') updateFloatingStats(visible);
+        if (window.paperRefresh) window.paperRefresh(null, 'images');
+    } catch (e) { console.warn('refreshQuestionsQuietly', e); }
+}
+
+async function openTest(yearExam, subject = null, restoreState = null, yearExams = null) {
+    window.abortOpenTest();
+    const mySeq = openTestSeq;
+    const ctl = new AbortController();
+    openTestCtl = ctl;
+
+    const key = qKey(yearExam, subject, yearExams);
+    const lostFocus = () => mySeq !== openTestSeq;          // the student pressed Back / opened something else
+
+    // the exam screen appears at once (title + a light skeleton); the data follows in the background
+    window.activeYearExam = yearExam;
+    window.activeSubject = subject;
+    window.activeYearExams = (!yearExam && Array.isArray(yearExams) && yearExams.length) ? yearExams : null;
+    if (restoreState && restoreState.scopeLabel) window.activeScopeLabel = restoreState.scopeLabel;
+    if (yearExam) window.activeScopeLabel = null;
+    setTestTitle(testTitleText(yearExam, subject));
+    const mainEl = document.getElementById('main-content');
+    if (mainEl) mainEl.classList.add('sk-loading');
+    showSection('test-section');
+    pushTestHistory();
+
+    // 1) instant: this visit's memory, or the copy saved on this phone
+    let shownText = null;
+    if (mayUseCachedExam()) {
+        let text = memQ.get(key);
+        if (!text) { const c = await QCache.get(key); text = c && c.text; }
+        if (lostFocus()) return;
+        if (text) {
+            try {
+                const d = JSON.parse(text);
+                if (d && d.success && Array.isArray(d.data) && d.data.length) {
+                    currentQuestions = d.data;
+                    showQuestionsOnScreen(restoreState);
+                    shownText = text;
+                }
+            } catch (e) { /* damaged copy: ignore, the network answer follows */ }
+        }
+    }
+
+    // 2) the network (an answer already on its way from a touch-start is reused)
+    try {
+        const pre = prefetching.get(key); prefetching.delete(key);
+        let net = (pre && Date.now() - pre.at < 30000) ? await pre.p : null;
+        if (!net) net = await fetchQuestionsNet(qBody(yearExam, subject, yearExams), ctl.signal);
+        if (lostFocus()) return;
+        const { status, text, data } = net;
+
+        if (data && !data.success && (data.code === 'EXAM_HIDDEN')) {
+            // the admin hid this paper: it no longer exists for students
+            localStorage.removeItem('mpsc_last_session'); memQ.delete(key);
+            alert(data.message || 'This exam is not available right now.');
+            window.goDashboard();
+            return;
+        }
+        if (status === 403 || (data && !data.success && data.message && data.message.includes('Subscription'))) {
+            memQ.delete(key);
+            window.abortOpenTest();
             showSection('payment-section');
             return;
         }
+        if (!data || !data.success) {
+            if (shownText) return;                              // keep showing the saved copy (e.g. weak signal)
+            alert((data && data.message) || 'Error fetching questions.');
+            window.goDashboard();
+            return;
+        }
+        if (!Array.isArray(data.data) || data.data.length === 0) {
+            alert('No questions found for this selection.');
+            window.goDashboard();
+            return;
+        }
 
-        if (data.success) {
+        memQ.set(key, text);
+        if (mayUseCachedExam()) QCache.set(key, text);
+
+        if (shownText === null) {
             currentQuestions = data.data;
-            window.activeYearExam = yearExam;
-            window.activeSubject = subject;
-            window.activeYearExams = (!yearExam && Array.isArray(yearExams) && yearExams.length) ? yearExams : null;
-            if (restoreState && restoreState.scopeLabel) window.activeScopeLabel = restoreState.scopeLabel;
-            if (yearExam) window.activeScopeLabel = null;
-            const scopeText = window.activeScopeLabel || 'All Exams';
-            if (currentQuestions.length === 0) {
-                alert("No questions found for this selection.");
-                return;
-            }
-            
-            if (document.getElementById('test-title')) {
-                document.getElementById('test-title').innerText = yearExam ? `${yearExam}` : `${subject} (${scopeText})`;
-            } else if (document.getElementById('crumb-year')) {
-                document.getElementById('crumb-year').innerText = yearExam ? `${yearExam}` : `${subject} (${scopeText})`;
-                if (document.getElementById('crumb-exam')) document.getElementById('crumb-exam').innerText = '';
-                if (document.getElementById('crumb-subject')) document.getElementById('crumb-subject').innerText = '';
-            }
-            
-            // Render Filters (resets active subject/topic)
-            renderSubjectFilters();
-            
-            // Initially show all
-            filterQuestions(null, null);
-
-            showSection('test-section');
-            
-            if (restoreState) {
-                currentQIndex = restoreState.qIndex || 0;
-                renderQuizQuestion(currentQIndex, currentQuestions);
-                switchMode(restoreState.mode || 'full');
-                if (restoreState.scrollPos) {
-                    setTimeout(() => window.scrollTo(0, restoreState.scrollPos), 100);
-                }
-            } else {
-                // Default to Full Paper Mode
-                switchMode('full');
-            }
-
-            // Admin features
-            if (currentUser && currentUser.isAdmin) {
-                const btnFixAll = document.getElementById('btn-ai-fix-all');
-                if (btnFixAll) btnFixAll.classList.remove('hidden');
-                const aiFab = document.getElementById('ai-fab');
-                if (aiFab) aiFab.classList.remove('hidden');
-                const btnDl = document.getElementById('btn-download-paper');
-                if (btnDl) btnDl.classList.remove('hidden');
-            } else {
-                const btnFixAll = document.getElementById('btn-ai-fix-all');
-                if (btnFixAll) btnFixAll.classList.add('hidden');
-                const aiFab = document.getElementById('ai-fab');
-                if (aiFab) aiFab.classList.add('hidden');
-                const btnDl = document.getElementById('btn-download-paper');
-                if (btnDl) btnDl.classList.add('hidden');
-            }
-        } else {
-            if (data.code === 'EXAM_HIDDEN') {
-                // the admin hid this paper: it no longer exists for students
-                localStorage.removeItem('mpsc_last_session');
-                alert(data.message || 'This exam is not available right now.');
-                showSection('dashboard-section');
-                loadDashboard();
-            } else if (data.message && data.message.includes('Subscription')) {
-                showSection('payment-section');
-            } else {
-                alert(data.message || 'Error fetching questions.');
-            }
+            showQuestionsOnScreen(restoreState);
+        } else if (text !== shownText) {
+            currentQuestions = data.data;                       // something changed on the server (e.g. an AI fix)
+            refreshQuestionsQuietly();
         }
     } catch (err) {
-        alert('Server error.');
+        if (err && err.name === 'AbortError') return;
+        if (lostFocus()) return;
+        if (shownText === null) {
+            alert('Could not load the questions. Please check your internet and try again.');
+            window.goDashboard();
+        }
     } finally {
-        hideGlobalLoader();
+        if (!lostFocus()) { if (openTestCtl === ctl) openTestCtl = null; }
     }
 }
 

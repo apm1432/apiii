@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MPSC PYQ Portal</title>
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
@@ -188,7 +188,7 @@
                             <button class="btn btn-primary" onclick="initiatePayment('2_years')">Pay ₹100</button>
                         </div>
                     </div>
-                <button class="btn" onclick="showSection('dashboard-section')">Back to Dashboard</button>
+                <button class="btn" onclick="goDashboard()">Back to Dashboard</button>
             </div>
         </section>
 
@@ -196,7 +196,7 @@
         <section id="test-section" class="view-section">
             <header class="test-header">
                 <div class="header-left">
-                    <button class="btn btn-icon" onclick="showSection('dashboard-section')">← Back</button>
+                    <button class="btn btn-icon" onclick="goDashboard()">← Back</button>
                     <nav id="breadcrumb-nav">
                         <span class="crumb" id="crumb-year">Year</span> >
                         <span class="crumb" id="crumb-exam">Exam</span> >
@@ -225,6 +225,11 @@
             </div>
 
             <main id="main-content">
+                <!-- light placeholder while the questions load (no full-screen loader) -->
+                <div id="test-skeleton" aria-hidden="true">
+                    <div class="sk-line sk-w60"></div><div class="sk-line"></div><div class="sk-line sk-w80"></div><div class="sk-box"></div>
+                    <div class="sk-line sk-w60"></div><div class="sk-line"></div><div class="sk-line sk-w80"></div><div class="sk-box"></div>
+                </div>
                 <!-- Quiz Mode View -->
                 <div id="quiz-view" class="view-mode active">
                     <div id="quiz-score-bar" class="quiz-score-bar"></div>
@@ -342,7 +347,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20"></script>
+    <script src="script.js?v=21"></script>
     <script src="paper.js?v=5"></script>
     <script src="qchat.js?v=1"></script>
     <script src="accountsync.js?v=2"></script>
