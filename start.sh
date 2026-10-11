@@ -18,6 +18,24 @@ PY_PID=$!
 # Own restart loop and NOT part of `wait -n` below, so if it crashes it never
 # takes the rest of the container down.
 if [ -x /opt/webai-venv/bin/python ]; then
+  # Gemini web cookies come from env vars WEBAI_PSID (+ optional WEBAI_PSIDTS)
+  # -> written into WebAI's config.conf [Gemini] section on every start
+  # (the dashboard has no cookie form and the container disk is not persistent).
+  if [ -n "$WEBAI_PSID" ]; then
+    python3 - <<'PY'
+import os, re
+p = '/opt/webai/config.conf'
+s = open(p, encoding='utf-8').read()
+for key, env in (('__Secure-1PSID', 'WEBAI_PSID'), ('__Secure-1PSIDTS', 'WEBAI_PSIDTS')):
+    v = os.environ.get(env, '').strip().strip('"').strip("'")
+    if v:
+        s = re.sub(r'(?m)^' + re.escape(key) + r'[ \t]*=.*$', lambda m: key + ' = ' + v, s, count=1)
+open(p, 'w', encoding='utf-8').write(s)
+print('==> WebAI cookies loaded from env')
+PY
+  else
+    echo "==> WEBAI_PSID not set - WebAI will start without Gemini cookies"
+  fi
   echo "==> Starting WebAI-to-API on 127.0.0.1:6969..."
   (cd /opt/webai && while true; do
      PYTHONPATH=src PYTHONUNBUFFERED=1 /opt/webai-venv/bin/python src/run.py --host 127.0.0.1 --port 6969
