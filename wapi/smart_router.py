@@ -1008,6 +1008,8 @@ def strict_password_and_log():
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys']:
         return
+    if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
+        return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
     g._log_start = time.monotonic()  # for response_ms in after_request, not stored in log_entry itself
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
@@ -1831,6 +1833,102 @@ def get_status():
 @app.route('/healthz')
 def ping():
     return "OK", 200
+
+# ─── /api/web/v1 : ONLY WebAI-to-API (separate from the Gemini key router) ────
+# Mapping (so it works as an OpenAI base_url):
+#   /api/web/v1/chat/completions  -> {WEBAI_URL}/v1/chat/completions
+#   /api/web/v1/models            -> {WEBAI_URL}/v1/models
+#   /api/web/v1/ui/...            -> {WEBAI_URL}/ui/...   (dashboard: add cookies/login here)
+#   /api/web/v1/docs|redoc|openapi.json|health|ready|translate -> same path upstream
+# Auth: "Authorization: Bearer <PASSWORD>" (API clients) OR browser Basic auth
+# (password field = PASSWORD) so the dashboard opens in a browser.
+# WebAI-to-API itself has no caller auth, so keep it bound to localhost.
+WEBAPI_PREFIX = "/api/web/v1"
+WEBAI_URL = os.environ.get("WEBAI_URL", "http://127.0.0.1:6969").rstrip("/")
+_WEBAPI_ROOT_PATHS = ("ui", "docs", "redoc", "openapi.json", "health", "ready",
+                      "translate", "favicon.ico")
+_WEBAPI_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+               "te", "trailers", "transfer-encoding", "upgrade", "host", "content-length",
+               "content-encoding", "authorization", "accept-encoding"}
+_WEBAPI_REWRITE_RE = re.compile(
+    r"(?P<pre>[\"'(=\s])/(?P<seg>ui|v1|docs|redoc|openapi\.json|health|ready|translate|favicon\.ico)"
+    r"(?=[/\"')?#\s]|$)")
+
+def _webapi_authorized() -> bool:
+    expected = os.environ.get("PASSWORD", "")
+    if not expected:
+        return False
+    if request.headers.get("Authorization", "") == f"Bearer {expected}":
+        return True
+    auth = request.authorization
+    return bool(auth and auth.password == expected)
+
+def _webapi_rewrite_text(text: str) -> str:
+    # dashboard pages use absolute paths (/ui/..., /v1/...) -> keep them under the prefix
+    def _sub(m):
+        seg = m.group("seg")
+        return f'{m.group("pre")}{WEBAPI_PREFIX}' + ("" if seg == "v1" else f"/{seg}")
+    return _WEBAPI_REWRITE_RE.sub(_sub, text)
+
+def _webapi_rewrite_location(loc: str) -> str:
+    return _webapi_rewrite_text(" " + loc)[1:] if loc.startswith("/") else loc
+
+@app.route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+@app.route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+def webapi_proxy(sub):
+    cors = {"Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"}
+    if request.method == 'OPTIONS':
+        return Response(status=200, headers=cors)
+    if not _webapi_authorized():
+        if "text/html" in request.headers.get("Accept", ""):
+            return Response('Login Required', 401,
+                {'WWW-Authenticate': 'Basic realm="Web API (password field = your API PASSWORD)"'})
+        return jsonify({"error": "Unauthorized Access. Invalid Password."}), 401
+
+    sub = sub.strip("/")
+    if sub == "":
+        sub = "ui"
+    first = sub.split("/", 1)[0]
+    upstream_path = "/" + sub if first in _WEBAPI_ROOT_PATHS else "/v1/" + sub
+    url = WEBAI_URL + upstream_path
+
+    fwd_headers = {k: v for k, v in request.headers
+                   if k.lower() not in _WEBAPI_HOP and k.lower() != "cookie"}
+    fwd_headers["Accept-Encoding"] = "identity"
+    try:
+        up = requests.request(request.method, url, params=request.args, data=request.get_data(),
+                              headers=fwd_headers, stream=True, timeout=(10, 600),
+                              allow_redirects=False)
+    except Exception as e:
+        return jsonify({"error": {"message": f"WebAI-to-API unreachable at {WEBAI_URL}: {e}",
+                                  "type": "upstream_unavailable"}}), 502
+
+    out_headers = {}
+    for k, v in up.headers.items():
+        kl = k.lower()
+        if kl in _WEBAPI_HOP or kl == "set-cookie":
+            continue
+        if kl in ("location", "hx-redirect", "hx-location", "hx-push-url", "hx-replace-url"):
+            v = _webapi_rewrite_location(v)
+        out_headers[k] = v
+    out_headers.update(cors)
+
+    ctype = up.headers.get("Content-Type", "").lower()
+    if any(t in ctype for t in ("text/html", "text/css", "javascript")):
+        body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
+        up.close()
+        return Response(body.encode("utf-8"), up.status_code, out_headers)
+
+    def _gen():
+        try:
+            for chunk in up.iter_content(chunk_size=None):
+                if chunk:
+                    yield chunk
+        finally:
+            up.close()
+    return Response(_gen(), up.status_code, out_headers)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8085)
