@@ -1903,7 +1903,7 @@ def webapi_proxy(sub):
                               allow_redirects=False)
     except Exception as e:
         return jsonify({"error": {"message": f"WebAI-to-API unreachable at {WEBAI_URL}: {e}",
-                                  "type": "upstream_unavailable"}}), 502
+                                  "type": "upstream_unavailable"}}), 424
 
     out_headers = {}
     for k, v in up.headers.items():
@@ -1915,11 +1915,17 @@ def webapi_proxy(sub):
         out_headers[k] = v
     out_headers.update(cors)
 
+    # Koyeb replaces app-sent 502/503/504 with its own generic "no healthy service"
+    # page, hiding the real reason -> report WebAI problems as 424 instead.
+    status = 424 if up.status_code in (502, 503, 504) else up.status_code
+    if status != up.status_code:
+        out_headers["X-Upstream-Status"] = str(up.status_code)
+
     ctype = up.headers.get("Content-Type", "").lower()
     if any(t in ctype for t in ("text/html", "text/css", "javascript")):
         body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
         up.close()
-        return Response(body.encode("utf-8"), up.status_code, out_headers)
+        return Response(body.encode("utf-8"), status, out_headers)
 
     def _gen():
         try:
@@ -1928,7 +1934,7 @@ def webapi_proxy(sub):
                     yield chunk
         finally:
             up.close()
-    return Response(_gen(), up.status_code, out_headers)
+    return Response(_gen(), status, out_headers)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8085)

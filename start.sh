@@ -14,6 +14,19 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
   --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!
 
+# WebAI-to-API on 127.0.0.1:6969 (reached only through /api/web/v1 in wapi).
+# Own restart loop and NOT part of `wait -n` below, so if it crashes it never
+# takes the rest of the container down.
+if [ -x /opt/webai-venv/bin/python ]; then
+  echo "==> Starting WebAI-to-API on 127.0.0.1:6969..."
+  (cd /opt/webai && while true; do
+     PYTHONPATH=src PYTHONUNBUFFERED=1 /opt/webai-venv/bin/python src/run.py --host 127.0.0.1 --port 6969
+     echo "[webai] exited, restarting in 5s"; sleep 5
+   done) &
+else
+  echo "==> WebAI-to-API not installed - /api/web/v1 disabled"
+fi
+
 echo "==> Waiting for apps to start..."
 sleep 3
 
