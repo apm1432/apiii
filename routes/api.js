@@ -156,7 +156,7 @@ async function fetchQuestionImages(question) {
 global.fetchImageForAI = fetchTelegramImageBase64;
 global.fetchQuestionImagesForAI = fetchQuestionImages;
 
-const { createJob, addClientToJob, retryQuestion } = require('../utils/jobManager');
+const { createJob, addClientToJob, retryQuestion, stopJob, resumeJob, retryAllFailed } = require('../utils/jobManager');
 const { reconcileUserProgress } = require('../utils/progressSync');
 
 // Admin: Start Background Job for Fixing Paper
@@ -288,6 +288,36 @@ router.post('/admin/download-paper', authMiddleware, async (req, res) => {
         console.error('download-paper error:', err);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
+});
+
+// Admin: STOP the running AI Fix job (nothing new is sent to the AI; finished fixes stay)
+router.post('/admin/fix-stop', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden.' });
+        const ok = stopJob(req.body && req.body.jobId);
+        res.status(ok ? 200 : 400).json({ success: ok, message: ok ? undefined : 'Job not found' });
+    } catch (err) { res.status(500).json({ success: false }); }
+});
+
+// Admin: continue the questions that were still waiting when the job was stopped
+router.post('/admin/fix-resume', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden.' });
+        const ok = resumeJob(req.body && req.body.jobId);
+        res.status(ok ? 200 : 400).json({ success: ok, message: ok ? undefined : 'Job not found' });
+    } catch (err) { res.status(500).json({ success: false }); }
+});
+
+// Admin: put ALL failed questions of the job back in the queue
+router.post('/admin/fix-retry-failed', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden.' });
+        const n = retryAllFailed(req.body && req.body.jobId);
+        res.json({ success: true, retried: n });
+    } catch (err) { res.status(500).json({ success: false }); }
 });
 
 // Admin: Retry a failed question in a job

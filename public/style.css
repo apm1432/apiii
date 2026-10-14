@@ -689,3 +689,24 @@ header {
 .ca-tab { padding: 6px 12px; font-size: .85rem; cursor: pointer; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #374151; }
 .ca-tab-on { background: #14b8a6; border-color: #14b8a6; color: #fff; font-weight: 600; }
 .ca-deepen { align-items: flex-start; margin: 4px 0 8px; line-height: 1.4; }
+
+/* ===== Select & Add (tap lines of an explanation -> Notes) ===== */
+.xl-picker { margin-top: 8px; }
+.xl-hint { font-size: 0.78rem; opacity: .75; margin-bottom: 6px; }
+.xl-head { font-weight: 700; margin: 10px 0 4px; font-size: 0.85rem; }
+.xl-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 8px; margin: 4px 0; border: 1px solid #bfdbfe; border-radius: 8px; background: rgba(255,255,255,.7); cursor: pointer; user-select: none; -webkit-user-select: none; line-height: 1.5; }
+.xl-row * { user-select: none; -webkit-user-select: none; }
+.xl-text { flex: 1; min-width: 0; word-break: break-word; }
+.xl-row.xl-sel { background: #dbeafe; border-color: #2563eb; box-shadow: inset 3px 0 0 #2563eb; }
+.xl-row.xl-done { background: #dcfce7; border-color: #16a34a; }
+.xl-row.xl-done .xl-text::after { content: ' \2714'; color: #16a34a; font-weight: 700; }
+.xl-plus { flex: none; width: 34px; height: 30px; padding: 0; font-size: .85rem; line-height: 1; cursor: pointer; border: 1px solid #93c5fd; border-radius: 8px; background: #fff; }
+.xl-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; position: sticky; bottom: 0; padding: 6px 0; background: inherit; }
+.xl-foot .expl-btn:disabled { opacity: .45; cursor: default; }
+.xl-addsel:not(:disabled) { background: #2563eb; color: #fff; border-color: #2563eb; }
+.pm-expl .xl-row { background: #111827; border-color: #4b5563; color: #e5e7eb; }
+.pm-expl .xl-row.xl-sel { background: #1e3a8a; border-color: #60a5fa; box-shadow: inset 3px 0 0 #60a5fa; }
+.pm-expl .xl-row.xl-done { background: #14532d; border-color: #22c55e; }
+.pm-expl .xl-plus { background: #1f2937; border-color: #4b5563; }
+.pm-expl .xl-foot { background: #1f2937; }
+.explanation .xl-foot { background: #eff6ff; }

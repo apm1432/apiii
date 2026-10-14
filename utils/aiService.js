@@ -54,6 +54,12 @@ async function initializeKeys() {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Admin pressed "Stop" on the AI Fix job: the job gives onChunk an isStopped() function. Every retry loop checks it, so no NEW
+// request is sent after Stop (the one request already in flight just finishes and its result is thrown away by the job).
+function throwIfStopped(cb) {
+    if (cb && typeof cb.isStopped === 'function' && cb.isStopped()) { const e = new Error('Stopped by admin'); e.stopped = true; throw e; }
+}
+
 let keyMutex = Promise.resolve();
 
 // ---------------------------------------------------------------------------
@@ -1046,11 +1052,13 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
     let hint = firstHint || '';
 
     while (attempts < maxAttempts) {
+        throwIfStopped(onChunk);
         const { key, model, waitTime } = await getNextAvailableKeyAndModel(opts);
         
         if (waitTime > 0) {
             if (onChunk) onChunk(`\n[System] Waiting ${Math.round(waitTime/1000)}s for RPM limit on ${model}...\n`);
             await sleep(waitTime);
+            throwIfStopped(onChunk);
         }
 
         const keySuffix = key.substring(key.length - 4);
@@ -1199,6 +1207,7 @@ async function runOpenAI(p, prompt, imageBase64, onChunk, processFn, maxAttempts
     let attempts = 0, transient = 0, lastError = null, hint = firstHint || '';
 
     while (attempts < maxAttempts) {
+        throwIfStopped(onChunk);
         log(`\n[System] Attempt ${attempts + 1} | Provider: ${p.name} | Model: ${p.model}\nAI Thinking:\n`);
         let text;
         try {
@@ -1240,6 +1249,7 @@ async function runAI(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, f
     const problems = [];
     let allResting = true, minRetry = Infinity, lastErr = null;
     for (let i = 0; i < providers.length; i++) {
+        throwIfStopped(onChunk);
         const p = providers[i];
         const isLast = i === providers.length - 1;
         const t0 = Date.now();
@@ -1256,6 +1266,7 @@ async function runAI(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, f
             chatProviders.markOk('fix', p.id, Date.now() - t0);
             return out;
         } catch (e) {
+            if (e && e.stopped) throw e;     // admin pressed Stop: do not try the next provider
             lastErr = e;
             if (e && e.aiResting) e.kind = 'rate';
             const resting = !!(e && (e.aiResting || e.kind === 'rate'));
@@ -1376,6 +1387,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
     if (strong) log('\n[System] Reasoning / maths question detected - using the stronger models and requiring full working.\n');
 
     for (let round = 1; round <= MAX_ROUNDS; round++) {
+        throwIfStopped(onChunk);
         try {
             // PASS 1: reconstruct + solve. Normalisation AND order/format guards run before accepting.
             const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was NOT accepted: ${String(lastErr.message).slice(0, 700)}\nSolve the question again completely from scratch and check every clue / fact yourself. Do not simply copy any answer mentioned above.` : '';
@@ -1437,6 +1449,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
             } catch (e) { /* informational only */ }
             return fixed;
         } catch (e) {
+            if (e && e.stopped) throw e;     // admin pressed Stop
             lastErr = e;
             if (e && e.keepFixed) keep = e.keepFixed;
             log(`\n[System] ⚠ Verification rejected the result (round ${round}/${MAX_ROUNDS}): ${e.message}\n`);

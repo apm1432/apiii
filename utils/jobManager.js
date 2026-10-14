@@ -2,7 +2,8 @@ const { fixQuestionWithAI } = require('./aiService');
 const Question = require('../models/Question');
 const { recalcProgressForQuestion } = require('./progressSync');
 
-const jobs = {}; // jobId -> { status: 'running|done', questions: [], clients: Set, qIndex: 0 }
+const jobs = {};
+const ctl = {};  // jobId -> { stopPromise, stopResolve }  (kept outside jobs[] so the job state stays plain JSON) // jobId -> { status: 'running|done', questions: [], clients: Set, qIndex: 0 }
 
 // Heartbeat to keep SSE connections alive
 setInterval(() => {
@@ -17,12 +18,20 @@ setInterval(() => {
     }
 }, 15000);
 
+function armStop(jobId) {
+    const c = {};
+    c.stopPromise = new Promise(res => { c.stopResolve = res; });
+    ctl[jobId] = c;
+}
+
 function createJob(jobId, questionIds) {
+    armStop(jobId);
     jobs[jobId] = {
         status: 'pending',
         questions: questionIds.map(id => ({ id, status: 'pending', error: null })),
         clients: new Set(),
-        qIndex: 0
+        qIndex: 0,
+        stopRequested: false
     };
     processJob(jobId); // start background execution
     return jobId;
@@ -59,6 +68,7 @@ async function processJob(jobId) {
     broadcast(jobId, { type: 'status_update', status: job.status });
 
     while (true) {
+        if (job.stopRequested) break;   // admin pressed Stop: no new question is started
         // Find next pending
         const qIndex = job.questions.findIndex(q => q.status === 'pending');
         if (qIndex === -1) break; // All done or failed
@@ -80,9 +90,14 @@ async function processJob(jobId) {
                 else if (global.fetchImageForAI) imageBase64 = await global.fetchImageForAI(question.original_image_url);
             }
 
-            const parsedContent = await fixQuestionWithAI(question, imageBase64, (chunk) => {
-                broadcast(jobId, { type: 'chunk', index: qIndex, chunk });
-            });
+            const onChunk = (chunk) => { if (!job.stopRequested) broadcast(jobId, { type: 'chunk', index: qIndex, chunk }); };
+            onChunk.isStopped = () => job.stopRequested;      // the AI retry loops stop sending new requests
+            // Stop must react at once: the AI call is raced against the stop signal. If Stop wins, the late result is thrown away (never saved).
+            const work = fixQuestionWithAI(question, imageBase64, onChunk);
+            work.catch(() => { });
+            const stopSignal = ctl[jobId].stopPromise.then(() => { const e = new Error('Stopped by admin'); e.stopped = true; throw e; });
+            stopSignal.catch(() => { });
+            const parsedContent = await Promise.race([work, stopSignal]);
 
             // The AI solved the question WITHOUT seeing the old answer. Tell the admin if its answer differs.
             const oldAnswer = String(question.correct_answer_option || question.final_answer_key || '').trim();
@@ -141,6 +156,12 @@ async function processJob(jobId) {
             broadcast(jobId, { type: 'question_done', index: qIndex, question: question });
 
         } catch (error) {
+            // Stop pressed: this question was NOT changed. It goes back to "pending" so "Resume" can do it again.
+            if (error && error.stopped) {
+                qObj.status = 'pending'; qObj.error = null;
+                broadcast(jobId, { type: 'question_stopped', index: qIndex, id: qObj.id });
+                break;
+            }
             // Every key/model is resting (rate limit / quota / busy) and NO request was sent.
             if (error && error.aiResting) {
                 const waitMs = error.retryAfterMs || 0;
@@ -148,7 +169,7 @@ async function processJob(jobId) {
                     // short rest: wait here and retry the SAME question - no failed question, no wasted request
                     qObj.status = 'pending';
                     broadcast(jobId, { type: 'chunk', index: qIndex, chunk: `\n[System] All keys/models are resting. Waiting ${Math.ceil(waitMs / 1000)}s, then this question is retried automatically...\n` });
-                    await new Promise(r => setTimeout(r, waitMs + 1000));
+                    await Promise.race([new Promise(r => setTimeout(r, waitMs + 1000)), ctl[jobId].stopPromise]);   // Stop also ends this wait
                     continue;
                 }
                 // long rest (daily quota finished): stop the job; this question fails (retry button), the rest stay pending
@@ -165,8 +186,52 @@ async function processJob(jobId) {
         }
     }
 
-    job.status = 'done';
-    broadcast(jobId, { type: 'job_done' });
+    const failed = job.questions.filter(q => q.status === 'failed').length;
+    const pending = job.questions.filter(q => q.status === 'pending').length;
+    if (job.stopRequested) {
+        job.status = 'stopped';
+        broadcast(jobId, { type: 'job_stopped', failed, pending });
+    } else {
+        job.status = 'done';
+        broadcast(jobId, { type: 'job_done', failed, pending });
+    }
+}
+
+// Stop: nothing new is sent to the AI. The question in progress is cancelled (not saved); finished fixes stay.
+function stopJob(jobId) {
+    const job = jobs[jobId];
+    if (!job) return false;
+    if (job.status !== 'running' && job.status !== 'pending') return true;   // already finished / stopped
+    job.stopRequested = true;
+    if (ctl[jobId]) ctl[jobId].stopResolve();
+    broadcast(jobId, { type: 'stopping' });
+    return true;
+}
+
+// start the worker again (after Stop, or after the job finished with failed / waiting questions)
+function startAgain(jobId) {
+    const job = jobs[jobId];
+    if (!job) return false;
+    if (job.status === 'running' || job.status === 'pending') return true;     // already working
+    job.stopRequested = false;
+    armStop(jobId);
+    processJob(jobId);
+    return true;
+}
+
+// Resume: continue the questions that are still pending (after Stop)
+function resumeJob(jobId) { return startAgain(jobId); }
+
+// Retry every failed question in one go (they go back to the queue and are tried again, in order)
+function retryAllFailed(jobId) {
+    const job = jobs[jobId];
+    if (!job) return 0;
+    let n = 0;
+    job.questions.forEach((q, i) => {
+        if (q.status === 'failed') { q.status = 'pending'; q.error = null; n++; broadcast(jobId, { type: 'question_retry', index: i }); }
+    });
+    if (n) startAgain(jobId);
+    return n;
 }
 
 function retryQuestion(jobId, questionId) {
@@ -181,7 +246,7 @@ function retryQuestion(jobId, questionId) {
     broadcast(jobId, { type: 'question_retry', index: qIndex });
     
     if (job.status === 'done') {
-        processJob(jobId); // Restart worker loop
+        startAgain(jobId); // Restart worker loop
     }
     return true;
 }
@@ -189,5 +254,8 @@ function retryQuestion(jobId, questionId) {
 module.exports = {
     createJob,
     addClientToJob,
-    retryQuestion
+    retryQuestion,
+    stopJob,
+    resumeJob,
+    retryAllFailed
 };

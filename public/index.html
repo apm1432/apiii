@@ -364,11 +364,13 @@
         <div class="ai-live-head">
             <strong>🤖 AI Fix Log</strong>
             <div>
+                <button id="ai-stop-btn" onclick="stopAiJob()" class="ai-live-btn" style="display:none;background:#dc2626;" title="Stop the AI Fix job">⏹ Stop</button>
                 <button onclick="navigator.clipboard.writeText(document.getElementById('ai-live-content').innerText); this.innerText='✔'; setTimeout(()=>this.innerText='Copy',2000);" class="ai-live-btn">Copy</button>
                 <button onclick="cycleAiPanelSize()" class="ai-live-btn" title="Change size">⤢</button>
                 <button onclick="toggleAiPanel()" class="ai-live-btn" style="font-size:1.1rem;">&times;</button>
             </div>
         </div>
+        <div id="ai-live-bar" style="display:none;font-family:sans-serif;font-size:.75rem;color:#e2e8f0;padding:4px 0 6px;border-bottom:1px solid #334155;margin-bottom:6px;"></div>
         <div id="ai-live-content" class="ai-live-content">Waiting for AI Queue to start...</div>
     </div>
 </body>

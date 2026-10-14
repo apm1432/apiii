@@ -2380,6 +2380,7 @@ function pickFixRange(list, scope) {
 }
 
 window.fixAllQuestions = async function() {
+    if (window.aiJobRunning) { stopAiJob(); return; }   // the same button is "⏹ Stop AI Fix" while a job is running
     // Only the questions of the selected subject / topic (same list the user is seeing)
     const questionsToFix = getFilteredQuestions();
     if (questionsToFix.length === 0) { alert("No questions to fix."); return; }
@@ -2448,6 +2449,32 @@ window.connectAiLiveStream = function(jobId) {
     const escHtml = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const es = new EventSource(`/api/admin/fix-stream/${jobId}?token=${token}`);
     window.activeAiEventSource = es;
+    window.aiJobId = jobId;
+    // counts for the bar: the failed list lives here, NOT in the log (the log is cleared for every new question)
+    const st = { failed: new Map(), done: 0, total: 0, pending: 0, mode: 'running' };   // mode: running | stopping | stopped | done
+    const btnAllEl = () => document.getElementById('btn-ai-fix-all');
+    const renderBar = () => {
+        const bar = document.getElementById('ai-live-bar');
+        const stopBtn = document.getElementById('ai-stop-btn');
+        const running = st.mode === 'running' || st.mode === 'stopping';
+        window.aiJobRunning = running;
+        if (stopBtn) { stopBtn.style.display = running ? 'inline-block' : 'none'; stopBtn.disabled = st.mode === 'stopping'; stopBtn.textContent = st.mode === 'stopping' ? '⏳ Stopping…' : '⏹ Stop'; }
+        const b = btnAllEl();
+        if (b) {
+            if (running) { b.disabled = false; b.innerText = st.mode === 'stopping' ? '⏳ Stopping…' : '⏹ Stop AI Fix'; }
+            else { b.disabled = false; updateFixAllButton(); }
+        }
+        if (!bar) return;
+        const f = st.failed.size;
+        let h = `<b>${st.done}</b> fixed` + (st.total ? ` / ${st.total}` : '') + (f ? ` · <span style="color:#f87171"><b>${f}</b> failed</span>` : '') + (st.pending && !running ? ` · <b>${st.pending}</b> waiting` : '');
+        if (st.mode === 'stopped') h += ' · <span style="color:#fbbf24">stopped</span>';
+        const btn = (fn, label, color) => ` <button onclick="${fn}" class="ai-live-btn" style="background:${color};margin-left:6px;">${label}</button>`;
+        if (st.mode === 'stopped' && st.pending) h += btn('resumeAiJob()', '▶ Resume (' + st.pending + ')', '#059669');
+        if (!running && f) h += btn('retryAllFailedAi()', '🔁 Retry failed (' + f + ')', '#b45309');
+        bar.innerHTML = h;
+        bar.style.display = (st.total || running) ? 'block' : 'none';
+    };
+    window.aiBarRender = renderBar;
     
     es.onmessage = function(event) {
         const data = JSON.parse(event.data);
@@ -2458,12 +2485,25 @@ window.connectAiLiveStream = function(jobId) {
             localStorage.removeItem('activeAiJobId');
         } else if (data.type === 'init') {
             logAppend(`<br/><span style="color: #64748b;">[Queue] Job attached. Processing...</span>`);
+            const qs = (data.state && data.state.questions) || [];
+            st.total = qs.length; st.done = 0; st.failed.clear();
+            qs.forEach((q, i) => { if (q.status === 'done') st.done++; else if (q.status === 'failed') st.failed.set(q.id, i); });
+            st.pending = qs.filter(q => q.status === 'pending' || q.status === 'running').length;
+            const js = data.state && data.state.status;
+            st.mode = js === 'stopped' ? 'stopped' : js === 'done' ? 'done' : (data.state && data.state.stopRequested ? 'stopping' : 'running');
+            if (st.mode === 'done' || st.mode === 'stopped') {
+                st.pending = qs.filter(q => q.status === 'pending').length;
+                const fabI = document.getElementById('ai-fab'); if (fabI) fabI.classList.remove('running');
+                if (st.mode === 'done') { es.close(); if (!st.failed.size) localStorage.removeItem('activeAiJobId'); }
+            }
+            renderBar();
         } else if (data.type === 'chunk') {
             logAppend(escHtml(data.chunk));
         } else if (data.type === 'question_start') {
             content.innerHTML = ''; pending = '';
             logAppend(`<span style="color: #f59e0b;">[Queue] Starting Question ${data.index + 1}...</span><br/>`);
         } else if (data.type === 'question_done') {
+            st.done++; st.failed.delete(data.question && data.question._id); renderBar();
             logAppend(`<br/><span style="color: #10b981;">[Queue] Question ${data.index + 1} Fixed Successfully!</span>`);
             
             // Update local state and UI
@@ -2498,11 +2538,28 @@ window.connectAiLiveStream = function(jobId) {
             }, 300);
 
         } else if (data.type === 'question_failed') {
-            logAppend(`<br/><span style="color: #ef4444;">[Queue] Question ${data.index + 1} Failed: ${data.error}</span><br/><button onclick="retryAiQuestion('${jobId}', '${data.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; cursor:pointer; margin-top:5px; border-radius:3px;">Retry Question ${data.index + 1}</button>`);
-        } else if (data.type === 'job_done') {
-            logAppend(`<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`);
+            st.failed.set(data.id, data.index); renderBar();
+            logAppend(`<br/><span style="color: #ef4444;">[Queue] Question ${data.index + 1} Failed (skipped, the next question continues): ${escHtml(data.error)}</span><br/><button onclick="retryAiQuestion('${jobId}', '${data.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; cursor:pointer; margin-top:5px; border-radius:3px;">Retry Question ${data.index + 1}</button>`);
+        } else if (data.type === 'question_retry') {
+            st.failed.forEach((v, k) => { if (v === data.index) st.failed.delete(k); }); renderBar();
+        } else if (data.type === 'stopping') {
+            st.mode = 'stopping'; renderBar();
+            logAppend(`<br/><span style="color: #fbbf24;">[Queue] Stop requested - nothing new is sent to the AI...</span>`);
+        } else if (data.type === 'question_stopped') {
+            logAppend(`<br/><span style="color: #fbbf24;">[Queue] Question ${data.index + 1} cancelled (not changed).</span>`);
+        } else if (data.type === 'job_stopped') {
+            st.mode = 'stopped'; st.pending = data.pending || 0; renderBar();
+            logAppend(`<br/><span style="color: #fbbf24; font-weight:bold;">[Queue] Stopped. ${st.done} fixed, ${st.pending} still waiting - press Resume to continue.</span>`);
             es.close();
-            localStorage.removeItem('activeAiJobId');
+            const fabS = document.getElementById('ai-fab'); if (fabS) fabS.classList.remove('running');
+            const bS = document.getElementById('btn-ai-fix-all'); if (bS) { bS.disabled = false; updateFixAllButton(); }
+        } else if (data.type === 'job_done') {
+            st.mode = 'done'; st.pending = 0; renderBar();
+            logAppend(st.failed.size
+                ? `<br/><span style="color: #fbbf24; font-weight:bold;">[Queue] Finished. ${st.done} fixed, ${st.failed.size} FAILED - use "Retry failed" at the top.</span>`
+                : `<br/><span style="color: #10b981; font-weight:bold;">[Queue] Paper completely fixed!</span>`);
+            es.close();
+            if (!st.failed.size) localStorage.removeItem('activeAiJobId');
             const fabDone = document.getElementById('ai-fab');
             if (fabDone) fabDone.classList.remove('running');
             const btnAll = document.getElementById('btn-ai-fix-all');
@@ -2564,10 +2621,40 @@ window.retryAiQuestion = async function(jobId, questionId) {
         if (data.success) {
             const content = document.getElementById('ai-live-content');
             if (content) content.innerHTML += `<br/><span style="color: #f59e0b;">[Queue] Question added back to queue!</span>`;
+            if (!window.aiJobRunning) { localStorage.setItem('activeAiJobId', jobId); connectAiLiveStream(jobId); }   // the log stream was closed when the job ended: attach again
         }
     } catch (e) {
         console.error(e);
     }
+};
+
+// small helper: POST to an admin job endpoint
+async function aiJobCall(path) {
+    const jobId = window.aiJobId || localStorage.getItem('activeAiJobId');
+    if (!jobId) return { success: false, message: 'No AI job' };
+    try {
+        const r = await fetch('/api/admin/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ jobId }) });
+        const d = await r.json().catch(() => ({}));
+        return Object.assign({ jobId }, d);
+    } catch (e) { return { success: false, message: 'Network error' }; }
+}
+// ⏹ Stop: nothing new is sent to the AI. Finished fixes stay; the question in progress is cancelled (unchanged).
+window.stopAiJob = async function () {
+    if (!window.aiJobRunning) return;
+    const d = await aiJobCall('fix-stop');
+    if (!d.success) alert('Could not stop: ' + (d.message || 'error'));
+};
+// ▶ Resume the questions that were still waiting when the job was stopped
+window.resumeAiJob = async function () {
+    const d = await aiJobCall('fix-resume');
+    if (d.success) { localStorage.setItem('activeAiJobId', d.jobId); connectAiLiveStream(d.jobId); }
+    else alert('Could not resume: ' + (d.message || 'the job is no longer on the server (server restarted?). Start the fix again - already fixed questions can be skipped with a range.'));
+};
+// 🔁 Retry ALL failed questions of the job
+window.retryAllFailedAi = async function () {
+    const d = await aiJobCall('fix-retry-failed');
+    if (d.success) { localStorage.setItem('activeAiJobId', d.jobId); connectAiLiveStream(d.jobId); }
+    else alert('Could not retry: ' + (d.message || 'the job is no longer on the server (server restarted?)'));
 };
 
 // Auto-connect if job was running
@@ -2602,7 +2689,7 @@ document.addEventListener('selectstart', event => { if (!zoneOf(event.target)) e
 // "Copy" button inside every explanation: copies the COMPLETE explanation (+ option-wise breakdown) as plain text.
 function explanationPlainText(el) {
     const c = el.cloneNode(true);
-    c.querySelectorAll('.expl-actions, button').forEach(x => x.remove());
+    c.querySelectorAll('.expl-actions, .xl-picker, button').forEach(x => x.remove());
     c.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
     c.querySelectorAll('li').forEach(li => li.insertAdjacentText('afterbegin', '\n• '));
     c.querySelectorAll('div, ul, h5, p').forEach(x => x.insertAdjacentText('afterbegin', '\n'));
@@ -2642,6 +2729,123 @@ function explanationNoteText(el) {
     }
     return explanationPlainText(el);
 }
+// ---- "Select & Add": the explanation is shown as tappable lines. Tap lines to select, then add them as separate notes;
+// or tap the ➕ on one line to put just that line into Notes at once. Copy / Add to Notes / paste keep working as before.
+function explanationLines(root) {
+    const c = root.cloneNode(true);
+    c.querySelectorAll('.expl-actions, .xl-picker, button, h5').forEach(x => x.remove());
+    c.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    c.querySelectorAll('li, div, ul, p').forEach(x => { x.insertAdjacentText('afterbegin', '\n'); x.insertAdjacentText('beforeend', '\n'); });
+    const out = [];
+    let block = 0;
+    c.textContent.split('\n').forEach(raw => {
+        let t = raw.replace(/\s+/g, ' ').trim();
+        if (!t) return;
+        t = t.replace(/^Explanation\s*:\s*/i, '');
+        if (!t) return;
+        block++;
+        if (/^Options Breakdown\s*:?$/i.test(t)) { out.push({ head: true, text: t, block }); return; }
+        // a long paragraph is cut into sentences so one sentence can be picked
+        const parts = t.length > 140 ? t.replace(/([.।!?])\s+/g, '$1\u0001').split('\u0001') : [t];
+        parts.forEach(p => { p = p.trim(); if (p) out.push({ text: p, block }); });
+    });
+    return out;
+}
+function closeLinePicker(el) {
+    const pk = el.querySelector(':scope > .xl-picker');
+    const orig = el.querySelector(':scope > .xl-orig');
+    if (orig) { while (orig.firstChild) el.insertBefore(orig.firstChild, orig); orig.remove(); }
+    if (pk) pk.remove();
+    const b = el.querySelector(':scope > .expl-actions .xl-toggle');
+    if (b) b.textContent = '☑ Select & Add';
+}
+function openLinePicker(el) {
+    const bar = el.querySelector(':scope > .expl-actions');
+    const head = el.querySelector(':scope > h5');
+    const lines = explanationLines(el);
+    if (!lines.length) { if (window.MpscNotes) window.MpscNotes.add('', ''); return; }   // shows "Nothing to add"
+    // keep the original content (hidden) so it comes back unchanged
+    const orig = document.createElement('div');
+    orig.className = 'xl-orig'; orig.style.display = 'none';
+    Array.from(el.childNodes).forEach(n => { if (n !== bar && n !== head) orig.appendChild(n); });
+    const pk = document.createElement('div');
+    pk.className = 'xl-picker';
+    const hint = document.createElement('div');
+    hint.className = 'xl-hint';
+    hint.textContent = 'Tap the lines you want, then press Add. Or tap ➕ to add one line at once.';
+    pk.appendChild(hint);
+
+    const sel = new Set();
+    const rows = [];
+    const src = explanationSource(el);
+    const foot = document.createElement('div');
+    foot.className = 'xl-foot';
+    const mkBtn = (label, cls) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'expl-btn ' + (cls || ''); b.textContent = label;
+        b.addEventListener('mousedown', ev => ev.preventDefault());
+        return b;
+    };
+    const bAdd = mkBtn('➕ Add selected', 'xl-addsel');
+    const bAll = mkBtn('Select all');
+    const bDone = mkBtn('✔ Done');
+    const refresh = () => {
+        rows.forEach(r => r.row.classList.toggle('xl-sel', sel.has(r.i)));
+        bAdd.textContent = sel.size ? '➕ Add selected (' + sel.size + ')' : '➕ Add selected';
+        bAdd.disabled = !sel.size;
+        const n = rows.length;
+        bAll.textContent = sel.size === n && n ? 'Clear' : 'Select all';
+    };
+    const markDone = (idxs) => idxs.forEach(i => { const r = rows[i]; if (r) { r.row.classList.add('xl-done'); r.row.classList.remove('xl-sel'); } });
+
+    lines.forEach((ln) => {
+        const row = document.createElement('div');
+        if (ln.head) { row.className = 'xl-head'; row.textContent = ln.text; pk.appendChild(row); return; }
+        const k = rows.length;                      // position of this line among the selectable rows
+        row.className = 'xl-row';
+        const tx = document.createElement('span'); tx.className = 'xl-text'; tx.textContent = ln.text;
+        const plus = document.createElement('button');
+        plus.type = 'button'; plus.className = 'xl-plus'; plus.textContent = '➕'; plus.title = 'Add this line to Notes';
+        plus.addEventListener('mousedown', ev => ev.preventDefault());
+        plus.addEventListener('click', ev => {
+            ev.stopPropagation(); ev.preventDefault();
+            if (window.MpscNotes) window.MpscNotes.addMany([ln.text], src);
+            sel.delete(k); markDone([k]); refresh();
+        });
+        row.append(tx, plus);
+        row.addEventListener('click', () => { if (sel.has(k)) sel.delete(k); else sel.add(k); row.classList.remove('xl-done'); refresh(); });
+        pk.appendChild(row);
+        rows.push({ row, i: k, ln });
+    });
+
+    bAdd.addEventListener('click', () => {
+        const idx = Array.from(sel).sort((a, b) => a - b);
+        if (!idx.length) return;
+        // neighbouring selected sentences of the same paragraph become ONE note; everything else is a separate note
+        const notes = []; let prevIdx = -2, prevBlock = -1;
+        idx.forEach(k => {
+            const ln = rows[k].ln;
+            if (notes.length && k === prevIdx + 1 && ln.block === prevBlock) notes[notes.length - 1] += ' ' + ln.text;
+            else notes.push(ln.text);
+            prevIdx = k; prevBlock = ln.block;
+        });
+        if (window.MpscNotes) window.MpscNotes.addMany(notes, src);
+        markDone(idx); sel.clear(); refresh();
+    });
+    bAll.addEventListener('click', () => {
+        if (sel.size === rows.length) sel.clear(); else rows.forEach((r, k) => sel.add(k));
+        refresh();
+    });
+    bDone.addEventListener('click', () => closeLinePicker(el));
+    foot.append(bAdd, bAll, bDone);
+    pk.appendChild(foot);
+
+    el.insertBefore(orig, bar);
+    el.insertBefore(pk, bar);
+    const tg = bar && bar.querySelector('.xl-toggle');
+    if (tg) tg.textContent = '✖ Close selecting';
+    refresh();
+}
 function addExplanationCopyButtons() {
     document.querySelectorAll(EXPL_ZONE).forEach(el => {
         if (el.querySelector(':scope > .expl-actions')) return;
@@ -2659,6 +2863,10 @@ function addExplanationCopyButtons() {
             b.textContent = ok ? '✔ Copied' : '✖ Failed';
             setTimeout(() => { b.textContent = '📋 Copy'; }, 1800);
         });
+        mk('☑ Select & Add', (b) => {
+            if (el.querySelector(':scope > .xl-picker')) closeLinePicker(el); else openLinePicker(el);
+        });
+        bar.lastChild.classList.add('xl-toggle');
         mk('📝 Add to Notes', () => { if (window.MpscNotes) window.MpscNotes.add(explanationNoteText(el), explanationSource(el)); });
         mk('📂 Notes', () => { if (window.MpscNotes) window.MpscNotes.open(); });
         el.appendChild(bar);

@@ -1,6 +1,7 @@
 /* =====================================================================
    NOTES  -  student's own short notes
    - "Add to Notes" button under every explanation (adds the selected part, or the whole explanation)
+   - "Select & Add" under every explanation: tap the lines you want (or the + on one line) and add them as separate notes
    - "Notes" button on the dashboard (top) opens the panel
    - small paste box: every paste is added as a new note, in order (oldest first, newest last)
    - compact list: edit (✎), move up / down, delete, copy all, download as .txt
@@ -373,6 +374,28 @@
         return r;
     }
 
+    // add SEVERAL separate notes at once (the "Select & Add" picker under an explanation).
+    // Same text already in the notes is skipped. One toast for the whole batch.
+    function addManyFromExplanation(texts, src) {
+        let added = 0, skipped = 0, reason = '';
+        const have = new Set(load().map(n => n.text));
+        for (const raw of (texts || [])) {
+            const t = clean(raw);
+            if (!t) continue;
+            if (have.has(t)) { skipped++; continue; }
+            const r = add(t, src);
+            if (r.ok) { added++; have.add(t); }
+            else if (r.reason === 'duplicate') skipped++;
+            else { reason = r.reason; break; }
+        }
+        if (added) toast(added === 1 ? 'Added to Notes' : added + ' points added to Notes');
+        else if (reason === 'full') toast('Notes are full (' + MAX_NOTES + ')');
+        else if (reason === 'storage') toast('Could not save (browser storage full?)');
+        else if (skipped) toast('Already in Notes');
+        if (panel && panel.style.display !== 'none') render(); else updateCount();
+        return { added, skipped, reason };
+    }
+
     // logout: hide the panel and remove the local copy of the notes (they stay safe on the server).
     // Changes that are still waiting to be sent are kept, so nothing is lost.
     function onLogout() {
@@ -383,7 +406,7 @@
         updateCount();
     }
 
-    window.MpscNotes = { onLogout, open, close, add: addFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, edit, move, remove, clearAll, clean, applyOps, loadOps } };
+    window.MpscNotes = { onLogout, open, close, add: addFromExplanation, addMany: addManyFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, edit, move, remove, clearAll, clean, applyOps, loadOps } };
 
     updateCount();
     // load the server copy when the page opens, when the user comes back to the tab and when the internet is back
