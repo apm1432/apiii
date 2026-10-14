@@ -260,3 +260,16 @@ Problem: after an error the same key+model was tried again after only a few seco
 - If an endpoint searches by itself but returns no citations, pick "Built-in" (or "Custom JSON") manually for it.
 - New selectable methods: enable_search (Qwen/DashScope style) and web_search tool (Zhipu GLM style).
 - Cost: the test makes a few small calls once per endpoint (max about 6-7, only if nothing works earlier). Set the endpoint to "Off" to skip it, or WEB_SEARCH=0 for all.
+
+## Update 11: wapi/smart_router.py (your custom Gemini endpoint) - web search + the "60 attempts / invalid tool type: web_search" error
+- Cause: Gemini's OpenAI-compatible layer does not know OpenAI search tools ({"type":"web_search"} / web_search_options / enable_search / plugins).
+  It answered 400 "invalid tool type: web_search" and the router retried that same bad request on every key x model x 3 passes (~60 calls, quota burned).
+- Fix 1: every web-search hint is stripped from the body before it can reach Gemini's compat layer (function tools are kept).
+- Fix 2 (real search): when the client asked for search the router answers through Gemini's NATIVE generateContent API with the Google Search tool
+  and converts it back to a normal Chat Completions answer (or a Responses-API answer for /v1/responses). Citations come back as
+  message.annotations (url_citation), top-level "citations", and a web_search_call item in Responses. Same key/model rotation, RPM / daily-limit
+  bookkeeping and 429 handling as every other request. If Google Search cannot be used for that request (JSON mode, streaming, tool calls,
+  remote image urls, model refuses it) the request is simply answered WITHOUT search, once - never retried over the whole pool.
+- Fix 3: the same 400 on two different slots now ends the request immediately (a bad request is not a bad key). The client gets the 400 at once.
+- Env ROUTER_WEB_SEARCH=0 turns the router's search off. REDEPLOY the wapi router for this to take effect.
+- The Node app's automatic detection (Update 10) now finds this router as "responses" (or another supported method) and uses it. Source names shown for Gemini citations are the site titles.

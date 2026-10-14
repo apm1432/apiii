@@ -436,15 +436,17 @@ function parseSearchJson(text) {
 }
 
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+// name shown for a source: the site; Gemini's grounding links are redirect URLs (vertexaisearch...), there the title (= the site) is better
+const srcName = (url, title) => { const h = hostOf(url); return (!h || /vertexaisearch|googleusercontent|grounding-api-redirect/.test(h)) ? (String(title || '').slice(0, 50) || h) : h; };
 function extractSources(data) {
     const out = [];
     try {
         const ch = data && data.choices && data.choices[0];
         const ann = (ch && ch.message && ch.message.annotations) || [];
-        ann.forEach(a => { const c = a && (a.url_citation || a); if (c && (c.url || c.title)) out.push(hostOf(c.url) || String(c.title).slice(0, 50)); });
+        ann.forEach(a => { const c = a && (a.url_citation || a); if (c && (c.url || c.title)) out.push(srcName(c.url, c.title)); });
         (Array.isArray(data && data.citations) ? data.citations : []).forEach(c => { out.push(hostOf(typeof c === 'string' ? c : c && c.url) || ''); });
         (Array.isArray(data && data.output) ? data.output : []).forEach(it => (Array.isArray(it.content) ? it.content : []).forEach(c => (Array.isArray(c.annotations) ? c.annotations : []).forEach(a => {
-            if (a && a.url) out.push(hostOf(a.url) || String(a.title || '').slice(0, 50));
+            if (a && a.url) out.push(srcName(a.url, a.title));
         })));
     } catch (e) { /* sources are optional */ }
     return [...new Set(out.filter(Boolean))].slice(0, 4);

@@ -259,6 +259,7 @@ CHAT_COMPLETIONS_ALLOWED_KEYS = {
     "tools", "tool_choice", "functions", "function_call",
     "response_format", "logprobs", "top_logprobs", "parallel_tool_calls",
     "_conv_hint",  # internal marker, stripped later in proxy_chat before forwarding
+    "_wants_search",  # internal marker: the client asked for web search (see _extract_search_intent), stripped in proxy_chat
 }
 
 def _normalize_tools(tools):
@@ -292,10 +293,204 @@ def _normalize_tool_choice(tc):
         return {"type": "function", "function": {"name": tc["name"]}}
     return tc
 
+# ─── Web search ───────────────────────────────────────────────────────────────
+# Gemini's OpenAI-compatible endpoint does NOT know OpenAI-style search tools ({"type":"web_search"},
+# web_search_options, enable_search, OpenRouter "plugins" ...): it answers 400 "invalid tool type: web_search",
+# and the old loop then retried that request on EVERY key/model (dozens of wasted calls).
+# Now: (1) every search hint is removed from the body so it can never reach Gemini's compat layer, and
+#      (2) if the client asked for search, the request is answered through Gemini's NATIVE generateContent API
+#          with the Google Search tool, and converted back to a normal Chat Completions / Responses answer
+#          (citations are returned as "annotations" + "citations"). Set ROUTER_WEB_SEARCH=0 to turn this off.
+ROUTER_WEB_SEARCH = os.environ.get("ROUTER_WEB_SEARCH", "1") != "0"
+SEARCH_TOOL_TYPES = {"web_search", "web_search_preview", "web_search_preview_2025_03_11", "google_search",
+                     "google_search_retrieval", "browser_search", "web"}
+
+def _extract_search_intent(data: dict) -> bool:
+    """Removes every web-search hint from `data` (in place) and tells whether the client wanted search."""
+    wants = False
+    tools = data.get("tools")
+    if isinstance(tools, list):
+        keep = []
+        for t in tools:
+            if isinstance(t, dict) and (str(t.get("type", "")).lower() in SEARCH_TOOL_TYPES
+                                        or "google_search" in t or "google_search_retrieval" in t):
+                wants = True
+                continue
+            keep.append(t)
+        if keep:
+            data["tools"] = keep
+        else:
+            data.pop("tools", None)
+            data.pop("tool_choice", None)
+    if "web_search_options" in data:
+        data.pop("web_search_options", None)
+        wants = True
+    if data.get("enable_search"):
+        wants = True
+    plugins = data.get("plugins")
+    if isinstance(plugins, list) and any(isinstance(x, dict) and x.get("id") == "web" for x in plugins):
+        wants = True
+    return wants
+
+def _oa_messages_to_gemini(messages):
+    """Chat Completions messages -> (systemInstruction parts, contents). None when a message cannot be converted
+    (tool calls / tool results / remote image urls): then the normal path is used (answer without search)."""
+    system, contents = [], []
+    for m in messages or []:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        if role in ("tool", "function") or m.get("tool_calls"):
+            return None
+        c = m.get("content")
+        parts = []
+        if isinstance(c, str):
+            if c.strip():
+                parts.append({"text": c})
+        elif isinstance(c, list):
+            for part in c:
+                if not isinstance(part, dict):
+                    continue
+                t = part.get("type")
+                if t in ("text", "input_text", "output_text") and part.get("text"):
+                    parts.append({"text": part["text"]})
+                elif t == "image_url":
+                    u = part.get("image_url")
+                    u = u.get("url") if isinstance(u, dict) else u
+                    mm = re.match(r"data:([^;]+);base64,(.+)$", u or "", re.S)
+                    if not mm:
+                        return None
+                    parts.append({"inlineData": {"mimeType": mm.group(1), "data": mm.group(2)}})
+        if not parts:
+            continue
+        if role in ("system", "developer"):
+            system.extend(parts)
+        else:
+            contents.append({"role": "model" if role == "assistant" else "user", "parts": parts})
+    if not contents:
+        return None
+    return system, contents
+
+def _native_to_chat_completion(gj: dict, model: str):
+    cands = gj.get("candidates") or []
+    if not cands:
+        return None
+    cand = cands[0] or {}
+    parts = (cand.get("content") or {}).get("parts") or []
+    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict) and not p.get("thought") and isinstance(p.get("text"), str)).strip()
+    if not text:
+        return None
+    chunks = ((cand.get("groundingMetadata") or {}).get("groundingChunks")) or []
+    annotations, citations, seen = [], [], set()
+    for ch in chunks:
+        web = (ch or {}).get("web") or {}
+        uri = web.get("uri")
+        if not uri or uri in seen:
+            continue
+        seen.add(uri)
+        citations.append(uri)
+        annotations.append({"type": "url_citation", "url_citation": {"url": uri, "title": web.get("title", "")}})
+    um = gj.get("usageMetadata") or {}
+    fr = str(cand.get("finishReason", "STOP")).upper()
+    return {
+        "id": "chatcmpl-" + uuid.uuid4().hex[:24],
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{"index": 0,
+                     "message": {"role": "assistant", "content": text, "annotations": annotations},
+                     "finish_reason": "length" if fr == "MAX_TOKENS" else "stop"}],
+        "citations": citations,
+        "usage": {"prompt_tokens": um.get("promptTokenCount", 0),
+                  "completion_tokens": um.get("candidatesTokenCount", 0),
+                  "total_tokens": um.get("totalTokenCount", 0)},
+    }
+
+def search_via_native(data: dict, requested_model: str, is_responses_api: bool, client_stream_requested: bool):
+    """Answers with Gemini's Google Search tool. Returns a Flask response, or None when the request cannot be answered
+    this way (the caller then answers normally, without search). Never loops over the whole pool on a 400."""
+    rf = data.get("response_format")
+    if isinstance(rf, dict) and rf.get("type") in ("json_object", "json_schema"):
+        return None   # JSON mode + Google Search are not allowed together on Gemini
+    conv = _oa_messages_to_gemini(data.get("messages"))
+    if conv is None:
+        return None
+    system, contents = conv
+    gen = {}
+    if data.get("temperature") is not None:
+        gen["temperature"] = data["temperature"]
+    if data.get("top_p") is not None:
+        gen["topP"] = data["top_p"]
+    mt = data.get("max_completion_tokens") or data.get("max_tokens")
+    if mt:
+        gen["maxOutputTokens"] = int(mt)
+    payload = {"contents": contents, "tools": [{"google_search": {}}]}
+    if system:
+        payload["systemInstruction"] = {"parts": system}
+    if gen:
+        payload["generationConfig"] = gen
+
+    tried = set()
+    attempts = 0
+    max_tries = min(8, max(2, len(API_KEYS) * max(1, len(MODELS))))
+    while attempts < max_tries:
+        slot = acquire_next_slot(requested_model, exclude=tried)
+        if slot is None:
+            return None
+        _k_i, _m_i, key, model = slot
+        actual_model = model["name"]
+        tried.add((key, actual_model))
+        attempts += 1
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{actual_model}:generateContent"
+        try:
+            resp = requests.post(url, json=payload, headers={"x-goog-api-key": key, "Content-Type": "application/json"}, timeout=120)
+        except Exception as e:
+            print(f"[SEARCH ERROR] key=…{key[-6:]} model={actual_model}: {e}")
+            with state_lock:
+                _apply_rpm_cooldown(key, actual_model, seconds=20)
+            continue
+        if resp.status_code == 200:
+            try:
+                chat = _native_to_chat_completion(resp.json(), actual_model)
+            except Exception:
+                chat = None
+            if chat is None:      # blocked / empty answer: let another slot try
+                continue
+            if hasattr(g, "log_entry"):
+                g.log_entry["status"] = f"200 Success ({actual_model}, web search)"
+                g.log_entry["model"] = actual_model
+            with state_lock:
+                metrics["successful_api_calls"] += 1
+                _record_rpd_success(key, actual_model)
+            if is_responses_api:
+                rj = chat_completion_to_responses_json(chat, actual_model)
+                if client_stream_requested:
+                    return Response(responses_sse_stream(rj), mimetype="text/event-stream")
+                return jsonify(rj)
+            return jsonify(chat)
+        err_text = ""
+        try: err_text = resp.text.lower()
+        except Exception: pass
+        if resp.status_code in (429, 403):
+            with state_lock:
+                metrics["rate_limit_hits"] += 1
+                kind = _handle_429(key, actual_model, err_text)
+            print(f"[SEARCH 429] key=…{key[-6:]} model={actual_model} -> next slot ({kind})")
+            continue
+        if resp.status_code in (500, 503):
+            with state_lock:
+                _apply_rpm_cooldown(key, actual_model, seconds=20)
+            continue
+        # 400 / 404 / others: this model or request does not support Google Search -> answer WITHOUT search (one call wasted, not sixty)
+        print(f"[SEARCH {resp.status_code}] model={actual_model} cannot use Google Search ({err_text[:120]}) -> answering without search")
+        return None
+    return None
+
 def normalize_to_chat_completions(data: dict) -> dict:
     """Accepts either a normal Chat Completions body OR a Responses-API body
     and returns something Gemini's /v1beta/openai/chat/completions accepts."""
     data = dict(data)
+    wants_search = _extract_search_intent(data)
 
     if "tools" in data:
         data["tools"] = _normalize_tools(data["tools"])
@@ -322,7 +517,10 @@ def normalize_to_chat_completions(data: dict) -> dict:
     if instructions:
         data["messages"] = [{"role": "system", "content": instructions}] + data.get("messages", [])
 
-    return {k: v for k, v in data.items() if k in CHAT_COMPLETIONS_ALLOWED_KEYS}
+    out = {k: v for k, v in data.items() if k in CHAT_COMPLETIONS_ALLOWED_KEYS}
+    if wants_search:
+        out["_wants_search"] = True
+    return out
 
 # ─── Responses-API response reconstruction ────────────────────────────────────
 # Fixing the REQUEST shape (above) was step 1. Step 2: when the caller hit
@@ -340,13 +538,20 @@ def _gemini_choice_to_responses_output(choice: dict) -> list:
     msg = (choice or {}).get("message") or {}
     items = []
     content_text = msg.get("content") or ""
+    anns = []
+    for a in (msg.get("annotations") or []):
+        uc = (a or {}).get("url_citation") or {}
+        if uc.get("url"):
+            anns.append({"type": "url_citation", "url": uc["url"], "title": uc.get("title", "")})
+    if anns:   # the answer was produced with web search
+        items.append({"type": "web_search_call", "id": f"ws_{uuid.uuid4().hex[:24]}", "status": "completed"})
     if content_text:
         items.append({
             "type": "message",
             "id": f"msg_{uuid.uuid4().hex[:24]}",
             "status": "completed",
             "role": "assistant",
-            "content": [{"type": "output_text", "text": content_text, "annotations": []}],
+            "content": [{"type": "output_text", "text": content_text, "annotations": anns}],
         })
     for tc in (msg.get("tool_calls") or []):
         fn = tc.get("function") or {}
@@ -1351,6 +1556,7 @@ def proxy_chat():
     data.pop('session_id', None)
     data.pop('user', None)
     data = normalize_to_chat_completions(data)  # <-- strips Responses-API/unknown fields that caused the 400s
+    wants_search = bool(data.pop('_wants_search', False)) and ROUTER_WEB_SEARCH
     is_responses_api = request.path.startswith('/v1/responses')
     client_stream_requested = bool(data.get("stream"))
     if is_responses_api:
@@ -1365,6 +1571,17 @@ def proxy_chat():
     client_id = _client_id_from_request(data, remote_addr)
     data.pop('_conv_hint', None)
     is_continuation = _is_tool_continuation(messages)
+
+    # The client asked for web search: answer through Gemini's native Google Search tool (see search_via_native).
+    # Returns None when that is not possible -> the normal path below answers without search.
+    if wants_search and not is_continuation and not data.get("tools") and (is_responses_api or not client_stream_requested):
+        try:
+            _search_out = search_via_native(data, requested_model, is_responses_api, client_stream_requested)
+        except Exception as _e:
+            print(f"[SEARCH FAILED] {_e} -> answering without search")
+            _search_out = None
+        if _search_out is not None:
+            return _search_out
 
     last_resp = None
     attempt_errors = []      # short "{status} {model} (…key): reason" strings for
@@ -1384,6 +1601,7 @@ def proxy_chat():
                               # (never hammered 3x back-to-back), before it's finally
                               # excluded for the rest of this request.
     MAX_ATTEMPTS_PER_COMBO = 3
+    bad_400 = {}             # error text -> how often Google answered exactly that 400 (a bad REQUEST is not a bad key)
 
     if is_continuation:
         # PREFER the (key, model) that produced the tool call (its signature
@@ -1634,6 +1852,17 @@ def proxy_chat():
                 else:
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
                     attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text[:150]}")
+                    # The same 400 on two different slots means the REQUEST itself is wrong, not the key/model:
+                    # return it to the client now instead of trying every key x model x 3 passes (that used to be ~60 calls).
+                    if resp.status_code == 400:
+                        sig = re.sub(r"\d+", "#", err_text)[:160]
+                        bad_400[sig] = bad_400.get(sig, 0) + 1
+                        if bad_400[sig] >= 2:
+                            if hasattr(g, "log_entry"):
+                                g.log_entry["error_detail"] = f"bad request (same 400 on {bad_400[sig]} slots, stopped early): {' || '.join(attempt_errors[-2:])}"
+                            excluded = ['content-encoding','content-length','transfer-encoding','connection']
+                            out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
+                            return Response(resp.content, 400, out_headers)
                 continue  # instantly try the next key/model regardless
 
             else:
