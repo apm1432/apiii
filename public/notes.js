@@ -409,6 +409,13 @@
     window.MpscNotes = { onLogout, open, close, add: addFromExplanation, addMany: addManyFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, edit, move, remove, clearAll, clean, applyOps, loadOps } };
 
     updateCount();
+    // touching anywhere OUTSIDE the notes panel closes it (the "📂 Notes" / dashboard Notes buttons keep working)
+    document.addEventListener('pointerdown', (e) => {
+        if (!panel || panel.style.display === 'none') return;
+        const t = e.target;
+        if (t && t.closest && t.closest('.notes-panel, .expl-btn, #btn-notes, .notes-toast')) return;
+        close();
+    }, true);
     // load the server copy when the page opens, when the user comes back to the tab and when the internet is back
     const kick = () => { if (token()) pull(); };
     window.addEventListener('load', () => setTimeout(kick, 800));

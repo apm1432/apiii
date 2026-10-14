@@ -22,6 +22,7 @@
         fit: 'screen',                 // 'screen' = whole image visible, 'width' = fill width
         min: false,                    // answer panel minimised
         expl: null,                    // question id whose explanation is open
+        auto: true,                    // open the explanation by itself right after an answer (button in the top bar switches it)
         nw: 0, nh: 0, loadId: 0,
         ptrs: new Map(), g: null, lastTap: null, raf: 0,
         cache: new Map(), els: {}, built: false, serverExtras: new Map(), sibKey: ''
@@ -32,10 +33,11 @@
         if (typeof v.s === 'number') PM.s = Math.min(MAX_S, Math.max(MIN_S, v.s));
         if (v.fit === 'width' || v.fit === 'screen') PM.fit = v.fit;
         if (typeof v.min === 'boolean') PM.min = v.min;
+        if (typeof v.auto === 'boolean') PM.auto = v.auto;
     } catch (e) { /* ignore */ }
 
     function saveView() {
-        try { localStorage.setItem(LS_VIEW, JSON.stringify({ s: PM.s, fit: PM.fit, min: PM.min })); } catch (e) { }
+        try { localStorage.setItem(LS_VIEW, JSON.stringify({ s: PM.s, fit: PM.fit, min: PM.min, auto: PM.auto })); } catch (e) { }
     }
 
     /* ---------------- helpers ---------------- */
@@ -213,7 +215,13 @@
 .pm-ex:disabled{opacity:.3}
 .pm-ex.on{background:#8b5cf6;border-color:#8b5cf6}
 .pm-expl{background:#1f2937;border:1px solid #374151;border-radius:12px;padding:10px 12px;margin:6px 0 8px;max-height:36vh;max-height:36dvh;overflow-y:auto;font-size:.9rem;line-height:1.6;color:#e5e7eb;-webkit-user-select:text;user-select:text}
-.pm-expl h5{margin:0 0 6px;font-size:.8rem;color:#a78bfa}
+.pm-expl h5{margin:0 0 6px;font-size:.8rem;color:#a78bfa;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.pm-h5r{display:flex;align-items:center;gap:6px}
+.pm-xb{height:26px;border-radius:8px;border:1px solid #4b5563;background:#111827;color:#e5e7eb;font-size:.72rem;padding:0 8px;white-space:nowrap}
+.pm-xb.ok{border-color:#10b981;color:#6ee7b7}
+.pm-xb:disabled{opacity:.5}
+.pm-auto{font-size:.78rem;white-space:nowrap}
+.pm-auto.on{border-color:#10b981;color:#6ee7b7}
 .pm-expl ul{margin:8px 0 0;padding-left:18px;color:#cbd5e1;font-size:.85rem}
 @media (min-width:900px){.pm-panel{padding-left:calc(50% - 360px);padding-right:calc(50% - 360px)}}
 `;
@@ -233,6 +241,7 @@
   <span class="pm-zoom" id="pm-zoom">100%</span>
   <button class="pm-tb" data-a="zin" title="Zoom in">+</button>
   <button class="pm-tb" data-a="fit" id="pm-fitbtn" title="Fit mode">⤢</button>
+  <button class="pm-tb pm-auto" data-a="auto" id="pm-autobtn" title="Auto explanation"></button>
   <span class="pm-score" id="pm-score"></span>
 </div>
 <div class="pm-stage" id="pm-stage">
@@ -246,7 +255,7 @@
             root, stage: root.querySelector('#pm-stage'), img: root.querySelector('#pm-img'),
             spin: root.querySelector('#pm-spin'), msg: root.querySelector('#pm-msg'),
             panel: root.querySelector('#pm-panel'), zoom: root.querySelector('#pm-zoom'),
-            score: root.querySelector('#pm-score'), fitbtn: root.querySelector('#pm-fitbtn')
+            score: root.querySelector('#pm-score'), fitbtn: root.querySelector('#pm-fitbtn'), autobtn: root.querySelector('#pm-autobtn')
         };
 
         // top bar + panel clicks (delegation)
@@ -328,6 +337,8 @@
         } else PM.g = null;
     }
     function onDown(e) {
+        // touching the image (to look at the next question / move the image) closes the open explanation
+        if (PM.expl) { PM.expl = null; renderPanel(); }
         if (!PM.nw) return;
         try { PM.els.stage.setPointerCapture(e.pointerId); } catch (x) { }
         PM.ptrs.set(e.pointerId, local(e));
@@ -481,6 +492,7 @@
             body: JSON.stringify({ questionId: q._id, section: q.year_exam, selectedOption: optIndex })
         }).catch(() => console.log('Offline: progress stored locally only'));
 
+        if (PM.auto) { PM.expl = String(q._id); PM.min = false; }   // explanation opens by itself (no touch)
         renderPanel();
     }
 
@@ -506,6 +518,9 @@
         const fixedQ = pg.qs.filter(q => q.is_ai_fixed).map(q => 'Q' + esc(q.qnum || ''));
         el.score.innerHTML = `<span style="color:#34d399">✔ ${st.c}</span> &nbsp;<span style="color:#f87171">✖ ${st.w}</span> <span style="color:#9ca3af">/ ${st.n}</span>` +
             (fixedQ.length ? `<br><span class="pm-aifix" title="These questions were corrected by AI">✨ AI Fixed: ${fixedQ.join(', ')}</span>` : '');
+        el.autobtn.textContent = PM.auto ? '💡 ON' : '💡 OFF';
+        el.autobtn.classList.toggle('on', !!PM.auto);
+        el.autobtn.title = PM.auto ? 'Auto explanation is ON (tap to switch off)' : 'Auto explanation is OFF (tap to switch on)';
         el.fitbtn.textContent = PM.fit === 'width' ? '↔' : '⤢';
         el.fitbtn.title = PM.fit === 'width' ? 'Fit width (tap for fit screen)' : 'Fit screen (tap for fit width)';
 
@@ -523,7 +538,10 @@
             if (PM.expl) {
                 const q = pg.qs.find(x => String(x._id) === String(PM.expl));
                 if (q) {
-                    html += `<div class="pm-expl"><h5>💡 Q${esc(q.qnum || '')} Explanation <button class="pm-ex" style="float:right;width:28px;height:26px;font-size:.8rem" data-a="exclose">✕</button></h5>${q.toppers_explanation_marathi ? nl2br(q.toppers_explanation_marathi) : 'No explanation available.'}`;
+                    const isAdm = (typeof currentUser !== 'undefined') && currentUser && currentUser.isAdmin;
+                    const aiBtns = (q.is_ai_fixed ? `<button class="pm-xb ok" data-a="aiinfo" data-q="${q._id}" title="Corrected by AI">✨ AI Fixed</button>` : '') +
+                        (isAdm ? `<button class="pm-xb" data-a="aifix" data-q="${q._id}" title="Run AI Fix on this question">🤖 ${q.is_ai_fixed ? 'Re-fix' : 'AI Fix'}</button>` : '');
+                    html += `<div class="pm-expl"><h5><span>💡 Q${esc(q.qnum || '')} Explanation</span><span class="pm-h5r">${aiBtns}<button class="pm-ex" style="width:28px;height:26px;font-size:.8rem" data-a="exclose">✕</button></span></h5>${q.toppers_explanation_marathi ? nl2br(q.toppers_explanation_marathi) : 'No explanation available.'}`;
                     if (q.options_explanation && q.options_explanation.length) {
                         html += `<ul>${q.options_explanation.map(x => `<li>${nl2br(x)}</li>`).join('')}</ul>`;
                     }
@@ -578,6 +596,19 @@
             case 'ans': answer(b.dataset.q, parseInt(b.dataset.i, 10)); break;
             case 'ex': PM.expl = String(PM.expl) === b.dataset.q ? null : b.dataset.q; renderPanel(); break;
             case 'exclose': PM.expl = null; renderPanel(); break;
+            case 'auto': PM.auto = !PM.auto; saveView(); renderPanel(); toast(PM.auto ? '💡 Auto explanation ON' : '💡 Auto explanation OFF'); break;
+            case 'aiinfo': {
+                const pg = PM.pages[PM.pi]; const q = pg && pg.qs.find(x => String(x._id) === b.dataset.q);
+                if (q) toast('✨ Corrected by AI' + (q.ai_fixed_at ? ' on ' + new Date(q.ai_fixed_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : ''));
+                break;
+            }
+            case 'aifix': {
+                if (typeof window.fixQuestion !== 'function') break;
+                b.disabled = true; b.textContent = '⏳ Queued…';
+                toast('🤖 AI Fix started - the answer and explanation update here when it is done');
+                Promise.resolve(window.fixQuestion(b.dataset.q, 'full')).catch(() => { });
+                break;
+            }
             case 'retry': showPage(PM.pi); break;
             case 'sub': { const pg = PM.pages[PM.pi]; if (pg && pg.urls && pg.urls.length > 1) { pg.cur = ((pg.cur || 0) + 1) % pg.urls.length; showPage(PM.pi); } break; }
         }

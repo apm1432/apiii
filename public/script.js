@@ -2324,15 +2324,13 @@ window.fixQuestion = async function(qId, mode = 'quiz') {
             connectAiLiveStream(data.jobId);
             return true;
         } else {
-            btn.innerText = "❌ Failed";
-            btn.style.background = "#ef4444";
+            if (btn) { btn.innerText = "❌ Failed"; btn.style.background = "#ef4444"; }
             console.error("AI Fix failed:", data.message);
             alert(`AI Fix Failed: ${data.message}`);
             return false;
         }
     } catch (err) {
-        btn.innerText = "❌ Error";
-        btn.style.background = "#ef4444";
+        if (btn) { btn.innerText = "❌ Error"; btn.style.background = "#ef4444"; }
         console.error("Network error during AI Fix:", err);
         return false;
     }
