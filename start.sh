@@ -18,26 +18,12 @@ PY_PID=$!
 # Own restart loop and NOT part of `wait -n` below, so if it crashes it never
 # takes the rest of the container down.
 if [ -x /opt/webai-venv/bin/python ]; then
-  # Gemini web cookies come from env vars WEBAI_PSID (+ optional WEBAI_PSIDTS)
-  # -> written into WebAI's config.conf [Gemini] section on every start
-  # (the dashboard has no cookie form and the container disk is not persistent).
-  if [ -n "$WEBAI_PSID" ]; then
-    python3 - <<'PY'
-import os, re
-p = '/opt/webai/config.conf'
-s = open(p, encoding='utf-8').read()
-for key, env in (('__Secure-1PSID', 'WEBAI_PSID'), ('__Secure-1PSIDTS', 'WEBAI_PSIDTS')):
-    v = os.environ.get(env, '').strip().strip('"').strip("'")
-    if v:
-        s = re.sub(r'(?m)^' + re.escape(key) + r'[ \t]*=.*$', lambda m: key + ' = ' + v, s, count=1)
-open(p, 'w', encoding='utf-8').write(s)
-print('==> WebAI cookies loaded from env')
-PY
-  else
-    echo "==> WEBAI_PSID not set - WebAI will start without Gemini cookies"
-  fi
+  # Gemini web cookies live in MongoDB (paste them at /api/web/v1/ui/auth).
+  # Before every (re)start webai_cookies.py saves the newest auto-refreshed cookies to the DB
+  # and writes the DB cookies into WebAI's config.conf -> no env vars needed.
   echo "==> Starting WebAI-to-API on 127.0.0.1:6969..."
   (cd /opt/webai && while true; do
+     timeout 30 python3 /usr/src/app/wapi/webai_cookies.py apply
      PYTHONPATH=src PYTHONUNBUFFERED=1 /opt/webai-venv/bin/python src/run.py --host 127.0.0.1 --port 6969
      echo "[webai] exited, restarting in 5s"; sleep 5
    done) &
@@ -56,6 +42,7 @@ NGINX_PID=$!
 # polling slot -> avoids "409 Conflict" in the new instance.
 shutdown() {
   echo "==> Stopping services..."
+  timeout 10 python3 /usr/src/app/wapi/webai_cookies.py sync   # save latest refreshed cookies to DB
   kill -TERM "$NODE_PID" "$PY_PID" "$NGINX_PID" 2>/dev/null
   wait
   exit 0

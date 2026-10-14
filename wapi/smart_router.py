@@ -2102,6 +2102,14 @@ def _webapi_rewrite_text(text: str) -> str:
 def _webapi_rewrite_location(loc: str) -> str:
     return _webapi_rewrite_text(" " + loc)[1:] if loc.startswith("/") else loc
 
+# /api/web/v1/ui/auth : paste-cookies page (cookies kept in MongoDB, auto-refreshed values synced back).
+# Registered BEFORE the catch-all proxy below; exact routes win over <path:sub>.
+try:
+    import webai_cookies
+    webai_cookies.register(app, _webapi_authorized, WEBAPI_PREFIX, WEBAI_URL)
+except Exception as _e:  # pymongo missing etc. -> proxy still works, only the paste page is lost
+    print(f"[webai-cookies] disabled: {_e}", flush=True)
+
 @app.route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 @app.route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 def webapi_proxy(sub):

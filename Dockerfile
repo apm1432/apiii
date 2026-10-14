@@ -18,6 +18,8 @@ RUN pip3 install --no-cache-dir -r wapi/requirements.txt --break-system-packages
 
 # WebAI-to-API (served only under /api/web/v1) -- own venv so it can never
 # change the packages used by wapi/Flask. Pinned commit; needs python 3.11/3.12.
+# The two sed lines turn ON gemini-webapi's background __Secure-1PSIDTS rotation (upstream passes
+# auto_refresh=False); wapi/webai_cookies.py copies the rotated cookies back into MongoDB.
 # If this step fails the image still builds; start.sh then simply skips WebAI.
 RUN (apt-get update && \
      apt-get install -y --no-install-recommends git ca-certificates python3-venv && \
@@ -25,6 +27,8 @@ RUN (apt-get update && \
      git clone https://github.com/Amm1rr/WebAI-to-API.git /opt/webai && \
      git -C /opt/webai checkout dd85ae0357720b486cdf193ce37b3134fe65ed38 && \
      rm -rf /opt/webai/.git && \
+     sed -i 's/auto_refresh=False/auto_refresh=True, refresh_interval=540/' /opt/webai/src/app/services/providers/gemini/client.py && \
+     test "$(grep -c 'auto_refresh=True, refresh_interval=540' /opt/webai/src/app/services/providers/gemini/client.py)" = 2 && \
      python3 -m venv /opt/webai-venv && \
      /opt/webai-venv/bin/pip install --no-cache-dir -r /opt/webai/requirements.txt && \
      cp /opt/webai/config.conf.example /opt/webai/config.conf) \
