@@ -19,3 +19,14 @@ and the fallback to the "wapi" provider is no longer needed.
 ## Fix: HTTP 413 when uploading an image in the WebAI playground
 nginx default client_max_body_size is 1m (a 1 MiB image is ~1.4 MB as base64). nginx.conf: `client_max_body_size 60m;`
 in /api/web/v1 and /wapi/. Rebuild/redeploy needed.
+
+## More upload types (patch_webai.py step 2c)
+WebAI whitelist extended: pptx/ppt/xls, html/css/js/py/java/c/cpp/yaml/ts/sql/rtf, heic/heif/bmp, audio (mp3 wav ogg flac aac m4a),
+video (mp4 webm mov avi mpeg). Already allowed upstream: pdf doc docx xlsx json xml txt md csv png jpg webp gif.
+Limits stay: 8 files, 20 MiB each, 50 MiB total. Whether Gemini itself accepts a type is up to Gemini.
+
+## Guest mode (no cookies) - patch_webai.py step 2d
+Without cookies WebAI had no WebAPI client: the model list showed only `playwright/gemini/*` and every call failed with
+"Browser interaction failure" (no Chromium / login state in the image). Now, when no cookie source works, WebAI starts
+gemini-webapi anonymously ("guest (no cookies)"). Not unlimited; uploads / file downloads may not work as guest.
+Remove saved cookies on /api/web/v1/ui/auth -> after the ~10s restart the webapi models (gemini-flash ...) should be back.

@@ -86,6 +86,75 @@ def _build_file_artifacts(response: Any) -> list:
     assert "_build_file_artifacts(response)" in s
     open(p, "w", encoding="utf-8").write(s)
 
+# 2c) accept many more upload types (WebAI whitelist is small): Office, audio, video, code/text, more images
+p = f"{root}/services/multimodal.py"; s = open(p, encoding="utf-8").read()
+if "EXTRA_FILE_TYPES" not in s:
+    s += '''
+
+# --- EXTRA_FILE_TYPES (added by patch_webai.py) ---
+ALLOWED_FILE_MIME_TYPES.update({
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {".pptx"},
+    "application/vnd.ms-powerpoint": {".ppt"},
+    "application/vnd.ms-excel": {".xls"},
+    "text/html": {".html", ".htm"},
+    "text/css": {".css"},
+    "text/javascript": {".js", ".mjs"},
+    "application/javascript": {".js", ".mjs"},
+    "text/x-python": {".py"},
+    "text/x-python-script": {".py"},
+    "application/x-python-code": {".py"},
+    "text/x-java-source": {".java"},
+    "text/x-csrc": {".c", ".h"},
+    "text/x-c++src": {".cpp", ".hpp", ".cc"},
+    "application/x-yaml": {".yaml", ".yml"},
+    "text/yaml": {".yaml", ".yml"},
+    "application/typescript": {".ts", ".tsx"},
+    "text/x-sql": {".sql"},
+    "application/rtf": {".rtf"},
+    "text/rtf": {".rtf"},
+    "image/heic": {".heic"},
+    "image/heif": {".heif"},
+    "image/bmp": {".bmp"},
+    "audio/mpeg": {".mp3"},
+    "audio/mp3": {".mp3"},
+    "audio/wav": {".wav"},
+    "audio/x-wav": {".wav"},
+    "audio/ogg": {".ogg", ".oga"},
+    "audio/flac": {".flac"},
+    "audio/aac": {".aac"},
+    "audio/mp4": {".m4a"},
+    "audio/x-m4a": {".m4a"},
+    "video/mp4": {".mp4"},
+    "video/webm": {".webm"},
+    "video/quicktime": {".mov"},
+    "video/x-msvideo": {".avi"},
+    "video/mpeg": {".mpeg", ".mpg"},
+})
+'''
+    open(p, "w", encoding="utf-8").write(s)
+
+# 2d) guest mode: no cookies at all -> start gemini-webapi anonymously (otherwise only playwright/* models exist
+#     and every request fails with "Browser interaction failure", because the Docker image has no Chromium/login state)
+p = f"{root}/services/providers/gemini/client.py"; s = open(p, encoding="utf-8").read()
+if "GUEST_FALLBACK" not in s:
+    anchor = "            # Step 3: Final Candidate Resolution\n"
+    assert anchor in s, "client.py anchor missing"
+    guest = '''            # GUEST_FALLBACK (added by patch_webai.py): nothing authenticated -> anonymous Gemini web client
+            if best_client is None:
+                try:
+                    logger.info("No cookies available: trying anonymous guest-mode Gemini client...")
+                    _ensure_gemini_cache_directory()
+                    guest_client = MyGeminiClient(proxy=gemini_proxy)
+                    await guest_client.init(verbose=True, auto_refresh=False)
+                    best_client = guest_client
+                    best_client_source_name = "guest (no cookies)"
+                except Exception as e:
+                    logger.warning(f"Guest-mode client could not start: {e}")
+
+'''
+    s = s.replace(anchor, guest + anchor, 1)
+    open(p, "w", encoding="utf-8").write(s)
+
 # 3) diagnostic capture of raw replies (sitecustomize)
 shutil.copy("/usr/src/app/wapi/webai_capture.py", "/opt/webai/src/sitecustomize.py")
 print("webai patches applied")
