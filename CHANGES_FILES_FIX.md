@@ -15,3 +15,7 @@ Cause: WebAI-to-API only accepts content parts {"type":"text"} and {"type":"file
 Fix (wapi/smart_router.py `_webapi_fix_body`): on POST /api/web/v1/.../chat/completions every image_url data-URL part
 is converted to {"type":"file","file":{"filename":"image_1.jpg","file_data":"data:..."}}, so Gemini really sees the paper image
 and the fallback to the "wapi" provider is no longer needed.
+
+## Fix: HTTP 413 when uploading an image in the WebAI playground
+nginx default client_max_body_size is 1m (a 1 MiB image is ~1.4 MB as base64). nginx.conf: `client_max_body_size 60m;`
+in /api/web/v1 and /wapi/. Rebuild/redeploy needed.
