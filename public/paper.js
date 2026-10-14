@@ -180,7 +180,9 @@
 .pm-tb{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:8px;min-width:36px;height:34px;padding:0 8px;font-size:.95rem}
 .pm-tb:active{background:#374151}
 .pm-zoom{min-width:44px;text-align:center;font-size:.8rem;color:#9ca3af}
-.pm-score{margin-left:auto;font-size:.82rem;white-space:nowrap}
+.pm-score{margin-left:auto;font-size:.82rem;white-space:nowrap;text-align:right;line-height:1.25}
+.pm-aifix{font-size:.68rem;color:#6ee7b7;font-weight:600}
+.pm-aitag{display:block;font-size:.58rem;color:#6ee7b7;font-weight:700;line-height:1.1}
 .pm-stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;touch-action:none;background:#000;cursor:grab}
 .pm-stage.drag{cursor:grabbing}
 .pm-img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;max-height:none;will-change:transform;pointer-events:none;-webkit-user-drag:none;visibility:hidden;background:#fff}
@@ -197,7 +199,7 @@
 .pm-count{flex:1;background:transparent;color:#e5e7eb;border:1px solid #374151;border-radius:10px;height:40px;font-size:.85rem}
 .pm-cap{font-size:.68rem;color:#a78bfa;margin:6px 0 -2px 2px}
 .pm-row{display:flex;align-items:center;gap:6px;margin:6px 0}
-.pm-qn{flex:0 0 38px;font-size:.8rem;color:#9ca3af;font-weight:700}
+.pm-qn{flex:0 0 42px;font-size:.8rem;color:#9ca3af;font-weight:700}
 .pm-opts{display:flex;gap:6px;flex:1}
 .pm-opt{flex:1;max-width:84px;height:42px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-size:1rem;font-weight:700}
 .pm-opt:active{transform:scale(.96)}
@@ -501,7 +503,9 @@
         if (!pg) return;
         const el = PM.els;
         const st = stats();
-        el.score.innerHTML = `<span style="color:#34d399">✔ ${st.c}</span> &nbsp;<span style="color:#f87171">✖ ${st.w}</span> <span style="color:#9ca3af">/ ${st.n}</span>`;
+        const fixedQ = pg.qs.filter(q => q.is_ai_fixed).map(q => 'Q' + esc(q.qnum || ''));
+        el.score.innerHTML = `<span style="color:#34d399">✔ ${st.c}</span> &nbsp;<span style="color:#f87171">✖ ${st.w}</span> <span style="color:#9ca3af">/ ${st.n}</span>` +
+            (fixedQ.length ? `<br><span class="pm-aifix" title="These questions were corrected by AI">✨ AI Fixed: ${fixedQ.join(', ')}</span>` : '');
         el.fitbtn.textContent = PM.fit === 'width' ? '↔' : '⤢';
         el.fitbtn.title = PM.fit === 'width' ? 'Fit width (tap for fit screen)' : 'Fit screen (tap for fit width)';
 
@@ -549,7 +553,7 @@
                 if (pg.extra.has(String(q._id))) {
                     html += `<div class="pm-cap">📌 Same image · ${esc(q.subject || 'Other subject')}</div>`;
                 }
-                html += `<div class="pm-row"><span class="pm-qn">Q${esc(q.qnum || '')}</span><div class="pm-opts">${btns}</div>${res}
+                html += `<div class="pm-row"><span class="pm-qn">Q${esc(q.qnum || '')}${q.is_ai_fixed ? '<span class="pm-aitag" title="Corrected by AI">✨AI</span>' : ''}</span><div class="pm-opts">${btns}</div>${res}
                     <button class="pm-ex ${String(PM.expl) === String(q._id) ? 'on' : ''}" data-a="ex" data-q="${q._id}" ${ans ? '' : 'disabled'} title="${ans ? 'Explanation' : 'Answer first'}">💡</button></div>`;
             });
         }
@@ -600,7 +604,7 @@
     }
 
     /* ---------------- open / close / refresh ---------------- */
-    window.openPaperMode = function () {
+    window.openPaperMode = function (startQid) {
         const list = (typeof getFilteredQuestions === 'function') ? getFilteredQuestions() : [];
         if (!list.length) { alert('No questions to show.'); return; }
         buildDom();
@@ -614,7 +618,11 @@
         try { history.pushState({ paper: 1 }, ''); } catch (e) { }
 
         let start = parseInt(localStorage.getItem(posKey()) || '', 10);
-        if (isNaN(start) || start >= PM.pages.length) {
+        // opened from "View Original Image" -> start exactly at the page of THAT question
+        const fromQ = (typeof startQid === 'string' || typeof startQid === 'number')
+            ? PM.pages.findIndex(p => p.qs.some(q => String(q._id) === String(startQid))) : -1;
+        if (fromQ >= 0) start = fromQ;
+        else if (isNaN(start) || start >= PM.pages.length) {
             start = PM.pages.findIndex(p => p.qs.some(q => !p.extra.has(String(q._id)) && !userAnswers[q._id]));
             if (start < 0) start = 0;
         }

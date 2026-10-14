@@ -1308,6 +1308,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
     let html = `
         <div class="q-header">
             <span class="q-num">Question ${q.qnum || index + 1}</span>
+            ${q.is_ai_fixed ? `<span title="Corrected by AI" style="margin-left:8px;font-size:.72rem;color:#059669;padding:2px 8px;background:#d1fae5;border-radius:12px;font-weight:600;">✨ AI Fixed</span>` : ''}
             <span style="float: right; font-size: 0.85rem; color: var(--text-secondary); text-align: right;">
                 ${q.official_exam_name || ''} <br>
                 ${q.exam_date ? `(${q.exam_date})` : ''}
@@ -1945,6 +1946,7 @@ const closeBtn = document.querySelector('.close-modal');
 let zoomLevel = 1;
 
 window.openImageModal = function(src, qid) {
+    const _sb = document.getElementById('img-start-paper'); if (_sb) _sb.style.display = 'none';   // shown again only by showQuestionImageAt
     showGlobalLoader("Loading Image...");
     modal.style.display = 'flex';
     void modal.offsetWidth; 
@@ -2007,6 +2009,25 @@ function ensureImgNav() {
     nav.querySelector('#img-nav-next').onclick = (e) => { e.stopPropagation(); showQuestionImageAt(imgNavState.i + 1); };
     return nav;
 }
+// "Start exam from here": the student looked at the original paper image and wants to attempt the real paper from THIS page on.
+// Paper Mode opens at the page of this question (not the first page / not the top of the site).
+function ensureImgStart() {
+    let b = document.getElementById('img-start-paper');
+    if (b) return b;
+    b = document.createElement('button');
+    b.id = 'img-start-paper';
+    b.type = 'button';
+    b.textContent = '📄 Start exam from here';
+    b.style.cssText = 'position:absolute;top:14px;left:14px;display:none;background:#8b5cf6;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:.85rem;font-weight:600;cursor:pointer;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.4);';
+    modal.querySelector('.modal-content-wrapper').appendChild(b);
+    b.onclick = (e) => {
+        e.stopPropagation();
+        const qid = imgNavState.qid;
+        closeImageModal();
+        if (window.openPaperMode) setTimeout(() => window.openPaperMode(qid), 60);
+    };
+    return b;
+}
 function showQuestionImageAt(i) {
     const n = imgNavState.list.length;
     if (!n) return;
@@ -2016,6 +2037,7 @@ function showQuestionImageAt(i) {
     const nav = ensureImgNav();
     nav.style.display = n > 1 ? 'flex' : 'none';
     nav.querySelector('#img-nav-count').textContent = 'Page ' + (imgNavState.i + 1) + ' / ' + n;
+    ensureImgStart().style.display = 'block';
 }
 window.openQuestionImages = function(qid) {
     const q = (currentQuestions || []).find(x => String(x._id) === String(qid));
@@ -2026,6 +2048,7 @@ window.openQuestionImages = function(qid) {
 
 window.closeImageModal = function() {
     const nav = document.getElementById('img-nav'); if (nav) nav.style.display = 'none';
+    const sb = document.getElementById('img-start-paper'); if (sb) sb.style.display = 'none';
     modal.classList.remove('show');
     setTimeout(() => {
         modal.style.display = "none";
