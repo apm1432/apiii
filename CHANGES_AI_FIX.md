@@ -218,3 +218,9 @@ Problem: after an error the same key+model was tried again after only a few seco
   so the notes appear after every login on any device. Notes that an older version saved only in the browser are uploaded once.
 - Logout removes the local copy of the notes (kept on the server; changes still waiting to be sent are kept).
 - Cache versions: script.js?v=24, notes.js?v=2.
+
+## Update 13: option explanations = useful facts, not "wrong / not related"
+- `fixed_options_explanation` (and `options_explanation` in `add_exam.py`): each option now gets ONE short line (15-25 words) saying what the option IS and its key exam fact
+  (full form, year, founder, headquarters, purpose; for statement combinations the real fact of each statement).
+- Forbidden wording: "not the correct answer", "incorrect", "not related to this question/scheme". The "पर्याय:" pillar of the main explanation follows the same rule.
+- Applies to questions fixed / imported from now on; old saved option explanations stay until fixed again.

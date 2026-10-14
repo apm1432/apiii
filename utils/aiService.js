@@ -874,7 +874,7 @@ A. LENGTH (केवढं):
 
 B. STRUCTURE (कसं): use exactly these 4 pillars, each on its OWN line, in this order (a pillar may be skipped ONLY when it truly does not apply):
 कारण: the direct answer and the core reason - why is this the answer?
-पर्याय: what the other 3 options actually refer to (one short clause each).
+पर्याय: the key fact of each of the other 3 options in one short clause (what each one actually IS - e.g. full form / year / founder / purpose). Never write "not the answer" or "not related".
 जोडीदार फॅक्ट: the one most important connected fact (e.g. Centre - State, SC - HC, President - Governor, earlier - later).
 सापळा: the confusion point / exception / trap word that cheats students in the exam.
 Then the last line:
@@ -931,16 +931,26 @@ Prefer official sources such as:
 Do not present unverified information as current or confirmed.
 
 ================================================================
-OPTIONS EXPLANATION (fixed_options_explanation)
+OPTIONS EXPLANATION (fixed_options_explanation) — USEFUL FACTS, NOT "WRONG/RIGHT" TALK
 ================================================================
 
-Cover ALL four options, but keep each one to ONE short line (maximum about 20 words).
+The student already sees which option is correct. So the explanation of an option must NOT judge it and must NOT say why it is not the answer.
 
-For each option state:
-1. What the option actually refers to.
-2. Correct or incorrect, with the exact factual reason in a few words.
-3. If partially correct, the exact incorrect part.
-4. Do not simply write "Incorrect." and do not write a paragraph.
+For EACH of the 4 options write ONE short line (about 15 to 25 words) that tells the student what that option IS and the most important exam fact about it, so that the same option can be answered if it appears in another question:
+- a person: who he/she is + the main work / post / year;
+- an organisation, scheme, act, article or committee: full form or meaning + year / founder / headquarters / main purpose;
+- a place, river, species, term, formula or number: what it is + its key identifying fact;
+- a year or number: which event/fact it belongs to;
+- a combination option such as "फक्त I आणि II" or "1-अ, 2-ब": state the real fact about each statement/pair in short (this is the useful part), without saying "correct/incorrect".
+
+STRICTLY FORBIDDEN in these lines (they waste the student's time):
+- "हे बरोबर उत्तर नाही", "हा पर्याय चुकीचा आहे", "योग्य नाही", "this is not the correct answer", "incorrect";
+- "या प्रश्नाशी / या योजनेशी संबंधित नाही", "याचा काही संबंध नाही", "not related to this question";
+- repeating the question or saying what the question asks.
+Only positive facts about the option itself.
+
+WRONG: "आसियान: दक्षिण-पूर्व आशियाई देशांची संघटना असून ही योजना यांच्याशी संबंधित नाही."
+RIGHT: "आसियान (ASEAN): दक्षिण-पूर्व आशियाई राष्ट्रांची संघटना; स्थापना १९६७ (बँकॉक घोषणा), मुख्यालय जकार्ता."
 
 ================================================================
 FINAL SELF-CHECK
@@ -960,7 +970,7 @@ Before output, verify:
 - I used the 4 pillars (कारण / पर्याय / जोडीदार फॅक्ट / सापळा) each on its own line.
 - I kept only facts and figures (names, articles, dates, numbers, formulas) and left out stories and long history.
 - I avoided filler, repetition, irrelevant information, and hallucinated facts.
-- I explained all options, each in one short line.
+- I wrote ONE short fact line for each option (what it is + its key fact), with NO "wrong / not related / not the answer" wording.
 - The explanation can be read in 30 to 45 seconds and the notebook line has only keywords.
 
 ================================================================
@@ -1004,10 +1014,10 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
   "correct_answer_option": "1, 2, 3, 4, or #",
   "fixed_explanation": "SHORT Marathi explanation, max 3-4 lines, each pillar on its own line: कारण: ...\nपर्याय: ...\nजोडीदार फॅक्ट: ...\nसापळा: ...\nवहीत नोंद: keywords only",
   "fixed_options_explanation": [
-    "One short line (max ~20 words) for option 1",
-    "One short line (max ~20 words) for option 2",
-    "One short line (max ~20 words) for option 3",
-    "One short line (max ~20 words) for option 4"
+    "What option 1 IS + its key fact (15-25 words, no wrong/right wording)",
+    "What option 2 IS + its key fact (15-25 words, no wrong/right wording)",
+    "What option 3 IS + its key fact (15-25 words, no wrong/right wording)",
+    "What option 4 IS + its key fact (15-25 words, no wrong/right wording)"
   ]
 }`;
     return prompt;
