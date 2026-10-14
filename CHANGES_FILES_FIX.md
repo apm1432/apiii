@@ -9,3 +9,9 @@ Changed (all in wapi/):
                        `[file-tag: ...]` in text (normal + stream) with markdown link `[calculator.html](url)`
 - webai_artifacts.py : /artifacts/fetch accepts `n=<filename>` -> sent as attachment (html is never rendered on your domain)
 - smart_router.py    : also makes `](/v1/artifacts/fetch?` links absolute (/api/web/v1/artifacts/fetch?...)
+
+## Fix: "webapi" provider 422 "Input should be a valid string"
+Cause: WebAI-to-API only accepts content parts {"type":"text"} and {"type":"file"}; the project sends {"type":"image_url"}.
+Fix (wapi/smart_router.py `_webapi_fix_body`): on POST /api/web/v1/.../chat/completions every image_url data-URL part
+is converted to {"type":"file","file":{"filename":"image_1.jpg","file_data":"data:..."}}, so Gemini really sees the paper image
+and the fallback to the "wapi" provider is no longer needed.

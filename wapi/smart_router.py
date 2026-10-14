@@ -2110,6 +2110,42 @@ try:
 except Exception as _e:  # pymongo missing etc. -> proxy still works, only the paste page is lost
     print(f"[webai-cookies] disabled: {_e}", flush=True)
 
+
+def _webapi_fix_body(raw: bytes) -> bytes:
+    """WebAI-to-API accepts only {"type":"text"} and {"type":"file","file":{filename,file_data}} content parts.
+    OpenAI clients (the exam-fix job) send {"type":"image_url"} -> 422 "Input should be a valid string".
+    Convert image_url -> file part (data URL), so the paper image reaches Gemini. Anything else is left untouched."""
+    try:
+        body = json.loads(raw.decode("utf-8"))
+        changed = False
+        n = 0
+        for m in (body.get("messages") or []):
+            c = m.get("content")
+            if not isinstance(c, list):
+                continue
+            new = []
+            for part in c:
+                if isinstance(part, dict) and part.get("type") == "image_url":
+                    u = part.get("image_url")
+                    u = u.get("url") if isinstance(u, dict) else u
+                    if isinstance(u, str) and u.startswith("data:"):
+                        mime = u[5:].split(";", 1)[0] or "image/jpeg"
+                        ext = {"image/png": "png", "image/webp": "webp", "image/gif": "gif"}.get(mime, "jpg")
+                        n += 1
+                        new.append({"type": "file", "file": {"filename": f"image_{n}.{ext}", "file_data": u}})
+                        changed = True
+                        continue
+                    changed = True          # remote url cannot be used by WebAI -> drop it
+                    continue
+                if isinstance(part, dict) and part.get("type") in ("input_text", "output_text"):
+                    part = {"type": "text", "text": part.get("text", "")}
+                    changed = True
+                new.append(part)
+            m["content"] = new
+        return json.dumps(body, ensure_ascii=False).encode("utf-8") if changed else raw
+    except Exception:
+        return raw
+
 @app.route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 @app.route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 def webapi_proxy(sub):
@@ -2134,8 +2170,12 @@ def webapi_proxy(sub):
     fwd_headers = {k: v for k, v in request.headers
                    if k.lower() not in _WEBAPI_HOP and k.lower() != "cookie"}
     fwd_headers["Accept-Encoding"] = "identity"
+    _body = request.get_data()
+    if request.method == "POST" and sub.endswith("chat/completions") and "json" in request.headers.get("Content-Type", "").lower():
+        _body = _webapi_fix_body(_body)
+        fwd_headers = {k: v for k, v in fwd_headers.items() if k.lower() != "content-length"}
     try:
-        up = requests.request(request.method, url, params=request.args, data=request.get_data(),
+        up = requests.request(request.method, url, params=request.args, data=_body,
                               headers=fwd_headers, stream=True, timeout=(10, 600),
                               allow_redirects=False)
     except Exception as e:
