@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Explanation Test</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+        h2 { color: #60a5fa; }
+        .test-block { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #334155; }
+        .test-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        :root {
+            --surface-color: #1e293b;
+            --border-color: #334155;
+            --text-color: #e2e8f0;
+            --text-secondary: #94a3b8;
+        }
+        details summary { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>🧪 Smart Explanation Format — Test Page</h2>
+    <p style="color:#94a3b8;font-size:0.9rem;">Fake data वर 4-pillar format test करा. Real app मध्ये answer दिल्यावर असेच दिसेल.</p>
+
+    <!-- TEST 1: NEW 4-Pillar Format -->
+    <div class="test-block">
+        <div class="test-label">✅ Test 1: नवीन 4-Pillar Format (AI-fixed question)</div>
+        <div id="test1"></div>
+    </div>
+
+    <!-- TEST 2: Old numbered pointer format (legacy) -->
+    <div class="test-block">
+        <div class="test-label">📜 Test 2: जुना Numbered Format (legacy question — max 4 lines + Read More)</div>
+        <div id="test2"></div>
+    </div>
+
+    <!-- TEST 3: Maths / Short Trick -->
+    <div class="test-block">
+        <div class="test-label">⚡ Test 3: Maths / Short Trick Format</div>
+        <div id="test3"></div>
+    </div>
+
+    <!-- TEST 4: Cancelled question -->
+    <div class="test-block">
+        <div class="test-label">🚫 Test 4: Cancelled (#) Question</div>
+        <div id="test4"></div>
+    </div>
+
+    <!-- TEST 5: No explanation -->
+    <div class="test-block">
+        <div class="test-label">❌ Test 5: No Explanation</div>
+        <div id="test5"></div>
+    </div>
+
+    <script>
+// ── Copy of buildSmartExplanationHTML from script.js ──────────────────────
+function buildSmartExplanationHTML(explanationText, optionsExplanation) {
+    if (!explanationText || explanationText.trim() === '') {
+        return '<p style="color:var(--text-secondary);font-size:0.9rem;">No explanation available.</p>';
+    }
+
+    const raw = explanationText.trim();
+    const is4Pillar = /उत्तर\s*:|इतर पर्याय\s*:|जोडीदार\s*:|TRAP\s*:|Short Trick\s*:|रद्द\s*:/i.test(raw);
+
+    let html = '';
+
+    if (is4Pillar) {
+        const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+
+        const pillarConfig = [
+            { re: /^उत्तर\s*:/i,       icon: '🎯', label: 'उत्तर + कारण',       color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: '#10b981' },
+            { re: /^इतर पर्याय\s*:/i, icon: '🔑', label: 'इतर पर्याय',          color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: '#3b82f6' },
+            { re: /^जोडीदार\s*:/i,    icon: '🔗', label: 'जोडीदार फॅक्ट',      color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', border: '#8b5cf6' },
+            { re: /^TRAP\s*:/i,        icon: '⚠️', label: 'परीक्षा TRAP',        color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: '#f59e0b' },
+            { re: /^Short Trick\s*:/i, icon: '⚡', label: 'Short Trick',          color: '#06b6d4', bg: 'rgba(6,182,212,0.08)',  border: '#06b6d4' },
+            { re: /^रद्द\s*:/i,        icon: '🚫', label: 'रद्द / Cancelled',     color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: '#ef4444' },
+        ];
+
+        html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">`;
+
+        lines.forEach(line => {
+            const cfg = pillarConfig.find(p => p.re.test(line));
+            if (cfg) {
+                const content = line.replace(cfg.re, '').replace(/^[\s:—–-]+/, '').trim();
+                html += `
+                <div style="padding:8px 12px;border-radius:8px;border-left:3px solid ${cfg.border};background:${cfg.bg};">
+                    <span style="font-size:0.78rem;font-weight:700;color:${cfg.color};letter-spacing:0.3px;">${cfg.icon} ${cfg.label}</span>
+                    <div style="margin-top:3px;font-size:0.9rem;line-height:1.5;color:var(--text-color);">${content.replace(/\n/g, '<br>')}</div>
+                </div>`;
+            } else {
+                html += `<div style="font-size:0.9rem;color:var(--text-color);padding:2px 0;">${line.replace(/\n/g, '<br>')}</div>`;
+            }
+        });
+
+        html += `</div>`;
+
+    } else {
+        const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+        const PREVIEW = 4;
+        const renderLines = (arr) => arr.map(l => `<div style="padding:3px 0;font-size:0.9rem;color:var(--text-color);line-height:1.5;">${l}</div>`).join('');
+
+        if (lines.length <= PREVIEW) {
+            html += renderLines(lines);
+        } else {
+            const id = 'expl-more-' + Math.random().toString(36).slice(2, 8);
+            html += renderLines(lines.slice(0, PREVIEW));
+            html += `<div id="${id}" style="display:none;">${renderLines(lines.slice(PREVIEW))}</div>`;
+            html += `<button onclick="var el=document.getElementById('${id}');var btn=this;if(el.style.display==='none'){el.style.display='block';btn.textContent='▲ कमी दाखवा';}else{el.style.display='none';btn.textContent='▼ पूर्ण वाचा';}" 
+                style="margin-top:6px;background:none;border:1px solid var(--border-color);border-radius:6px;padding:3px 10px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer;">▼ पूर्ण वाचा (${lines.length - PREVIEW} more)</button>`;
+        }
+    }
+
+    if (optionsExplanation && optionsExplanation.length > 0) {
+        html += `<details style="margin-top:10px;">
+            <summary style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 0;">📋 Options Breakdown (सर्व पर्याय)</summary>
+            <ul style="margin-top:8px;padding-left:18px;font-size:0.85rem;color:var(--text-secondary);line-height:1.6;">
+                ${optionsExplanation.map((exp, i) => `<li style="margin-bottom:5px;"><strong>पर्याय ${i+1}:</strong> ${exp.replace(/\n/g, '<br>')}</li>`).join('')}
+            </ul>
+        </details>`;
+    }
+
+    return html;
+}
+
+// ── FAKE TEST DATA ─────────────────────────────────────────────────────────
+
+// Test 1: New 4-pillar format
+const fakeNew4Pillar = `उत्तर: कलम ३२ — सर्वोच्च न्यायालयाला मूलभूत हक्कांच्या रक्षणासाठी रिट काढण्याचा अधिकार.
+इतर पर्याय: कलम २२: अटक व स्थानबद्धता, कलम ४४: समान नागरी कायदा (DPSP), कलम ७६: भारताचा अटर्नी जनरल.
+जोडीदार: कलम २२६ = उच्च न्यायालय (HC) — मूलभूत + इतर हक्क दोन्हींसाठी; SC पेक्षा मोठे क्षेत्राधिकार.
+TRAP: कलम ३२ फक्त मूलभूत हक्कांसाठी; कलम २२६ इतर हक्कांसाठीही — हा फरक परीक्षेत नेहमी येतो.`;
+
+const fakeOptsExplNew = [
+    'कलम ३२: सर्वोच्च न्यायालयाचा रिट अधिकार — बरोबर उत्तर. डॉ. आंबेडकरांनी "संविधानाचा आत्मा" म्हटले.',
+    'कलम २२: अटक व स्थानबद्धतेचे नियम. चुकीचा पर्याय — रिटशी थेट संबंध नाही.',
+    'कलम ४४: समान नागरी संहिता (DPSP, भाग ४). मूलभूत हक्क नाही.',
+    'कलम ७६: भारताचा महाधिवक्ता (Attorney General of India). न्यायालयीन रिटशी संबंध नाही.'
+];
+
+// Test 2: Old legacy numbered format (many lines → Read More)
+const fakeLegacyLong = `1. कलम ३२ हे भारतीय संविधानाचा महत्त्वाचा भाग आहे.
+2. डॉ. बाबासाहेब आंबेडकरांनी याला "संविधानाचा आत्मा आणि हृदय" म्हटले आहे.
+3. सर्वोच्च न्यायालयाकडे ५ प्रकारचे रिट काढण्याचा अधिकार आहे.
+4. हेबियस कॉर्पस: अटकेत असलेल्या व्यक्तीला न्यायालयात हजर करणे.
+5. मँडॅमस: सरकारी यंत्रणांना कर्तव्य पार पाडण्याचा आदेश.
+6. प्रोहिबिशन: खालच्या न्यायालयाला थांबवणे.
+7. सर्शिओरारी: खालच्या न्यायालयाचा निर्णय रद्द करणे.
+8. को-वारंटो: कोणी अवैधरित्या पद धारण केल्यास.`;
+
+// Test 3: Maths / Short Trick
+const fakeMathsTrick = `Short Trick: (घड्याळ कोन) = |30H - 5.5M| → H=3, M=40 → |90 - 220| = 130°.
+जोडीदार: घड्याळात दोन काटे दिवसातून 22 वेळा एकमेकांवर येतात (12 तास × 2).
+TRAP: काटे एकमेकांच्या विरुद्ध (180°) = दिवसातून 22 वेळा; एकत्र (0°) = 22 वेळा.`;
+
+// Test 4: Cancelled
+const fakeCancelled = `रद्द: MPSC ने हा प्रश्न रद्द केला कारण पर्याय २ आणि ४ दोन्ही बरोबर आहेत.
+जोडीदार: असा प्रश्न "Cancelled" म्हणून # मार्क होतो; सर्व उत्तरे ग्राह्य.
+TRAP: रद्द प्रश्नात सर्व विद्यार्थ्यांना गुण मिळतात — पर्याय चुकला तरी.`;
+
+// Test 5: Empty
+const fakeEmpty = '';
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function wrapCard(html) {
+    return `<div style="padding:12px;border-radius:10px;background:var(--surface-color);border:1px solid var(--border-color);">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📝 स्पष्टीकरण</div>
+        ${html}
+    </div>`;
+}
+
+document.getElementById('test1').innerHTML = wrapCard(buildSmartExplanationHTML(fakeNew4Pillar, fakeOptsExplNew));
+document.getElementById('test2').innerHTML = wrapCard(buildSmartExplanationHTML(fakeLegacyLong, null));
+document.getElementById('test3').innerHTML = wrapCard(buildSmartExplanationHTML(fakeMathsTrick, null));
+document.getElementById('test4').innerHTML = wrapCard(buildSmartExplanationHTML(fakeCancelled, null));
+document.getElementById('test5').innerHTML = wrapCard(buildSmartExplanationHTML(fakeEmpty, null));
+    </script>
+</body>
+</html>

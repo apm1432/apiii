@@ -364,8 +364,8 @@ For EACH question on the LAST IMAGE, provide:
 7. "exam_date": Always output "{official_date}"
 8. "final_answer_key": Deduced final correct option (1-4).
 9. "correct_answer_option": The 100% authentic, factually correct answer (Output ONLY the integer option NUMBER from 1 to 4).
-10. "toppers_explanation_marathi": VERY DEEP, EXHAUSTIVE explanation (at least 300 words).
-11. "options_explanation": Factual explanation for each option.
+10. "toppers_explanation_marathi": SHORT, exam-focused Marathi explanation - max 3 to 4 short lines (readable in 30-45 seconds), NO paragraphs, NO stories. Put each of these 4 pillars on its OWN line (use \\n between lines): "कारण:" (direct answer + core reason), "पर्याय:" (what the other 3 options refer to), "जोडीदार फॅक्ट:" (one important connected fact, e.g. Centre-State, SC-HC), "सापळा:" (confusion point / exception / trap word). Then ONE last line "वहीत नोंद:" with only keywords (for the notebook). Only facts, figures, names, articles, dates, formulas. For maths/reasoning give only the short trick/formula.
+11. "options_explanation": Array of 4 items - ONE short line (max ~20 words) for each option: what it refers to and why it is correct/incorrect.
 12. "subject", "topic", "sub_topic": Accurate categorization.
 13. "passage_text": null (MUST BE NULL).
 

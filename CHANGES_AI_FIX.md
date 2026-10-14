@@ -164,3 +164,14 @@ Fix (public/script.js):
   and the progress numbers in parallel (list is painted first). Several callers share one request.
 - Nothing of an exam is loaded until the student opens it (only the exam list is loaded at start).
 - Static files: scripts/styles versioned with ?v= are cached by the phone for 30 days (server.js); nginx gzips text files (nginx.conf).
+
+## Update 8: SHORT, exam-focused explanations (replaces "deeper explanations" of Update 7)
+- Prompt (`utils/aiService.js`): the long "cover everything / 8-15 pointers / no limit" rules are replaced by the new short-explanation rules:
+  - Length: max 3-4 short lines to read (30-45 seconds) + ONE last line `वहीत नोंद:` with keywords only (notebook).
+  - Structure (4 pillars, each on its own line): `कारण:` / `पर्याय:` / `जोडीदार फॅक्ट:` / `सापळा:`.
+  - Only facts and figures (names, articles, dates, numbers, formulas); no stories or long history; maths/reasoning = short trick/formula only.
+  - `fixed_options_explanation`: one short line (~20 words) per option.
+- The deepening pass (Update 7) is switched OFF. Set env `AI_DEEPEN_EXPLANATION=1` to bring it back (not recommended).
+- `normalizeExplanation()` also puts the labels पर्याय / जोडीदार फॅक्ट / सापळा / वहीत नोंद on their own line if the AI returns everything in one line.
+- `add_exam.py` (new exam import) uses the same short format instead of "at least 300 words".
+- Existing questions in the database keep their old long explanations until they are fixed again with the AI.

@@ -175,6 +175,8 @@ function matchOptionStyle(newOpts, oldOpts) {
 function normalizeExplanation(text) {
     let t = String(text || '').replace(/\\n/g, '\n').replace(/\*\*/g, '').trim();
     // pointers must be on separate lines (the website turns "\n" into line breaks).
+    // short-format labels (कारण / पर्याय / जोडीदार फॅक्ट / सापळा / वहीत नोंद) must also start on their own line
+    t = t.replace(/([^\n])\s+(?=(?:पर्याय|जोडीदार फॅक्ट|सापळा|वहीत नोंद)\s*:)/g, '$1\n');
     if (!t.includes('\n')) {
         let pos = 0;
         for (let k = 2; k < 200; k++) {
@@ -595,14 +597,14 @@ const prompt = `You are an expert MPSC mentor, subject specialist, OCR verifier,
 Your task is to independently verify, reconstruct if necessary, correct, and improve the provided MPSC question data.
 
 IMPORTANT GOAL:
-NOTHING from the old database record is provided to you: there is NO old answer key and NO old explanation. Independently reconstruct the complete question when necessary, solve it yourself from scratch, identify the main topic and all important related concepts, detect missing information, and write a complete, ORIGINAL Marathi explanation in your own words.
+NOTHING from the old database record is provided to you: there is NO old answer key and NO old explanation. Independently reconstruct the complete question when necessary, solve it yourself from scratch, identify the main topic and all important related concepts, detect missing information, and write a SHORT, exam-focused, ORIGINAL Marathi explanation in your own words (3 to 4 lines + one "वहीत नोंद:" keyword line - see EXPLANATION RULES).
 
 Treat every question as brand new and completely unrelated to any other question. Do not rely on any memory of earlier questions or earlier answers; derive everything fresh from the question and the image.
 
 The goal is:
-MAXIMUM RELEVANT TOPIC COVERAGE + FACTUAL ACCURACY + COMPLETE QUESTION RECONSTRUCTION + CLEAR SEPARATE POINTS + FAST REVISION.
+FACTUAL ACCURACY + COMPLETE QUESTION RECONSTRUCTION + SHORT, FACT-ONLY EXPLANATION (only the cream) + FAST REVISION.
 
-Do not unnecessarily stretch existing points into long paragraphs when distinct information can be presented as separate numbered points.
+Never write long paragraphs or stories. Keep only facts, figures, names, articles, dates, formulas and the exam trap.
 
 ================================================================
 OPTION ORDER + FORMAT PRESERVATION — HIGHEST PRIORITY (NEVER VIOLATE)
@@ -772,187 +774,39 @@ For Match the Pairs (जोड्या जुळवा):
 3. Never omit matching targets.
 
 ================================================================
-EXPLANATION RULES (fixed_explanation)
+EXPLANATION RULES (fixed_explanation) — SHORT, SMART, EXAM-FOCUSED
 ================================================================
 
-1. Use numbered pointers:
-1., 2., 3., etc.
-Put EACH numbered pointer on its own NEW LINE (a line break between pointers inside the JSON string). Use plain text only: no markdown, no ** bold, no bullet symbols.
+The student must NEVER read a long explanation. Test-series companies and books give 15-20 line, Wikipedia-style explanations that nobody reads fully. Extract ONLY the cream (facts) from the topic.
 
-2. Do NOT give a childish, superficial, overly simplified, or one-line explanation. The student is an MPSC aspirant and needs strong factual and conceptual understanding.
+A. LENGTH (केवढं):
+1. To READ: at most 3 to 4 short lines (must be readable in 30 to 45 seconds). Never a paragraph, never a story.
+2. For the NOTEBOOK: add ONE final line that starts with "वहीत नोंद:" and has only KEYWORDS (1 to 2 lines at most, no sentences, no paragraph).
+3. Do NOT write a long background, history or "how and why it happened" story. Do NOT repeat the question. Do NOT add filler such as "हा विषय MPSC साठी महत्त्वाचा आहे".
 
-3. NO LIMIT ON THE NUMBER OF POINTS:
-There is NO minimum and NO maximum number of pointers. Write as many numbered pointers as the topic genuinely needs.
+B. STRUCTURE (कसं): use exactly these 4 pillars, each on its OWN line, in this order (a pillar may be skipped ONLY when it truly does not apply):
+कारण: the direct answer and the core reason - why is this the answer?
+पर्याय: what the other 3 options actually refer to (one short clause each).
+जोडीदार फॅक्ट: the one most important connected fact (e.g. Centre - State, SC - HC, President - Governor, earlier - later).
+सापळा: the confusion point / exception / trap word that cheats students in the exam.
+Then the last line:
+वहीत नोंद: keyword1 - keyword2 - keyword3 ...
 
-Include EVERY important fact, date, concept, person, place, law, classification, exception, comparison and related detail connected with the question and its underlying topic. Do not hold back information because of length.
+C. WHAT TO KEEP:
+1. ONLY hard facts and figures: names, articles/sections, dates, numbers, formulas, rules, classifications. Exact dates/years only when they decide the answer or are a classic trap.
+2. Leave out stories and long history.
+3. For maths / reasoning / data-interpretation questions: write ONLY the short trick or the formula plus the key calculation step (the full working belongs in "thought_process"), then the "वहीत नोंद:" line with the formula.
+4. Use plain Marathi text. No markdown, no ** bold, no bullet symbols. Technical terms may stay in English. Each pillar on its own line (use a line break between lines inside the JSON string).
+5. Every line must carry a verified fact. Never invent or guess data; accuracy beats everything.
 
-The only restriction is correctness: never include wrong, doubtful or invented data.
+D. EXAMPLE of the right style (Article 32 question):
+कारण: कलम ३२ - सर्वोच्च न्यायालयाचा रिट अधिकार, फक्त मूलभूत हक्कांसाठी.
+पर्याय: कलम २२६ = उच्च न्यायालय; इतर कलमे रिटशी संबंधित नाहीत.
+जोडीदार फॅक्ट: कलम २२६ - HC ला मूलभूत + इतर हक्कांसाठी रिट; म्हणजे HC चे क्षेत्र मोठे.
+सापळा: SC = फक्त मूलभूत हक्क; HC = मूलभूत + इतर.
+वहीत नोंद: कलम ३२ SC - कलम २२६ HC - ५ रिट्स: हेबियस कॉर्पस, मँडॅमस, प्रोहिबिशन, सर्शिओरारी, को-वारंटो
 
-4. MANDATORY FACT AND CONCEPT COVERAGE CHECK:
-
-Before writing the final explanation, first identify the complete set of important facts required to understand the topic.
-
-Do not select only a few convenient facts.
-
-Wherever genuinely relevant, actively check for and include:
-
-- Important dates, years, periods, timelines, and chronological sequence.
-- Important concepts and their exact meaning.
-- Definitions and key terminology.
-- Origin, background, and historical context.
-- Important persons and their contributions.
-- Important organizations, committees, and institutions.
-- Important events and their causes and consequences.
-- Important laws, acts, constitutional provisions, articles, amendments, policies, and schemes.
-- Classifications, types, stages, components, and important features.
-- Relationships, differences, comparisons, and common confusion points.
-- Exceptions, limitations, special cases, and factual corrections.
-- Important places, locations, regions, and geographical context.
-- Relevant statistics and data.
-- Formulas, scientific principles, mechanisms, and processes.
-- Directly related concepts necessary to understand the complete parent topic.
-
-5. DATE PRESERVATION RULE:
-
-If an exact date, year, period, or chronological event is important for understanding the topic or is exam-relevant, DO NOT omit it.
-
-Do not replace important exact dates with vague phrases such as:
-"later"
-"after that"
-"during that period"
-"in the following years"
-
-when the exact date or year is known and relevant.
-
-6. CONCEPT COMPLETENESS RULE:
-
-Do not explain only the fact directly asked in the question.
-
-Identify the underlying concept and cover its essential components, related concepts, background, mechanism, classification, important dates, chronology, and important exceptions wherever genuinely relevant.
-
-7. NEW DISTINCT FACT RULE:
-
-Whenever a genuinely new and distinct important fact, concept, event, feature, exception, date, person, place, classification, comparison, or related subtopic is added, prefer creating a NEW numbered pointer.
-
-Do NOT merely stretch an existing pointer by merging many independent facts into one excessively long paragraph.
-
-Related facts belonging to the same concept may remain together in one pointer.
-
-8. NO LIMIT ON LENGTH:
-There is NO word limit for a pointer or for the whole explanation. A pointer may be as long as the concept needs. Prefer separate pointers for separate facts so that revision stays easy.
-
-Do NOT repeat the same information merely to make the explanation look bigger.
-
-9. DEPTH TARGET (IMPORTANT):
-The explanation must go DEEP, not stop at the one fact that decides the answer. Besides the decisive fact, always add (wherever genuinely relevant and 100% certain):
-- the background / origin and the full chronology (exact dates and years),
-- the facts behind EVERY statement and EVERY option of the question (not only the correct one), because the same topic is asked again with the other options,
-- the parent topic around it: related persons, laws, articles, committees, places, schemes, numbers, comparisons and exceptions,
-- common confusion points (what students mix up) and exam-relevant extra facts.
-A rich topic normally deserves 8 to 15 numbered pointers. Fewer pointers are acceptable only when the topic truly has nothing more that is certain. Never pad with doubtful or invented facts.
-
-10. WRITE FROM SCRATCH:
-
-Write the explanation entirely yourself, in your own words, from verified facts. Do not assume anything about any older explanation: none is provided.
-
-Actively check what important dates, concepts, subtopics, background, classifications, chronology, mechanisms, exceptions, comparisons, examples, or related facts must be included, and include all of them.
-
-10. TOPIC COVERAGE:
-
-Where genuinely relevant, cover:
-
-- Definitions and core concepts
-- Background and origin
-- History and chronology
-- Important dates and timelines
-- Important persons and contributions
-- Important places and geographical context
-- Causes and effects
-- Mechanisms and processes
-- Classifications and types
-- Features and characteristics
-- Constitutional and legal provisions
-- Articles, amendments, acts, committees, institutions, and policies
-- Scientific principles and mechanisms
-- Important formulas, units, and relationships
-- Economic concepts, indicators, and mechanisms
-- Environmental concepts and ecological relationships
-- Geographical features and processes
-- Accurate and relevant statistics
-- Comparisons and differences
-- Exceptions and special cases
-- Common confusion points
-- Directly related concepts
-- Important examples
-- Important factual corrections
-- Current updates when genuinely relevant
-
-Do NOT force every category into every explanation.
-
-Use only genuinely relevant information, but do NOT skip an important relevant area merely to keep the answer short.
-
-11. NO FILLER:
-
-Never use generic filler such as:
-"This topic is important for MPSC."
-"Students should study this topic deeply."
-"This question can be asked frequently."
-
-Do not merely say what MPSC may ask.
-
-Directly explain the actual facts, concepts, variations, and details that the student needs to know.
-
-Every numbered pointer must contain useful factual, conceptual, analytical, or explanatory value.
-
-12. ACCURACY AND RELEVANCE:
-
-Do NOT add random or unrelated information merely to increase the number of pointers.
-
-Every point must be:
-- Factually accurate.
-- Directly or meaningfully relevant.
-- Useful for understanding or revision.
-- Non-repetitive.
-
-Prefer maximum relevant coverage over unnecessary brevity, but NEVER sacrifice factual accuracy merely to make the explanation longer.
-
-13. FAST REVISION PRIORITY:
-
-Structure the explanation so that important distinct facts are easy to find during revision.
-
-Prefer separate numbered pointers for separate important pieces of information instead of hiding many independent facts inside a few very long paragraphs.
-
-The goal is:
-
-MAXIMUM RELEVANT INFORMATION
-+
-CLEAR SEPARATE POINTS
-+
-IMPORTANT DATES AND CONCEPTS
-+
-FAST REVISION.
-
-14. MEMORY TRICKS:
-
-If genuinely useful, add a short mnemonic or memory trick at the end.
-
-Do not force an artificial mnemonic.
-
-15. FINAL MISSING-FACT AUDIT:
-
-Before producing the final JSON, check:
-
-- Have I missed any important date or chronological event?
-- Have I missed any core concept or definition?
-- Have I skipped important background information?
-- Have I omitted an important person or contribution?
-- Have I omitted an important institution or committee?
-- Have I omitted an important law, article, act, amendment, policy, or scheme?
-- Have I explained only the answer instead of the complete underlying topic?
-- Did I reconstruct all missing information visible in the image?
-- Did I cover every important fact of the topic, however many pointers that needs?
-
-If any important relevant information is missing, add it before finalizing.
+WRONG style (never do this): a long paragraph that retells that Article 32 is called the soul of the Constitution, lists all the writs with history, and so on.
 
 ================================================================
 CANCELLED/INVALID QUESTION RULE
@@ -962,10 +816,10 @@ If "correct_answer_option" is "#", begin the explanation with:
 
 "हा प्रश्न MPSC कडून रद्द करण्यात आला आहे कारण..."
 
-Then explain:
+Then, in the same SHORT style (max 3 to 4 lines):
 1. Why the options are invalid or ambiguous.
 2. What the actual correct factual position is.
-3. The important related facts needed to understand the topic.
+3. The one most important connected fact.
 
 ================================================================
 CURRENT DATA RULES
@@ -992,14 +846,13 @@ Do not present unverified information as current or confirmed.
 OPTIONS EXPLANATION (fixed_options_explanation)
 ================================================================
 
-Explain ALL four options.
+Cover ALL four options, but keep each one to ONE short line (maximum about 20 words).
 
-For each option:
-1. Explain what the option actually refers to.
-2. State whether it is correct or incorrect.
-3. Explain the exact factual reason.
-4. If partially correct, identify the exact incorrect part.
-5. Do not simply write "Incorrect."
+For each option state:
+1. What the option actually refers to.
+2. Correct or incorrect, with the exact factual reason in a few words.
+3. If partially correct, the exact incorrect part.
+4. Do not simply write "Incorrect." and do not write a paragraph.
 
 ================================================================
 FINAL SELF-CHECK
@@ -1015,14 +868,12 @@ Before output, verify:
 - I preserved the complete Marathi question.
 - I preserved or reconstructed the complete English question.
 - I preserved or reconstructed all options.
-- I wrote the explanation in my own words and added all relevant information.
-- I included important dates and concepts wherever relevant.
-- I used separate numbered pointers for distinct important facts whenever appropriate.
-- I did not limit myself to any number of points or words; I covered everything important and correct.
-- I covered important topic context and directly related concepts.
+- I wrote the explanation in my own words, only 3 to 4 short lines plus one "वहीत नोंद:" keyword line.
+- I used the 4 pillars (कारण / पर्याय / जोडीदार फॅक्ट / सापळा) each on its own line.
+- I kept only facts and figures (names, articles, dates, numbers, formulas) and left out stories and long history.
 - I avoided filler, repetition, irrelevant information, and hallucinated facts.
-- I explained all options factually.
-- The explanation provides maximum relevant coverage while remaining easy and fast to revise.
+- I explained all options, each in one short line.
+- The explanation can be read in 30 to 45 seconds and the notebook line has only keywords.
 
 ================================================================
 CURRENT DATA
@@ -1063,12 +914,12 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
     "complete English option 4"
   ],
   "correct_answer_option": "1, 2, 3, 4, or #",
-  "fixed_explanation": "Complete Marathi explanation as numbered pointers: as many pointers and as many words as the topic needs, covering every important fact; only correct data",
+  "fixed_explanation": "SHORT Marathi explanation, max 3-4 lines, each pillar on its own line: कारण: ...\nपर्याय: ...\nजोडीदार फॅक्ट: ...\nसापळा: ...\nवहीत नोंद: keywords only",
   "fixed_options_explanation": [
-    "Deep factual explanation for option 1",
-    "Deep factual explanation for option 2",
-    "Deep factual explanation for option 3",
-    "Deep factual explanation for option 4"
+    "One short line (max ~20 words) for option 1",
+    "One short line (max ~20 words) for option 2",
+    "One short line (max ~20 words) for option 3",
+    "One short line (max ~20 words) for option 4"
   ]
 }`;
     return prompt;
@@ -1354,8 +1205,9 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 
             log(`\n[System] ✔ Verified: answer (${vAns}) confirmed independently; option order and format match the paper.\n`);
             fixed.verified = true;
-            // answer + order + format are verified: now make the explanation deeper (never fails the fix)
-            fixed.fixed_explanation = await deepenExplanation(fixed, questionData, onChunk);
+            // Explanations are now intentionally SHORT (3-4 lines + notebook keywords), so the old "deepen the explanation" pass is switched off.
+            // (deepenExplanation() is kept in this file only for reference; set AI_DEEPEN_EXPLANATION=1 to re-enable it.)
+            if (process.env.AI_DEEPEN_EXPLANATION === '1') fixed.fixed_explanation = await deepenExplanation(fixed, questionData, onChunk);
             // tell the admin when the old DB options were in a different (wrong) order
             try {
                 const oldO = (questionData.options || []).filter(o => typeof o === 'string' && o.trim());
