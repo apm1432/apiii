@@ -94,9 +94,20 @@ async function applyCooldown(scope, key, model, ms, status) {
     await AiKey.updateMany({ ...filter, cooldownUntil: { $lt: until } }, { $set: { cooldownUntil: until, status } });
 }
 
+
+// Model returned 404 (retired / wrong name / hiccup): rest the MODEL for all keys with growing back-off, never "until restart".
+async function restModelNotFound(model) {
+    const n = bumpStreak(`nf|${model}`);
+    const ms = backoff(n, 5 * 60000, 60 * 60000);
+    await AiKey.updateMany({ model, cooldownUntil: { $lt: Date.now() + ms } }, { $set: { cooldownUntil: Date.now() + ms, status: 'NotFound' } });
+    return ms;
+}
+
 async function markSuccess(key, model) {
     failStreak.delete(`${key}|${model}`);
     failStreak.delete(model);
+    failStreak.delete(`nf|${model}`);
+    failStreak.delete(`key|${key}`);
     await AiKey.updateOne({ key, model }, { $set: { status: 'Success', cooldownUntil: 0 } });
 }
 
@@ -130,8 +141,11 @@ async function handleApiFailure({ key, model, status, body, networkError }) {
         return { msg: `Server error ${status} on ${model}. The model rests ${fmtMs(ms)} for all keys; other models keep working.`, lastError: `Server error (${status}) on ${model}`, transient: true };
     }
     if (status === 400 && /API key not valid|API_KEY_INVALID|API key expired/i.test(body)) {
-        await AiKey.updateMany({ key }, { $set: { isAvailable: false, status: 'InvalidKey' } });
-        return { msg: `Key ${sfx} is INVALID/expired - disabled until restart. Check GEMINI_API_KEYS.`, lastError: `Invalid API key ${sfx}`, transient: true };
+        // timed rest instead of "disabled until restart": it re-tries by itself (5 min, then 10, 20 ... max 60 min)
+        const n = bumpStreak(`key|${key}`);
+        const ms = backoff(n, 5 * 60000, 60 * 60000);
+        await applyCooldown('key', key, model, ms, 'InvalidKey');
+        return { msg: `Key ${sfx} was rejected as invalid/expired. It rests ${fmtMs(ms)} and is tried again after that. Check GEMINI_API_KEYS if this keeps happening.`, lastError: `Invalid API key ${sfx}`, transient: true };
     }
     if (status === 401 || status === 403) {
         await applyCooldown('keymodel', key, model, 30 * 60000, 'Forbidden');
@@ -1159,10 +1173,10 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
                     lastError = info.lastError;
                     if (++transient > 12) attempts++;      // only a long unbroken run of service errors costs an attempt
                 } else if (status === 404) {
-                    // Model does not exist / retired -> stop using it until restart
-                    if (onChunk) onChunk(`\n[System] ERROR 404: model "${model}" not found/retired. Disabling it. ${body.slice(0, 300)}`);
-                    console.error(`Model ${model} returned 404, disabling. ${body.slice(0, 300)}`);
-                    await AiKey.updateMany({ model }, { $set: { isAvailable: false, status: "NotFound" } });
+                    // Model not found / retired -> rest it (growing back-off), it is retried automatically
+                    const nfMs = await restModelNotFound(model);
+                    if (onChunk) onChunk(`\n[System] ERROR 404: model "${model}" not found/retired. It rests ${fmtMs(nfMs)}, then is tried again. ${body.slice(0, 300)}`);
+                    console.error(`Model ${model} returned 404, resting ${fmtMs(nfMs)}. ${body.slice(0, 300)}`);
                     lastError = `Model ${model} not found (404)`;
                     attempts++;
                 } else {
@@ -1605,7 +1619,7 @@ async function chatViaGemini(payload, { model: onlyModel, maxAttempts, maxWaitMs
             if (info) {
                 lastError = info.lastError;
             } else if (status === 404) {
-                await AiKey.updateMany({ model }, { $set: { isAvailable: false, status: 'NotFound' } });
+                await restModelNotFound(model);
                 lastError = `Model ${model} not found (404)`;
             } else {
                 lastError = status ? `API Error ${status}` : error.message;
