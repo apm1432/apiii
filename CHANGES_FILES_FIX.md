@@ -30,3 +30,9 @@ Without cookies WebAI had no WebAPI client: the model list showed only `playwrig
 "Browser interaction failure" (no Chromium / login state in the image). Now, when no cookie source works, WebAI starts
 gemini-webapi anonymously ("guest (no cookies)"). Not unlimited; uploads / file downloads may not work as guest.
 Remove saved cookies on /api/web/v1/ui/auth -> after the ~10s restart the webapi models (gemini-flash ...) should be back.
+
+## Guest mode, part 2 (patch_webai.py step 2e)
+After 2d the guest client started (model list showed gemini-flash-lite) but every request was refused:
+"The provided conversation_id requires an authenticated Gemini session" (misleading text; shared.ensure_gemini_client_ready
+rejects status UNAUTHENTICATED). Now UNAUTHENTICATED (guest) is allowed to generate. Untested against Google: if Google itself
+refuses anonymous generation from the Koyeb IP, a different error will appear.

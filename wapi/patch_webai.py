@@ -155,6 +155,15 @@ if "GUEST_FALLBACK" not in s:
     s = s.replace(anchor, guest + anchor, 1)
     open(p, "w", encoding="utf-8").write(s)
 
+# 2e) let guest (UNAUTHENTICATED) Gemini client generate: upstream keeps the guest client (models are listed) but every
+#     endpoint refuses it with 401 "The provided conversation_id requires an authenticated Gemini session".
+p = f"{root}/services/providers/gemini/shared.py"; s = open(p, encoding="utf-8").read()
+if "GUEST_OK" not in s:
+    old = '    if status_name == "AVAILABLE":\n        return\n'
+    assert old in s, "shared.py anchor missing"
+    s = s.replace(old, '    if status_name in ("AVAILABLE", "UNAUTHENTICATED"):   # GUEST_OK: anonymous (no cookies) client may generate\n        return\n', 1)
+    open(p, "w", encoding="utf-8").write(s)
+
 # 3) diagnostic capture of raw replies (sitecustomize)
 shutil.copy("/usr/src/app/wapi/webai_capture.py", "/opt/webai/src/sitecustomize.py")
 print("webai patches applied")
