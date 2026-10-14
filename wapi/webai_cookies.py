@@ -408,6 +408,17 @@ def register(app, authorized, prefix, webai_url):
         except Exception as e:
             return jsonify({"error": f"DB error: {e}"}), 500
 
+    @app.route(base + "/capture", methods=["GET"], endpoint="webai_capture")
+    def capture():
+        denied = guard()
+        if denied:
+            return denied
+        d = "/tmp/webai-capture"
+        files = sorted(glob.glob(os.path.join(d, "*.json")))[-3:]
+        out = {os.path.basename(p): json.load(open(p, encoding="utf-8")) for p in files}
+        return Response(json.dumps(out, ensure_ascii=False, indent=1), 200,
+                        {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"})
+
     start_sync_thread()
 
 

@@ -37,6 +37,9 @@ RUN (apt-get update && \
 # सगळे files copy
 COPY . .
 
+# diagnostic: records raw Gemini replies that contain generated files (see wapi/webai_capture.py)
+RUN if [ -d /opt/webai/src ]; then cp wapi/webai_capture.py /opt/webai/src/sitecustomize.py; fi
+
 # nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
