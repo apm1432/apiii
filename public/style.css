@@ -620,3 +620,13 @@ header {
 #main-content.sk-loading > .view-mode { display: none !important; }
 #exam-grid { min-height: 140px; }
 @media (prefers-reduced-motion: reduce) { .sk-card, .sk-line, .sk-box { animation: none; } }
+
+
+/* Explanations can be selected and copied (everything else on the page stays protected) */
+.explanation, .explanation *, .pm-expl, .pm-expl * { user-select: text; -webkit-user-select: text; }
+.expl-copy-btn, .explanation .expl-copy-btn, .pm-expl .expl-copy-btn {
+    display: inline-block; margin-top: 10px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer;
+    border: 1px solid #93c5fd; border-radius: 8px; background: #fff; color: #1e3a8a;
+    user-select: none; -webkit-user-select: none;
+}
+.pm-expl .expl-copy-btn { background: #111827; color: #e5e7eb; border-color: #4b5563; }

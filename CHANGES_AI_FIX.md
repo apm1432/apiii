@@ -188,3 +188,12 @@ Problem: after an error the same key+model was tried again after only a few seco
   - The strong-model preference falls back to the other models when all strong ones rest > 60s. The question chat uses the same logic.
 - `utils/jobManager.js`: on that error, a rest <= 10 min -> the job waits and retries the SAME question automatically; a longer rest (daily quota finished) -> the job stops, the current question is marked failed (retry button), the others stay pending.
 - Limits you set (`GEMINI_MODELS` rpm, `rpmDelayMs`) are unchanged and still respected.
+
+## Update 10: copy allowed ONLY inside explanations
+- Before: the whole site blocked selecting, right-click and Ctrl+C, so even explanations could not be copied.
+- `public/script.js`: select / right-click / copy now work ONLY inside an opened explanation (`.explanation` in quiz + full view, `.pm-expl` in paper mode).
+  A copy is cancelled (clipboard stays empty) if the selection touches anything outside one explanation (question, options, answers, other page parts, Ctrl+A).
+  Still blocked: F12, Ctrl+Shift+I/J/C, Ctrl+U and the DevTools detector.
+- A "📋 Copy" button is added inside every explanation (also after it is re-rendered): it copies the COMPLETE explanation + option-wise breakdown as plain text.
+- `public/style.css`: `user-select: text` only for `.explanation` / `.pm-expl`, plus the button style. `public/index.html`: cache version bumped (script.js?v=22, style.css?v=12).
+- Explanations are visible only after the student answers (or the admin opens them), so unanswered questions stay protected.

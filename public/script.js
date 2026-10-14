@@ -2579,8 +2579,63 @@ window.addEventListener('load', () => {
 
 
 // ====== ULTRA-STRICT SECURITY LOGIC ======
-document.addEventListener('contextmenu', event => event.preventDefault());
-document.addEventListener('selectstart', event => event.preventDefault());
+// Copying is allowed ONLY inside an opened explanation (.explanation / .pm-expl). Questions, options, answers and the rest of the
+// page stay protected: no selecting, no right-click menu, and a copy whose selection touches anything else is cancelled.
+const COPY_ZONE = '.explanation, .pm-expl';
+const zoneOf = (n) => {
+    const el = n && (n.nodeType === 1 ? n : n.parentElement);
+    return (el && el.closest) ? el.closest(COPY_ZONE) : null;
+};
+window.__allowCopyOnce = false;
+document.addEventListener('contextmenu', event => { if (!zoneOf(event.target)) event.preventDefault(); });
+document.addEventListener('selectstart', event => { if (!zoneOf(event.target)) event.preventDefault(); });
+['copy', 'cut'].forEach(evt => document.addEventListener(evt, event => {
+    if (window.__allowCopyOnce) return; // our own "Copy" button
+    const sel = window.getSelection && window.getSelection();
+    const ok = evt === 'copy' && sel && !sel.isCollapsed && sel.rangeCount > 0 &&
+        zoneOf(sel.getRangeAt(0).commonAncestorContainer) && zoneOf(sel.anchorNode) && zoneOf(sel.focusNode);
+    if (!ok) { event.preventDefault(); if (event.clipboardData) event.clipboardData.setData('text/plain', ''); }
+}));
+
+// "Copy" button inside every explanation: copies the COMPLETE explanation (+ option-wise breakdown) as plain text.
+function explanationPlainText(el) {
+    const c = el.cloneNode(true);
+    c.querySelectorAll('.expl-copy-btn, button').forEach(x => x.remove());
+    c.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    c.querySelectorAll('li').forEach(li => li.insertAdjacentText('afterbegin', '\n• '));
+    c.querySelectorAll('div, ul, h5, p').forEach(x => x.insertAdjacentText('afterbegin', '\n'));
+    return c.textContent.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+async function copyPlain(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { }
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    window.__allowCopyOnce = true;
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { }
+    window.__allowCopyOnce = false;
+    ta.remove();
+    return ok;
+}
+function addExplanationCopyButtons() {
+    document.querySelectorAll(COPY_ZONE).forEach(el => {
+        if (el.querySelector('.expl-copy-btn')) return;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'expl-copy-btn'; b.textContent = '📋 Copy';
+        b.addEventListener('click', async (ev) => {
+            ev.stopPropagation(); ev.preventDefault();
+            const ok = await copyPlain(explanationPlainText(el));
+            b.textContent = ok ? '✔ Copied' : '✖ Failed';
+            setTimeout(() => { b.textContent = '📋 Copy'; }, 1800);
+        });
+        el.appendChild(b);
+    });
+}
+let _copyBtnTimer = null;
+new MutationObserver(() => { if (_copyBtnTimer) return; _copyBtnTimer = setTimeout(() => { _copyBtnTimer = null; addExplanationCopyButtons(); }, 150); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+addExplanationCopyButtons();
 
 document.addEventListener('keydown', function(event) {
     if (event.key === 'F12' || event.keyCode === 123) {
@@ -2591,7 +2646,7 @@ document.addEventListener('keydown', function(event) {
         event.preventDefault();
         return false;
     }
-    if (event.ctrlKey && ['U','u','C','c'].includes(event.key)) {
+    if (event.ctrlKey && ['U','u'].includes(event.key)) { // Ctrl+C is handled by the 'copy' event (explanation only)
         event.preventDefault();
         return false;
     }
