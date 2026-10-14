@@ -224,3 +224,10 @@ Problem: after an error the same key+model was tried again after only a few seco
   (full form, year, founder, headquarters, purpose; for statement combinations the real fact of each statement).
 - Forbidden wording: "not the correct answer", "incorrect", "not related to this question/scheme". The "पर्याय:" pillar of the main explanation follows the same rule.
 - Applies to questions fixed / imported from now on; old saved option explanations stay until fixed again.
+
+## Update 14: explanation language = mixed English + Marathi
+- Explanation (`fixed_explanation`, `toppers_explanation_marathi` in `add_exam.py`) and the one-line option explanations are now written in MIXED style:
+  Marathi sentence words in Devanagari, key terms in English (articles / acts / schemes / organisations, abbreviations, technical terms, names, keywords), English digits.
+  Marathi is never written in English letters. The labels कारण: / पर्याय: / जोडीदार फॅक्ट: / सापळा: / वहीत नोंद: stay the same.
+- The prompt example was rewritten in this style (its old "not related" wording is also gone).
+- Question text and options are NOT touched (they stay exactly as printed in the paper). Old saved explanations change only when fixed again.

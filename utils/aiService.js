@@ -884,15 +884,15 @@ C. WHAT TO KEEP:
 1. ONLY hard facts and figures: names, articles/sections, dates, numbers, formulas, rules, classifications. Exact dates/years only when they decide the answer or are a classic trap.
 2. Leave out stories and long history.
 3. For maths / reasoning / data-interpretation questions: write ONLY the short trick or the formula plus the key calculation step (the full working belongs in "thought_process"), then the "वहीत नोंद:" line with the formula.
-4. Use plain Marathi text. No markdown, no ** bold, no bullet symbols. Technical terms may stay in English. Each pillar on its own line (use a line break between lines inside the JSON string).
+4. LANGUAGE = MIXED ENGLISH + MARATHI (as students speak and revise): write the sentence structure and connecting words in Marathi (Devanagari script), but write the key terms in ENGLISH (Latin script): names of articles / sections / acts / schemes / committees / organisations, abbreviations (SC, HC, RBI, NITI Aayog), technical terms, formulas, places, persons and the important keywords. Use English digits (1950, Article 32, 73rd Amendment). Do NOT write Marathi words in English letters (no Hinglish like "ahe", "hota"); Marathi must stay in Devanagari. No markdown, no ** bold, no bullet symbols. Each pillar on its own line (use a line break between lines inside the JSON string). Keep the 5 labels exactly as: कारण: / पर्याय: / जोडीदार फॅक्ट: / सापळा: / वहीत नोंद:
 5. Every line must carry a verified fact. Never invent or guess data; accuracy beats everything.
 
-D. EXAMPLE of the right style (Article 32 question):
-कारण: कलम ३२ - सर्वोच्च न्यायालयाचा रिट अधिकार, फक्त मूलभूत हक्कांसाठी.
-पर्याय: कलम २२६ = उच्च न्यायालय; इतर कलमे रिटशी संबंधित नाहीत.
-जोडीदार फॅक्ट: कलम २२६ - HC ला मूलभूत + इतर हक्कांसाठी रिट; म्हणजे HC चे क्षेत्र मोठे.
-सापळा: SC = फक्त मूलभूत हक्क; HC = मूलभूत + इतर.
-वहीत नोंद: कलम ३२ SC - कलम २२६ HC - ५ रिट्स: हेबियस कॉर्पस, मँडॅमस, प्रोहिबिशन, सर्शिओरारी, को-वारंटो
+D. EXAMPLE of the right style (Article 32 question), mixed English + Marathi:
+कारण: Article 32 - Supreme Court (SC) चा writ अधिकार, फक्त Fundamental Rights साठी.
+पर्याय: Article 226 = High Court (HC) चा writ अधिकार; Article 14 = समानतेचा हक्क; Article 21 = जीविताचा व वैयक्तिक स्वातंत्र्याचा हक्क.
+जोडीदार फॅक्ट: Article 226 - HC ला Fundamental Rights + इतर legal rights साठी writ; म्हणजे HC चे क्षेत्र मोठे.
+सापळा: SC = फक्त Fundamental Rights; HC = Fundamental + इतर rights.
+वहीत नोंद: Art 32 SC - Art 226 HC - 5 writs: Habeas Corpus, Mandamus, Prohibition, Certiorari, Quo Warranto
 
 WRONG style (never do this): a long paragraph that retells that Article 32 is called the soul of the Constitution, lists all the writs with history, and so on.
 
@@ -949,8 +949,10 @@ STRICTLY FORBIDDEN in these lines (they waste the student's time):
 - repeating the question or saying what the question asks.
 Only positive facts about the option itself.
 
+LANGUAGE: the same mixed style - Marathi sentence words in Devanagari, key terms / names / abbreviations in English (Latin script), English digits.
+
 WRONG: "आसियान: दक्षिण-पूर्व आशियाई देशांची संघटना असून ही योजना यांच्याशी संबंधित नाही."
-RIGHT: "आसियान (ASEAN): दक्षिण-पूर्व आशियाई राष्ट्रांची संघटना; स्थापना १९६७ (बँकॉक घोषणा), मुख्यालय जकार्ता."
+RIGHT: "ASEAN: दक्षिण-पूर्व आशियाई राष्ट्रांची संघटना; स्थापना 1967 (Bangkok Declaration), मुख्यालय Jakarta."
 
 ================================================================
 FINAL SELF-CHECK
@@ -1012,7 +1014,7 @@ Output STRICTLY as a valid JSON object with NO markdown, NO code fences, and NO 
     "complete English option 4"
   ],
   "correct_answer_option": "1, 2, 3, 4, or #",
-  "fixed_explanation": "SHORT Marathi explanation, max 3-4 lines, each pillar on its own line: कारण: ...\nपर्याय: ...\nजोडीदार फॅक्ट: ...\nसापळा: ...\nवहीत नोंद: keywords only",
+  "fixed_explanation": "SHORT mixed English+Marathi explanation (Marathi in Devanagari, key terms in English), max 3-4 lines, each pillar on its own line: कारण: ...\nपर्याय: ...\nजोडीदार फॅक्ट: ...\nसापळा: ...\nवहीत नोंद: keywords only",
   "fixed_options_explanation": [
     "What option 1 IS + its key fact (15-25 words, no wrong/right wording)",
     "What option 2 IS + its key fact (15-25 words, no wrong/right wording)",
