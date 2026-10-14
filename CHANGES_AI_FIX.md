@@ -197,3 +197,24 @@ Problem: after an error the same key+model was tried again after only a few seco
 - A "📋 Copy" button is added inside every explanation (also after it is re-rendered): it copies the COMPLETE explanation + option-wise breakdown as plain text.
 - `public/style.css`: `user-select: text` only for `.explanation` / `.pm-expl`, plus the button style. `public/index.html`: cache version bumped (script.js?v=22, style.css?v=12).
 - Explanations are visible only after the student answers (or the admin opens them), so unanswered questions stay protected.
+
+## Update 11: Notes
+- New `public/notes.js` (+ styles in `style.css`, script tag in `index.html`).
+- Dashboard header: new **📝 Notes** button (with a small counter) opens the Notes panel (right side drawer, full width on phones).
+- Under every explanation (quiz, full paper, paper mode) the buttons are now: **📋 Copy**, **📝 Add to Notes**, **📂 Notes**.
+  "Add to Notes" adds the part you selected inside that explanation, or the whole explanation when nothing is selected; the question number is saved as a small tag.
+- Panel: small paste box - every paste is added at once as a new note at the END, so notes stay in the order you added them (typing + Add / Enter also works).
+  Compact list (small font) with move up / down and delete per note, plus Copy all, download .txt and Clear.
+- Notes are shown with textContent only (no HTML injection). (Storage: see Update 12 - they are now saved on the server.)
+- Selecting/copying is also allowed inside the Notes panel (it only holds the student's own notes); questions/options/answers stay protected.
+- `public/paper.js`: keyboard shortcuts (A-F answers, arrows, +/-, Esc) are ignored while typing in the Notes panel or any text box.
+
+## Update 12: Notes are saved on the SERVER
+- New `models/UserNotes.js` (one document per user, notes in the order added), `utils/notesService.js` (validation: id, max 4000 chars, max 500 notes) and routes in `routes/api.js`
+  (all need login, rate limited 120/min, a user can only touch his own notes):
+  `GET /api/notes`, `POST /api/notes/add` (idempotent - the same id is never stored twice, so retries are safe), `DELETE /api/notes/:id`, `POST /api/notes/reorder`, `POST /api/notes/clear`.
+- `public/notes.js`: every change is shown at once, saved in the browser and sent to the server. If the internet/server is down the change waits in a small queue and is sent automatically later
+  (panel shows "☁ saved" / "⏳ saving" / "⚠ offline - will sync"). The server copy is loaded on page open, on opening Notes, when the tab is used again and when the internet returns,
+  so the notes appear after every login on any device. Notes that an older version saved only in the browser are uploaded once.
+- Logout removes the local copy of the notes (kept on the server; changes still waiting to be sent are kept).
+- Cache versions: script.js?v=24, notes.js?v=2.

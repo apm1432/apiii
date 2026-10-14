@@ -462,6 +462,7 @@ document.getElementById('reg-cancel').addEventListener('click', (e) => {
 });
 
 function logout() {
+    try { if (window.MpscNotes) window.MpscNotes.onLogout(); } catch (e) { } // needs currentUser, so before it is cleared
     token = null;
     currentUser = null;
     localStorage.removeItem('jwtToken');
@@ -2581,7 +2582,8 @@ window.addEventListener('load', () => {
 // ====== ULTRA-STRICT SECURITY LOGIC ======
 // Copying is allowed ONLY inside an opened explanation (.explanation / .pm-expl). Questions, options, answers and the rest of the
 // page stay protected: no selecting, no right-click menu, and a copy whose selection touches anything else is cancelled.
-const COPY_ZONE = '.explanation, .pm-expl';
+const EXPL_ZONE = '.explanation, .pm-expl';              // explanation boxes (get the Copy / Add to Notes buttons)
+const COPY_ZONE = '.explanation, .pm-expl, .notes-panel'; // where selecting / copying is allowed (the student's own notes too)
 const zoneOf = (n) => {
     const el = n && (n.nodeType === 1 ? n : n.parentElement);
     return (el && el.closest) ? el.closest(COPY_ZONE) : null;
@@ -2600,7 +2602,7 @@ document.addEventListener('selectstart', event => { if (!zoneOf(event.target)) e
 // "Copy" button inside every explanation: copies the COMPLETE explanation (+ option-wise breakdown) as plain text.
 function explanationPlainText(el) {
     const c = el.cloneNode(true);
-    c.querySelectorAll('.expl-copy-btn, button').forEach(x => x.remove());
+    c.querySelectorAll('.expl-actions, button').forEach(x => x.remove());
     c.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
     c.querySelectorAll('li').forEach(li => li.insertAdjacentText('afterbegin', '\n• '));
     c.querySelectorAll('div, ul, h5, p').forEach(x => x.insertAdjacentText('afterbegin', '\n'));
@@ -2618,18 +2620,48 @@ async function copyPlain(text) {
     ta.remove();
     return ok;
 }
+// label of the question an explanation belongs to (small tag shown in Notes)
+function explanationSource(el) {
+    const h5 = el.querySelector && el.querySelector('h5');            // paper mode: "Q12 Explanation"
+    let m = h5 && /Q\s*([\w-]+)/.exec(h5.textContent);
+    if (m) return 'Q' + m[1];
+    // quiz / full view: the closest parent that holds the question heading (<h4>Q12. ...)
+    for (let p = el.parentElement, d = 0; p && d < 6; p = p.parentElement, d++) {
+        const h4 = p.querySelector('h4');
+        const n = h4 && /^\s*(?:Q\.?\s*)?(\d+)/.exec(h4.textContent);
+        if (n) return 'Q' + n[1];
+    }
+    return '';
+}
+// the selected part of THIS explanation, or the whole explanation when nothing is selected
+function explanationNoteText(el) {
+    const sel = window.getSelection && window.getSelection();
+    if (sel && !sel.isCollapsed && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        const t = sel.toString().trim();
+        if (t) return t;
+    }
+    return explanationPlainText(el);
+}
 function addExplanationCopyButtons() {
-    document.querySelectorAll(COPY_ZONE).forEach(el => {
-        if (el.querySelector('.expl-copy-btn')) return;
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'expl-copy-btn'; b.textContent = '📋 Copy';
-        b.addEventListener('click', async (ev) => {
-            ev.stopPropagation(); ev.preventDefault();
+    document.querySelectorAll(EXPL_ZONE).forEach(el => {
+        if (el.querySelector(':scope > .expl-actions')) return;
+        const bar = document.createElement('div');
+        bar.className = 'expl-actions';
+        const mk = (label, fn) => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'expl-btn'; b.textContent = label;
+            b.addEventListener('mousedown', (ev) => ev.preventDefault()); // keep the text selection when the button is pressed
+            b.addEventListener('click', (ev) => { ev.stopPropagation(); ev.preventDefault(); fn(b); });
+            bar.appendChild(b);
+        };
+        mk('📋 Copy', async (b) => {
             const ok = await copyPlain(explanationPlainText(el));
             b.textContent = ok ? '✔ Copied' : '✖ Failed';
             setTimeout(() => { b.textContent = '📋 Copy'; }, 1800);
         });
-        el.appendChild(b);
+        mk('📝 Add to Notes', () => { if (window.MpscNotes) window.MpscNotes.add(explanationNoteText(el), explanationSource(el)); });
+        mk('📂 Notes', () => { if (window.MpscNotes) window.MpscNotes.open(); });
+        el.appendChild(bar);
     });
 }
 let _copyBtnTimer = null;

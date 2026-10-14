@@ -580,6 +580,8 @@
     }
     function onKey(e) {
         if (!PM.open) return;
+        // typing in the Notes panel (or any text box) must not trigger paper shortcuts (A-F answers, arrows, +/-, Esc)
+        if (e.target && e.target.closest && e.target.closest('.notes-panel, input, textarea')) return;
         const k = e.key;
         const pg = PM.pages[PM.pi];
         if (k === 'Escape') closePaper();

@@ -16,6 +16,8 @@ const CACHE_DIR = imageStore.CACHE_DIR; // os.tmpdir()/mpscpyq_images
 const Question = require('../models/Question');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
+const UserNotes = require('../models/UserNotes');
+const notesSvc = require('../utils/notesService');
 
 // Middleware & Services
 const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
@@ -1194,6 +1196,82 @@ function trackQuestionImage(qId, newFilename) {
         fsPromises.unlink(path.join(CACHE_DIR, prev)).catch(() => {});
     }
 }
+
+// -------------------------------------
+// NOTES (the student's own notes, saved on the server so they show on every login)
+// -------------------------------------
+const notesLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 120,
+    message: { success: false, message: 'Too many note requests. Please slow down.' }
+});
+
+router.get('/notes', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        const doc = await UserNotes.findOne({ userId: req.user.id }).select('notes').lean();
+        res.json({ success: true, notes: doc ? doc.notes : [] });
+    } catch (err) {
+        console.error('notes get error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// add ONE note at the end. Idempotent: the same id is never stored twice (safe to retry).
+router.post('/notes/add', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        const note = notesSvc.cleanNote(req.body);
+        if (!note) return res.status(400).json({ success: false, message: 'Invalid note.' });
+        const userId = req.user.id;
+        const cur = await UserNotes.findOne({ userId }).select('notes.id').lean();
+        if (cur && cur.notes.some(n => n.id === note.id)) return res.json({ success: true, duplicate: true });
+        if (cur && cur.notes.length >= notesSvc.MAX_NOTES) return res.status(400).json({ success: false, message: 'Notes are full (' + notesSvc.MAX_NOTES + ').' });
+        try {
+            await UserNotes.updateOne({ userId, 'notes.id': { $ne: note.id } }, { $push: { notes: note } }, { upsert: true });
+        } catch (e) {
+            if (!(e && e.code === 11000)) throw e;   // 11000 = a parallel request already created the document / note
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('notes add error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/notes/reorder', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.filter(notesSvc.isValidId).slice(0, notesSvc.MAX_NOTES) : null;
+        if (!ids) return res.status(400).json({ success: false, message: 'ids required.' });
+        const userId = req.user.id;
+        const doc = await UserNotes.findOne({ userId }).select('notes').lean();
+        if (!doc) return res.json({ success: true });
+        await UserNotes.updateOne({ userId }, { $set: { notes: notesSvc.reorderNotes(doc.notes, ids) } });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('notes reorder error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/notes/clear', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        await UserNotes.updateOne({ userId: req.user.id }, { $set: { notes: [] } });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('notes clear error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.delete('/notes/:id', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        if (!notesSvc.isValidId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid id.' });
+        await UserNotes.updateOne({ userId: req.user.id }, { $pull: { notes: { id: req.params.id } } });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('notes delete error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
 
 router.get('/image/:fileId', async (req, res) => {
     try {
