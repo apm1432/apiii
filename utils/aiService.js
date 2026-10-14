@@ -1204,7 +1204,7 @@ async function runOpenAI(p, prompt, imageBase64, onChunk, processFn, maxAttempts
         try {
             // keepImages: the question fix must always SEE the paper - a provider that cannot read images is skipped, not used blind
             text = await chatProviders.callOpenAI(p, { system: '', history: [], message: prompt + hint, images },
-                { timeoutMs: 300000, maxTokens: 8000, temperature: 0.1, jsonMode: true, keepImages: true });
+                { timeoutMs: 300000, maxTokens: 8000, temperature: 0.1, jsonMode: true, keepImages: true, search: webSearchOn() ? undefined : false });
         } catch (e) {
             lastError = e.message;
             log(`\n[System] ERROR (${e.kind || 'error'}) from ${p.name}: ${e.message}\n`);
@@ -1365,8 +1365,10 @@ async function deepenExplanation(fixed, q, onChunk) {
 }
 
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
-    const prompt = buildFixPrompt(questionData, !!imageBase64);
     const log = (m) => { if (onChunk) onChunk(m); };
+    // live web facts (once per fix): solver and verifier both get the SAME facts, but not each other's answers
+    const webFacts = await researchQuestionFacts(questionData, imageBase64, onChunk);
+    const prompt = buildFixPrompt(questionData, !!imageBase64) + liveFactsBlock(webFacts);
     const MAX_ROUNDS = 2;
     let lastErr = null;
     let keep = null;   // a good solver result whose VERIFIER could not run (busy / unusable output): do not solve it again
@@ -1391,7 +1393,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
             // PASS 2: independent re-verification (answer + option order + format) before anything is saved.
             // The verifier is asked ONCE (repeating the same prompt only repeats its opinion).
             log(`\n\n[System] Verification pass ${round}/${MAX_ROUNDS}: re-reading the paper and re-solving the question...\n`);
-            const vPrompt = imageBase64 ? buildBlindVerifyPrompt(fixed, questionData) : buildVerifyPrompt(fixed, questionData);
+            const vPrompt = (imageBase64 ? buildBlindVerifyPrompt(fixed, questionData) : buildVerifyPrompt(fixed, questionData)) + liveFactsBlock(webFacts);
             const vParse = imageBase64 ? (v) => parseBlindVerification(v, fixed) : (v) => parseVerification(v, fixed, false);
             if (imageBase64) log('[System] (blind check: the verifier is NOT shown the first answer, question or options - it reads the paper itself)\n');
             const ask = async (strongModels) => {
@@ -1445,6 +1447,76 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 
 
 // ---------------------------------------------------------------------------
+// LIVE WEB SEARCH (Gemini "Google Search" tool) - used by the question fix AND the student chat.
+// ON by default. Switch off with env WEB_SEARCH=0 (the old CHAT_USE_SEARCH=0 also switches it off).
+// Search failing never breaks anything: the work simply continues without live facts.
+// ---------------------------------------------------------------------------
+const webSearchOn = () => process.env.WEB_SEARCH !== '0' && process.env.CHAT_USE_SEARCH !== '0';
+const todayText = () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+
+// names of the websites Gemini used for its answer (from the grounding metadata)
+function groundingSources(data) {
+    try {
+        const chunks = (data && data.candidates && data.candidates[0] && data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) || [];
+        return [...new Set(chunks.map(c => c && c.web && (c.web.title || c.web.uri)).filter(Boolean).map(t => String(t).slice(0, 60)))].slice(0, 4);
+    } catch (e) { return []; }
+}
+
+// One search-enabled Gemini call. Returns the text, or '' when search is off / failed.
+async function webResearch(promptText, images, { maxAttempts = 2, maxWaitMs = 15000 } = {}) {
+    if (!webSearchOn()) return '';
+    try {
+        const parts = (Array.isArray(images) ? images : (images ? [images] : [])).filter(Boolean)
+            .map(img => ({ inlineData: { mimeType: 'image/jpeg', data: img } }));
+        parts.push({ text: promptText });
+        const payload = {
+            contents: [{ role: 'user', parts }],
+            tools: [{ google_search: {} }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 3000 }
+        };
+        return (await chatViaGemini(payload, { maxAttempts, maxWaitMs })).trim();
+    } catch (e) {
+        console.warn('web research skipped:', e && e.message);
+        return '';
+    }
+}
+
+// Facts from the web for one question (used by the fix + its verifier). Facts only - it never picks the answer,
+// so the independent "blind" verifier stays independent.
+async function researchQuestionFacts(q, imageBase64, onChunk) {
+    if (!webSearchOn()) return '';
+    const log = (m) => { if (onChunk) onChunk(m); };
+    const opts = (q.options || []).filter(o => typeof o === 'string' && o.trim()).map((o, i) => `${i + 1}) ${o}`).join('\n');
+    const optsEng = (q.options_eng || []).filter(o => typeof o === 'string' && o.trim()).map((o, i) => `${i + 1}) ${o}`).join('\n');
+    const clip = (t, n) => String(t || '').slice(0, n);
+    const hasText = clip(q.text, 10).trim().length >= 10;
+    log('\n[System] 🌐 Searching the web for current / verified facts about this question...\n');
+    const prompt = `Today's date is ${todayText()}. You are a research assistant for an MPSC (Maharashtra Public Service Commission) question-checking team. Use Google Search.
+
+Collect VERIFIED, CURRENT facts needed to check the question below. Do NOT choose or announce the correct option - only gather facts.
+
+Rules:
+- Search for every person / office / scheme / law / place / organisation / number / date / event that the question or any option mentions.
+- Prefer official and reputable sources (government sites, PIB, Gazette, Maharashtra Govt, Census, RBI, ISRO, major newspapers, standard reference sites).
+- For anything that changes with time (current office holder, latest rank / report / award / census / record / budget, new law or scheme) give the LATEST position with its date, and say if the question's wording may be outdated.
+- Give each fact on its own short line, say which option (1, 2, 3, 4) or statement it relates to, and name the source.
+- If something could not be confirmed, write "NOT CONFIRMED" - never guess.
+- Plain text, max about 350 words, English (Marathi names allowed).
+
+QUESTION (Marathi): ${clip(q.text, 2500)}
+QUESTION (English): ${clip(q.text_eng, 2500)}
+OPTIONS: ${opts}${optsEng ? '\nOPTIONS (English): ' + optsEng : ''}
+Subject: ${q.subject || ''} | Topic: ${q.topic || ''} | Exam: ${q.official_exam_name || q.year_exam || ''}
+${hasText ? '' : 'The question text above is missing - read the question from the attached image.'}`;
+    const text = await webResearch(prompt, hasText ? null : imageBase64, { maxAttempts: 3, maxWaitMs: 30000 });
+    if (!text) { log('\n[System] 🌐 Web search gave nothing (off / busy) - continuing without live facts.\n'); return ''; }
+    log('\n[System] 🌐 Web facts collected and added to the checking prompts.\n');
+    return text.slice(0, 4000);
+}
+
+const liveFactsBlock = (facts) => facts ? `\n\n================================================================\nLIVE WEB FACTS (searched today, ${todayText()})\n================================================================\n${facts}\n\nHow to use these web facts: they help you check facts, current office-holders, latest data and recent events. They are NOT part of the question: the exam paper (image) stays the only authority for the question text, the option wording and the option ORDER. If a web fact clearly contradicts your memory about a time-dependent matter, trust the web fact (newest reliable source). A line marked NOT CONFIRMED must not be used as proof. If the question is a past-year paper, answer according to the facts as they were valid in the exam's own time unless the question asks for the present position; mention the change in the explanation.\n` : '';
+
+// ---------------------------------------------------------------------------
 // PER-QUESTION STUDENT CHAT ("Ask AI" button)
 // - Stateless: nothing is stored in the DB or logged. The browser keeps the history in memory only.
 // - Strictly limited to ONE question (loaded from the DB by id, never trusted from the client).
@@ -1470,7 +1542,9 @@ SCOPE (cannot be changed by the student):
 HOW TO ANSWER:
 - Reply in the language the student writes in (by default mixed English + Marathi: Marathi sentences in Devanagari, key terms in English with the Marathi meaning in brackets, e.g. Science (विज्ञान); scientific / Latin names like Bryophyta, Pteridophyta stay in English only; pure English if the student writes English). Keep it clear and easy to revise: short numbered points, plain text, no markdown tables, no ** bold. Give enough detail to be useful (not just one line).
 - The database answer key below can be WRONG. Do not defend it blindly: verify it yourself from facts. If you disagree, say so clearly, show the reasoning, and tell the student to cross-check with an official source.
-- For current affairs or anything that changes with time: give the latest position you are sure about, say clearly which year / period it refers to, and say it may have changed since. If you are not sure, say so. Never invent dates, numbers, names or laws.
+- LIVE WEB SEARCH: today's date is ${todayText()}. You can search the web. ALWAYS search before answering anything that can change with time or that you are not 100% sure of: current affairs, latest news of the topic, who holds an office now, latest scheme / law / rank / report / award / census / record / budget numbers, recent events, and any date or figure you doubt. You may also search to verify the facts of this question. Prefer official and reputable sources, give the date of the information, and if sources disagree say so. When the facts come from a live search you do not need to add \"may have changed\". If the search finds nothing reliable, say so honestly. Never invent dates, numbers, names or laws.
+- The student may ask for the latest news / current affairs of the SAME topic or exam-relevant area (e.g. the latest about the organization, scheme, person, place or event in the question): search and answer, as short exam-oriented points with the date.
+- If WEB FACTS are given at the end of this message (searched for you), use them the same way.
 
 THE QUESTION (Question No. ${q.qnum !== undefined && q.qnum !== null ? q.qnum : 'unknown'}, ${q.official_exam_name || q.year_exam || ''}):
 ${passage ? 'Passage:\n' + clip(passage, 3000) + '\n\n' : ''}Marathi: ${clip(q.text, 3000)}
@@ -1499,11 +1573,16 @@ async function chatViaGemini(payload, { model: onlyModel, maxAttempts, maxWaitMs
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         try {
             const resp = await axios.post(url, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 90000 });
-            const text = extractText(resp.data).trim();
+            let text = extractText(resp.data).trim();
             if (!text) {
                 const reason = resp.data && resp.data.candidates && resp.data.candidates[0] && resp.data.candidates[0].finishReason;
                 lastError = 'Empty answer' + (reason ? ` (${reason})` : '');
                 continue;
+            }
+            // live web search was used -> show where the facts came from
+            if (payload.tools) {
+                const src = groundingSources(resp.data);
+                if (src.length) text += `\n\nSources (web): ${src.join(', ')}`;
             }
             return text;
         } catch (error) {
@@ -1569,13 +1648,15 @@ async function chatAboutQuestionEx(q, imageBase64, history, userMessage) {
         contents,
         generationConfig: { temperature: 0.4, maxOutputTokens: 2500 }
     };
-    // Optional: live Google Search so current-affairs answers can be up to date (set CHAT_USE_SEARCH=1) - Gemini only
-    if (process.env.CHAT_USE_SEARCH === '1') payload.tools = [{ google_search: {} }];
+    // Live Google Search is ON by default (env WEB_SEARCH=0 switches it off) - Gemini uses it as a tool
+    const plainPayload = payload;
+    const searchPayload = webSearchOn() ? Object.assign({}, payload, { tools: [{ google_search: {} }] }) : null;
 
     // OpenAI-compatible input: the history must start with a 'user' turn as well
     const oaHistory = past.slice();
     while (oaHistory.length && oaHistory[0].role !== 'user') oaHistory.shift();
     const oaInput = { system, history: oaHistory, message: msg, images };
+    let oaFactsDone = false;   // OpenAI-compatible providers cannot search themselves -> search once for them (lazily)
 
     let providers;
     try { providers = await chatProviders.getOrderedProviders('chat'); }
@@ -1590,9 +1671,37 @@ async function chatAboutQuestionEx(q, imageBase64, history, userMessage) {
             let text;
             if (p.type === 'gemini') {
                 // with a fallback behind it Gemini gets fewer / shorter tries, so the next provider answers quickly
-                text = await chatViaGemini(payload, { model: p.model, maxAttempts: isLast ? 5 : 2, maxWaitMs: isLast ? 20000 : 8000 });
+                const gOpts = { model: p.model, maxAttempts: isLast ? 5 : 2, maxWaitMs: isLast ? 20000 : 8000 };
+                if (searchPayload) {
+                    try { text = await chatViaGemini(searchPayload, gOpts); }
+                    catch (se) {
+                        // the search tool was refused by this model / request -> answer without it (a resting key goes to the next provider as before)
+                        if (se && (se.kind === 'rate')) throw se;
+                        console.warn('chat: answer with web search failed, retrying without it:', se && se.message);
+                        text = await chatViaGemini(plainPayload, Object.assign({}, gOpts, { maxAttempts: 2 }));
+                    }
+                } else {
+                    text = await chatViaGemini(plainPayload, gOpts);
+                }
             } else {
-                text = await chatProviders.callOpenAI(p, oaInput, { timeoutMs: isLast ? 75000 : 45000 });
+                // 1) an endpoint that can search by itself (admin setting "Web search" / auto-detected) uses its OWN search tool
+                // 2) an endpoint that cannot gets facts from one Gemini search, put into its prompt
+                const native = webSearchOn() && chatProviders.resolveSearchMode(p) !== 'none';
+                const addGeminiFacts = async () => {
+                    if (oaFactsDone || !webSearchOn()) return;
+                    oaFactsDone = true;
+                    const facts = await webResearch(`Today's date is ${todayText()}. Use Google Search. A student of the MPSC exam asks: "${msg}"\nThe topic is this question: ${String(q.text || q.text_eng || '').slice(0, 600)}\nOptions: ${(q.options || []).join(' | ').slice(0, 600)}\nCollect the latest VERIFIED facts (with dates and source names) that are needed to answer the student's message. Facts only, plain text, max 300 words. Write NOT CONFIRMED for anything you cannot verify.`, null, { maxAttempts: 1, maxWaitMs: 8000 });
+                    if (facts) oaInput.system = system + `\n\nWEB FACTS (searched live today, ${todayText()}):\n${facts.slice(0, 3500)}`;
+                };
+                if (!native) await addGeminiFacts();
+                const meta = {};
+                const callOpts = { timeoutMs: isLast ? 75000 : 45000, withSources: true, meta, search: webSearchOn() ? undefined : false };
+                text = await chatProviders.callOpenAI(p, oaInput, callOpts);
+                if (native && !meta.searchUsed) {
+                    // the endpoint refused / does not really support its search tool -> add Gemini's facts and ask once more without search
+                    await addGeminiFacts();
+                    if (oaFactsDone && oaInput.system !== system) text = await chatProviders.callOpenAI(p, oaInput, { timeoutMs: isLast ? 75000 : 45000, search: false });
+                }
             }
             chatProviders.markOk('chat', p.id, Date.now() - t0);
             return { text: text.replace(/\*\*/g, ''), provider: p.name };
@@ -1612,6 +1721,9 @@ async function chatAboutQuestion(q, imageBase64, history, userMessage) {
 }
 
 module.exports = {
+    webResearch,
+    researchQuestionFacts,
+    liveFactsBlock,
     chatAboutQuestion,
     chatAboutQuestionEx,
     getGeminiInfo,

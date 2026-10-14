@@ -22,6 +22,10 @@ const scopeOk = (s) => (SCOPES.includes(s) ? s : 'chat');
 const MAX_OPENAI = 5;
 const CACHE_MS = 15000;           // config is re-read from the database at most every 15 s (and at once after a save)
 const GEMINI_ID = 'gemini';
+// how an OpenAI-compatible endpoint searches the web (admin choice per endpoint)
+const SEARCH_MODES = ['auto', 'off', 'builtin', 'openai_chat', 'responses', 'openrouter', 'enable_search', 'glm_tools', 'custom'];
+const searchModeOk = (m) => (SEARCH_MODES.includes(m) ? m : 'auto');
+const cleanSearchJson = (t) => String(t || '').slice(0, 2000);
 
 // ---------------------------------------------------------------- key encryption
 const secret = () => process.env.SETTINGS_SECRET || process.env.JWT_SECRET || '';
@@ -86,7 +90,8 @@ function sanitizeStored(raw) {
         } else if (p.type === 'openai' && out.providers.filter(x => x.type === 'openai').length < MAX_OPENAI) {
             out.providers.push({
                 id: p.id, type: 'openai', name: String(p.name || 'OpenAI-compatible').slice(0, 40), enabled: p.enabled === true,
-                baseUrl: String(p.baseUrl || '').slice(0, 300), apiKeyEnc: String(p.apiKeyEnc || ''), model: String(p.model || '').slice(0, 100)
+                baseUrl: String(p.baseUrl || '').slice(0, 300), apiKeyEnc: String(p.apiKeyEnc || ''), model: String(p.model || '').slice(0, 100),
+                search: searchModeOk(p.search), searchJson: cleanSearchJson(p.searchJson)
             });
         } else continue;
         seen.add(p.id);
@@ -145,7 +150,13 @@ function buildFromInput(input, existing, geminiModels) {
             const k = decrypt(apiKeyEnc);
             if (!apiKeyEnc || !k.ok || !k.value) return { error: `"${name}": API key is required${apiKeyEnc && !k.ok ? ' (the saved one cannot be read - enter it again)' : ''}.` };
         }
-        providers.push({ id, type: 'openai', name, enabled, baseUrl, apiKeyEnc, model });
+        const search = searchModeOk(p.search);
+        const searchJson = cleanSearchJson(p.searchJson).trim();
+        if (search === 'custom') {
+            const j = parseSearchJson(searchJson);
+            if (j.error) return { error: `"${name}": ${j.error}` };
+        }
+        providers.push({ id, type: 'openai', name, enabled, baseUrl, apiKeyEnc, model, search, searchJson });
         seen.add(id);
     }
     if (!geminiSeen) return { error: 'The default Gemini provider cannot be removed (you can switch it off).' };
@@ -219,7 +230,9 @@ function publicView(config) {
             const k = decrypt(p.apiKeyEnc);
             return {
                 id: p.id, type: 'openai', name: p.name, enabled: p.enabled, baseUrl: p.baseUrl, model: p.model,
-                hasKey: !!p.apiKeyEnc, keyMask: k.ok ? mask(k.value) : '', keyProblem: !!p.apiKeyEnc && !k.ok
+                hasKey: !!p.apiKeyEnc, keyMask: k.ok ? mask(k.value) : '', keyProblem: !!p.apiKeyEnc && !k.ok,
+                search: searchModeOk(p.search), searchJson: p.searchJson || '', searchAuto: resolveSearchMode(p),
+                searchProbe: (detected.get(detectKey(p)) || {}).note || (detecting.has(detectKey(p)) ? 'Testing the endpoint for web search...' : '')
             };
         })
     };
@@ -271,7 +284,9 @@ async function getOrderedProviders(scope) {
             console.warn(`chatProviders(${scope}): "${p.name}" is incomplete or its key cannot be read - skipped.`);
             continue;
         }
-        usable.push({ id: p.id, type: 'openai', name: p.name, baseUrl: p.baseUrl, model: p.model, apiKey: k.value });
+        const up = { id: p.id, type: 'openai', name: p.name, baseUrl: p.baseUrl, model: p.model, apiKey: k.value, search: searchModeOk(p.search), searchJson: p.searchJson || '' };
+        usable.push(up);
+        scheduleDetect(up);
     }
     if (!usable.length) usable.push({ id: GEMINI_ID, type: 'gemini', name: 'Gemini (server API keys)', model: '' });   // never leave the chat without an answerer
     const hk = (p) => health.get(scope + ':' + p.id);
@@ -330,12 +345,196 @@ function extractOpenAIText(data) {
     return String(t || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
+// ---------------------------------------------------------------- web search of OpenAI-compatible endpoints
+// modes:  off        - never send search parameters
+//         builtin    - the model searches by itself (Perplexity, Groq compound ...): nothing extra is sent
+//         openai_chat- chat completions + web_search_options (OpenAI *-search-preview models)
+//         responses  - OpenAI "Responses" API with the web_search tool (gpt-4o / gpt-4.1 / gpt-5 / xAI ...)
+//         openrouter - plugins:[{id:"web"}] (works with any OpenRouter model)
+//         custom     - extra JSON merged into the request body (admin writes it)
+//         auto       - guessed from the Base URL / model; unknown endpoints get no search (Gemini search facts are used instead)
+// If the endpoint refuses the search parameters, the call is repeated without them (never fails because of search).
+function resolveSearchMode(p) {
+    const m = searchModeOk(p && p.search);
+    if (m !== 'auto') return m === 'off' ? 'none' : m;
+    const url = String((p && p.baseUrl) || '').toLowerCase();
+    const model = String((p && p.model) || '').toLowerCase();
+    if (url.includes('openrouter.ai')) return 'openrouter';
+    if (url.includes('perplexity.ai')) return 'builtin';
+    if (url.includes('groq.com') && model.includes('compound')) return 'builtin';
+    if (url.includes('api.openai.com')) return /search/.test(model) ? 'openai_chat' : 'responses';
+    if (url.includes('api.x.ai')) return 'responses';
+    const d = detected.get(detectKey(p));      // unknown / custom endpoint: what the automatic probe found out
+    return d && d.mode ? d.mode : 'none';
+}
+
+// ---------------------------------------------------------------- automatic detection for custom endpoints
+// A custom OpenAI-compatible URL (LiteLLM, one-api, a proxy, a local gateway, another vendor ...) is TESTED once: we ask it to search the web
+// with each known method and look for real evidence (citations / web_search_call). The first method that shows evidence is remembered
+// (memory only; re-tested after a restart or after DETECT_RETRY_MS). Until the test finishes, Gemini facts are used instead.
+const detected = new Map();          // 'baseUrl|model' -> { mode, state: 'found'|'none', at, note }
+const detecting = new Map();         // 'baseUrl|model' -> promise
+const DETECT_RETRY_MS = 6 * 3600 * 1000;
+const detectKey = (p) => String((p && p.baseUrl) || '').toLowerCase() + '|' + String((p && p.model) || '').toLowerCase();
+const DETECT_ORDER = ['builtin', 'responses', 'openai_chat', 'openrouter', 'enable_search', 'glm_tools'];
+const PROBE_PROMPT = 'Use your web search tool now. Search the web and tell me the headline of ONE news story published in the last 24 hours, with the name of the website. Answer in one short line.';
+
+async function probeMode(p, mode, timeoutMs) {
+    const ev = {};
+    try {
+        await callOpenAI(Object.assign({}, p, { search: mode }), { system: '', history: [], message: PROBE_PROMPT, images: [] },
+            { timeoutMs, maxTokens: 400, evidenceOut: ev });
+    } catch (e) { return { ok: false, why: String(e && e.message).slice(0, 100), fatal: !!(e && ['auth', 'rate', 'network'].includes(e.kind)) }; }
+    return { ok: !!ev.evidence, why: ev.evidence ? '' : 'no search evidence' };
+}
+
+// force=true: re-test now (admin Test button). Never throws.
+async function detectSearch(p, { force = false, budgetMs = 60000 } = {}) {
+    const key = detectKey(p);
+    const old = detected.get(key);
+    if (!force && old && Date.now() - old.at < DETECT_RETRY_MS) return old;
+    if (detecting.has(key)) return detecting.get(key);
+    const job = (async () => {
+        const t0 = Date.now();
+        let res = { mode: '', state: 'none', at: Date.now(), note: '' };
+        const tried = [];
+        for (const mode of DETECT_ORDER) {
+            const left = budgetMs - (Date.now() - t0);
+            if (left < 5000) break;
+            const r = await probeMode(p, mode, Math.min(30000, left));
+            if (r.ok) { res = { mode, state: 'found', at: Date.now(), note: 'Search works with method "' + mode + '".' }; break; }
+            tried.push(mode + ': ' + r.why);
+            if (r.fatal) { res.note = 'Probe stopped (' + r.why + ').'; break; }
+        }
+        if (res.state !== 'found') res.note = (res.note || 'No built-in web search found (' + tried.join('; ') + ').').slice(0, 400);
+        detected.set(key, res);
+        console.log('chatProviders: web-search probe for "' + (p.name || key) + '": ' + res.state + (res.mode ? ' (' + res.mode + ')' : ''));
+        return res;
+    })().finally(() => detecting.delete(key));
+    detecting.set(key, job);
+    return job;
+}
+
+// called when the provider list is loaded: starts a background test for custom endpoints that were never tested (does not wait)
+function scheduleDetect(p) {
+    if (process.env.WEB_SEARCH === '0' || searchModeOk(p.search) !== 'auto') return;
+    const url = String(p.baseUrl || '').toLowerCase();
+    if (/openrouter\.ai|perplexity\.ai|api\.openai\.com|api\.x\.ai|groq\.com/.test(url)) return;   // already known
+    const key = detectKey(p), old = detected.get(key);
+    if (detecting.has(key) || (old && Date.now() - old.at < DETECT_RETRY_MS)) return;
+    detectSearch(p).catch(() => {});
+}
+
+function parseSearchJson(text) {
+    const t = String(text || '').trim();
+    if (!t) return { error: 'Write the extra JSON for web search (for example {"tools":[{"type":"web_search"}]}) or choose another mode.' };
+    let j;
+    try { j = JSON.parse(t); } catch (e) { return { error: 'The web-search JSON is not valid JSON.' }; }
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return { error: 'The web-search JSON must be an object like {"tools":[...]}.' };
+    ['model', 'messages', 'stream', 'input'].forEach(k => { delete j[k]; });   // the admin cannot replace the question itself
+    return { value: j };
+}
+
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+function extractSources(data) {
+    const out = [];
+    try {
+        const ch = data && data.choices && data.choices[0];
+        const ann = (ch && ch.message && ch.message.annotations) || [];
+        ann.forEach(a => { const c = a && (a.url_citation || a); if (c && (c.url || c.title)) out.push(hostOf(c.url) || String(c.title).slice(0, 50)); });
+        (Array.isArray(data && data.citations) ? data.citations : []).forEach(c => { out.push(hostOf(typeof c === 'string' ? c : c && c.url) || ''); });
+        (Array.isArray(data && data.output) ? data.output : []).forEach(it => (Array.isArray(it.content) ? it.content : []).forEach(c => (Array.isArray(c.annotations) ? c.annotations : []).forEach(a => {
+            if (a && a.url) out.push(hostOf(a.url) || String(a.title || '').slice(0, 50));
+        })));
+    } catch (e) { /* sources are optional */ }
+    return [...new Set(out.filter(Boolean))].slice(0, 4);
+}
+
+// OpenAI "Responses" API with the built-in web_search tool
+async function callResponses(p, input, opts, images, timeout) {
+    const url = p.baseUrl + '/responses';
+    let sendTemp = true, sendJson = !!opts.jsonMode, sendTool = true;
+    const build = () => {
+        const msgs = [];
+        (input.history || []).forEach(x => msgs.push(x.role === 'model'
+            ? { role: 'assistant', content: [{ type: 'output_text', text: x.text }] }
+            : { role: 'user', content: [{ type: 'input_text', text: x.text }] }));
+        msgs.push({ role: 'user', content: [{ type: 'input_text', text: input.message }].concat(images.map(img => ({ type: 'input_image', image_url: 'data:image/jpeg;base64,' + img }))) });
+        const body = { model: p.model, input: msgs, stream: false, max_output_tokens: Math.max(opts.maxTokens || 2500, 2500) };
+        if (input.system) body.instructions = input.system;
+        if (sendTool) body.tools = [{ type: 'web_search' }];
+        if (sendTemp) body.temperature = opts.temperature !== undefined ? opts.temperature : 0.4;
+        if (sendJson) body.text = { format: { type: 'json_object' } };
+        return body;
+    };
+    let lastErr = null;
+    for (let i = 0; i < 4; i++) {
+        try {
+            const resp = await axios.post(url, build(), {
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + p.apiKey },
+                timeout, maxRedirects: 0, maxContentLength: 8 * 1024 * 1024, validateStatus: s => s >= 200 && s < 300
+            });
+            const d = resp.data || {};
+            let text = typeof d.output_text === 'string' ? d.output_text : '';
+            if (!text && Array.isArray(d.output)) {
+                text = d.output.filter(it => it && it.type === 'message').map(it => (Array.isArray(it.content) ? it.content : []).filter(c => c && typeof c.text === 'string').map(c => c.text).join('')).join('\n');
+            }
+            text = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            if (!text) { const err = new Error('Empty answer'); err.kind = 'empty'; throw err; }
+            if (opts.evidenceOut) opts.evidenceOut.evidence = extractSources(d).length > 0 || (Array.isArray(d.output) && d.output.some(it => it && it.type === 'web_search_call'));
+            return { text, data: d };
+        } catch (e) {
+            if (e && e.kind) throw e;
+            const err = makeError(e, p.apiKey);
+            lastErr = err;
+            if (err.status === 400 || err.status === 422) {
+                const t = pickErrorText(e, p.apiKey).toLowerCase();
+                if (sendTemp && /temperature/.test(t)) { sendTemp = false; continue; }
+                if (sendJson && /text\.format|json_object|json mode|response_format/.test(t)) { sendJson = false; continue; }
+            }
+            throw err;
+        }
+    }
+    throw lastErr || new Error('Request failed');
+}
+
 // input: { system, history:[{role:'user'|'model',text}], message, images:[base64 jpeg] }
+// opts:  timeoutMs, maxTokens, temperature, jsonMode, keepImages,
+//        search:false  -> do not use the endpoint's web search for this call
+//        withSources   -> append "Sources (web): ..." to the answer (chat only; never for JSON answers)
+//        meta          -> object that receives { searchMode, searchUsed, searchNote }
 async function callOpenAI(p, input, opts = {}) {
-    const timeout = opts.timeoutMs || 60000;
+    const meta = opts.meta || {};
+    let mode = opts.search === false ? 'none' : resolveSearchMode(p);
+    meta.searchMode = mode; meta.searchUsed = false; meta.searchNote = '';
+    const baseTimeout = opts.timeoutMs || 60000;
+    const timeout = mode === 'none' ? baseTimeout : Math.round(baseTimeout * 1.6);   // searching takes longer
+
+    if (mode === 'responses') {
+        try {
+            const images = Array.isArray(input.images) ? input.images.slice() : [];
+            const r = await callResponses(p, input, opts, images, timeout);
+            meta.searchUsed = true;
+            let text = r.text;
+            if (opts.withSources) { const src = extractSources(r.data); if (src.length) text += `\n\nSources (web): ${src.join(', ')}`; }
+            return text;
+        } catch (e) {
+            // wrong key / limit / network / server problem: the normal call would fail the same way -> report it
+            if (e && (opts.evidenceOut || ['auth', 'rate', 'network', 'server'].includes(e.kind))) throw e;   // a probe must fail fast, not retry without search
+            meta.searchNote = `Responses API with web search not available (${String(e && e.message).slice(0, 120)}) - answered without it.`;
+            mode = 'none';
+        }
+    }
+    return callChat(p, input, opts, mode, meta, timeout);
+}
+
+async function callChat(p, input, opts, mode, meta, timeout) {
     const url = p.baseUrl + '/chat/completions';
     let images = Array.isArray(input.images) ? input.images.slice() : [];
     let useMaxCompletion = false, sendTemp = true, sendJson = !!opts.jsonMode;
+    let searchOn = ['builtin', 'openai_chat', 'openrouter', 'enable_search', 'glm_tools', 'custom'].includes(mode);
+    let customExtra = null;
+    if (mode === 'custom') { const j = parseSearchJson(p.searchJson); if (j.value) customExtra = j.value; else searchOn = false; }
 
     const buildBody = () => {
         const msgs = [];
@@ -351,6 +550,14 @@ async function callOpenAI(p, input, opts = {}) {
         body[useMaxCompletion ? 'max_completion_tokens' : 'max_tokens'] = opts.maxTokens || 2500;
         if (sendTemp) body.temperature = opts.temperature !== undefined ? opts.temperature : 0.4;
         if (sendJson) body.response_format = { type: 'json_object' };
+        if (searchOn) {
+            if (mode === 'openai_chat') body.web_search_options = {};
+            else if (mode === 'openrouter') body.plugins = [{ id: 'web', max_results: 5 }];
+            else if (mode === 'enable_search') { body.enable_search = true; }
+            else if (mode === 'glm_tools') body.tools = [{ type: 'web_search', web_search: { enable: true, search_result: true } }];
+            else if (mode === 'custom' && customExtra) Object.assign(body, JSON.parse(JSON.stringify(customExtra)));
+            if (mode === 'openai_chat') { delete body.temperature; }   // search-preview models refuse temperature
+        }
         return body;
     };
 
@@ -362,13 +569,16 @@ async function callOpenAI(p, input, opts = {}) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + p.apiKey },
                 timeout, maxRedirects: 0, maxContentLength: 8 * 1024 * 1024, validateStatus: s => s >= 200 && s < 300
             });
-            const text = extractOpenAIText(resp.data);
+            let text = extractOpenAIText(resp.data);
             if (!text) {
                 const fr = resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].finish_reason;
                 const err = new Error('Empty answer' + (fr ? ` (${fr})` : ''));
                 err.kind = 'empty';
                 throw err;
             }
+            meta.searchUsed = searchOn;
+            if (opts.evidenceOut) opts.evidenceOut.evidence = extractSources(resp.data).length > 0;
+            if (searchOn && opts.withSources) { const src = extractSources(resp.data); if (src.length) text += `\n\nSources (web): ${src.join(', ')}`; }
             return text;
         } catch (e) {
             if (e && e.kind) throw e;   // already one of ours
@@ -379,6 +589,11 @@ async function callOpenAI(p, input, opts = {}) {
                 if (!useMaxCompletion && /max_tokens/.test(t) && /max_completion_tokens|not supported|unsupported/.test(t)) { useMaxCompletion = true; continue; }
                 if (sendTemp && /temperature/.test(t)) { sendTemp = false; continue; }
                 if (sendJson && /response_format|json_object|json mode|json_schema/.test(t)) { sendJson = false; continue; }
+                // the endpoint does not know the web-search parameters -> answer without them
+                if (searchOn && opts.evidenceOut) throw err;   // a probe: the method is refused -> report it, do not repeat the call
+                if (searchOn && mode !== 'builtin' && /web_search|plugins|search|tools?\b|unrecognized|unknown (field|param)|extra|not permitted|unsupported/.test(t)) {
+                    searchOn = false; meta.searchNote = `Endpoint refused the web-search parameters (${t.slice(0, 100)}) - answered without them.`; continue;
+                }
                 // question fix MUST see the paper image: it never silently drops it (opts.keepImages) -> the next provider is tried instead
                 if (images.length && !opts.keepImages && /image|vision|multimodal|content|modalit/.test(t)) { images = []; continue; }
             }
@@ -420,7 +635,7 @@ module.exports = {
     SCOPES, scopeOk,
     getConfig, saveConfig, copyEndpoints, publicView, getOrderedProviders,
     markOk, markFail, healthView,
-    callOpenAI, listModels, storedKeyOf, normalizeBaseUrl,
+    callOpenAI, listModels, storedKeyOf, normalizeBaseUrl, resolveSearchMode, SEARCH_MODES, detectSearch,
     // exported for tests
-    buildFromInput, sanitizeStored, defaultConfig, encrypt, decrypt, extractOpenAIText, makeError
+    buildFromInput, sanitizeStored, defaultConfig, encrypt, decrypt, extractOpenAIText, makeError, parseSearchJson, extractSources
 };

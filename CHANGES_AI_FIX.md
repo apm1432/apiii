@@ -231,3 +231,32 @@ Problem: after an error the same key+model was tried again after only a few seco
   Marathi is never written in English letters. The labels कारण: / पर्याय: / जोडीदार फॅक्ट: / सापळा: / वहीत नोंद: stay the same.
 - The prompt example was rewritten in this style (its old "not related" wording is also gone).
 - Question text and options are NOT touched (they stay exactly as printed in the paper). Old saved explanations change only when fixed again.
+
+## Update 8: live web search (browser tool) for BOTH question fix and student chat
+- utils/aiService.js only. Uses Gemini's built-in Google Search tool. ON by default; set env WEB_SEARCH=0 to switch it off (CHAT_USE_SEARCH=0 also switches it off).
+- Question fix: before solving, one search call collects current / verified facts for every person, office, scheme, law, number, date in the question and its options
+  (facts only, never the answer). The SAME facts are added to the solver prompt and the blind verifier prompt, so they stay independent but both know the latest data.
+  The paper image remains the only authority for question text and option order. If search is off / busy the fix continues as before (never fails because of search).
+- Student chat ("Ask AI"): Gemini now has the Google Search tool on every message, the system prompt tells it to search for current affairs / latest news / office-holders /
+  latest figures and to verify doubtful facts. Answers show "Sources (web): ..." names. If a model refuses the tool, it answers without it.
+  For OpenAI-compatible fallback providers (no search of their own) one Gemini search is done and the facts are put into their prompt.
+- Cost note: +1 Gemini call per question fix, and search calls per chat message count against Gemini quota.
+
+## Update 9: web search for OpenAI-compatible endpoints (chat + question fix)
+- Admin -> AI Chat settings: every OpenAI-compatible endpoint has a new "Web search of this endpoint" selector (public/chatadmin.js, utils/chatProviders.js):
+  Auto (detected from Base URL/model: api.openai.com -> Responses API web_search, *search* models -> web_search_options, openrouter.ai -> web plugin,
+  perplexity / groq compound -> built-in, api.x.ai -> Responses), Responses API, Chat web_search_options, OpenRouter web plugin, Built-in, Custom JSON, Off.
+- An endpoint that has its own search uses IT. An endpoint without search (or "Off") gets facts from one Gemini search put into its prompt (chat), as in Update 8.
+- If an endpoint refuses its search parameters, the call is repeated without them (and Gemini facts are added) - search can never make an answer fail.
+- Chat answers show "Sources (web): ..." (never added to the JSON answers of the question fix). The admin "Test" button now also says whether web search is accepted.
+- Gemini keeps using its Google Search tool. Env WEB_SEARCH=0 switches ALL web search off (Gemini + endpoints).
+
+## Update 10: custom OpenAI-compatible URLs - automatic web-search detection
+- Auto mode used to know only a few hosts. For any OTHER (custom) endpoint the server now TESTS it once in the background: it asks the endpoint to search the web
+  with each known method (built-in, Responses web_search, web_search_options, OpenRouter plugin, enable_search, GLM web_search tool) and accepts a method only when
+  the answer shows real evidence (citations / web_search_call). The first working method is remembered and used for chat and question fix.
+- Until the test is finished (or if nothing works) Gemini search facts are used, so the answer is never without fresh data. Result is remembered in memory, re-tested after a restart or after 6 hours.
+- Admin "Test" button on an Auto endpoint runs this detection right away (up to about 1 minute) and says what it found. The endpoint card shows the result.
+- If an endpoint searches by itself but returns no citations, pick "Built-in" (or "Custom JSON") manually for it.
+- New selectable methods: enable_search (Qwen/DashScope style) and web_search tool (Zhipu GLM style).
+- Cost: the test makes a few small calls once per endpoint (max about 6-7, only if nothing works earlier). Set the endpoint to "Off" to skip it, or WEB_SEARCH=0 for all.

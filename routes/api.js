@@ -571,12 +571,24 @@ router.post('/admin/chat-ai/test', authMiddleware, chatAdminLimiter, async (req,
         if (!apiKey) return res.json({ success: false, message: 'Enter the API key first.' });
         const t0 = Date.now();
         try {
+            const meta = {};
             const text = await chatProviders.callOpenAI(
-                { baseUrl: n.value, apiKey, model },
+                { baseUrl: n.value, apiKey, model, search: typeof b.search === 'string' ? b.search : 'auto', searchJson: typeof b.searchJson === 'string' ? b.searchJson : '' },
                 { system: 'You are a connection test.', history: [], message: 'Reply with the single word: OK', images: [] },
-                { timeoutMs: 40000, maxTokens: 30 }
+                { timeoutMs: 40000, maxTokens: 30, meta }
             );
-            res.json({ success: true, ms: Date.now() - t0, reply: text.slice(0, 80) });
+            const testP = { name: 'test', baseUrl: n.value, apiKey, model, search: typeof b.search === 'string' ? b.search : 'auto' };
+            let probeNote = '';
+            if (meta.searchMode === 'none' && testP.search === 'auto' && process.env.WEB_SEARCH !== '0') {
+                // custom URL: really try to find out whether it has a built-in web search (takes up to ~1 minute)
+                const d = await chatProviders.detectSearch(testP, { force: true, budgetMs: 50000 });
+                if (d.state === 'found') { meta.searchMode = d.mode; meta.searchUsed = true; }
+                else probeNote = ' ' + d.note;
+            }
+            const searchInfo = meta.searchMode === 'none'
+                ? 'Web search: no built-in search found - Gemini search facts will be used instead.' + probeNote
+                : (meta.searchUsed ? `Web search: accepted (${meta.searchMode}).` : `Web search: NOT supported - ${meta.searchNote || 'answered without it'}`);
+            res.json({ success: true, ms: Date.now() - t0, reply: text.slice(0, 80), searchInfo });
         } catch (e) {
             res.json({ success: false, message: e.message || 'Test failed.' });
         }

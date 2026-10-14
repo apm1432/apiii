@@ -113,7 +113,14 @@
                     '<label>Model<input data-f="model" list="ca-models-' + i + '" maxlength="100" value="' + esc(p.model) + '" placeholder="e.g. gpt-4o-mini" autocomplete="off" spellcheck="false">' +
                     '<datalist id="ca-models-' + i + '">' + (p.modelList || []).map(m => '<option value="' + esc(m) + '"></option>').join('') + '</datalist></label>' +
                     '</div>' +
-                    '<div class="xm-actions"><button class="btn xm-small" data-a="models">⬇ Load model list' + ((p.modelList || []).length ? ' (' + p.modelList.length + ')' : '') + '</button></div>';
+                    '<div class="xm-actions"><button class="btn xm-small" data-a="models">⬇ Load model list' + ((p.modelList || []).length ? ' (' + p.modelList.length + ')' : '') + '</button></div>' +
+                    '<div class="ca-grid"><label>Web search of this endpoint<select data-f="search">' +
+                    [['auto', 'Auto - detect from Base URL / model (default)'], ['responses', 'OpenAI Responses API - web_search tool (gpt-4o / 4.1 / 5, xAI)'], ['openai_chat', 'Chat completions - web_search_options (*-search-preview models)'], ['openrouter', 'OpenRouter - web plugin (any model)'], ['builtin', 'Built-in: the model searches by itself (Perplexity, Groq compound...)'], ['enable_search', 'enable_search flag (Qwen / DashScope style)'], ['glm_tools', 'web_search tool (Zhipu GLM style)'], ['custom', 'Custom JSON (extra request fields)'], ['off', 'Off - use Gemini search facts instead']]
+                        .map(o => '<option value="' + o[0] + '"' + ((p.search || 'auto') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') +
+                    '</select></label>' +
+                    ((p.search || 'auto') === 'custom' ? '<label>Custom JSON<textarea data-f="searchJson" rows="3" maxlength="2000" spellcheck="false" placeholder=\'{"tools":[{"type":"web_search"}]}\'>' + esc(p.searchJson || '') + '</textarea></label>' : '') +
+                    '</div>' +
+                    '<div class="xm-note">Auto now: <b>' + esc(({ none: 'no own search (Gemini search facts are added instead)', responses: 'OpenAI Responses web_search', openai_chat: 'web_search_options', openrouter: 'OpenRouter web plugin', builtin: 'built-in search' })[p.searchAuto] || p.searchAuto || 'no own search (Gemini search facts are added instead)') + '</b>' + (p.searchProbe ? ' · ' + esc(p.searchProbe) : '') + '. If an endpoint refuses its search tool, the answer is given without it and Gemini facts are used - nothing breaks.</div>';
             }
             inner += '<div class="xm-actions"><button class="btn xm-small" data-a="test">▶ Test</button><span class="ca-test xm-note"></span></div>';
             inner += (p.isNew ? '<div class="xm-note ca-health">New - not saved yet.</div>' : healthHtml(p));
@@ -121,7 +128,7 @@
 
             card.querySelectorAll('[data-f]').forEach(inp => {
                 const f = inp.dataset.f;
-                const upd = () => { p[f] = inp.type === 'checkbox' ? inp.checked : inp.value; setDirty(true); if (f === 'enabled') card.classList.toggle('ca-off', !inp.checked); };
+                const upd = () => { p[f] = inp.type === 'checkbox' ? inp.checked : inp.value; setDirty(true); if (f === 'enabled') card.classList.toggle('ca-off', !inp.checked); if (f === 'search') render(); };
                 inp.addEventListener(inp.type === 'checkbox' || inp.tagName === 'SELECT' ? 'change' : 'input', upd);
             });
             card.querySelectorAll('[data-a]').forEach(b => { b.onclick = () => action(b.dataset.a, i, card, b); });
@@ -144,7 +151,7 @@
     function addEndpoint() {
         if (!st) return;
         if (st.providers.filter(p => p.type === 'openai').length >= st.maxOpenai) return say('At most ' + st.maxOpenai + ' endpoints are allowed.', true);
-        st.providers.push({ id: '', type: 'openai', name: 'OpenAI-compatible ' + (st.providers.filter(p => p.type === 'openai').length + 1), enabled: false, baseUrl: '', model: '', apiKey: '', hasKey: false, isNew: true });
+        st.providers.push({ id: '', type: 'openai', name: 'OpenAI-compatible ' + (st.providers.filter(p => p.type === 'openai').length + 1), enabled: false, baseUrl: '', model: '', apiKey: '', hasKey: false, isNew: true, search: 'auto', searchJson: '' });
         setDirty(true); render();
         const cards = $('#ca-list').children;
         if (cards.length) cards[cards.length - 1].scrollIntoView({ block: 'nearest' });
@@ -169,10 +176,10 @@
         btn.disabled = true; out.style.color = ''; out.textContent = 'Testing...';
         const body = p.type === 'gemini'
             ? { type: 'gemini', model: p.model || '' }
-            : { type: 'openai', scope, id: p.id || undefined, baseUrl: p.baseUrl, apiKey: p.apiKey || '', model: p.model };
+            : { type: 'openai', scope, id: p.id || undefined, baseUrl: p.baseUrl, apiKey: p.apiKey || '', model: p.model, search: p.search || 'auto', searchJson: p.searchJson || '' };
         const r = await api('POST', '/api/admin/chat-ai/test', body);
         btn.disabled = false;
-        if (r.success) { out.style.color = '#047857'; out.textContent = '✔ Works (' + ((r.ms || 0) / 1000).toFixed(1) + 's) - answer: "' + (r.reply || '') + '"'; }
+        if (r.success) { out.style.color = '#047857'; out.textContent = '✔ Works (' + ((r.ms || 0) / 1000).toFixed(1) + 's) - answer: "' + (r.reply || '') + '"' + (r.searchInfo ? ' · ' + r.searchInfo : ''); }
         else { out.style.color = '#b91c1c'; out.textContent = '⚠ ' + (r.message || 'Test failed.'); }
     }
 
@@ -186,7 +193,7 @@
             deepen: scope === 'fix' && !!st.deepen,
             providers: st.providers.map(p => p.type === 'gemini'
                 ? { type: 'gemini', enabled: !!p.enabled, model: p.model || '' }
-                : { type: 'openai', id: p.id || undefined, name: p.name, enabled: !!p.enabled, baseUrl: p.baseUrl, apiKey: p.apiKey || '', model: p.model })
+                : { type: 'openai', id: p.id || undefined, name: p.name, enabled: !!p.enabled, baseUrl: p.baseUrl, apiKey: p.apiKey || '', model: p.model, search: p.search || 'auto', searchJson: p.searchJson || '' })
         };
         const r = await api('PUT', '/api/admin/chat-ai', payload);
         busy = false; b.disabled = false;
