@@ -23,6 +23,11 @@ DOC_ID = "gemini"
 CONFIG_PATH = os.environ.get("WEBAI_CONFIG", "/opt/webai/config.conf")
 SYNC_SECONDS = max(10, int(os.environ.get("WEBAI_COOKIE_SYNC_SECONDS", "30")))
 
+WEBAI_URL = os.environ.get("WEBAI_URL", "http://127.0.0.1:6969").rstrip("/")
+HEAL_MIN_SECONDS = int(os.environ.get("WEBAI_HEAL_MIN_SECONDS", "180"))   # first self-heal wait, doubles each try (max 30 min)
+HEAL_MAX_ATTEMPTS = int(os.environ.get("WEBAI_HEAL_MAX_ATTEMPTS", "4"))   # then: "cookies expired, paste again"
+STALL_SECONDS = int(os.environ.get("WEBAI_ROTATION_STALL_SECONDS", "1800"))  # authenticated but no rotation this long -> warn
+
 PSID_NAME = "__Secure-1PSID"
 PSIDTS_NAME = "__Secure-1PSIDTS"
 
@@ -168,6 +173,9 @@ def save_pasted(psid, psidts):
         "_id": DOC_ID, "psid": psid, "psidts": psidts,
         "pastedAt": now, "pastedAtEpoch": time.time(),
         "refreshedAt": None, "refreshCount": 0, "cacheMtime": 0.0, "updatedAt": now,
+        "lastRotationAt": None, "rotationCount": 0,
+        "lastStatus": None, "lastStatusAt": None,
+        "healAttempts": 0, "lastHealAt": None, "needsRepaste": False,
     }, upsert=True)
 
 
@@ -241,7 +249,11 @@ def newest_cache():
 
 
 def sync_from_cache():
-    """Copy newer rotated cookies into the DB. Never creates a doc (removed stays removed)."""
+    """Copy rotated cookies into the DB. Never creates a doc (removed stays removed).
+
+    Every time WebAI wrote its cache (= a rotation happened) we record the time + count, even when
+    Google handed back the very same value - so the dashboard can show that auto-refresh is alive.
+    The cookie values themselves are only rewritten when they really changed."""
     with _sync_lock:
         doc = get_doc()
         if not doc or not doc.get("psid"):
@@ -253,25 +265,99 @@ def sync_from_cache():
         # ignore stale caches from older runs / before the last paste
         if mtime <= float(doc.get("cacheMtime") or 0) or mtime <= float(doc.get("pastedAtEpoch") or 0):
             return False
-        if psid == doc.get("psid") and (psidts or None) == (doc.get("psidts") or None):
-            _coll().update_one({"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")},
-                               {"$set": {"cacheMtime": mtime}})
-            return False
-        res = _coll().update_one(
-            {"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")},   # lose race vs a new paste
-            {"$set": {"psid": psid, "psidts": psidts, "cacheMtime": mtime,
-                      "refreshedAt": _now(), "updatedAt": _now()},
-             "$inc": {"refreshCount": 1}})
-        return res.modified_count > 0
+        flt = {"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")}   # lose race vs a new paste
+        sets = {"cacheMtime": mtime, "updatedAt": _now(),
+                "lastRotationAt": datetime.datetime.fromtimestamp(mtime, datetime.timezone.utc)}
+        incs = {"rotationCount": 1}
+        changed = not (psid == doc.get("psid") and (psidts or None) == (doc.get("psidts") or None))
+        if changed:
+            sets.update(psid=psid, psidts=psidts, refreshedAt=_now())
+            incs["refreshCount"] = 1
+        res = _coll().update_one(flt, {"$set": sets, "$inc": incs})
+        return changed and res.modified_count > 0
+
+
+# ─── Health watchdog: detect "not authenticated any more" and self-heal ──────────
+# gemini-webapi flips account_status to UNAUTHENTICATED on ANY single rejected RPC and then stops its
+# auto-refresh loop for good (and our guest-mode patch keeps answering anonymously, so nobody notices).
+# Restarting WebAI re-initialises it from the newest cookies in the DB, which fixes the transient case.
+# If it still is not authenticated after a few tries the cookies are really dead -> needsRepaste.
+_health = {"bad": 0, "ok_since": None}
+
+
+def _webai_status():
+    """(status, source) from WebAI, or None when it is down / restarting."""
+    try:
+        import requests
+        j = requests.get(WEBAI_URL + "/v1/auth/status", timeout=4).json()
+        g = j.get("gemini_webapi") or {}
+        return g.get("status"), g.get("auth_source")
+    except Exception:
+        return None
+
+
+def _aware(d):
+    if not isinstance(d, datetime.datetime):
+        return None
+    return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+
+
+def check_health():
+    doc = get_doc()
+    if not doc or not doc.get("psid"):
+        _health.update(bad=0, ok_since=None)
+        return
+    st = _webai_status()
+    if st is None:                                   # restarting / down: nothing to judge
+        _health["ok_since"] = None
+        return
+    status = st[0]
+    now = _now()
+    flt = {"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")}
+    sets = {"lastStatus": status, "lastStatusAt": now}
+
+    def save():
+        _coll().update_one(flt, {"$set": sets})
+
+    if status == "AUTHENTICATED":
+        _health["bad"] = 0
+        if _health["ok_since"] is None:
+            _health["ok_since"] = time.time()
+        sets.update(healAttempts=0, needsRepaste=False)
+        return save()
+
+    _health["ok_since"] = None
+    _health["bad"] += 1
+    if _health["bad"] < 2 or doc.get("needsRepaste"):   # need 2 bad checks in a row (startup blips)
+        return save()
+    attempts = int(doc.get("healAttempts") or 0)
+    if attempts >= HEAL_MAX_ATTEMPTS:
+        sets["needsRepaste"] = True
+        print("[webai-cookies] cookies look dead - paste fresh ones at /api/web/v1/ui/auth", flush=True)
+        return save()
+    last = _aware(doc.get("lastHealAt"))
+    wait = min(HEAL_MIN_SECONDS * (2 ** attempts), 1800)
+    if last and (now - last).total_seconds() < wait:
+        return save()
+    print(f"[webai-cookies] WebAI status={status} -> self-heal restart #{attempts + 1}", flush=True)
+    try:
+        sync_from_cache()                            # keep the newest rotated cookies before caches are wiped
+    except Exception as e:
+        print(f"[webai-cookies] pre-heal sync failed: {e}", file=sys.stderr, flush=True)
+    sets.update(lastHealAt=now, healAttempts=attempts + 1)
+    save()
+    restart_webai()
+    _health["bad"] = 0
 
 
 def _sync_loop():
     while True:
         time.sleep(SYNC_SECONDS)
-        try:
-            sync_from_cache()
-        except Exception as e:  # DB hiccup must never kill the thread
-            print(f"[webai-cookies] sync failed: {e}", file=sys.stderr, flush=True)
+        for fn in (sync_from_cache, check_health):
+            try:
+                fn()
+            except Exception as e:  # DB hiccup must never kill the thread
+                print(f"[webai-cookies] {fn.__name__} failed: {e}", file=sys.stderr, flush=True)
 
 
 def start_sync_thread():
@@ -354,7 +440,16 @@ def register(app, authorized, prefix, webai_url):
         if doc and doc.get("psid"):
             out.update(stored=True, psid=_mask(doc["psid"]), psidts=_mask(doc.get("psidts")),
                        has_psidts=bool(doc.get("psidts")), pasted_at=_iso(doc.get("pastedAt")),
-                       refreshed_at=_iso(doc.get("refreshedAt")), refresh_count=doc.get("refreshCount", 0))
+                       refreshed_at=_iso(doc.get("refreshedAt")), refresh_count=doc.get("refreshCount", 0),
+                       last_rotation_at=_iso(doc.get("lastRotationAt")), rotation_count=doc.get("rotationCount", 0),
+                       last_status=doc.get("lastStatus"), last_status_at=_iso(doc.get("lastStatusAt")),
+                       heal_attempts=doc.get("healAttempts", 0), last_heal_at=_iso(doc.get("lastHealAt")),
+                       needs_repaste=bool(doc.get("needsRepaste")))
+            ok = _health.get("ok_since")
+            if ok:                                              # authenticated, but is the rotation actually running?
+                lr = _aware(doc.get("lastRotationAt"))
+                ref = max(ok, lr.timestamp() if lr else 0)
+                out["rotation_stalled"] = (time.time() - ref) > STALL_SECONDS
         try:
             r = requests.get(webai_url + "/v1/auth/status", timeout=3)
             j = r.json()
@@ -468,7 +563,11 @@ async function load(){
       (s.stored?`<div class="row"><b>__Secure-1PSID</b><code>${esc(s.psid)}</code></div>
       <div class="row"><b>__Secure-1PSIDTS</b><code>${esc(s.psidts)}</code></div>
       <div class="row"><b>Pasted</b><span>${when(s.pasted_at)}</span></div>
-      <div class="row"><b>Last auto-refresh saved</b><span>${when(s.refreshed_at)} · ${s.refresh_count}×</span></div>`:"")+
+      <div class="row"><b>Last rotation (Google answered)</b><span>${when(s.last_rotation_at)} · ${s.rotation_count||0}×</span></div>
+      <div class="row"><b>Last cookie value change saved</b><span>${when(s.refreshed_at)} · ${s.refresh_count}×</span></div>
+      <div class="row"><b>Health check</b><span class="${s.last_status==="AUTHENTICATED"?"ok":"bad"}">${esc(s.last_status)} <small>(${when(s.last_status_at)}${s.heal_attempts?` · self-heal ${s.heal_attempts}×`:""})</small></span></div>`+
+      (s.needs_repaste?`<div class="row"><b class="bad">Cookies expired</b><span class="bad">Self-heal failed ${s.heal_attempts}× - gemini.google.com la punha login karun cookies paste kara.</span></div>`:"")+
+      (s.rotation_stalled?`<div class="row"><b class="bad">Auto-refresh stalled</b><span class="bad">Authenticated aahe pan ${Math.round(30)}+ min rotation zala nahi (server log madhe "refresh cookies" warning bagha).</span></div>`:""):"")+
       `<div class="row"><b>Gemini web auth</b><span>${w}</span></div>`;
     return s;
   }catch(e){$("st").textContent="Status load failed: "+e}
