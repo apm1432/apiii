@@ -2159,6 +2159,30 @@ def webapi_proxy(sub):
         out_headers["X-Upstream-Status"] = str(up.status_code)
 
     ctype = up.headers.get("Content-Type", "").lower()
+    # artifact links (/v1/artifacts/fetch?...) -> absolute, working URLs under /api/web/v1
+    _proto = request.headers.get("X-Forwarded-Proto", "https").split(",")[0].strip() or "https"
+    _art_old = b'"/v1/artifacts/fetch?'
+    _art_new = ('"' + _proto + '://' + request.host + WEBAPI_PREFIX + '/artifacts/fetch?').encode()
+    if "application/json" in ctype:
+        body = up.content.replace(_art_old, _art_new)
+        up.close()
+        return Response(body, status, out_headers)
+    if "text/event-stream" in ctype:
+        def _sse():
+            buf = b""
+            try:
+                for chunk in up.iter_content(chunk_size=None):
+                    if not chunk:
+                        continue
+                    buf += chunk
+                    *lines, buf = buf.split(b"\n")      # whole lines only: a link is never cut in half
+                    if lines:
+                        yield b"\n".join(lines).replace(_art_old, _art_new) + b"\n"
+                if buf:
+                    yield buf.replace(_art_old, _art_new)
+            finally:
+                up.close()
+        return Response(_sse(), status, out_headers)
     if any(t in ctype for t in ("text/html", "text/css", "javascript")):
         body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
         up.close()

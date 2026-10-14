@@ -1,14 +1,13 @@
 """
-Diagnostic only. Copied to /opt/webai/src/sitecustomize.py (Dockerfile) so the WebAI process loads it.
+Diagnostic only. Copied to /opt/webai/src/sitecustomize.py (patch_webai.py) so the WebAI process loads it.
 
-Gemini's code-execution files ("[file-tag: code-generated-file-...]") are NOT parsed by
-gemini-webapi 2.1.1, so the download info is unknown. This saves the raw candidate payload of any
-reply that mentions such a file to /tmp/webai-capture/*.json; wapi serves the newest ones at
-/api/web/v1/ui/auth/capture so the real structure can be inspected and the download implemented.
+gemini-webapi 2.1.1 does not parse Gemini's generated files / canvas documents, so their payload layout is
+unknown. This saves the raw candidate payload of every reply (one file per reply id, last 25 kept) to
+/tmp/webai-capture/*.json; wapi serves the newest at /api/web/v1/ui/auth/capture?n=2.
 Never raises: any failure just leaves WebAI unpatched.
 """
 try:
-    import os, json, time
+    import os, json, time, re
     DIR = "/tmp/webai-capture"
 
     def _install():
@@ -20,14 +19,15 @@ try:
         def wrapped(self, candidate_data, *a, **k):
             try:
                 raw = json.dumps(candidate_data, default=str, ensure_ascii=False)
-                if "file-tag" in raw or "code-generated" in raw or "code_reference" in raw:
+                rcid = candidate_data[0] if isinstance(candidate_data, list) and candidate_data else "x"
+                name = re.sub(r"[^A-Za-z0-9_-]", "_", str(rcid))[:60] or "x"
+                if len(raw) < 3_000_000:
                     os.makedirs(DIR, exist_ok=True)
-                    files = sorted(os.listdir(DIR))
-                    for old in files[:-19]:
-                        os.remove(os.path.join(DIR, old))
-                    if len(raw) < 2_000_000:
-                        with open(os.path.join(DIR, f"{int(time.time()*1000)}.json"), "w", encoding="utf-8") as f:
-                            f.write(raw)
+                    with open(os.path.join(DIR, name + ".json"), "w", encoding="utf-8") as f:
+                        f.write(raw)
+                    files = sorted((os.path.join(DIR, x) for x in os.listdir(DIR)), key=os.path.getmtime)
+                    for old in files[:-25]:
+                        os.remove(old)
             except Exception:
                 pass
             return orig(self, candidate_data, *a, **k)

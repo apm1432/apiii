@@ -414,7 +414,11 @@ def register(app, authorized, prefix, webai_url):
         if denied:
             return denied
         d = "/tmp/webai-capture"
-        files = sorted(glob.glob(os.path.join(d, "*.json")))[-3:]
+        try:
+            n = max(1, min(25, int(request.args.get("n", "2"))))
+        except ValueError:
+            n = 2
+        files = sorted(glob.glob(os.path.join(d, "*.json")), key=os.path.getmtime)[-n:]
         out = {os.path.basename(p): json.load(open(p, encoding="utf-8")) for p in files}
         return Response(json.dumps(out, ensure_ascii=False, indent=1), 200,
                         {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"})

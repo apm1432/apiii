@@ -37,8 +37,8 @@ RUN (apt-get update && \
 # सगळे files copy
 COPY . .
 
-# diagnostic: records raw Gemini replies that contain generated files (see wapi/webai_capture.py)
-RUN if [ -d /opt/webai/src ]; then cp wapi/webai_capture.py /opt/webai/src/sitecustomize.py; fi
+# WebAI patches: media download route, artifact URLs through it, raw-reply capture (wapi/patch_webai.py)
+RUN if [ -d /opt/webai/src ]; then python3 wapi/patch_webai.py || echo "WARNING: webai patch failed"; fi
 
 # nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
