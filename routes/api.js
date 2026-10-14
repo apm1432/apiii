@@ -28,7 +28,8 @@ const ExamGroup = require('../models/ExamGroup');
 const ExamHidden = require('../models/ExamHidden');
 const { broadcast } = require('../utils/userEvents');
 const jwtLib = require('jsonwebtoken');
-const { fixQuestionWithAI, chatAboutQuestion } = require('../utils/aiService');
+const { fixQuestionWithAI, chatAboutQuestionEx, getGeminiInfo, testGemini } = require('../utils/aiService');
+const chatProviders = require('../utils/chatProviders');
 const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
 // Initialize Razorpay
@@ -367,9 +368,9 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
             try { imageBase64 = await fetchQuestionImages(question); } catch (e) { imageBase64 = null; }
         }
 
-        const reply = await chatAboutQuestion(question, imageBase64, history, message);
+        const out = await chatAboutQuestionEx(question, imageBase64, history, message);
         res.set('Cache-Control', 'no-store');
-        res.json({ success: true, reply });
+        res.json({ success: true, reply: out.text, ...(user.isAdmin ? { via: out.provider } : {}) });
     } catch (err) {
         console.error('question-chat error:', err.message);
         res.status(500).json({ success: false, message: err.message || 'AI error' });
@@ -464,6 +465,123 @@ router.delete('/admin/exam-groups/:id', authMiddleware, async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('delete group error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+
+// -------------------------------------
+// Admin: AI Chat settings (which AI answers the "Ask AI" chat, in which order). Saved in the database.
+// -------------------------------------
+const chatAdminLimiter = require('express-rate-limit')({
+    windowMs: 60 * 1000,
+    limit: 40,
+    message: { success: false, message: 'Too many requests. Please slow down.' }
+});
+
+router.get('/admin/chat-ai', authMiddleware, chatAdminLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const scope = chatProviders.scopeOk(req.query.scope);
+        const [config, gemini] = await Promise.all([chatProviders.getConfig(scope, true), getGeminiInfo()]);
+        const view = chatProviders.publicView(config);
+        view.providers.forEach(p => { p.health = chatProviders.healthView(scope, p.id); });
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, scope, ...view, gemini });
+    } catch (err) {
+        console.error('chat-ai get error:', err);
+        res.status(500).json({ success: false, message: 'Could not load the settings.' });
+    }
+});
+
+router.put('/admin/chat-ai', authMiddleware, chatAdminLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const gemini = await getGeminiInfo();
+        const scope = chatProviders.scopeOk(req.body && req.body.scope);
+        const r = await chatProviders.saveConfig(scope, req.body, gemini.models);
+        if (r.error) return res.status(r.status).json({ success: false, message: r.error });
+        const view = chatProviders.publicView(r.config);
+        view.providers.forEach(p => { p.health = chatProviders.healthView(scope, p.id); });
+        res.json({ success: true, scope, ...view, gemini });
+    } catch (err) {
+        console.error('chat-ai save error:', err);
+        res.status(500).json({ success: false, message: 'Could not save (database problem). Nothing was changed.' });
+    }
+});
+
+// copy the OpenAI-compatible endpoints (and their saved keys) from one list to the other: { from:'chat'|'fix', to:'chat'|'fix' }
+router.post('/admin/chat-ai/copy', authMiddleware, chatAdminLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const b = req.body || {};
+        if (!chatProviders.SCOPES.includes(b.from) || !chatProviders.SCOPES.includes(b.to)) return res.status(400).json({ success: false, message: 'Unknown list.' });
+        const r = await chatProviders.copyEndpoints(b.from, b.to);
+        if (r.error) return res.status(r.status).json({ success: false, message: r.error });
+        res.json({ success: true, copied: r.copied });
+    } catch (err) {
+        console.error('chat-ai copy error:', err);
+        res.status(500).json({ success: false, message: 'Could not copy (database problem). Nothing was changed.' });
+    }
+});
+
+// list the models of an endpoint: { id } (use the saved key) or { baseUrl, apiKey }
+router.post('/admin/chat-ai/models', authMiddleware, chatAdminLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const b = req.body || {};
+        let apiKey = typeof b.apiKey === 'string' ? b.apiKey.trim() : '';
+        if (!apiKey && typeof b.id === 'string') apiKey = await chatProviders.storedKeyOf(chatProviders.scopeOk(b.scope), b.id);
+        if (!apiKey) return res.status(400).json({ success: false, message: 'Enter the API key first.' });
+        try {
+            const models = await chatProviders.listModels(b.baseUrl, apiKey);
+            res.json({ success: true, models });
+        } catch (e) {
+            res.json({ success: false, message: e.message || 'Could not load the model list. You can still type the model name.' });
+        }
+    } catch (err) {
+        console.error('chat-ai models error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+// one tiny test question: { type:'gemini', model } or { type:'openai', id?, baseUrl, apiKey?, model }
+router.post('/admin/chat-ai/test', authMiddleware, chatAdminLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const b = req.body || {};
+        if (b.type === 'gemini') {
+            const info = await getGeminiInfo();
+            const model = typeof b.model === 'string' ? b.model.trim() : '';
+            if (model && !info.models.includes(model)) return res.json({ success: false, message: 'This model is not in the server model list.' });
+            try {
+                const r = await testGemini(model);
+                return res.json({ success: true, ms: r.ms, reply: r.text });
+            } catch (e) {
+                return res.json({ success: false, message: e.message || 'Gemini test failed.' });
+            }
+        }
+        if (b.type !== 'openai') return res.status(400).json({ success: false, message: 'Unknown type.' });
+        const n = chatProviders.normalizeBaseUrl(b.baseUrl);
+        if (n.error) return res.json({ success: false, message: n.error });
+        const model = typeof b.model === 'string' ? b.model.trim() : '';
+        if (!model) return res.json({ success: false, message: 'Choose or type a model first.' });
+        let apiKey = typeof b.apiKey === 'string' ? b.apiKey.trim() : '';
+        if (!apiKey && typeof b.id === 'string') apiKey = await chatProviders.storedKeyOf(chatProviders.scopeOk(b.scope), b.id);
+        if (!apiKey) return res.json({ success: false, message: 'Enter the API key first.' });
+        const t0 = Date.now();
+        try {
+            const text = await chatProviders.callOpenAI(
+                { baseUrl: n.value, apiKey, model },
+                { system: 'You are a connection test.', history: [], message: 'Reply with the single word: OK', images: [] },
+                { timeoutMs: 40000, maxTokens: 30 }
+            );
+            res.json({ success: true, ms: Date.now() - t0, reply: text.slice(0, 80) });
+        } catch (e) {
+            res.json({ success: false, message: e.message || 'Test failed.' });
+        }
+    } catch (err) {
+        console.error('chat-ai test error:', err);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 });

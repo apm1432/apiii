@@ -87,6 +87,7 @@
             if (res.ok && data.success) {
                 wait.classList.remove('qchat-wait');
                 wait.textContent = data.reply;
+                if (data.via) { const v = document.createElement('div'); v.className = 'qchat-via'; v.textContent = 'via ' + data.via + ' (shown to admins only)'; wait.appendChild(v); }
                 history.push({ role: 'user', text }, { role: 'model', text: data.reply });
             } else {
                 wait.classList.add('qchat-err');

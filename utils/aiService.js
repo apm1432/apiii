@@ -15,6 +15,7 @@ const MODELS = process.env.GEMINI_MODELS
     : defaultModels;
 
 const AiKey = require('../models/AiKey');
+const chatProviders = require('./chatProviders');
 
 // Track API Keys and Models
 let keysInitialized = false;
@@ -140,7 +141,12 @@ async function getNextAvailableKeyAndModel(opts = {}) {
                 await initializeKeys();
                 const now = Date.now();
                 
-                const dbKeys = await AiKey.find({ isAvailable: { $ne: false } });
+                let dbKeys = await AiKey.find({ isAvailable: { $ne: false } });
+                // the admin may pin the chat to ONE model (opts.onlyModel); then only that model's keys are used
+                if (opts.onlyModel) dbKeys = dbKeys.filter(d => d.model === opts.onlyModel);
+                if (dbKeys.length === 0 && opts.onlyModel) {
+                    throw new Error(`The selected Gemini model "${opts.onlyModel}" has no usable key (retired or not found).`);
+                }
                 if (dbKeys.length === 0) {
                     throw new Error("No usable Gemini key/model. Check GEMINI_API_KEYS and GEMINI_MODELS (model may be retired/404).");
                 }
@@ -1180,6 +1186,93 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
 
 
 // ---------------------------------------------------------------------------
+// QUESTION FIX / VERIFY / DEEPEN go through the providers the admin chose (admin panel -> AI Chat -> "Question fix & deepen"):
+// first choice, then the fallbacks, in the saved order. Same contract as runGemini().
+// With only the default Gemini provider this behaves exactly as before.
+// ---------------------------------------------------------------------------
+const REJECT_HINT = (msg) => `\n\n================================================================\nYOUR PREVIOUS ANSWER WAS REJECTED\n================================================================\nReason: ${String(msg).slice(0, 400)}\nReturn the complete corrected JSON again. Fix exactly this problem. Do not put the answer options inside "fixed_text" (they belong only in "fixed_options"). Keep "thought_process" focused and finish the JSON completely.`;
+
+// one OpenAI-compatible provider: same retry rules as runGemini (a rejected answer is retried with the reason; service errors are not blamed on the answer)
+async function runOpenAI(p, prompt, imageBase64, onChunk, processFn, maxAttempts, firstHint) {
+    const log = (m) => { if (onChunk) onChunk(m); };
+    const images = (Array.isArray(imageBase64) ? imageBase64 : (imageBase64 ? [imageBase64] : [])).filter(Boolean);
+    let attempts = 0, transient = 0, lastError = null, hint = firstHint || '';
+
+    while (attempts < maxAttempts) {
+        log(`\n[System] Attempt ${attempts + 1} | Provider: ${p.name} | Model: ${p.model}\nAI Thinking:\n`);
+        let text;
+        try {
+            // keepImages: the question fix must always SEE the paper - a provider that cannot read images is skipped, not used blind
+            text = await chatProviders.callOpenAI(p, { system: '', history: [], message: prompt + hint, images },
+                { timeoutMs: 300000, maxTokens: 8000, temperature: 0.1, jsonMode: true, keepImages: true });
+        } catch (e) {
+            lastError = e.message;
+            log(`\n[System] ERROR (${e.kind || 'error'}) from ${p.name}: ${e.message}\n`);
+            if (e.kind === 'auth' || e.kind === 'notfound' || e.kind === 'bad') throw e;   // retrying the same provider cannot help
+            if (++transient > 3 || (e.retryAfterMs && e.retryAfterMs > 60000)) throw e;     // still busy -> let the next provider try
+            await sleep(e.retryAfterMs ? e.retryAfterMs + 500 : 4000 * transient);
+            continue;
+        }
+        log(text);
+        try {
+            const raw = parseAiJson(text);
+            if (!raw || typeof raw !== 'object') throw new Error('AI returned invalid JSON');
+            const parsed = processFn(raw);   // throws -> automatic retry, nothing is saved
+            log('\n\n[System] Done!\n');
+            return parsed;
+        } catch (err) {
+            log(`\n[System] Parsing/Internal Error: ${err.message}. Retrying...\n`);
+            lastError = err.message;
+            hint = REJECT_HINT(err.message);
+            attempts++;
+            await sleep(1000);
+        }
+    }
+    throw new Error(`Failed after ${maxAttempts} attempts. Last error: ${lastError}`);
+}
+
+async function runAI(prompt, imageBase64, onChunk, processFn, maxAttempts = 6, firstHint = '', opts = {}) {
+    const log = (m) => { if (onChunk) onChunk(m); };
+    let providers;
+    try { providers = await chatProviders.getOrderedProviders('fix'); }
+    catch (e) { console.error('fix providers could not be loaded, using Gemini:', e.message); providers = [{ id: chatProviders.GEMINI_ID, type: 'gemini', name: 'Gemini', model: '' }]; }
+
+    const problems = [];
+    let allResting = true, minRetry = Infinity, lastErr = null;
+    for (let i = 0; i < providers.length; i++) {
+        const p = providers[i];
+        const isLast = i === providers.length - 1;
+        const t0 = Date.now();
+        try {
+            let out;
+            if (p.type === 'gemini') {
+                const o = Object.assign({}, opts);
+                if (p.model) o.onlyModel = p.model;                                   // the admin pinned one Gemini model
+                if (!isLast) o.maxWaitMs = Math.min(o.maxWaitMs !== undefined ? o.maxWaitMs : 15000, 15000);   // keys resting? go to the fallback instead of waiting minutes
+                out = await runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts, firstHint, o);
+            } else {
+                out = await runOpenAI(p, prompt, imageBase64, onChunk, processFn, maxAttempts, firstHint);
+            }
+            chatProviders.markOk('fix', p.id, Date.now() - t0);
+            return out;
+        } catch (e) {
+            lastErr = e;
+            if (e && e.aiResting) e.kind = 'rate';
+            const resting = !!(e && (e.aiResting || e.kind === 'rate'));
+            if (!resting) allResting = false; else minRetry = Math.min(minRetry, e.retryAfterMs || 60000);
+            chatProviders.markFail('fix', p.id, e);
+            problems.push(`${p.name}: ${e.message}`);
+            console.warn(`fix: provider "${p.name}" failed (${(e && e.kind) || 'error'}): ${e && e.message}${isLast ? '' : ' -> trying the next one'}`);
+            if (!isLast) log(`\n[System] ⚠ Provider "${p.name}" failed (${String(e && e.message).slice(0, 200)}). Switching to the next provider: "${providers[i + 1].name}".\n`);
+        }
+    }
+    if (providers.length === 1 && lastErr) throw lastErr;     // default setup: the original error, unchanged
+    const err = new Error('All AI providers failed. ' + problems.join(' | ').slice(0, 900));
+    if (allResting) { err.aiResting = true; err.retryAfterMs = Number.isFinite(minRetry) ? minRetry : 60000; }
+    throw err;
+}
+
+// ---------------------------------------------------------------------------
 // DEEPER EXPLANATION: when the explanation is still thin, ask the AI to extend it with MORE certain facts.
 // The old points are kept; the result is accepted only if it is clearly deeper and drops nothing.
 // If anything fails the original explanation is kept (this step never makes a fix fail).
@@ -1188,10 +1281,24 @@ const toAsciiDigits = (t) => String(t || '').replace(/[०-९]/g, c => String('
 const countPointers = (t) => (String(t || '').match(/^\s*\d{1,3}\s*[.)]\s/gm) || []).length;
 const importantNumbers = (t) => new Set((toAsciiDigits(t).match(/\d{3,4}/g) || []));
 
+// Deepening ADDS a few SHORT fact pointers after the existing explanation. It must never turn into an essay.
+const DEEP_MIN_ADD = 2;          // at least this many new pointers
+const DEEP_MAX_ADD = 5;          // ... and at most this many
+const DEEP_MAX_POINTER_CHARS = 200;   // one pointer = one short line (about 20 words)
+const DEEP_MAX_LINE_CHARS = 300;      // no line of any kind may be a paragraph
+
 // pure check, exported for tests. Throws when `deep` is not an acceptable extension of `base`.
 function validateDeeper(base, deep) {
-    if (deep.length < base.length * 1.2) throw new Error('The new explanation is not clearly deeper than the old one. Add more NEW certain facts as new numbered pointers.');
-    if (countPointers(deep) < countPointers(base) + 2) throw new Error('Add at least 2 more numbered pointers with new facts (keep every old pointer).');
+    const added = countPointers(deep) - countPointers(base);
+    if (added < DEEP_MIN_ADD) throw new Error(`Add at least ${DEEP_MIN_ADD} NEW numbered pointers with new certain facts (keep the old explanation unchanged).`);
+    if (added > DEEP_MAX_ADD) throw new Error(`Too many pointers: add at most ${DEEP_MAX_ADD} NEW pointers - only the most useful facts. This must NOT become an essay.`);
+    if (deep.length < base.length + 40) throw new Error('The new explanation is not deeper than the old one. Add new certain facts as short numbered pointers.');
+    if (deep.length > base.length + DEEP_MAX_ADD * (DEEP_MAX_POINTER_CHARS + 10)) throw new Error('Too long: every new pointer must be ONE short line (max 20 words). No paragraphs, no story, no background.');
+    const lines = deep.split('\n').map(l => l.trim()).filter(Boolean);
+    const long = lines.find(l => l.length > DEEP_MAX_LINE_CHARS);
+    if (long) throw new Error('A line is a paragraph (' + long.length + ' characters). Write short one-line pointers only (max 20 words each).');
+    const longPointer = lines.find(l => /^\d{1,3}\s*[.)]\s/.test(l) && l.length > DEEP_MAX_POINTER_CHARS);
+    if (longPointer) throw new Error('A pointer is too long (' + longPointer.length + ' characters). Each new pointer must be ONE short line, max 20 words.');
     const have = importantNumbers(deep);
     const lost = [...importantNumbers(base)].filter(n => !have.has(n));
     if (lost.length) throw new Error('You dropped facts from the old explanation (years/numbers missing: ' + lost.slice(0, 6).join(', ') + '). Keep every old fact.');
@@ -1200,7 +1307,7 @@ function validateDeeper(base, deep) {
 
 function buildDeepenPrompt(fixed, q) {
     const opts = (fixed.fixed_options || []).map((o, i) => `${i + 1}) ${o}`).join('\n');
-    return `You are an expert MPSC subject teacher. The question below is already reconstructed and its correct answer is verified. Your job is ONLY to make the existing Marathi explanation DEEPER.
+    return `You are an expert MPSC subject teacher. The question below is already reconstructed and its correct answer is verified. Your job is ONLY to ADD a few extra FACT POINTERS after the existing short Marathi explanation. This is NOT an essay and NOT a lecture.
 
 QUESTION (Marathi):
 ${fixed.fixed_text}
@@ -1214,12 +1321,12 @@ EXISTING EXPLANATION:
 ${fixed.fixed_explanation}
 
 TASK:
-1. Keep EVERY existing pointer and every fact in it (do not shorten or delete anything).
-2. Add the important facts that are still missing, as NEW numbered pointers (continue the numbering, one pointer per line): exact dates/years and chronology, background/origin, the facts behind each statement and each option, related persons/laws/articles/committees/places/schemes/numbers, comparisons, exceptions and common confusion points of the parent topic.
-3. Add ONLY facts you are 100% sure about. Never invent or guess dates, numbers, names, laws or current information. If the question is about something that changes with time, state the position as of the exam and mention that it may have changed.
-4. Mixed English + Marathi text: Marathi sentences in Devanagari, key terms in English with the Marathi meaning in brackets the first time (Science (विज्ञान)); scientific / Latin names (Bryophyta, Pteridophyta ...) stay in English only. No markdown, no ** bold, no bullet symbols. Each numbered pointer on its own line (use \\n between pointers inside the JSON string).
-5. If an existing fact is WRONG, set "contradiction_found": true and explain it in "note" (do not silently change it).
-6. If the topic really has nothing more that is certain to add, set "nothing_more_to_add": true.
+1. Copy the EXISTING EXPLANATION exactly as it is (every line, every fact, same labels). Do not shorten, reword or reorder it.
+2. After it, add ${DEEP_MIN_ADD} to ${DEEP_MAX_ADD} NEW numbered pointers (1. 2. 3. ... one per line). Choose ONLY the most useful facts that are still missing: an exact year/date that decides the answer, one connected person / law / article / committee / scheme / place / number, one comparison, one exception or classic trap of this topic.
+3. STRICT SIZE RULES - NO ESSAY: every new pointer is ONE short line, at most 20 words (max ${DEEP_MAX_POINTER_CHARS} characters). No paragraphs. No story, no history, no background, no introduction, no conclusion, no filler such as "हा विषय महत्त्वाचा आहे". Do not repeat any fact that is already in the explanation. If you cannot add ${DEEP_MIN_ADD} useful certain pointers, set "nothing_more_to_add": true instead of padding.
+4. Add ONLY facts you are 100% sure about. Never invent or guess dates, numbers, names, laws or current information. If the topic changes with time, say "as of the exam" in the pointer.
+5. Language: mixed English + Marathi: Marathi sentences in Devanagari, key terms in English with the Marathi meaning in brackets the first time (Science (विज्ञान)); scientific / Latin names (Bryophyta, Pteridophyta ...) stay in English only. English digits. No markdown, no ** bold, no bullet symbols. Each line is separated by \\n inside the JSON string.
+6. If an existing fact is WRONG, set "contradiction_found": true and explain it in "note" (do not silently change it).
 
 Return STRICTLY valid JSON, no markdown:
 {
@@ -1227,17 +1334,17 @@ Return STRICTLY valid JSON, no markdown:
   "contradiction_found": false,
   "nothing_more_to_add": false,
   "note": "",
-  "deep_explanation": "1. ...\\n2. ...\\n3. ..."
+  "deep_explanation": "<the existing explanation lines unchanged>\\n1. short fact\\n2. short fact\\n3. short fact"
 }`;
 }
 
 async function deepenExplanation(fixed, q, onChunk) {
     const log = (m) => { if (onChunk) onChunk(m); };
     const base = fixed.fixed_explanation;
-    if (countPointers(base) >= 12 && base.length >= 2500) return base; // already deep
+    if (countPointers(base) >= 6 || base.length >= 1800) return base; // already detailed enough - never make it longer
     try {
         log(`\n[System] Explanation has ${countPointers(base)} pointers - trying to make it deeper...\n`);
-        const res = await runGemini(buildDeepenPrompt(fixed, q), null, onChunk, (raw) => {
+        const res = await runAI(buildDeepenPrompt(fixed, q), null, onChunk, (raw) => {
             if (raw.contradiction_found === true) return { skip: 'contradiction', note: raw.note };
             if (raw.nothing_more_to_add === true) return { skip: 'nothing_more', note: raw.note };
             if (String(raw.correct_answer_option === undefined ? '' : raw.correct_answer_option).trim() !== String(fixed.correct_answer_option)) {
@@ -1270,7 +1377,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
         try {
             // PASS 1: reconstruct + solve. Normalisation AND order/format guards run before accepting.
             const roundHint = lastErr ? `\n\nNOTE: a previous full attempt was NOT accepted: ${String(lastErr.message).slice(0, 700)}\nSolve the question again completely from scratch and check every clue / fact yourself. Do not simply copy any answer mentioned above.` : '';
-            const fixed = keep || await runGemini(prompt, imageBase64, onChunk, (raw) => {
+            const fixed = keep || await runAI(prompt, imageBase64, onChunk, (raw) => {
                 if (strong && String(raw.thought_process || '').trim().length < 200) {
                     throw new Error('This is a reasoning / maths question: write the complete step-by-step working in "thought_process" BEFORE choosing the answer.');
                 }
@@ -1288,7 +1395,7 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
             const vParse = imageBase64 ? (v) => parseBlindVerification(v, fixed) : (v) => parseVerification(v, fixed, false);
             if (imageBase64) log('[System] (blind check: the verifier is NOT shown the first answer, question or options - it reads the paper itself)\n');
             const ask = async (strongModels) => {
-                try { return await runGemini(vPrompt, imageBase64, onChunk, vParse, 4, '', { preferStrong: strongModels }); }
+                try { return await runAI(vPrompt, imageBase64, onChunk, vParse, 4, '', { preferStrong: strongModels }); }
                 catch (e) { e.keepFixed = fixed; throw e; }   // the verifier could not run: the solver result itself is still fine
             };
             const v1 = await ask(strong);
@@ -1310,9 +1417,11 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
 
             log(`\n[System] ✔ Verified: answer (${vAns}) confirmed independently; option order and format match the paper.\n`);
             fixed.verified = true;
-            // Explanations are now intentionally SHORT (3-4 lines + notebook keywords), so the old "deepen the explanation" pass is switched off.
-            // (deepenExplanation() is kept in this file only for reference; set AI_DEEPEN_EXPLANATION=1 to re-enable it.)
-            if (process.env.AI_DEEPEN_EXPLANATION === '1') fixed.fixed_explanation = await deepenExplanation(fixed, questionData, onChunk);
+            // Explanations are intentionally SHORT (3-4 lines + notebook keywords). The optional "deepen" pass only ADDS 2-5 one-line fact pointers
+            // (never an essay). It is OFF by default; the admin switches it on in AI Chat settings -> "Question fix & deepen" (or env AI_DEEPEN_EXPLANATION=1).
+            let deepenOn = process.env.AI_DEEPEN_EXPLANATION === '1';
+            try { deepenOn = deepenOn || !!(await chatProviders.getConfig('fix')).deepen; } catch (e) { /* keep the default */ }
+            if (deepenOn) fixed.fixed_explanation = await deepenExplanation(fixed, questionData, onChunk);
             // tell the admin when the old DB options were in a different (wrong) order
             try {
                 const oldO = (questionData.options || []).filter(o => typeof o === 'string' && o.trim());
@@ -1374,42 +1483,16 @@ ${hasImage ? 'The image of the original question from the paper is attached. If 
 Short explanation on the website: ${clip(q.toppers_explanation_marathi, 2500) || 'not available'}`;
 }
 
-// history: [{role:'user'|'model', text}]  (untrusted, sanitised here)
-async function chatAboutQuestion(q, imageBase64, history, userMessage) {
-    const clean = (t, n) => String(t || '').replace(/\u0000/g, '').trim().slice(0, n);
-    const msg = clean(userMessage, 1000);
-    if (!msg) throw new Error('Empty message');
-
-    const past = (Array.isArray(history) ? history : [])
-        .filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string' && h.text.trim())
-        .slice(-8)
-        .map(h => ({ role: h.role, text: clean(h.text, 1500) }));
-
-    const contents = [];
-    past.forEach((h, i) => {
-        const parts = [{ text: h.text }];
-        contents.push({ role: h.role, parts });
-    });
-    // first user turn also carries the image so the model can look at the original paper
-    const lastParts = [{ text: msg }];
-    (Array.isArray(imageBase64) ? imageBase64 : (imageBase64 ? [imageBase64] : [])).reverse().forEach(img => lastParts.unshift({ inlineData: { mimeType: 'image/jpeg', data: img } }));
-    contents.push({ role: 'user', parts: lastParts });
-    // Gemini needs the first turn to be 'user'
-    while (contents.length > 1 && contents[0].role !== 'user') contents.shift();
-
-    const payload = {
-        systemInstruction: { parts: [{ text: buildChatSystemPrompt(q, !!imageBase64) }] },
-        contents,
-        generationConfig: { temperature: 0.4, maxOutputTokens: 2500 }
-    };
-    // Optional: live Google Search so current-affairs answers can be up to date (set CHAT_USE_SEARCH=1)
-    if (process.env.CHAT_USE_SEARCH === '1') payload.tools = [{ google_search: {} }];
-
+// ---- Gemini provider for the chat (the original behaviour: rotates the server keys; optional pinned model)
+async function chatViaGemini(payload, { model: onlyModel, maxAttempts, maxWaitMs }) {
     let lastError = null;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
         let pick;
-        try { pick = await getNextAvailableKeyAndModel({ maxWaitMs: 20000 }); }
-        catch (e) { if (e.aiResting) throw new Error('AI is busy right now. Please try again in a minute.'); throw e; }
+        try { pick = await getNextAvailableKeyAndModel({ maxWaitMs, onlyModel: onlyModel || undefined }); }
+        catch (e) {
+            if (e.aiResting) { const err = new Error('Gemini keys are resting (rate limit / quota).'); err.kind = 'rate'; err.retryAfterMs = e.retryAfterMs; throw err; }
+            const err = new Error(e.message || 'No usable Gemini key.'); err.kind = 'bad'; throw err;
+        }
         const { key, model, waitTime } = pick;
         if (waitTime > 0) await sleep(waitTime);
 
@@ -1422,7 +1505,7 @@ async function chatAboutQuestion(q, imageBase64, history, userMessage) {
                 lastError = 'Empty answer' + (reason ? ` (${reason})` : '');
                 continue;
             }
-            return text.replace(/\*\*/g, '');
+            return text;
         } catch (error) {
             const status = error.response && error.response.status;
             const body = error.response ? await readErrorBody(error, 4000) : '';
@@ -1438,14 +1521,107 @@ async function chatAboutQuestion(q, imageBase64, history, userMessage) {
             }
         }
     }
-    throw new Error('AI could not answer right now. Please try again. (' + lastError + ')');
+    const err = new Error(lastError || 'Gemini failed');
+    err.kind = 'server';
+    throw err;
+}
+
+// info for the admin screen
+async function getGeminiInfo() {
+    const keys = process.env.GEMINI_API_KEYS ? [...new Set(process.env.GEMINI_API_KEYS.replace(/['"]/g, '').split(',').map(k => k.trim()).filter(Boolean))] : [];
+    let usablePairs = null;
+    try { usablePairs = await AiKey.countDocuments({ isAvailable: { $ne: false } }); } catch (e) { /* ignore */ }
+    return { models: MODELS.slice(), keyCount: keys.length, usablePairs };
+}
+
+// admin "Test" button for the Gemini provider: a tiny question through the same key rotation
+async function testGemini(model) {
+    const t0 = Date.now();
+    const payload = { contents: [{ role: 'user', parts: [{ text: 'Reply with the single word: OK' }] }], generationConfig: { temperature: 0, maxOutputTokens: 20 } };
+    const text = await chatViaGemini(payload, { model: model || undefined, maxAttempts: 2, maxWaitMs: 20000 });
+    return { text: text.slice(0, 80), ms: Date.now() - t0 };
+}
+
+// history: [{role:'user'|'model', text}]  (untrusted, sanitised here)
+// Tries the providers the admin chose (admin panel -> AI Chat Settings), in the saved order, until one answers.
+// returns { text, provider }
+async function chatAboutQuestionEx(q, imageBase64, history, userMessage) {
+    const clean = (t, n) => String(t || '').replace(/\u0000/g, '').trim().slice(0, n);
+    const msg = clean(userMessage, 1000);
+    if (!msg) throw new Error('Empty message');
+
+    const past = (Array.isArray(history) ? history : [])
+        .filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string' && h.text.trim())
+        .slice(-8)
+        .map(h => ({ role: h.role, text: clean(h.text, 1500) }));
+    const images = (Array.isArray(imageBase64) ? imageBase64 : (imageBase64 ? [imageBase64] : [])).filter(x => typeof x === 'string' && x);
+    const system = buildChatSystemPrompt(q, images.length > 0);
+
+    // Gemini payload (first turn must be 'user'; the question image goes with the last user turn)
+    const contents = [];
+    past.forEach(h => contents.push({ role: h.role, parts: [{ text: h.text }] }));
+    const lastParts = [{ text: msg }];
+    images.slice().reverse().forEach(img => lastParts.unshift({ inlineData: { mimeType: 'image/jpeg', data: img } }));
+    contents.push({ role: 'user', parts: lastParts });
+    while (contents.length > 1 && contents[0].role !== 'user') contents.shift();
+    const payload = {
+        systemInstruction: { parts: [{ text: system }] },
+        contents,
+        generationConfig: { temperature: 0.4, maxOutputTokens: 2500 }
+    };
+    // Optional: live Google Search so current-affairs answers can be up to date (set CHAT_USE_SEARCH=1) - Gemini only
+    if (process.env.CHAT_USE_SEARCH === '1') payload.tools = [{ google_search: {} }];
+
+    // OpenAI-compatible input: the history must start with a 'user' turn as well
+    const oaHistory = past.slice();
+    while (oaHistory.length && oaHistory[0].role !== 'user') oaHistory.shift();
+    const oaInput = { system, history: oaHistory, message: msg, images };
+
+    let providers;
+    try { providers = await chatProviders.getOrderedProviders('chat'); }
+    catch (e) { console.error('chat providers could not be loaded, using Gemini:', e.message); providers = [{ id: chatProviders.GEMINI_ID, type: 'gemini', name: 'Gemini', model: '' }]; }
+
+    const problems = [];
+    for (let i = 0; i < providers.length; i++) {
+        const p = providers[i];
+        const isLast = i === providers.length - 1;
+        const t0 = Date.now();
+        try {
+            let text;
+            if (p.type === 'gemini') {
+                // with a fallback behind it Gemini gets fewer / shorter tries, so the next provider answers quickly
+                text = await chatViaGemini(payload, { model: p.model, maxAttempts: isLast ? 5 : 2, maxWaitMs: isLast ? 20000 : 8000 });
+            } else {
+                text = await chatProviders.callOpenAI(p, oaInput, { timeoutMs: isLast ? 75000 : 45000 });
+            }
+            chatProviders.markOk('chat', p.id, Date.now() - t0);
+            return { text: text.replace(/\*\*/g, ''), provider: p.name };
+        } catch (err) {
+            chatProviders.markFail('chat', p.id, err);
+            problems.push(`${p.name}: ${err.message}`);
+            console.warn(`chat: provider "${p.name}" failed (${err.kind || 'error'}): ${err.message}${isLast ? '' : ' -> trying the next one'}`);
+        }
+    }
+    // the student only sees a short, safe message (details are in the server log and on the admin screen)
+    const busy = problems.every(x => /rest|rate|quota|busy|429/i.test(x));
+    throw new Error(busy ? 'AI is busy right now. Please try again in a minute.' : 'AI could not answer right now. Please try again.');
+}
+
+async function chatAboutQuestion(q, imageBase64, history, userMessage) {
+    return (await chatAboutQuestionEx(q, imageBase64, history, userMessage)).text;
 }
 
 module.exports = {
     chatAboutQuestion,
+    chatAboutQuestionEx,
+    getGeminiInfo,
+    testGemini,
     fixQuestionWithAI,
     normalizeAiFix,
     // exported for tests
+    runAI,
+    deepenExplanation,
+    buildDeepenPrompt,
     similarity,
     assertSameOrder,
     assertSameLayout,
