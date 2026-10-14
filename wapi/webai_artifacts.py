@@ -33,7 +33,7 @@ def _candidates(url: str):
 
 
 @router.get("/fetch")
-async def fetch_artifact(u: str = Query(..., min_length=10, max_length=8192)):
+async def fetch_artifact(u: str = Query(..., min_length=10, max_length=8192), n: str = Query("", max_length=200)):
     url = unquote(u) if u.startswith("https%3A") else u
     if not _allowed(url):
         raise HTTPException(status_code=400, detail="URL host not allowed")
@@ -52,7 +52,15 @@ async def fetch_artifact(u: str = Query(..., min_length=10, max_length=8192)):
             continue
         if r.status_code == 200 and r.content:
             ctype = r.headers.get("content-type", "application/octet-stream")
-            return Response(content=r.content, media_type=ctype.split(";")[0].strip(),
-                            headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=3600"})
+            mtype = ctype.split(";")[0].strip()
+            if n:   # generated file (calculator.html ...): always a download, never rendered on our origin
+                safe = re.sub(r'[^A-Za-z0-9._-]', "_", n)[:100] or "file"
+                disp = f'attachment; filename="{safe}"'
+                if safe.lower().endswith((".html", ".htm", ".svg")):
+                    mtype = "application/octet-stream"
+            else:
+                disp = "inline"
+            return Response(content=r.content, media_type=mtype,
+                            headers={"Content-Disposition": disp, "Cache-Control": "private, max-age=3600"})
         last = f"HTTP {r.status_code}"
     raise HTTPException(status_code=502, detail=f"Download failed: {last}")
