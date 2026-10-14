@@ -55,6 +55,84 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 let keyMutex = Promise.resolve();
 
+// ---------------------------------------------------------------------------
+// KEY / MODEL COOLDOWN (so a failing key+model is NOT hit again and again)
+// - 429 : only that key+model rests (Gemini quotas are per project per model). The wait comes from Google's own
+//         "retry in Ns" hint; daily quota ("PerDay") rests until the Pacific-time midnight reset.
+// - 5xx : the MODEL is busy/broken for everybody -> the model rests for all keys, with growing back-off.
+// - network errors / 401 / 403 : that key+model rests.   - "API key not valid": the key is disabled until restart.
+// A success clears the back-off. The selector always picks the entry that is ready first, so the work keeps
+// flowing through the other keys/models while one of them rests.
+// ---------------------------------------------------------------------------
+const DEFAULT_MAX_WAIT_MS = Number(process.env.AI_MAX_COOLDOWN_WAIT_MS) || 180000; // longer than this -> do not sleep, report instead
+const failStreak = new Map(); // 'key|model' or 'model' -> consecutive failures (for back-off)
+const backoff = (n, base, cap) => Math.min(cap, base * Math.pow(2, Math.max(0, n - 1)));
+const bumpStreak = (id) => { const n = (failStreak.get(id) || 0) + 1; failStreak.set(id, n); return n; };
+
+function msUntilPacificMidnight() {
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date());
+        const g = (t) => Number(parts.find(x => x.type === t).value) % 24;
+        return (86400 - (g('hour') * 3600 + g('minute') * 60 + g('second'))) * 1000;
+    } catch (e) { return 6 * 3600 * 1000; }
+}
+
+const fmtMs = (ms) => ms >= 90000 ? `${Math.round(ms / 60000)} min` : `${Math.max(1, Math.round(ms / 1000))}s`;
+const NET_CODES = new Set(['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'EPIPE', 'ERR_STREAM_PREMATURE_CLOSE']);
+const isNetworkError = (e) => !!e && !e.response && (e.isAxiosError === true || NET_CODES.has(e.code) || e.message === 'aborted');
+
+async function applyCooldown(scope, key, model, ms, status) {
+    const until = Date.now() + ms;
+    const filter = scope === 'model' ? { model } : scope === 'key' ? { key } : { key, model };
+    await AiKey.updateMany({ ...filter, cooldownUntil: { $lt: until } }, { $set: { cooldownUntil: until, status } });
+}
+
+async function markSuccess(key, model) {
+    failStreak.delete(`${key}|${model}`);
+    failStreak.delete(model);
+    await AiKey.updateOne({ key, model }, { $set: { status: 'Success', cooldownUntil: 0 } });
+}
+
+// Reads Google's error text, puts the right key/model to rest and tells the caller how to count the failure.
+// returns { msg, lastError, transient }  (transient = the service is the problem, not our answer -> do not burn an attempt)
+// returns null for errors that need no cooldown (e.g. an ordinary 400 for a bad request).
+async function handleApiFailure({ key, model, status, body, networkError }) {
+    const sfx = '...' + key.slice(-4);
+    if (networkError) {
+        const n = bumpStreak(`${key}|${model}`);
+        const ms = backoff(n, 5000, 60000);
+        await applyCooldown('keymodel', key, model, ms, 'NetworkError');
+        return { msg: `Network problem (${networkError}). ${model} / key ${sfx} rests ${fmtMs(ms)}.`, lastError: `Network error (${networkError})`, transient: true };
+    }
+    if (status === 429) {
+        if (/PerDay|per day|daily/i.test(body)) {
+            const ms = msUntilPacificMidnight() + 60000;
+            await applyCooldown('keymodel', key, model, ms, 'DailyQuota');
+            return { msg: `Daily quota finished for ${model} / key ${sfx}. It rests ${fmtMs(ms)} (until the quota resets). Other keys/models keep working.`, lastError: 'Daily quota finished (429)', transient: true };
+        }
+        const n = bumpStreak(`${key}|${model}`);
+        const m = body.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/) || body.match(/retry in (\d+(?:\.\d+)?)\s*s/i);
+        const ms = m ? Math.max(5000, Math.ceil(Number(m[1]) * 1000) + 1500) : backoff(n, 65000, 900000);
+        await applyCooldown('keymodel', key, model, ms, 'Exhausted');
+        return { msg: `Rate limit (429) on ${model} / key ${sfx}. This key+model rests ${fmtMs(ms)}; other keys/models keep working.`, lastError: 'Rate limited (429)', transient: true };
+    }
+    if (status >= 500) { // 500 / 502 / 503 / 504 ... the model (Google side) is busy or broken
+        const n = bumpStreak(model);
+        const ms = backoff(n, status === 503 ? 8000 : 6000, 120000);
+        await applyCooldown('model', key, model, ms, status === 503 ? 'HighDemand' : 'ServerError');
+        return { msg: `Server error ${status} on ${model}. The model rests ${fmtMs(ms)} for all keys; other models keep working.`, lastError: `Server error (${status}) on ${model}`, transient: true };
+    }
+    if (status === 400 && /API key not valid|API_KEY_INVALID|API key expired/i.test(body)) {
+        await AiKey.updateMany({ key }, { $set: { isAvailable: false, status: 'InvalidKey' } });
+        return { msg: `Key ${sfx} is INVALID/expired - disabled until restart. Check GEMINI_API_KEYS.`, lastError: `Invalid API key ${sfx}`, transient: true };
+    }
+    if (status === 401 || status === 403) {
+        await applyCooldown('keymodel', key, model, 30 * 60000, 'Forbidden');
+        return { msg: `Access denied (${status}) for ${model} / key ${sfx}. It rests 30 min. ${String(body).slice(0, 150)}`, lastError: `Access denied (${status})`, transient: true };
+    }
+    return null;
+}
+
 async function getNextAvailableKeyAndModel(opts = {}) {
     return new Promise((resolve, reject) => {
         keyMutex = keyMutex.then(async () => {
@@ -74,13 +152,16 @@ async function getNextAvailableKeyAndModel(opts = {}) {
                     if (timeSinceLastUse < doc.rpmDelayMs) {
                         waitTime = doc.rpmDelayMs - timeSinceLastUse;
                     }
+                    // a key+model that failed (429 / 5xx / network) must rest until its cooldown is over
+                    if ((doc.cooldownUntil || 0) > now) waitTime = Math.max(waitTime, doc.cooldownUntil - now);
                     availableKeys.push({ key: doc.key, model: doc.model, waitTime, status: doc.status, rpmDelayMs: doc.rpmDelayMs });
                 }
 
                 // Logic / maths / tie-break calls: prefer the stronger (non-"lite") models when any exists
                 if (opts.preferStrong) {
                     const strong = availableKeys.filter(k => !/lite/i.test(k.model));
-                    if (strong.length) availableKeys = strong;
+                    // use the strong ones only while one of them is ready soon; if all rest long, fall back to the others
+                    if (strong.length && (strong.length === availableKeys.length || Math.min(...strong.map(k => k.waitTime)) <= 60000)) availableKeys = strong;
                 }
 
                 // Sort by waitTime ascending to pick the most "ready" key (Round-Robin)
@@ -93,6 +174,13 @@ async function getNextAvailableKeyAndModel(opts = {}) {
 
                 if (availableKeys.length > 0) {
                     const best = availableKeys[0];
+                    const maxWait = opts.maxWaitMs !== undefined ? opts.maxWaitMs : DEFAULT_MAX_WAIT_MS;
+                    if (best.waitTime > maxWait) {
+                        const err = new Error(`All AI keys/models are resting (rate limit / quota / busy). The earliest is ready in ${fmtMs(best.waitTime)}. Nothing was sent to the API - try again later.`);
+                        err.aiResting = true;
+                        err.retryAfterMs = best.waitTime;
+                        throw err;
+                    }
                     const effectiveUseTime = now + best.waitTime;
                     
                     // Reserve this key in the DB so next concurrent requests will see it as used
@@ -565,20 +653,20 @@ function checkVerification(v, fixed, hasImage) {
     return r.answer;
 }
 
-async function readErrorBody(error) {
+async function readErrorBody(error, limit = 300) {
     try {
         const d = error.response && error.response.data;
         if (!d) return '';
-        if (typeof d === 'string') return d.slice(0, 300);
+        if (typeof d === 'string') return d.slice(0, limit);
         if (typeof d.on === 'function') {
             return await new Promise(resolve => {
                 let b = '';
                 d.on('data', c => { b += c.toString(); });
-                d.on('end', () => resolve(b.slice(0, 300)));
-                d.on('error', () => resolve(b.slice(0, 300)));
+                d.on('end', () => resolve(b.slice(0, limit)));
+                d.on('error', () => resolve(b.slice(0, limit)));
             });
         }
-        return JSON.stringify(d).slice(0, 300);
+        return JSON.stringify(d).slice(0, limit);
     } catch (e) { return ''; }
 }
 
@@ -967,7 +1055,7 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
                 timeout: 600000
             });
 
-            await updateModelState(key, model, "Success");
+            await markSuccess(key, model); // request accepted: clear the back-off of this key+model
 
             let fullText = "";
             
@@ -1031,33 +1119,31 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
         } catch (error) {
             if (error.response) {
                 const status = error.response.status;
-                if (status === 429) {
-                    if (onChunk) onChunk(`\n[System] ERROR 429. API Key rate limited. Pushing to back of queue...`);
-                    // Just set status to Exhausted and lastUsed to now, so it goes to back of queue based on rpmDelayMs
-                    await AiKey.updateMany({ key: key }, { $set: { status: "Exhausted", lastUsed: Date.now() } });
-                    lastError = "Rate limited (429).";
-                    if (++transient > 12) attempts++;
-                } else if (status === 503) {
-                    if (onChunk) onChunk(`\n[System] ERROR 503 on ${model}. High demand. Pushing to back of queue...`);
-                    await AiKey.updateMany({ model: model }, { $set: { status: "HighDemand", lastUsed: Date.now() } });
-                    lastError = "Model is currently experiencing high demand (503).";
-                    if (++transient > 12) attempts++;
-                    await sleep(Math.min(1500 * transient, 8000)); // do not hammer a busy model
+                const body = await readErrorBody(error, 4000);
+                const info = await handleApiFailure({ key, model, status, body });
+                if (info) {
+                    if (onChunk) onChunk(`\n[System] ERROR ${status} - ${info.msg}\n`);
+                    lastError = info.lastError;
+                    if (++transient > 12) attempts++;      // only a long unbroken run of service errors costs an attempt
                 } else if (status === 404) {
                     // Model does not exist / retired -> stop using it until restart
-                    const body = await readErrorBody(error);
-                    if (onChunk) onChunk(`\n[System] ERROR 404: model "${model}" not found/retired. Disabling it. ${body}`);
-                    console.error(`Model ${model} returned 404, disabling. ${body}`);
+                    if (onChunk) onChunk(`\n[System] ERROR 404: model "${model}" not found/retired. Disabling it. ${body.slice(0, 300)}`);
+                    console.error(`Model ${model} returned 404, disabling. ${body.slice(0, 300)}`);
                     await AiKey.updateMany({ model }, { $set: { isAvailable: false, status: "NotFound" } });
                     lastError = `Model ${model} not found (404)`;
                     attempts++;
                 } else {
-                    const body = await readErrorBody(error);
-                    lastError = `API Error ${status}${body ? ': ' + body : ''}`;
-                    if (onChunk) onChunk(`\n[System] ERROR ${status} on ${model}: ${body}`);
+                    lastError = `API Error ${status}${body ? ': ' + body.slice(0, 300) : ''}`;
+                    if (onChunk) onChunk(`\n[System] ERROR ${status} on ${model}: ${body.slice(0, 300)}`);
                     attempts++;
                     await sleep(2000);
                 }
+            } else if (isNetworkError(error)) {
+                // connection reset / timeout / DNS: not a wrong answer -> rest this key+model, do not blame the answer
+                const info = await handleApiFailure({ key, model, networkError: error.code || error.message });
+                if (onChunk) onChunk(`\n[System] ${info.msg}\n`);
+                lastError = info.lastError;
+                if (++transient > 12) attempts++;
             } else {
                 if (onChunk) onChunk(`\n[System] Parsing/Internal Error: ${error.message}. Retrying...\n`);
                 lastError = error.message;
@@ -1302,8 +1388,10 @@ async function chatAboutQuestion(q, imageBase64, history, userMessage) {
 
     let lastError = null;
     for (let attempt = 0; attempt < 5; attempt++) {
-        const { key, model, waitTime } = await getNextAvailableKeyAndModel();
-        if (waitTime > 20000) throw new Error('AI is busy right now. Please try again in a few seconds.');
+        let pick;
+        try { pick = await getNextAvailableKeyAndModel({ maxWaitMs: 20000 }); }
+        catch (e) { if (e.aiResting) throw new Error('AI is busy right now. Please try again in a minute.'); throw e; }
+        const { key, model, waitTime } = pick;
         if (waitTime > 0) await sleep(waitTime);
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
@@ -1318,12 +1406,10 @@ async function chatAboutQuestion(q, imageBase64, history, userMessage) {
             return text.replace(/\*\*/g, '');
         } catch (error) {
             const status = error.response && error.response.status;
-            if (status === 429) {
-                await AiKey.updateMany({ key }, { $set: { status: 'Exhausted', lastUsed: Date.now() } });
-                lastError = 'Rate limited (429)';
-            } else if (status === 503) {
-                await AiKey.updateMany({ model }, { $set: { status: 'HighDemand', lastUsed: Date.now() } });
-                lastError = 'Model busy (503)';
+            const body = error.response ? await readErrorBody(error, 4000) : '';
+            const info = await handleApiFailure({ key, model, status, body, networkError: isNetworkError(error) ? (error.code || error.message) : null });
+            if (info) {
+                lastError = info.lastError;
             } else if (status === 404) {
                 await AiKey.updateMany({ model }, { $set: { isAvailable: false, status: 'NotFound' } });
                 lastError = `Model ${model} not found (404)`;

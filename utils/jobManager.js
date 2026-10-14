@@ -141,6 +141,23 @@ async function processJob(jobId) {
             broadcast(jobId, { type: 'question_done', index: qIndex, question: question });
 
         } catch (error) {
+            // Every key/model is resting (rate limit / quota / busy) and NO request was sent.
+            if (error && error.aiResting) {
+                const waitMs = error.retryAfterMs || 0;
+                if (waitMs <= 10 * 60000) {
+                    // short rest: wait here and retry the SAME question - no failed question, no wasted request
+                    qObj.status = 'pending';
+                    broadcast(jobId, { type: 'chunk', index: qIndex, chunk: `\n[System] All keys/models are resting. Waiting ${Math.ceil(waitMs / 1000)}s, then this question is retried automatically...\n` });
+                    await new Promise(r => setTimeout(r, waitMs + 1000));
+                    continue;
+                }
+                // long rest (daily quota finished): stop the job; this question fails (retry button), the rest stay pending
+                console.error(`Job ${jobId} paused: ${error.message}`);
+                qObj.status = 'failed';
+                qObj.error = error.message;
+                broadcast(jobId, { type: 'question_failed', index: qIndex, id: qObj.id, error: error.message });
+                break;
+            }
             console.error(`Job ${jobId} Question ${qObj.id} failed:`, error);
             qObj.status = 'failed';
             qObj.error = error.message;

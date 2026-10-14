@@ -175,3 +175,16 @@ Fix (public/script.js):
 - `normalizeExplanation()` also puts the labels पर्याय / जोडीदार फॅक्ट / सापळा / वहीत नोंद on their own line if the AI returns everything in one line.
 - `add_exam.py` (new exam import) uses the same short format instead of "at least 300 words".
 - Existing questions in the database keep their old long explanations until they are fixed again with the AI.
+
+## Update 9: smart key/model cooldown (no more repeated 429 / 502 requests)
+Problem: after an error the same key+model was tried again after only a few seconds (502 had no pause at all), so almost every question wasted requests.
+- `utils/aiService.js`: a failed key/model now RESTS (the unused `cooldownUntil` field is used) and the selector skips it until it is ready; work flows through the other keys/models meanwhile.
+  - 429: only that key+model rests. Wait = Google's own "retry in Ns" hint; if the body says "PerDay" it rests until the daily reset (Pacific midnight); otherwise 65s, doubling on repeated 429 (max 15 min).
+  - 500 / 502 / 503 / 504: the MODEL rests for all keys, 6-8s doubling up to 2 min.
+  - Network errors (reset / timeout / DNS): that key+model rests 5s doubling up to 60s (they no longer count as a "wrong answer").
+  - 401 / 403: key+model rests 30 min. "API key not valid": the key is disabled until restart.
+  - The error body is now read fully (4000 chars) so the retry hint is found. A success clears the back-off.
+  - If every key/model is resting longer than `AI_MAX_COOLDOWN_WAIT_MS` (default 180000 = 3 min) NO request is sent; an error with `aiResting = true` is thrown instead.
+  - The strong-model preference falls back to the other models when all strong ones rest > 60s. The question chat uses the same logic.
+- `utils/jobManager.js`: on that error, a rest <= 10 min -> the job waits and retries the SAME question automatically; a longer rest (daily quota finished) -> the job stops, the current question is marked failed (retry button), the others stay pending.
+- Limits you set (`GEMINI_MODELS` rpm, `rpmDelayMs`) are unchanged and still respected.
