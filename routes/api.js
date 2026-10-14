@@ -1252,6 +1252,21 @@ router.post('/notes/reorder', authMiddleware, notesLimiter, async (req, res) => 
     }
 });
 
+// edit the text of ONE note (position stays the same). Safe to retry: it just sets the text.
+router.post('/notes/edit', authMiddleware, notesLimiter, async (req, res) => {
+    try {
+        const id = req.body && req.body.id;
+        if (!notesSvc.isValidId(id)) return res.status(400).json({ success: false, message: 'Invalid id.' });
+        const text = notesSvc.cleanText(req.body.text);
+        if (!text) return res.status(400).json({ success: false, message: 'Note cannot be empty.' });
+        await UserNotes.updateOne({ userId: req.user.id, 'notes.id': id }, { $set: { 'notes.$.text': text } });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('notes edit error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
 router.post('/notes/clear', authMiddleware, notesLimiter, async (req, res) => {
     try {
         await UserNotes.updateOne({ userId: req.user.id }, { $set: { notes: [] } });

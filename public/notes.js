@@ -3,7 +3,7 @@
    - "Add to Notes" button under every explanation (adds the selected part, or the whole explanation)
    - "Notes" button on the dashboard (top) opens the panel
    - small paste box: every paste is added as a new note, in order (oldest first, newest last)
-   - compact list: move up / down, delete, copy all, download as .txt
+   - compact list: edit (✎), move up / down, delete, copy all, download as .txt
    Notes are saved on the SERVER for every account (so they appear after every login, on any device) and cached in this browser.
    Changes made offline are kept in a small queue and sent when the connection is back.
    Everything is written with textContent (no HTML injection).
@@ -42,6 +42,7 @@
         for (const op of ops) {
             if (op.t === 'add' && op.note && !out.some(n => n.id === op.note.id)) out.push(op.note);
             else if (op.t === 'del') out = out.filter(n => n.id !== op.id);
+            else if (op.t === 'edit') out = out.map(n => n.id === op.id ? Object.assign({}, n, { text: op.text }) : n);
             else if (op.t === 'clear') out = [];
             else if (op.t === 'order' && Array.isArray(op.ids)) {
                 const by = new Map(out.map(n => [n.id, n])); const re = [];
@@ -72,6 +73,7 @@
         let url, method = 'POST', body = null;
         if (op.t === 'add') { url = '/api/notes/add'; body = op.note; }
         else if (op.t === 'del') { url = '/api/notes/' + encodeURIComponent(op.id); method = 'DELETE'; }
+        else if (op.t === 'edit') { url = '/api/notes/edit'; body = { id: op.id, text: op.text }; }
         else if (op.t === 'order') { url = '/api/notes/reorder'; body = { ids: op.ids }; }
         else if (op.t === 'clear') { url = '/api/notes/clear'; }
         else return 'drop';
@@ -158,6 +160,19 @@
         if (!save(list)) return { ok: false, reason: 'storage' };
         queueOp({ t: 'add', note });
         return { ok: true, count: list.length };
+    }
+    // change the text of one note (same place in the list)
+    function edit(id, text) {
+        const t = clean(text);
+        if (!t) return { ok: false, reason: 'empty' };
+        const list = load();
+        const n = list.find(x => x.id === id);
+        if (!n) return { ok: false, reason: 'missing' };
+        if (n.text === t) return { ok: true, same: true };
+        n.text = t;
+        if (!save(list)) return { ok: false, reason: 'storage' };
+        queueOp({ t: 'edit', id, text: t });
+        return { ok: true };
     }
     function remove(id) { save(load().filter(n => n.id !== id)); queueOp({ t: 'del', id }); }
     function move(id, dir) {
@@ -269,6 +284,36 @@
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && panel && panel.style.display !== 'none') close(); });
     }
 
+    let editingId = null;   // note that is open in the editor
+    let editDraft = '';     // text typed in the editor (kept if the list is redrawn while typing)
+
+    function buildEditor(n) {
+        const wrap = el('div', 'notes-edit');
+        const ta = el('textarea'); ta.value = editDraft; ta.maxLength = MAX_LEN; ta.rows = Math.min(10, Math.max(3, editDraft.split('\n').length + 1));
+        const bar = el('div', 'notes-editbar');
+        const bSave = el('button', 'notes-add', 'Save'); bSave.type = 'button';
+        const bCancel = el('button', 'notes-ico', 'Cancel'); bCancel.type = 'button';
+        bar.append(bSave, bCancel);
+        wrap.append(ta, bar);
+        const finish = () => { editingId = null; editDraft = ''; render(); };
+        const doSave = () => {
+            const r = edit(n.id, ta.value);
+            if (r.ok) { finish(); toast(r.same ? 'No change' : 'Note updated'); }
+            else if (r.reason === 'empty') toast('Note cannot be empty (use delete instead)');
+            else if (r.reason === 'storage') toast('Could not save (browser storage full?)');
+            else finish();
+        };
+        ta.addEventListener('input', () => { editDraft = ta.value; });
+        ta.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); finish(); }
+            else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); doSave(); }
+        });
+        bSave.addEventListener('click', doSave);
+        bCancel.addEventListener('click', finish);
+        setTimeout(() => { try { ta.focus({ preventScroll: true }); ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) { } }, 0);
+        return wrap;
+    }
+
     function render() {
         if (!panel) return;
         const list = load();
@@ -278,20 +323,27 @@
         if (!list.length) {
             box.appendChild(el('div', 'notes-empty', 'No notes yet. Use "Add to Notes" under any explanation, or paste a point above.'));
         }
+        if (editingId && !list.some(n => n.id === editingId)) { editingId = null; editDraft = ''; }   // the note was deleted elsewhere
         list.forEach((n, i) => {
             const row = el('div', 'notes-item');
             row.appendChild(el('span', 'notes-no', (i + 1) + '.'));
+            if (editingId === n.id) {
+                row.append(row.firstChild, buildEditor(n));
+                box.appendChild(row);
+                return;
+            }
             const body = el('div', 'notes-text', n.text);
             if (n.src && n.src !== 'pasted') body.appendChild(el('span', 'notes-src', n.src));
             const act = el('div', 'notes-act');
-            const up = el('button', '', '▲'); const dn = el('button', '', '▼'); const del = el('button', '', '✕');
-            [up, dn, del].forEach(b => { b.type = 'button'; });
-            up.title = 'Move up'; dn.title = 'Move down'; del.title = 'Delete';
+            const up = el('button', '', '▲'); const dn = el('button', '', '▼'); const ed = el('button', '', '✎'); const del = el('button', '', '✕');
+            [up, dn, ed, del].forEach(b => { b.type = 'button'; });
+            up.title = 'Move up'; dn.title = 'Move down'; ed.title = 'Edit'; del.title = 'Delete';
             up.disabled = i === 0; dn.disabled = i === list.length - 1;
             up.addEventListener('click', () => { move(n.id, -1); render(); });
             dn.addEventListener('click', () => { move(n.id, 1); render(); });
+            ed.addEventListener('click', () => { editingId = n.id; editDraft = n.text; render(); });
             del.addEventListener('click', () => { remove(n.id); render(); });
-            act.append(up, dn, del);
+            act.append(up, dn, ed, del);
             row.append(row.firstChild, body, act);
             box.appendChild(row);
         });
@@ -307,7 +359,7 @@
         const ta = $('notes-input');
         if (ta && window.matchMedia && !window.matchMedia('(pointer: coarse)').matches) ta.focus(); // do not pop the keyboard on phones
     }
-    function close() { if (panel) panel.style.display = 'none'; updateCount(); }
+    function close() { if (panel) panel.style.display = 'none'; editingId = null; editDraft = ''; updateCount(); }
 
     // called by the "Add to Notes" button under an explanation
     function addFromExplanation(text, src) {
@@ -331,7 +383,7 @@
         updateCount();
     }
 
-    window.MpscNotes = { onLogout, open, close, add: addFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, move, remove, clearAll, clean, applyOps, loadOps } };
+    window.MpscNotes = { onLogout, open, close, add: addFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, edit, move, remove, clearAll, clean, applyOps, loadOps } };
 
     updateCount();
     // load the server copy when the page opens, when the user comes back to the tab and when the internet is back

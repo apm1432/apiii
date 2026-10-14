@@ -666,3 +666,8 @@ header {
 
 .notes-titlebox { display: flex; flex-direction: column; min-width: 0; }
 .notes-sync { font-size: 0.65rem; color: var(--text-secondary, #6b7280); min-height: 1em; }
+
+.notes-edit { flex: 1; min-width: 0; }
+.notes-edit textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 60px; max-height: 240px; padding: 5px 7px; font-size: 0.78rem; line-height: 1.4; border: 1px solid #f59e0b; border-radius: 6px; background: transparent; color: inherit; font-family: inherit; user-select: text; -webkit-user-select: text; }
+.notes-editbar { display: flex; gap: 6px; margin-top: 4px; }
+.notes-editbar .notes-add { padding: 3px 12px; }
