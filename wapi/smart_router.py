@@ -1250,6 +1250,19 @@ def strict_password_and_log():
         "error_detail": None,    # filled in on failure -- WHY it failed, not just the status code
         "status": "Pending..."
     }
+    # Request details for EVERY logged request (proxy_chat replaces this with a richer summary).
+    # Bodies are only read for JSON (already parsed above) - never for uploads, so multipart parsing stays intact.
+    _body_note = "(no body)"
+    if request.is_json:
+        try:
+            _bt = request.get_data(as_text=True)
+            _body_note = "body:\n" + _bt[:500] + ("…" if len(_bt) > 500 else "")
+        except Exception:
+            _body_note = "(unreadable body)"
+    elif request.content_length:
+        _body_note = f"body: {request.content_length} bytes ({request.mimetype})"
+    log_entry["request"] = f"{request.method} {request.full_path.rstrip('?')}\n{_body_note}\nheaders:\n{_safe_headers(request.headers)}"
+    log_entry["route"] = None
     g.log_entry = log_entry
     request_logs.appendleft(log_entry)
 
@@ -1262,6 +1275,16 @@ def update_log_status(response):
     if hasattr(g, 'log_entry'):
         if g.log_entry["status"] == "Pending...":
             g.log_entry["status"] = f"{response.status_code} {'Success' if response.status_code == 200 else 'Failed'}"
+        if request.url_rule is None and response.status_code in (404, 405) and not g.log_entry.get("error_detail"):
+            # Flask itself answered (no route matched) -> nothing was forwarded to Gemini / WebAI.
+            if response.status_code == 405:
+                g.log_entry["error_detail"] = (f"405: route {request.path} exists but method {request.method} is not allowed "
+                                               f"(allowed: {response.headers.get('Allow', '?')})")
+            else:
+                _valid = sorted({r.rule for r in app.url_map.iter_rules() if r.endpoint != "static"})
+                g.log_entry["error_detail"] = (f"404: wapi router has NO route '{request.path}' (nothing was forwarded to Gemini/WebAI). "
+                                               f"Wrong URL from the client? Via nginx use /wapi/<route>. Valid routes: {', '.join(_valid)}")
+            g.log_entry["route"] = "No route matched (not forwarded anywhere)"
         if response.status_code >= 400 and not g.log_entry.get("error_detail") and not response.is_streamed:
             try:
                 g.log_entry["error_detail"] = _short_err(response.get_data(as_text=True), 400)
