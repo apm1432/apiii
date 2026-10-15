@@ -34,6 +34,203 @@ let token = localStorage.getItem('jwtToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null; // { email, isSubscribed }
 let userAnswers = JSON.parse(localStorage.getItem('mpsc_user_answers')) || {};
 
+// ====== STARRED QUESTIONS (revision) ======
+// A student stars questions -> they form a separate "Starred Questions" exam with its OWN answers.
+// While that exam is open, `userAnswers` points at the star answers (so every renderer, incl. paper.js, works unchanged);
+// the real exam answers wait in mainAnswersBackup and are put back when the student leaves. Real progress is never touched.
+let mainAnswersBackup = null;
+window.activeStarred = false;
+window.starIds = new Set();
+window.starAnswers = {};
+const STAR_CACHE_KEY = 'mpsc_stars_v1';
+const starBusy = new Set();
+
+function isStarred(id) { return window.starIds.has(String(id)); }
+function starBtnHtml(id) {
+    const on = isStarred(id);
+    return `<button class="btn btn-secondary star-btn${on ? ' on' : ''}" data-star="${id}" onclick="toggleStar('${id}')" style="margin-bottom: 15px; margin-right: 10px;">${on ? '★ Starred' : '☆ Star'}</button>`;
+}
+function origRef(q) { return q && q._origQnum ? ` · मूळ Q${q._origQnum}` : ''; }
+function refreshStarButtons() {
+    document.querySelectorAll('[data-star]').forEach(b => {
+        const on = isStarred(b.dataset.star);
+        b.classList.toggle('on', on);
+        if (b.classList.contains('star-btn')) b.textContent = on ? '★ Starred' : '☆ Star';
+    });
+}
+function starUserKey() { return (currentUser && currentUser.email) || ''; }
+function persistStarCache() {
+    try { localStorage.setItem(STAR_CACHE_KEY, JSON.stringify({ u: starUserKey(), ids: [...window.starIds], answers: window.activeStarred ? {} : window.starAnswers })); } catch (e) { }
+}
+(function initStarCache() {
+    try {
+        const c = JSON.parse(localStorage.getItem(STAR_CACHE_KEY));
+        if (c && c.u === starUserKey() && Array.isArray(c.ids)) { window.starIds = new Set(c.ids); window.starAnswers = c.answers || {}; }
+    } catch (e) { }
+})();
+
+function exitStarMode() {
+    if (!window.activeStarred) return;
+    window.activeStarred = false;
+    if (mainAnswersBackup) userAnswers = mainAnswersBackup;     // the real answers come back
+    mainAnswersBackup = null;
+}
+// main exam answers coming from the server must never overwrite the star answers that are on screen
+function setMainAnswers(obj) { if (window.activeStarred) mainAnswersBackup = obj; else userAnswers = obj; }
+function persistAnswersLocal() { if (!window.activeStarred) localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers)); }
+function sendAnswerToServer(questionId, section, optIndex) {
+    const star = window.activeStarred;
+    return fetch(star ? '/api/stars/answer' : '/api/progress/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwtToken') || token}` },
+        body: JSON.stringify(star ? { questionId, selectedOption: optIndex } : { questionId, section, selectedOption: optIndex })
+    });
+}
+
+async function loadStars() {
+    if (!token) return;
+    try {
+        const r = await fetch('/api/stars', { headers: { 'Authorization': `Bearer ${token}` } });
+        const d = await r.json();
+        if (!d || !d.success) return;
+        window.starIds = new Set(d.ids || []);
+        if (!window.activeStarred) window.starAnswers = d.answers || {};
+        persistStarCache();
+        refreshStarButtons();
+        const dash = document.getElementById('dashboard-section');
+        if (dash && dash.classList.contains('active') && window.allExamsData) paintDashboard();
+    } catch (e) { /* offline: the saved copy stays */ }
+}
+
+window.toggleStar = async function (id) {
+    id = String(id);
+    if (!token || starBusy.has(id)) return false;
+    starBusy.add(id);
+    const want = !isStarred(id);
+    if (want) window.starIds.add(id); else window.starIds.delete(id);      // instant
+    refreshStarButtons();
+    try {
+        const r = await fetch('/api/stars/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ questionId: id, starred: want })
+        });
+        const d = await r.json().catch(() => null);
+        if (r.status === 403) { if (want) window.starIds.delete(id); else window.starIds.add(id); refreshStarButtons(); showSection('payment-section'); return false; }
+        if (!d || !d.success) throw new Error((d && d.message) || 'Could not update the star.');
+        if (!want) {
+            delete window.starAnswers[id];                                 // unstar = gone from the starred exam, with its answer
+            if (window.activeStarred) removeFromStarredView(id);
+        }
+        persistStarCache();
+        return true;
+    } catch (e) {
+        if (want) window.starIds.delete(id); else window.starIds.add(id);   // undo
+        refreshStarButtons();
+        alert(e.message || 'Could not update the star. Check your internet.');
+        return false;
+    } finally { starBusy.delete(id); }
+};
+
+// the question left the starred exam: remove it, renumber 1..N, keep the filter and the place
+function removeFromStarredView(id) {
+    const y = window.scrollY;
+    const keepIdx = currentQIndex;
+    currentQuestions = currentQuestions.filter(q => String(q._id) !== id).map((q, i) => Object.assign(q, { qnum: i + 1 }));
+    if (!currentQuestions.length) { alert('No starred questions left.'); toDashboard(); return; }
+    const sub = activeSubject, top = activeTopic;
+    renderSubjectFilters();                                                // chips of subjects that vanished disappear
+    if (sub && currentQuestions.some(q => q.subject === sub)) {
+        const sb = [...document.querySelectorAll('#subject-filters .filter-btn')].find(b => b.innerText === sub);
+        if (sb) sb.click();
+        if (top && currentQuestions.some(q => q.subject === sub && q.topic === top)) {
+            const tb = [...document.querySelectorAll('#topic-filters .filter-btn')].find(b => b.innerText === top);
+            if (tb) tb.click();
+        }
+    } else filterQuestions(null, null);
+    const list = getFilteredQuestions();
+    currentQIndex = Math.min(keepIdx, Math.max(0, list.length - 1));
+    if (list.length) renderQuizQuestion(currentQIndex, list);
+    window.scrollTo(0, y);
+    if (window.paperRefresh) window.paperRefresh();
+}
+
+window.openStarred = async function (restoreState) {
+    if (window.abortOpenTest) window.abortOpenTest();
+    window.showGlobalLoader('Loading starred questions...');
+    try {
+        const res = await fetch('/api/stars/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: '{}'
+        });
+        const d = await res.json().catch(() => null);
+        if (res.status === 403) { showSection('payment-section'); return; }
+        if (!d || !d.success) { alert((d && d.message) || 'Could not load the starred questions.'); if (restoreState) toDashboard(); return; }
+        if (!d.data.length) {
+            window.starIds = new Set(); window.starAnswers = {}; persistStarCache();
+            alert('No starred questions yet. Tap ☆ Star on any question.');
+            toDashboard();
+            return;
+        }
+        if (!window.activeStarred) mainAnswersBackup = userAnswers;
+        window.activeStarred = true;
+        window.starAnswers = d.answers || {};
+        userAnswers = window.starAnswers;                                    // this attempt has its own answers
+        window.starIds = new Set(d.data.map(q => String(q._id)));
+        persistStarCache();
+        currentQuestions = d.data.map((q, i) => Object.assign({}, q, { _origQnum: q.qnum, qnum: i + 1 }));   // clean 1..N numbering
+        window.activeYearExam = null; window.activeSubject = null; window.activeYearExams = null; window.activeScopeLabel = null;
+        setTestTitle('⭐ Starred Questions');
+        showSection('test-section');
+        pushTestHistory();
+        showQuestionsOnScreen(restoreState && typeof restoreState === 'object' ? restoreState : null);
+    } catch (e) {
+        alert('Could not load the starred questions. Please check your internet and try again.');
+        if (restoreState) toDashboard();
+    } finally { window.hideGlobalLoader(); }
+};
+
+window.resetStarProgress = async function () {
+    if (!confirm('Reset your attempt of the Starred Questions?\nYour stars stay, and your real exam progress is NOT changed.')) return;
+    try {
+        const r = await fetch('/api/stars/reset', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: '{}' });
+        const d = await r.json();
+        if (!d.success) throw new Error();
+        window.starAnswers = {};
+        persistStarCache();
+        paintDashboard();
+    } catch (e) { alert('Could not reset. Please try again.'); }
+};
+
+// the card on the main page (first card, in every tab and in both dashboard modes)
+function appendStarCard(grid) {
+    const n = window.starIds.size;
+    if (!n) return;
+    const att = Object.keys(window.starAnswers || {}).filter(id => window.starIds.has(id)).length;
+    const card = document.createElement('div');
+    card.className = 'exam-card';
+    card.style.position = 'relative';
+    card.style.border = '2px solid #f59e0b';
+    card.innerHTML = `
+        <span style="position:absolute; top:-10px; right:10px; background:#f59e0b; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">MY REVISION</span>
+        <h3>⭐ Starred Questions</h3>
+        <p>The questions you starred</p>
+        <span class="meta">${n} Total Questions</span>
+        <div style="margin-top: 10px; font-size: 0.9rem; color: var(--accent);">Attempted: ${att} / ${n}</div>`;
+    if (att > 0) {
+        const rb = document.createElement('button');
+        rb.className = 'btn btn-outline';
+        rb.style.cssText = 'width: 100%; margin-top: 15px; font-size: 0.85rem; padding: 5px; border-color: var(--error); color: var(--error);';
+        rb.textContent = 'Reset Progress';
+        rb.onclick = (ev) => { ev.stopPropagation(); window.resetStarProgress(); };
+        card.appendChild(rb);
+    }
+    card.onclick = () => window.openStarred();
+    grid.appendChild(card);
+}
+
+
 window.saveSession = function() {
     if (document.getElementById('test-section').classList.contains('active')) {
         if (typeof window.activeYearExam !== 'undefined' || typeof window.activeSubject !== 'undefined') {
@@ -44,7 +241,8 @@ window.saveSession = function() {
                 scopeLabel: window.activeScopeLabel || null,
                 qIndex: currentQIndex,
                 mode: document.getElementById('quiz-view').style.display !== 'none' ? 'quiz' : 'full',
-                scrollPos: window.scrollY
+                scrollPos: window.scrollY,
+                starred: !!window.activeStarred
             };
             localStorage.setItem('mpsc_last_session', JSON.stringify(state));
         }
@@ -61,8 +259,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sessionStr) {
             try {
                 const state = JSON.parse(sessionStr);
+                if (state.starred) {
+                    showSection('test-section');
+                    loadStars();
+                    window.openStarred(state);
+                    return;
+                }
                 if (state.yearExam || state.subject) {
                     showSection('test-section');
+                    loadStars();
                     openTest(state.yearExam, state.subject, state, state.yearExams || null);
                     return;
                 }
@@ -131,6 +336,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) ensu
 // View Switching (SPA)
 function showSection(sectionId) {
     if (sectionId === 'dashboard-section') {
+        exitStarMode();
         localStorage.removeItem('mpsc_last_session');
     }
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -469,6 +675,7 @@ function logout() {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('activeAiJobId');
     localStorage.removeItem('mpsc_dash_cache_v1');
+    localStorage.removeItem('mpsc_stars_v1');
     if (window.QCache) window.QCache.clear();
     if (window.activeAiEventSource) {
         window.activeAiEventSource.close();
@@ -766,6 +973,7 @@ async function loadDashboard() {
         return dashNext;
     }
     dashLoading = (async () => {
+        loadStars();
         if (window.syncAdminDownloadButtons) window.syncAdminDownloadButtons();
         const grid = document.getElementById('exam-grid');
         if (typeof window.currentExamFilter === 'undefined') window.currentExamFilter = 'all';
@@ -806,7 +1014,7 @@ async function loadDashboard() {
             if (progData.data.sectionWise) window.progressSectionWise = progData.data.sectionWise;
             if (progData.data.answers) {
                 try { localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers)); } catch (e) { }
-                userAnswers = progData.data.answers;
+                setMainAnswers(progData.data.answers);
             }
             if (window.allExamsData) paintDashboard();
         }
@@ -888,6 +1096,7 @@ function renderSubjectGrid() {
     const grid = document.getElementById('exam-grid');
     if (!grid || !window.allExamsData) return;
     grid.innerHTML = '';
+    appendStarCard(grid);
 
     const { exams, label, filter } = getTabInfo();
     const usable = exams.filter(e => !e.hidden);
@@ -903,7 +1112,7 @@ function renderSubjectGrid() {
     const subjects = Object.values(subjectMap).sort((a, b) => b.count - a.count);
 
     if (subjects.length === 0) {
-        grid.innerHTML = '<p style="color:var(--text-secondary);">No subjects found.</p>';
+        grid.insertAdjacentHTML('beforeend', '<p style="color:var(--text-secondary);">No subjects found.</p>');
         return;
     }
 
@@ -935,6 +1144,7 @@ function renderExamGrid() {
     if (!grid || !window.allExamsData) return;
 
     grid.innerHTML = '';
+    appendStarCard(grid);
     const isAdminUser = !!(currentUser && currentUser.isAdmin);
 
     const extractYearMain = (str) => {
@@ -956,7 +1166,7 @@ function renderExamGrid() {
     let exams = getTabInfo().exams.sort(byYear);
 
     if (exams.length === 0) {
-        grid.innerHTML = '<p style="color:var(--text-secondary);">No exams found in this category.</p>';
+        grid.insertAdjacentHTML('beforeend', '<p style="color:var(--text-secondary);">No exams found in this category.</p>');
         return;
     }
 
@@ -1207,6 +1417,7 @@ function refreshQuestionsQuietly() {
 }
 
 async function openTest(yearExam, subject = null, restoreState = null, yearExams = null) {
+    exitStarMode();
     window.abortOpenTest();
     const mySeq = openTestSeq;
     const ctl = new AbortController();
@@ -1310,7 +1521,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
             <span class="q-num">Question ${q.qnum || index + 1}</span>
             ${q.is_ai_fixed ? `<span title="Corrected by AI" style="margin-left:8px;font-size:.72rem;color:#059669;padding:2px 8px;background:#d1fae5;border-radius:12px;font-weight:600;">✨ AI Fixed</span>` : ''}
             <span style="float: right; font-size: 0.85rem; color: var(--text-secondary); text-align: right;">
-                ${q.official_exam_name || ''} <br>
+                ${q.official_exam_name || ''}${origRef(q)} <br>
                 ${q.exam_date ? `(${q.exam_date})` : ''}
             </span>
         </div>
@@ -1346,6 +1557,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
         html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionImages('${q._id}')">👁 View Original Image${nImg > 1 ? ' (' + nImg + ' pages)' : ''}</button>`;
     }
 
+    html += starBtnHtml(q._id);
     html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || index + 1}')">🤖 Ask AI</button>`;
 
     if (currentUser && currentUser.isAdmin) {
@@ -1556,7 +1768,7 @@ function buildFullQuestionEl(q, idx) {
                     ${q.is_ai_fixed ? `<span style="font-size: 0.75rem; color: #059669; padding: 4px 8px; background: #d1fae5; border-radius: 12px; font-weight: 500;">✨ Corrected by AI${q.ai_fixed_at ? ' on ' + new Date(q.ai_fixed_at).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true}) : ''}</span>` : ''}
                 </div>
                 <div>
-                    ${q.official_exam_name || ''} ${q.exam_date ? `(${q.exam_date})` : ''}
+                    ${q.official_exam_name || ''} ${q.exam_date ? `(${q.exam_date})` : ''}${origRef(q)}
                 </div>
             </div>
         `;
@@ -1587,6 +1799,7 @@ function buildFullQuestionEl(q, idx) {
             html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionImages('${q._id}')">👁 View Original Image${nImg > 1 ? ' (' + nImg + ' pages)' : ''}</button>`;
         }
         
+        html += starBtnHtml(q._id);
         html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || idx + 1}')">🤖 Ask AI</button>`;
         
         if (currentUser && currentUser.isAdmin) {
@@ -1790,7 +2003,7 @@ async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
 
     // Save to local cache
     userAnswers[questionId] = { selected: optIndex, isCorrect: isCorrect, isCancelled: isCancelled, section: sectionName };
-    localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+    persistAnswersLocal();
 
     // Update explanation HTML with frontend data
     const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
@@ -1829,18 +2042,8 @@ async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
     updateFloatingStats(getFilteredQuestions());
 
     // Fire and forget the progress save to backend
-    fetch('/api/progress/save', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-            questionId: questionId,
-            section: sectionName,
-            selectedOption: optIndex
-        })
-    }).catch(err => console.log('Offline: Progress will sync later or is stored locally only', err));
+    sendAnswerToServer(questionId, sectionName, optIndex)
+        .catch(err => console.log('Offline: Progress will sync later or is stored locally only', err));
 }
 
 // ====== PAYMENT & RAZORPAY ======
@@ -2538,7 +2741,7 @@ window.connectAiLiveStream = function(jobId) {
                 const keyStr = String(data.question.correct_answer_option || data.question.final_answer_key || '').trim();
                 ua.isCancelled = keyStr === '#';
                 ua.isCorrect = !ua.isCancelled && ua.selected === (parseInt(keyStr) - 1);
-                localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
+                persistAnswersLocal();
             }
             if (window.paperRefresh) window.paperRefresh(data.question._id, data.question);   // after answers are re-evaluated
             const btn = document.getElementById(`btn-fix-full-${data.question._id}`) || document.getElementById(`btn-fix-${data.question._id}`);
@@ -2599,6 +2802,7 @@ window.connectAiLiveStream = function(jobId) {
 };
 
 async function syncProgressFromServer() {
+    if (window.activeStarred) return;     // the starred exam has its own answers
     try {
         const r = await fetch('/api/progress/dashboard', { headers: { 'Authorization': `Bearer ${token}` } });
         const d = await r.json();

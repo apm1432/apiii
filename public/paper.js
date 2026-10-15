@@ -142,6 +142,7 @@
     // Ask the server for questions that share an image with ours (needed when the paper was opened
     // as "Subject (All Exams)", so other subjects are not loaded on the client).
     async function fetchSiblings() {
+        if (window.activeStarred) return;        // the starred exam shows only the starred questions
         const list = getFilteredQuestions().filter(q => q.original_image_url);
         const ids = list.map(q => q._id);
         if (!ids.length) return;
@@ -484,13 +485,10 @@
         const { cancelled, idx } = correctInfo(q);
         const isCorrect = !cancelled && optIndex === idx;
         userAnswers[q._id] = { selected: optIndex, isCorrect, isCancelled: cancelled, section: q.year_exam };
-        try { localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers)); } catch (e) { }
+        try { persistAnswersLocal(); } catch (e) { }          // (starred exam: own answers, real progress untouched)
 
-        fetch('/api/progress/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwtToken')}` },
-            body: JSON.stringify({ questionId: q._id, section: q.year_exam, selectedOption: optIndex })
-        }).catch(() => console.log('Offline: progress stored locally only'));
+        sendAnswerToServer(q._id, q.year_exam, optIndex)
+            .catch(() => console.log('Offline: progress stored locally only'));
 
         if (PM.auto) { PM.expl = String(q._id); PM.min = false; }   // explanation opens by itself (no touch)
         renderPanel();
@@ -571,8 +569,10 @@
                 if (pg.extra.has(String(q._id))) {
                     html += `<div class="pm-cap">📌 Same image · ${esc(q.subject || 'Other subject')}</div>`;
                 }
+                const stOn = typeof isStarred === 'function' && isStarred(q._id);
                 html += `<div class="pm-row"><span class="pm-qn">Q${esc(q.qnum || '')}${q.is_ai_fixed ? '<span class="pm-aitag" title="Corrected by AI">✨AI</span>' : ''}</span><div class="pm-opts">${btns}</div>${res}
-                    <button class="pm-ex ${String(PM.expl) === String(q._id) ? 'on' : ''}" data-a="ex" data-q="${q._id}" ${ans ? '' : 'disabled'} title="${ans ? 'Explanation' : 'Answer first'}">💡</button></div>`;
+                    <button class="pm-ex ${String(PM.expl) === String(q._id) ? 'on' : ''}" data-a="ex" data-q="${q._id}" ${ans ? '' : 'disabled'} title="${ans ? 'Explanation' : 'Answer first'}">💡</button>
+                    <button class="pm-ex ${stOn ? 'on' : ''}" data-a="star" data-q="${q._id}" data-star="${q._id}" title="${stOn ? 'Unstar' : 'Star for revision'}">${stOn ? '★' : '☆'}</button></div>`;
             });
         }
         el.panel.innerHTML = html;
@@ -607,6 +607,13 @@
                 b.disabled = true; b.textContent = '⏳ Queued…';
                 toast('🤖 AI Fix started - the answer and explanation update here when it is done');
                 Promise.resolve(window.fixQuestion(b.dataset.q, 'full')).catch(() => { });
+                break;
+            }
+            case 'star': {
+                const qid = b.dataset.q;
+                Promise.resolve(window.toggleStar(qid)).then(() => {
+                    if (window.activeStarred && !isStarred(qid)) closePaper(); else renderPanel();   // the question left the starred exam
+                });
                 break;
             }
             case 'retry': showPage(PM.pi); break;

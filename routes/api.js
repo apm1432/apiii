@@ -17,6 +17,7 @@ const Question = require('../models/Question');
 const User = require('../models/User');
 const Progress = require('../models/Progress');
 const UserNotes = require('../models/UserNotes');
+const UserStars = require('../models/UserStars');
 const notesSvc = require('../utils/notesService');
 
 // Middleware & Services
@@ -1326,6 +1327,169 @@ router.post('/progress/reset', authMiddleware, async (req, res) => {
         res.json({ success: true, message: 'Progress reset successfully', data: progress });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to reset progress' });
+    }
+});
+
+
+// -------------------------------------
+// STARRED QUESTIONS (every student: star a question -> it appears in a separate "Starred Questions" exam card)
+// - the star list and the answers of that separate attempt live in UserStars, NOT in Progress,
+//   so starring / answering / resetting here never changes the progress of the real exam papers
+// - unstar = the question leaves the starred exam (its starred answer is dropped); the real paper is never touched
+// -------------------------------------
+const MAX_STARS = 1000;
+const OID_RE = /^[a-f0-9]{24}$/i;
+const starLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 150,
+    message: { success: false, message: 'Too many requests. Please slow down.' }
+});
+
+// same access rule as /questions: paid access (or the 2 free papers after the free trial); hidden papers only for admins
+async function starAccess(userId) {
+    const user = await User.findById(userId);
+    const { hidden } = await examCatalog.getCatalog();
+    const isAdminUser = !!(user && user.isAdmin);
+    const subscribed = !!(user && user.isSubscribed && user.subscriptionExpiry && new Date() <= user.subscriptionExpiry);
+    const free = new Set(user && user.hasUsedFreeTrial ? freeExamIds(hidden) : []);
+    const visible = (q) => isAdminUser || !hidden.has(q.year_exam);
+    const canSee = (q) => visible(q) && (subscribed || free.has(q.year_exam));
+    return { user, subscribed, visible, canSee };
+}
+
+// judge a saved answer against the CURRENT key (an AI fix may have changed it)
+function judgeStarAnswer(q, selected) {
+    const correctStr = String(q.correct_answer_option || q.final_answer_key || q.answer_key).trim();
+    if (correctStr === '#') return { isCancelled: true, isCorrect: false, correctOptIndex: -1 };
+    const idx = parseInt(correctStr) - 1;
+    return { isCancelled: false, isCorrect: selected === idx, correctOptIndex: idx };
+}
+
+function starAnswersFor(doc, questions) {
+    const out = {};
+    const saved = doc && doc.answers ? (doc.answers instanceof Map ? Object.fromEntries(doc.answers) : doc.answers) : {};
+    questions.forEach(q => {
+        const a = saved[String(q._id)];
+        if (a && typeof a.selected === 'number') {
+            const j = judgeStarAnswer(q, a.selected);
+            out[String(q._id)] = { selected: a.selected, isCorrect: j.isCorrect, isCancelled: j.isCancelled, section: q.year_exam };
+        }
+    });
+    return out;
+}
+
+// the ids + answers (light: no question text) - used for the star buttons and the dashboard card
+router.get('/stars', authMiddleware, starLimiter, async (req, res) => {
+    try {
+        const doc = await UserStars.findOne({ userId: req.user.id }).lean();
+        const ids = (doc && doc.ids) || [];
+        if (!ids.length) return res.json({ success: true, ids: [], answers: {} });
+
+        const acc = await starAccess(req.user.id);
+        const found = await Question.find({ _id: { $in: ids } }, 'year_exam correct_answer_option final_answer_key answer_key').lean();
+        const byId = new Map(found.map(q => [String(q._id), q]));
+        const valid = ids.filter(id => byId.has(id) && acc.visible(byId.get(id)));
+        const gone = ids.filter(id => !byId.has(id));
+        if (gone.length) UserStars.updateOne({ userId: req.user.id }, { $pull: { ids: { $in: gone } } }).catch(() => {});
+
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, ids: valid, answers: starAnswersFor(doc, valid.map(id => byId.get(id))) });
+    } catch (err) {
+        console.error('stars list error:', err);
+        res.status(500).json({ success: false, message: 'Failed to load starred questions' });
+    }
+});
+
+// star / unstar one question
+router.post('/stars/toggle', authMiddleware, starLimiter, async (req, res) => {
+    try {
+        const qid = String((req.body && req.body.questionId) || '');
+        if (!OID_RE.test(qid)) return res.status(400).json({ success: false, message: 'Invalid question' });
+        const q = await Question.findById(qid, 'year_exam').lean();
+        if (!q) return res.status(404).json({ success: false, message: 'Question not found' });
+        const acc = await starAccess(req.user.id);
+        if (!acc.canSee(q)) return res.status(403).json({ success: false, message: 'Subscription required or expired' });
+
+        const doc = await UserStars.findOne({ userId: req.user.id }, 'ids').lean();
+        const has = !!(doc && doc.ids && doc.ids.includes(qid));
+        const want = typeof req.body.starred === 'boolean' ? req.body.starred : !has;
+
+        if (want) {
+            if (!has && doc && doc.ids.length >= MAX_STARS) {
+                return res.status(400).json({ success: false, message: `You can star at most ${MAX_STARS} questions. Unstar some first.` });
+            }
+            await UserStars.updateOne({ userId: req.user.id }, { $addToSet: { ids: qid } }, { upsert: true });
+        } else if (doc) {
+            await UserStars.updateOne({ userId: req.user.id }, { $pull: { ids: qid }, $unset: { [`answers.${qid}`]: '' } });
+        }
+        const after = await UserStars.findOne({ userId: req.user.id }, 'ids').lean();
+        res.json({ success: true, starred: want, count: after ? after.ids.length : 0 });
+    } catch (err) {
+        console.error('stars toggle error:', err);
+        res.status(500).json({ success: false, message: 'Failed to update star' });
+    }
+});
+
+// the starred exam: the full questions (with explanation), in the order they were starred, + the saved answers of this attempt
+router.post('/stars/questions', authMiddleware, starLimiter, async (req, res) => {
+    try {
+        const doc = await UserStars.findOne({ userId: req.user.id }).lean();
+        const ids = (doc && doc.ids) || [];
+        if (!ids.length) return res.json({ success: true, data: [], answers: {} });
+
+        const acc = await starAccess(req.user.id);
+        const found = await Question.find({ _id: { $in: ids } }).lean();
+        const byId = new Map(found.map(q => [String(q._id), q]));
+        const list = ids.map(id => byId.get(id)).filter(q => q && acc.canSee(q));
+        if (!list.length && !acc.subscribed) {
+            return res.status(403).json({ success: false, message: 'Subscription required or expired' });
+        }
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, data: list, answers: starAnswersFor(doc, list) });
+    } catch (err) {
+        console.error('stars questions error:', err);
+        res.status(500).json({ success: false, message: 'Failed to load starred questions' });
+    }
+});
+
+// answer a starred question (saved in the star attempt only, never in the exam progress)
+router.post('/stars/answer', authMiddleware, starLimiter, async (req, res) => {
+    try {
+        const qid = String((req.body && req.body.questionId) || '');
+        const selected = req.body && req.body.selectedOption;
+        if (!OID_RE.test(qid) || !Number.isInteger(selected) || selected < 0 || selected > 20) {
+            return res.status(400).json({ success: false, message: 'Invalid answer' });
+        }
+        const mine = await UserStars.findOne({ userId: req.user.id, ids: qid }, '_id').lean();
+        if (!mine) return res.status(404).json({ success: false, message: 'This question is not starred' });
+        const q = await Question.findById(qid).lean();
+        if (!q) return res.status(404).json({ success: false, message: 'Question not found' });
+        const acc = await starAccess(req.user.id);
+        if (!acc.canSee(q)) return res.status(403).json({ success: false, message: 'Subscription required or expired' });
+
+        const j = judgeStarAnswer(q, selected);
+        // first answer wins (same rule as the exam progress); the filter makes a double tap harmless
+        await UserStars.updateOne(
+            { userId: req.user.id, ids: qid, [`answers.${qid}`]: { $exists: false } },
+            { $set: { [`answers.${qid}`]: { selected, isCorrect: j.isCorrect, isCancelled: j.isCancelled, section: q.year_exam } } }
+        );
+        res.json({
+            success: true, isCorrect: j.isCorrect, isCancelled: j.isCancelled, correctOptionIndex: j.correctOptIndex,
+            explanation: q.toppers_explanation_marathi, optionsExplanation: q.options_explanation
+        });
+    } catch (err) {
+        console.error('stars answer error:', err);
+        res.status(500).json({ success: false, message: 'Failed to save answer' });
+    }
+});
+
+// "Reset Progress" of the starred exam: clears only the starred attempt, the stars stay
+router.post('/stars/reset', authMiddleware, starLimiter, async (req, res) => {
+    try {
+        await UserStars.updateOne({ userId: req.user.id }, { $set: { answers: {} } });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to reset' });
     }
 });
 
