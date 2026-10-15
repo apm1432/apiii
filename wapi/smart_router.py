@@ -2214,6 +2214,49 @@ def proxy_transcriptions():
 
     return jsonify({"error": {"message": "All keys exhausted for transcription.", "type": "rate_limit"}}), 429
 
+# ─── Context length (answers client probes, so clients need no manual setting) ─
+# Agents like Hermes ask the server for the model's context window: first the
+# Ollama-style POST /api/show (+ GET /api/tags), and they also read
+# context_length from /v1/models. Without an answer they fall back to a guess.
+# Set env CONTEXT_LENGTH to change the advertised value (default 250000).
+CONTEXT_LENGTH = int(os.environ.get("CONTEXT_LENGTH", "250000"))
+
+def _with_ctx(items):
+    return [{**m, "context_length": CONTEXT_LENGTH, "context_window": CONTEXT_LENGTH,
+             "max_model_len": CONTEXT_LENGTH} for m in items]
+
+@app.route('/api/show', methods=['GET', 'POST', 'OPTIONS'])
+def ollama_show():
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    body = request.get_json(silent=True) or {}
+    name = body.get("model") or body.get("name") or request.args.get("model") or "auto"
+    if hasattr(g, "log_entry"):
+        g.log_entry["route"] = f"Ollama-style probe answered by router (context_length={CONTEXT_LENGTH}, model={name})"
+        g.log_entry["model"] = name
+    return jsonify({
+        "license": "", "modelfile": "", "template": "",
+        "parameters": f"num_ctx {CONTEXT_LENGTH}",
+        "details": {"parent_model": "", "format": "api", "family": "gemini", "families": ["gemini"],
+                    "parameter_size": "", "quantization_level": ""},
+        "model_info": {"general.architecture": "gemini", "general.basename": name,
+                       "gemini.context_length": CONTEXT_LENGTH},
+        "capabilities": ["completion", "tools", "vision"],
+    })
+
+@app.route('/api/tags', methods=['GET', 'OPTIONS'])
+def ollama_tags():
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if hasattr(g, "log_entry"):
+        g.log_entry["route"] = "Ollama-style probe answered by router (model list)"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    names = ["auto"] + [m["name"] for m in get_active_models()]
+    return jsonify({"models": [{
+        "name": n, "model": n, "modified_at": now, "size": 0, "digest": "",
+        "details": {"parent_model": "", "format": "api", "family": "gemini", "families": ["gemini"],
+                    "parameter_size": "", "quantization_level": ""}} for n in names]})
+
 # ─── Models List ──────────────────────────────────────────────────────────────
 @app.route('/v1/models', methods=['GET', 'OPTIONS'])
 def proxy_models():
@@ -2221,11 +2264,11 @@ def proxy_models():
         return Response(status=200)
     with dynamic_models_lock:
         if OPENAI_MODELS_LIST:
-            return jsonify({"object": "list", "data": OPENAI_MODELS_LIST})
+            return jsonify({"object": "list", "data": _with_ctx(OPENAI_MODELS_LIST)})
     now = int(time.time())
     data = [{"id": m["name"], "object": "model", "created": now, "owned_by": "google"}
             for m in get_active_models()]
-    return jsonify({"object": "list", "data": data})
+    return jsonify({"object": "list", "data": _with_ctx(data)})
 
 # ─── Add key/model dynamically ────────────────────────────────────────────────
 @app.route('/add', methods=['POST'])
