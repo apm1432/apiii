@@ -459,6 +459,7 @@ def search_via_native(data: dict, requested_model: str, is_responses_api: bool, 
             if hasattr(g, "log_entry"):
                 g.log_entry["status"] = f"200 Success ({actual_model}, web search)"
                 g.log_entry["model"] = actual_model
+                g.log_entry["route"] = "Gemini native search (Google Search tool) key …" + key[-4:] + " → " + actual_model
             with state_lock:
                 metrics["successful_api_calls"] += 1
                 _record_rpd_success(key, actual_model)
@@ -762,6 +763,7 @@ metrics = {
     "rpm_cooldowns_applied": 0,
     "daily_limits_hit": 0,
     "failed_requests": 0,
+    "webai_fallback_calls": 0,
     "usage_by_key": {}
 }
 
@@ -1260,6 +1262,11 @@ def update_log_status(response):
     if hasattr(g, 'log_entry'):
         if g.log_entry["status"] == "Pending...":
             g.log_entry["status"] = f"{response.status_code} {'Success' if response.status_code == 200 else 'Failed'}"
+        if response.status_code >= 400 and not g.log_entry.get("error_detail") and not response.is_streamed:
+            try:
+                g.log_entry["error_detail"] = _short_err(response.get_data(as_text=True), 400)
+            except Exception:
+                pass
         if g.log_entry.get("response_ms") is None and hasattr(g, "_log_start"):
             g.log_entry["response_ms"] = round((time.monotonic() - g._log_start) * 1000)
     return response
@@ -1371,8 +1378,8 @@ tr:hover{background:#252525}
 🔐 Secure Access Logs (last 50)
 </h2>
 <div class="table-wrapper"><table><thead><tr>
-<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Response Time</th><th>Message / Prompt</th><th>Error Detail</th>
-</tr></thead><tbody id="logs-body"><tr><td colspan="8" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
+<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Route</th><th>Response Time</th><th>Message / Prompt</th><th>Request Details</th><th>Error / Why</th>
+</tr></thead><tbody id="logs-body"><tr><td colspan="10" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
 </div>
 <script>
 let isSelecting=false;
@@ -1504,11 +1511,11 @@ function updateUI(data){
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
-      <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span></div></div>
+      <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span> | Web fallback: <span style="color:#a78bfa">${m.webai_fallback_calls||0}</span></div></div>
     <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
       <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
   const tbody=document.getElementById('logs-body');
-  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
+  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
   let html='';
   data.logs.forEach((log,idx)=>{
     const pwdClass=log.is_correct?'pwd-correct':'pwd-wrong';
@@ -1517,15 +1524,20 @@ function updateUI(data){
     const modelText=log.model?esc(log.model):'—';
     const msText=(log.response_ms!==null&&log.response_ms!==undefined)?log.response_ms+'ms':'—';
     const errText=log.error_detail?esc(log.error_detail):'—';
+    const nl=String.fromCharCode(10);
+    const attText=(log.attempts&&log.attempts.length)?nl+nl+'— attempts —'+nl+esc(log.attempts.join(nl)):'';
+    const reqText=log.request?esc(log.request):'—';
     html+=`<tr>
       <td style="white-space:nowrap;color:#888;font-size:.9em;">${log.time||''}</td>
       <td class="ip">${log.ip||''}</td>
       <td><span class="${pwdClass}">${esc(pwdText)}</span></td>
       <td><span class="badge ${badgeClass}">${esc(log.status||'')}</span></td>
       <td style="color:#c4b5fd;font-size:.85em;">${modelText}</td>
+      <td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">${esc(log.route||'—')}</td>
       <td style="color:#6b7280;font-size:.85em;white-space:nowrap;">${msText}</td>
       <td><div class="msg">${esc(log.message||'No message')}</div></td>
-      <td>${log.error_detail?`<div class="msg" style="color:#f87171;max-width:280px;">${errText}</div>`:'<span style="color:#4ade80;">—</span>'}</td>
+      <td><div class="msg" style="max-width:380px;max-height:220px;overflow:auto;color:#93c5fd;">${reqText}</div></td>
+      <td>${(log.error_detail||attText)?`<div class="msg" style="color:#f87171;max-width:420px;max-height:220px;overflow:auto;">${errText}${attText}</div>`:'<span style="color:#4ade80;">—</span>'}</td>
     </tr>`;
   });
   tbody.innerHTML=html;
@@ -1534,6 +1546,196 @@ function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt
 fetchData();setInterval(fetchData,5000);
 </script></body></html>"""
     return render_template_string(html)
+
+# ─── Request snapshot + readable error reasons (shown on the dashboard) ──────
+def _msg_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        out = []
+        for p in content:
+            if not isinstance(p, dict):
+                continue
+            t = p.get("type")
+            if t in ("text", "input_text", "output_text"):
+                out.append(str(p.get("text", "")))
+            elif t in ("image_url", "input_image", "file"):
+                out.append("[image/file omitted]")
+        return " ".join(out)
+    return "" if content is None else str(content)
+
+def _req_snapshot(raw: dict, path: str) -> str:
+    """Human-readable summary of an incoming request for the dashboard log.
+    Image/file data is never stored (only counted). API keys are never in the body."""
+    try:
+        msgs = raw.get("messages")
+        if msgs is None and "input" in raw:
+            inp = raw.get("input")
+            msgs = [{"role": "user", "content": inp}] if isinstance(inp, str) else [m for m in (inp or []) if isinstance(m, dict)]
+        msgs = [m for m in (msgs or []) if isinstance(m, dict)]
+        tools = raw.get("tools") if isinstance(raw.get("tools"), list) else []
+        names = []
+        for t in tools[:8]:
+            if isinstance(t, dict):
+                names.append(str((t.get("function") or {}).get("name") or t.get("name") or t.get("type") or "?"))
+        n_files = 0
+        for m in msgs:
+            c = m.get("content")
+            if isinstance(c, list):
+                n_files += sum(1 for x in c if isinstance(x, dict) and x.get("type") in ("image_url", "input_image", "file"))
+        last_user = next((m for m in reversed(msgs) if m.get("role") == "user"), None)
+        last_txt = _msg_text(last_user.get("content")) if last_user else ""
+        roles = ",".join(str(m.get("role")) for m in msgs[-6:])
+        head = (f"{path} | model={raw.get('model') or '-'} | stream={bool(raw.get('stream'))} | msgs={len(msgs)} "
+                f"(last roles: {roles or '-'}) | tools={len(tools)}{(' [' + ', '.join(names) + ']') if names else ''} | images/files={n_files}")
+        return head + "\nlast user message:\n" + last_txt[:1500] + ("…" if len(last_txt) > 1500 else "")
+    except Exception as e:
+        return f"(could not summarize request: {e})"
+
+_SECRET_HDR = re.compile(r"authorization|cookie|token|secret|api[-_]?key|password", re.I)
+
+def _safe_headers(h) -> str:
+    """Request headers for the dashboard; secrets (Authorization, Cookie, keys…) are masked."""
+    out = []
+    for k, v in h.items():
+        if _SECRET_HDR.search(k):
+            scheme = v.split(" ", 1)[0] + " " if k.lower() == "authorization" and " " in v else ""
+            out.append(f"{k}: {scheme}***")
+        else:
+            out.append(f"{k}: {str(v)[:150]}")
+    return "\n".join(out)
+
+def _short_err(text: str, limit: int = 300) -> str:
+    """Pull the human message out of a Google / OpenAI style JSON error body."""
+    t = (text or "").strip()
+    try:
+        j = json.loads(t)
+        if isinstance(j, list) and j:
+            j = j[0]
+        e = j.get("error", j) if isinstance(j, dict) else {}
+        if isinstance(e, dict) and e.get("message"):
+            t = f"{e.get('status') or e.get('code') or ''} {e['message']}".strip()
+        elif isinstance(j, dict) and j.get("detail"):
+            t = str(j["detail"])
+    except Exception:
+        pass
+    return re.sub(r"\s+", " ", t)[:limit]
+
+def _why(status: int, err_text: str, model: str = "") -> str:
+    """Plain-language reason for an upstream HTTP status."""
+    e = (err_text or "").lower()
+    if status == 404:
+        if "no longer available" in e or "not found" in e:
+            return f"404: model '{model}' does not exist / was retired / wrong model name (or not available to this key)"
+        return "404: endpoint or model not found"
+    if status == 429:
+        return "429: quota / rate limit (per-minute RPM or per-day RPD)"
+    if status == 400:
+        return "400: Google rejected the request body (bad/unsupported field, bad message shape, or content blocked)"
+    if status == 401:
+        return "401: API key invalid or missing"
+    if status == 403:
+        return "403: key has no permission for this model, is revoked, or is quota-blocked"
+    if status == 413:
+        return "413: request too large"
+    if status in (500, 503):
+        return f"{status}: Google server overloaded / temporary error"
+    return f"{status}: unexpected upstream status"
+
+# ─── WebAI fallback (cookie based /api/web/v1) — LAST RESORT only ────────────
+# Every request always tries the Gemini key pool FIRST. Only when the pool
+# cannot serve it (all keys cooling down for longer than FALLBACK_MAX_WAIT,
+# daily-exhausted, or every attempt failed) is the request answered by
+# WebAI-to-API. No state is kept: the very next request starts with the keys
+# again, so as soon as a key wakes up it is used first.
+# Model: always a "lite" model when WebAI offers one (auto-detected from
+# WebAI's /v1/models), otherwise WEBAI_FALLBACK_MODEL, otherwise WebAI's first.
+WEBAI_FALLBACK = os.environ.get("WEBAI_FALLBACK", "1") != "0"
+WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
+FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
+_webai_sem = threading.BoundedSemaphore(int(os.environ.get("WEBAI_FALLBACK_CONCURRENCY", "2")))
+_webai_model_cache = {"model": None, "ts": 0.0}
+
+def _webai_pick_model():
+    now = time.time()
+    if _webai_model_cache["model"] and now - _webai_model_cache["ts"] < 600:
+        return _webai_model_cache["model"]
+    model = None
+    try:
+        r = requests.get(WEBAI_URL + "/v1/models", timeout=8)
+        if r.status_code == 200:
+            ids = [m.get("id") for m in (r.json().get("data") or []) if isinstance(m, dict) and m.get("id")]
+            lite = [i for i in ids if "lite" in i.lower()]
+            if lite:
+                model = next((i for i in lite if "flash" in i.lower()), lite[0])
+            elif ids:
+                model = WEBAI_FALLBACK_MODEL if WEBAI_FALLBACK_MODEL in ids else ids[0]
+    except Exception as e:
+        print(f"[WEBAI FALLBACK] model list failed: {e}")
+    model = model or WEBAI_FALLBACK_MODEL or None
+    if model:
+        _webai_model_cache.update(model=model, ts=now)
+    return model
+
+def _webai_fix_links(raw: bytes) -> bytes:
+    proto = request.headers.get("X-Forwarded-Proto", "https").split(",")[0].strip() or "https"
+    base = f"{proto}://{request.host}{WEBAPI_PREFIX}"
+    return (raw.replace(b'"/v1/artifacts/fetch?', ('"' + base + '/artifacts/fetch?').encode())
+               .replace(b'](/v1/artifacts/fetch?', ('](' + base + '/artifacts/fetch?').encode()))
+
+def chat_completion_sse(cj: dict):
+    ch = (cj.get("choices") or [{}])[0]
+    msg = ch.get("message") or {}
+    base = {"id": cj.get("id"), "object": "chat.completion.chunk", "created": cj.get("created"), "model": cj.get("model")}
+    yield "data: " + json.dumps({**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": msg.get("content") or ""}, "finish_reason": None}]}) + "\n\n"
+    yield "data: " + json.dumps({**base, "choices": [{"index": 0, "delta": {}, "finish_reason": ch.get("finish_reason") or "stop"}]}) + "\n\n"
+    yield "data: [DONE]\n\n"
+
+def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: bool):
+    """Returns (flask_response_or_None, info). info = model name on success, else the reason it was not used."""
+    if not WEBAI_FALLBACK:
+        return None, "web fallback is OFF (WEBAI_FALLBACK=0)"
+    if data.get("tools") or _is_tool_continuation(data.get("messages") or []):
+        return None, "web fallback skipped: tool-calling request (WebAI has no tool support)"
+    model = _webai_pick_model()
+    msgs = []
+    for m in data.get("messages") or []:
+        if not isinstance(m, dict):
+            continue
+        role = "system" if m.get("role") == "developer" else m.get("role")
+        c = m.get("content")
+        msgs.append({"role": role, "content": "" if c is None else c})
+    body = {"messages": msgs, "stream": False}
+    if model:
+        body["model"] = model
+    raw = _webapi_fix_body(json.dumps(body, ensure_ascii=False).encode("utf-8"))
+    if not _webai_sem.acquire(timeout=30):
+        return None, "web fallback skipped: WebAI busy (concurrency limit reached for 30s)"
+    try:
+        up = requests.post(WEBAI_URL + "/v1/chat/completions", data=raw,
+                           headers={"Content-Type": "application/json"}, timeout=(10, 600))
+    except Exception as e:
+        return None, f"web fallback failed: WebAI unreachable at {WEBAI_URL} ({str(e)[:150]}) - not running or cookies missing?"
+    finally:
+        _webai_sem.release()
+    if up.status_code != 200:
+        return None, f"web fallback failed: WebAI HTTP {up.status_code} (model={model}): {_short_err(up.text, 250)}"
+    try:
+        cj = json.loads(_webai_fix_links(up.content).decode("utf-8", "replace"))
+    except Exception:
+        return None, "web fallback failed: WebAI returned a non-JSON answer"
+    msg = ((cj.get("choices") or [{}])[0].get("message")) or {}
+    if not (msg.get("content") or msg.get("tool_calls")):
+        return None, f"web fallback failed: WebAI returned an empty answer (model={model})"
+    actual = cj.get("model") or model or "webai"
+    if is_responses_api:
+        rj = chat_completion_to_responses_json(cj, actual)
+        resp = Response(responses_sse_stream(rj), mimetype="text/event-stream") if client_stream_requested else jsonify(rj)
+    elif client_stream_requested:
+        resp = Response(chat_completion_sse(cj), mimetype="text/event-stream")
+    else:
+        resp = jsonify(cj)
+    return resp, actual
 
 # ─── Main Proxy ───────────────────────────────────────────────────────────────
 @app.route('/v1/chat/completions', methods=['POST', 'OPTIONS'])
@@ -1547,6 +1749,9 @@ def proxy_chat():
         metrics["total_incoming_requests"] += 1
 
     data = request.json or {}
+    if hasattr(g, "log_entry"):
+        g.log_entry["request"] = _req_snapshot(data, request.path) + "\nheaders:\n" + _safe_headers(request.headers)
+        g.log_entry["route"] = f"Gemini key pool ({request.path})"
     # Capture a conversation id BEFORE popping these -- session_id/user are
     # the clearest hints a client can give us; we fall back to the caller's
     # IP otherwise (see _client_id_from_request).
@@ -1625,6 +1830,7 @@ def proxy_chat():
                     if hasattr(g, "log_entry"):
                         g.log_entry["status"] = f"200 Success ({actual_model})"
                         g.log_entry["model"] = actual_model
+                        g.log_entry["route"] = "Gemini key …" + key[-4:] + " (sticky tool-continuation)" + " → " + actual_model
                     with state_lock:
                         metrics["successful_api_calls"] += 1
                         _record_rpd_success(key, actual_model)
@@ -1651,6 +1857,10 @@ def proxy_chat():
     # about to free up rather than giving up on it).
     pool_size = len(API_KEYS) * max(1, len(MODELS))
     max_attempts = pool_size * 3 + 6
+    # With the WebAI fallback available we never sit for long waiting on keys:
+    # only a very short wait (keys first), then the fallback answers.
+    fb_ok = WEBAI_FALLBACK and not is_continuation and not data.get("tools")
+    max_wait = FALLBACK_MAX_WAIT if fb_ok else 65
 
     for attempt in range(max_attempts):
         # Atomic: pick a viable (key, model) AND reserve it in one lock
@@ -1696,15 +1906,17 @@ def proxy_chat():
             if not any_waitable:
                 # Every remaining combo is permanently dead for today.
                 print("[EXHAUSTED] All key×model combos are daily-exhausted or broken.")
+                attempt_errors.append("pool: every key×model is daily-exhausted / broken for today (resets midnight IST)")
                 break
 
             # At least one slot is coming back — sleep until the soonest one.
             wait_secs = min(waits) + 0.2 if waits else 2.0
-            if wait_secs > 65:
+            if wait_secs > max_wait:
                 # Cooldown/window is too far away — not worth blocking the
                 # HTTP request this long. Return 429 now so the caller can
                 # retry; the next call will likely find a fresh slot.
-                print(f"[WAIT TOO LONG] Soonest slot in {wait_secs:.0f}s — returning 429 now.")
+                print(f"[WAIT TOO LONG] Soonest slot in {wait_secs:.0f}s — giving up on keys for this request.")
+                attempt_errors.append(f"pool: all key×model slots cooling down (RPM/429), soonest free in {wait_secs:.0f}s")
                 break
             print(f"[WAIT] All slots RPM-busy, sleeping {wait_secs:.1f}s for next available slot...")
             time.sleep(wait_secs)
@@ -1737,6 +1949,7 @@ def proxy_chat():
                 if hasattr(g, "log_entry"):
                     g.log_entry["status"] = f"200 Success ({actual_model})"
                     g.log_entry["model"] = actual_model
+                    g.log_entry["route"] = "Gemini key …" + key[-4:] + " (round-robin pool)" + " → " + actual_model
                 with state_lock:
                     metrics["successful_api_calls"] += 1
                     _record_rpd_success(key, actual_model)
@@ -1769,7 +1982,7 @@ def proxy_chat():
                         # after which it's fair game again on a later pass.
 
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
-                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit — {err_text[:150]}")
+                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit | {_short_err(err_text, 220)}")
                 continue  # instantly retry with the next best slot
 
             elif resp.status_code in [500, 503]:
@@ -1851,7 +2064,7 @@ def proxy_chat():
                                            f"-> permanently disabled for this key")
                 else:
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
-                    attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text[:150]}")
+                    attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {_why(resp.status_code, err_text, actual_model)} | {_short_err(err_text, 220)}")
                     # The same 400 on two different slots means the REQUEST itself is wrong, not the key/model:
                     # return it to the client now instead of trying every key x model x 3 passes (that used to be ~60 calls).
                     if resp.status_code == 400:
@@ -1873,7 +2086,7 @@ def proxy_chat():
                 except: pass
                 if hasattr(g, "log_entry"):
                     g.log_entry["error_detail"] = (
-                        f"{resp.status_code} {actual_model} (…{key[-4:]}): {err_text}"
+                        f"{resp.status_code} {actual_model} (…{key[-4:]}): {_why(resp.status_code, err_text, actual_model)} | {_short_err(err_text, 300)}"
                         + (f" | earlier attempts: {' || '.join(attempt_errors[-4:])}" if attempt_errors else "")
                     )
                 excluded = ['content-encoding','content-length','transfer-encoding','connection']
@@ -1894,13 +2107,30 @@ def proxy_chat():
                     _apply_rpm_cooldown(key, actual_model, seconds=20)
             continue
 
-    # Every key×model combo was tried (or the pool is genuinely exhausted).
+    # Every key×model combo was tried (or the pool is genuinely exhausted / cooling down).
+    # LAST RESORT: answer through WebAI (cookies). Keys were tried first, always.
+    keys_report = " || ".join(attempt_errors[-6:]) if attempt_errors else "no key/model combo was usable (pool empty?)"
+    fb_resp, fb_info = webai_fallback(data, is_responses_api, client_stream_requested)
+    if fb_resp is not None:
+        with state_lock:
+            metrics["webai_fallback_calls"] = metrics.get("webai_fallback_calls", 0) + 1
+        if hasattr(g, "log_entry"):
+            g.log_entry["status"] = f"200 Success (web fallback: {fb_info})"
+            g.log_entry["model"] = f"web:{fb_info}"
+            g.log_entry["route"] = f"Gemini keys FAILED → WebAI fallback ({WEBAI_URL}/v1/chat/completions, model {fb_info})"
+            g.log_entry["error_detail"] = f"Gemini keys could not serve this -> answered by WebAI ({fb_info}). Why keys failed: {keys_report}"
+            g.log_entry["attempts"] = attempt_errors[-20:]
+        print(f"[WEBAI FALLBACK] served by {fb_info}")
+        return fb_resp
+
     with state_lock:
         metrics["failed_requests"] += 1
 
-    error_summary = " || ".join(attempt_errors[-6:]) if attempt_errors else "no combo was tried (pool empty?)"
+    error_summary = keys_report
     if hasattr(g, "log_entry"):
-        g.log_entry["error_detail"] = f"exhausted after {len(attempt_errors)} attempt(s): {error_summary}"
+        g.log_entry["error_detail"] = f"exhausted after {len(attempt_errors)} attempt(s): {error_summary} || {fb_info}"
+        g.log_entry["attempts"] = attempt_errors[-20:] + [fb_info]
+        g.log_entry["route"] = "Gemini key pool → all failed; WebAI fallback NOT used"
 
     if last_resp is not None:
         excluded = ['content-encoding','content-length','transfer-encoding','connection']
@@ -1910,7 +2140,8 @@ def proxy_chat():
     return jsonify({
         "error": {
             "message": "All API keys and models are exhausted. Daily limits may have been reached. Resets at midnight IST.",
-            "type": "rate_limit_error"
+            "type": "rate_limit_error",
+            "details": attempt_errors[-6:] + [fb_info]
         }
     }), 429
 
@@ -2154,11 +2385,6 @@ def webapi_proxy(sub):
             "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"}
     if request.method == 'OPTIONS':
         return Response(status=200, headers=cors)
-    if not _webapi_authorized():
-        if "text/html" in request.headers.get("Accept", ""):
-            return Response('Login Required', 401,
-                {'WWW-Authenticate': 'Basic realm="Web API (password field = your API PASSWORD)"'})
-        return jsonify({"error": "Unauthorized Access. Invalid Password."}), 401
 
     sub = sub.strip("/")
     if sub == "":
@@ -2166,6 +2392,56 @@ def webapi_proxy(sub):
     first = sub.split("/", 1)[0]
     upstream_path = "/" + sub if first in _WEBAPI_ROOT_PATHS else "/v1/" + sub
     url = WEBAI_URL + upstream_path
+    _is_chat = request.method == "POST" and sub.endswith("chat/completions")
+    # Dashboard pages/assets (GET ui/*) are not logged (they poll constantly); every API route is.
+    _log_it = not (request.method == "GET" and first in ("ui", "favicon.ico"))
+
+    def _start_log(authorized: bool):
+        raw_bytes = request.get_data()
+        g._log_start = time.monotonic()
+        model = None
+        if _is_chat:
+            raw_json = request.get_json(silent=True) or {}
+            model = raw_json.get("model")
+            snap = _req_snapshot(raw_json, request.path)
+            last = snap.split("last user message:\n", 1)[-1]
+            msg = f"{last[0]}...{last[-1]}" if len(last) > 1 else last
+        else:
+            if first == "ui":
+                snap = "body: (hidden - dashboard / cookie page)"
+            elif raw_bytes:
+                txt = raw_bytes[:800].decode("utf-8", "replace")
+                snap = "body:\n" + txt + ("…" if len(raw_bytes) > 800 else "")
+            else:
+                snap = "body: (empty)"
+            msg = f"{request.method} /{sub}"
+        qs = request.full_path.rstrip("?")
+        entry = {
+            "time": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
+            "ip": request.headers.get("Cf-Connecting-Ip", request.headers.get("X-Forwarded-For", request.remote_addr)),
+            "path": request.path,
+            "password_used": "*** HIDDEN (CORRECT) ***" if authorized else request.headers.get("Authorization", ""),
+            "is_correct": authorized, "message": msg, "model": model, "response_ms": None,
+            "error_detail": None, "status": "Pending...",
+            "route": f"WebAI direct ({request.method} {qs} → {url})",
+            "request": f"{request.method} {qs} -> upstream {url}\n{snap}\nheaders:\n{_safe_headers(request.headers)}",
+        }
+        g.log_entry = entry
+        request_logs.appendleft(entry)
+
+    if not _webapi_authorized():
+        if _log_it and request.headers.get("Authorization"):   # browser's first no-credentials probe is not logged
+            _start_log(False)
+            g.log_entry["status"] = "401 Blocked"
+            g.log_entry["error_detail"] = "Invalid password for /api/web/v1"
+            g.log_entry["route"] = "Blocked at /api/web/v1 (wrong password)"
+        if "text/html" in request.headers.get("Accept", ""):
+            return Response('Login Required', 401,
+                {'WWW-Authenticate': 'Basic realm="Web API (password field = your API PASSWORD)"'})
+        return jsonify({"error": "Unauthorized Access. Invalid Password."}), 401
+
+    if _log_it:
+        _start_log(True)
 
     fwd_headers = {k: v for k, v in request.headers
                    if k.lower() not in _WEBAPI_HOP and k.lower() != "cookie"}
@@ -2179,6 +2455,8 @@ def webapi_proxy(sub):
                               headers=fwd_headers, stream=True, timeout=(10, 600),
                               allow_redirects=False)
     except Exception as e:
+        if hasattr(g, "log_entry"):
+            g.log_entry["error_detail"] = f"WebAI unreachable at {WEBAI_URL}: {str(e)[:200]} (WebAI not running / not installed / crashed?)"
         return jsonify({"error": {"message": f"WebAI-to-API unreachable at {WEBAI_URL}: {e}",
                                   "type": "upstream_unavailable"}}), 424
 
@@ -2199,6 +2477,21 @@ def webapi_proxy(sub):
         out_headers["X-Upstream-Status"] = str(up.status_code)
 
     ctype = up.headers.get("Content-Type", "").lower()
+    if hasattr(g, "log_entry") and status >= 400 and "event-stream" not in ctype:
+        try:
+            _eb = _short_err(up.content.decode("utf-8", "replace"), 400)
+        except Exception:
+            _eb = "(unreadable body)"
+        _hint = ""
+        if up.status_code == 404:
+            _hint = f" -> route '{upstream_path}' does not exist in WebAI (valid: chat/completions, models, ui, docs, health, translate ...)"
+        elif up.status_code == 422:
+            _hint = " -> WebAI rejected the request body shape (see message)"
+        elif up.status_code in (502, 503, 504):
+            _hint = " -> WebAI process is down or restarting"
+        elif up.status_code in (401, 403):
+            _hint = " -> Gemini web cookies expired / invalid (paste fresh cookies at /api/web/v1/ui/auth)"
+        g.log_entry["error_detail"] = f"WebAI HTTP {up.status_code} on {upstream_path}: {_eb}{_hint}"
     # artifact links (/v1/artifacts/fetch?...) -> absolute, working URLs under /api/web/v1
     _proto = request.headers.get("X-Forwarded-Proto", "https").split(",")[0].strip() or "https"
     _art_old = b'"/v1/artifacts/fetch?'
