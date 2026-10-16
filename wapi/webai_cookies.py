@@ -31,7 +31,7 @@ SYNC_SECONDS = max(10, int(os.environ.get("WEBAI_COOKIE_SYNC_SECONDS", "30")))
 
 HEAL_MIN_SECONDS = int(os.environ.get("WEBAI_HEAL_MIN_SECONDS", "180"))   # first self-heal wait, doubles each try (max 30 min)
 HEAL_MAX_ATTEMPTS = int(os.environ.get("WEBAI_HEAL_MAX_ATTEMPTS", "4"))   # then: "cookies expired, paste again"
-STALL_SECONDS = int(os.environ.get("WEBAI_ROTATION_STALL_SECONDS", "1800"))  # authenticated but no rotation this long -> warn
+STALL_SECONDS = int(os.environ.get("WEBAI_ROTATION_STALL_SECONDS", "900"))  # authenticated but no rotation this long -> warn
 
 PSID_NAME = "__Secure-1PSID"
 PSIDTS_NAME = "__Secure-1PSIDTS"
