@@ -94,7 +94,7 @@ class Inst:
         self.stall_restarts = 0
 
     # ── process control ──────────────────────────────────────────────────────
-    def start(self, doc):
+    def start(self, doc, seed_mode="auto"):
         os.makedirs(self.tmp, exist_ok=True)
         os.makedirs(os.path.join(self.dir, "runtime"), exist_ok=True)
         psid = doc.get("psid") if doc else ""
@@ -103,8 +103,10 @@ class Inst:
         seed = os.path.join(self.dir, "seed")
         shutil.rmtree(seed, ignore_errors=True)
         try:
-            if doc and wc.write_seed(doc, seed):
-                log(f"'{self.label}': continuing with the saved rotated cookie jar ({len(doc.get('jar') or [])} cookies)")
+            how = wc.write_seed(doc, seed, seed_mode) if doc else None
+            if how:
+                n = len((doc.get("jar") if how == "rotated" else doc.get("pastedJar")) or [])
+                log(f"'{self.label}': starting with the {how} cookie jar ({n} cookies)")
         except Exception as e:
             log(f"'{self.label}': could not restore cookie jar ({e}) - starting from the pasted cookies")
         env = dict(os.environ, TMPDIR=self.tmp, RUNTIME_DIR=os.path.join(self.dir, "runtime"),
@@ -152,7 +154,7 @@ class Inst:
         if wipe:
             shutil.rmtree(self.dir, ignore_errors=True)
 
-    def restart(self, doc, sync_first=False, drop_jar=False):
+    def restart(self, doc, sync_first=False, drop_jar=False, seed_mode="auto"):
         """drop_jar: self-heal restart. The saved rotated jar is what produced the unauthenticated session, so do NOT
         seed it again: forget it and start from the newest auth cookies (__Secure-1PSID / __Secure-1PSIDTS) only."""
         if sync_first and not self.guest:
@@ -169,7 +171,7 @@ class Inst:
             except Exception as e:
                 log(f"could not drop saved cookie jar of {self.id}: {e}")
         self.stop()
-        self.start(doc)
+        self.start(doc, seed_mode)
 
 
 class Supervisor:
@@ -307,7 +309,8 @@ class Supervisor:
                 log(f"'{inst.label}' authenticated but no cookie rotation for {int(idle // 60)} min -> "
                     f"restart #{inst.stall_restarts} (refresh loop is dead)")
                 save()
-                return inst.restart(doc, sync_first=True, drop_jar=inst.stall_restarts > 1)
+                return inst.restart(doc, sync_first=True, drop_jar=inst.stall_restarts > 1,
+                                    seed_mode="auto" if inst.stall_restarts == 1 else "none")
             return save()
 
         inst.ok_since = None
@@ -331,7 +334,8 @@ class Supervisor:
         log(f"'{inst.label}' status={status} -> self-heal restart #{attempts + 1}")
         sets.update(lastHealAt=now, healAttempts=attempts + 1)
         save()
-        inst.restart(doc, sync_first=True, drop_jar=True)
+        # ladder: heal #1 = full pasted jar with the newest 1PSIDTS, heal #2+ = only the two auth cookies
+        inst.restart(doc, sync_first=True, drop_jar=True, seed_mode="pasted" if attempts == 0 else "none")
 
     # ── publish for the router ───────────────────────────────────────────────
     def publish(self):

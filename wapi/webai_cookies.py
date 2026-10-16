@@ -20,7 +20,7 @@ instance's private cache dir back into MongoDB, so a redeploy always starts from
 CLI:
     python3 webai_cookies.py sync     # copy rotated cookies of all accounts -> DB (used on shutdown)
 """
-import os, re, sys, json, glob, time, secrets, datetime, threading
+import os, re, sys, json, glob, time, secrets, datetime, threading, hashlib
 
 COLLECTION = "webai_cookies"
 LEGACY_ID = "gemini"                      # the single account of the pre-multi-account version
@@ -118,6 +118,38 @@ def _parse_netscape(text):
     return out
 
 
+def _parse_expires(v):
+    """DevTools shows ISO text or 'Session'; Cookie-Editor gives a number. -> epoch seconds (0 = session cookie)."""
+    v = str(v or "").strip()
+    if not v or v.lower() == "session":
+        return 0.0
+    try:
+        return float(v)
+    except ValueError:
+        pass
+    try:
+        return datetime.datetime.fromisoformat(v.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+def _looks_netscape(text):
+    return any(len(l.split("\t")) >= 7 and l.split("\t")[1].strip().upper() in ("TRUE", "FALSE")
+               for l in text.splitlines() if l.strip())
+
+
+def _parse_devtools(text):
+    """Rows copied from Chrome/Edge DevTools -> Application -> Cookies:
+    name <TAB> value <TAB> domain <TAB> path <TAB> expires <TAB> size <TAB> HttpOnly <TAB> Secure ..."""
+    out = []
+    for line in text.splitlines():
+        f = line.rstrip("\r\n").split("\t")
+        if len(f) >= 4 and f[0].strip() and f[3].strip().startswith("/"):
+            out.append({"name": f[0].strip(), "value": f[1].strip(), "domain": f[2].strip(), "path": f[3].strip(),
+                        "expires": _parse_expires(f[4]) if len(f) > 4 else 0.0})
+    return out
+
+
 def _flatten(payload):
     """Anything a cookie export can look like -> list of {name, value, domain?, expires?}."""
     if isinstance(payload, str):
@@ -127,7 +159,9 @@ def _flatten(payload):
         try:
             payload = json.loads(s)
         except ValueError:
-            return _parse_netscape(s) if "\t" in s else _parse_header(s)
+            if "\t" in s:
+                return _parse_netscape(s) if _looks_netscape(s) else (_parse_devtools(s) or _parse_netscape(s))
+            return _parse_header(s)
         if isinstance(payload, str):  # JSON-encoded string
             return _parse_header(payload)
     if isinstance(payload, dict):
@@ -186,13 +220,52 @@ def extract_cookies(payload):
     return psid, psidts
 
 
+_SKIP_COOKIE = re.compile(r"^(_ga|_gcl|_gid|_fbp|_gat)", re.I)       # analytics noise, never needed for login
+
+
+def build_jar(cookies, psid, psidts, now):
+    """All Google cookies of the paste (a browser-like jar), in the format gemini-webapi's cookie cache uses.
+    The two auth cookies are always present with the values extract_cookies picked."""
+    seen = {}
+    for c in cookies:
+        name, val = c.get("name"), c.get("value")
+        if not name or not isinstance(val, str) or not val.strip() or _SKIP_COOKIE.match(name):
+            continue
+        if not _is_google_domain(c.get("domain")):
+            continue
+        val = val.strip().strip('"').strip("'")
+        if not re.match(r"^[\x21-\x7e]{1,4096}$", val):
+            continue
+        exp = c.get("expirationDate", c.get("expires"))
+        exp = float(exp) if isinstance(exp, (int, float)) else _parse_expires(exp)
+        if 0 < exp <= now:
+            continue
+        domain = str(c.get("domain") or ".google.com").strip() or ".google.com"
+        if not domain.startswith(".") and domain.count(".") == 1:        # "google.com" -> ".google.com"
+            domain = "." + domain
+        path = str(c.get("path") or "/")
+        seen[(name, domain, path)] = {"name": name, "value": val, "domain": domain, "path": path,
+                                      "expires": exp if exp > 0 else None}
+    jar = [v for v in seen.values() if v["name"] not in (PSID_NAME, PSIDTS_NAME)]
+    for n, v in ((PSID_NAME, psid), (PSIDTS_NAME, psidts)):
+        if v:
+            jar.append({"name": n, "value": v, "domain": ".google.com", "path": "/", "expires": None})
+    return jar[:80]
+
+
+def extract_full(payload):
+    """-> (psid, psidts or None, jar). Same checks as extract_cookies, plus the whole cookie jar of the paste."""
+    psid, psidts = extract_cookies(payload)
+    return psid, psidts, build_jar(_flatten(payload), psid, psidts, time.time())
+
+
 # ─── Save / change / remove accounts ──────────────────────────────────────────
 def _clean_label(label):
     label = re.sub(r"\s+", " ", str(label or "")).strip()[:40]
     return label or None
 
 
-def save_pasted(psid, psidts, label=None, doc_id=None):
+def save_pasted(psid, psidts, label=None, doc_id=None, jar=None):
     """Add a new account or replace the cookies of an existing one.
     -> (doc_id, "added" | "updated").  Raises ValueError when the account limit is reached."""
     c = _coll()
@@ -201,6 +274,12 @@ def save_pasted(psid, psidts, label=None, doc_id=None):
         raise ValueError("account id sapadla nahi")
     if existing is None:
         existing = c.find_one({"psid": psid})                  # same Google account pasted again -> update it
+    if existing is not None:                                   # same Google session in two accounts = they invalidate each other
+        clash = c.find_one({"psid": psid, "_id": {"$ne": existing["_id"]}})
+        if clash:
+            raise ValueError(f"Ha Google session (__Secure-1PSID) '{clash.get('label') or clash['_id']}' account madhe aadhich aahe. "
+                             "Don accounts madhe same session vaparlyas te ek-mekanche cookies invalidate kartat. "
+                             "Vegla Google account cha cookies paste kara.")
     now = _now()
     if existing is None:
         if c.count_documents({}) >= MAX_ACCOUNTS:
@@ -224,6 +303,7 @@ def save_pasted(psid, psidts, label=None, doc_id=None):
         "lastRotationAt": None, "rotationCount": 0,
         "lastStatus": None, "lastStatusAt": None,
         "healAttempts": 0, "lastHealAt": None, "needsRepaste": False, "okSinceEpoch": None,
+        "pastedJar": jar or None, "pastedJarPsid": psid if jar else None, "alerted": False,
     }, upsert=True)
     return doc_id, action
 
@@ -303,20 +383,35 @@ def _slim_jar(cookies):
     return [{k: c.get(k) for k in keep if k in c} for c in cookies if isinstance(c, dict) and c.get("name")][:60]
 
 
-def write_seed(doc, seed_dir):
-    """Put the saved cookie jar where the patched WebAI picks it up at start (WEBAI_COOKIE_SEED_DIR), so a restart
-    continues the rotated session instead of starting again from the two pasted cookies.
-    Only used when the jar belongs to the account's current __Secure-1PSID and was saved after the last paste."""
-    jar = doc.get("jar")
-    if not jar or doc.get("jarPsid") != doc.get("psid") or float(doc.get("cacheMtime") or 0) <= float(doc.get("pastedAtEpoch") or 0):
-        return False
+def write_seed(doc, seed_dir, mode="auto"):
+    """Put a cookie jar where the patched WebAI picks it up at start (WEBAI_COOKIE_SEED_DIR), so the account starts
+    like a browser that still has its cookies instead of from just two values.
+
+      "auto"   rotated jar saved after the last paste (continues the live session), else the full pasted jar
+      "pasted" the full pasted jar, but with the newest __Secure-1PSIDTS from the DB  (self-heal step 1)
+      "none"   nothing: only __Secure-1PSID / __Secure-1PSIDTS are used                (self-heal step 2)
+    Returns "rotated" | "pasted" | None."""
+    if mode == "none":
+        return None
+    jar, how, mtime = None, None, None
+    rotated_ok = (doc.get("jar") and doc.get("jarPsid") == doc.get("psid")
+                  and float(doc.get("cacheMtime") or 0) > float(doc.get("pastedAtEpoch") or 0))
+    if mode == "auto" and rotated_ok:
+        jar, how, mtime = doc["jar"], "rotated", float(doc["cacheMtime"])       # keep the rotation time -> no fake "rotation"
+    elif doc.get("pastedJar") and doc.get("pastedJarPsid") == doc.get("psid"):
+        jar, how, mtime = [dict(c) for c in doc["pastedJar"]], "pasted", float(doc.get("pastedAtEpoch") or 0)
+        for c in jar:                                           # newest rotated auth-ts instead of the pasted one
+            if c.get("name") == PSIDTS_NAME and doc.get("psidts"):
+                c["value"] = doc["psidts"]
+    if not jar:
+        return None
     os.makedirs(seed_dir, exist_ok=True)
     path = os.path.join(seed_dir, f".cached_cookies_{doc['psid']}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(jar, f)
     os.chmod(path, 0o600)
-    os.utime(path, (doc["cacheMtime"], doc["cacheMtime"]))      # keep the rotation time -> no fake "rotation" is counted
-    return True
+    os.utime(path, (mtime, mtime))
+    return how
 
 
 def sync_from_cache(doc_id, tmp_root=None):
@@ -423,6 +518,9 @@ def register(app, authorized, prefix, webai_url):
         inst, updated = _pool_file_state()
         live = webai_pool.get_pool().snapshot()
         out["supervisor_updated"] = updated
+        owner = {}
+        for d in docs:
+            owner.setdefault(d["psid"], d.get("label") or d["_id"])
         for d in docs:
             i = inst.get(d["_id"], {})
             lv = live.get(d["_id"], {})
@@ -434,6 +532,9 @@ def register(app, authorized, prefix, webai_url):
             out["accounts"].append({
                 "id": d["_id"], "label": d.get("label") or d["_id"], "enabled": d.get("enabled", True),
                 "psid": _mask(d["psid"]), "psidts": _mask(d.get("psidts")), "has_psidts": bool(d.get("psidts")),
+                "jar_cookies": len(d.get("jar") or d.get("pastedJar") or []),
+                "fingerprint": hashlib.sha1(d["psid"].encode()).hexdigest()[:8],
+                "same_session_as": owner[d["psid"]] if owner[d["psid"]] != (d.get("label") or d["_id"]) else None,
                 "pasted_at": _iso(d.get("pastedAt")), "refreshed_at": _iso(d.get("refreshedAt")),
                 "refresh_count": d.get("refreshCount", 0), "last_rotation_at": _iso(d.get("lastRotationAt")),
                 "rotation_count": d.get("rotationCount", 0), "last_status": d.get("lastStatus"),
@@ -483,12 +584,12 @@ def register(app, authorized, prefix, webai_url):
             if len(raw) > 2_000_000:
                 return jsonify({"error": "payload too large"}), 413
             try:
-                psid, psidts = extract_cookies(raw)
-                new_id, action = save_pasted(psid, psidts, label=request.args.get("label"), doc_id=acc_id)
+                psid, psidts, jar = extract_full(raw)
+                new_id, action = save_pasted(psid, psidts, label=request.args.get("label"), doc_id=acc_id, jar=jar)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             return jsonify({"ok": True, "id": new_id, "action": action, "psid": _mask(psid),
-                            "psidts": _mask(psidts), "has_psidts": bool(psidts)})
+                            "psidts": _mask(psidts), "has_psidts": bool(psidts), "cookies": len(jar)})
         except Exception as e:
             return jsonify({"error": f"DB error: {e}"}), 500
 
@@ -536,10 +637,10 @@ button.d{background:transparent;color:var(--bad);border:1px solid var(--bad)}but
 <div class="card">
   <h2 id="ft">Add account</h2>
   <input type="text" id="lb" maxlength="40" placeholder="Name (optional) - e.g. Rahul account">
-  <textarea id="j" spellcheck="false" placeholder='gemini.google.com la login karun Cookie-Editor &rarr; Export &rarr; JSON paste kara&#10;[{"name":"__Secure-1PSID","value":"…","domain":".google.com", …}, …]'></textarea>
+  <textarea id="j" spellcheck="false" placeholder='Cookie-Editor JSON  KINVA  F12 &rarr; Application &rarr; Cookies madhle sarve rows copy karun paste kara&#10;(__Secure-1PSID, __Secure-1PSIDTS ani baki google.com cookies sarvach ghetlya jatat)'></textarea>
   <div class="bar"><button id="save">Save account</button><button id="cancel" class="s" style="display:none">Cancel replace</button></div>
   <div id="msg"></div>
-  <p><small>Fakt <code>__Secure-1PSID</code> ani <code>__Secure-1PSIDTS</code> ghetle jatat. Pratyek account sathi vegla Incognito window vapara, cookies export kara ani to window band kara; mhanje browser ani server ekmekanchi cookie rotate karnar nahit. Same account punha paste kelat tar to update hoto (duplicate hot nahi). Auto-refresh zalele values DB madhe apoap update hotat.</small></p>
+  <p><small>Paste madhle sarve <code>google.com</code> cookies (PSID, PSIDTS, PSIDCC, SID, APISID ...) browser sarkhe save hotat. Chalte: Cookie-Editor JSON, DevTools table cha copy (rows select &rarr; Ctrl+C), Netscape cookies.txt, kinva <code>name=value; name=value</code>. Pratyek account sathi vegla Incognito window vapara, cookies export kara ani to window band kara; mhanje browser ani server ekmekanchi cookie rotate karnar nahit. Same account punha paste kelat tar to update hoto (duplicate hot nahi). Auto-refresh zalele values DB madhe apoap update hotat.</small></p>
 </div>
 <script>
 const B="__BASE__/cookies", H={"X-Requested-With":"webai-auth"};
@@ -565,10 +666,11 @@ function render(s){
     <div class="row"><b>__Secure-1PSID</b><code>${esc(a.psid)}</code></div>
     <div class="row"><b>__Secure-1PSIDTS</b><code>${esc(a.psidts)}</code></div>
     <div class="row"><b>Requests now / served / failed</b><span>${a.in_flight} / ${a.served_ok} / ${a.failed}${a.cooldown_left?` <span class="warn">· cooldown ${a.cooldown_left}s</span>`:""}</span></div>
-    <div class="row"><b>Pasted</b><span>${when(a.pasted_at)}</span></div>
+    <div class="row"><b>Cookies saved (jar)</b><span>${a.jar_cookies||0} · id <code>${esc(a.fingerprint)}</code></span></div>\n    <div class="row"><b>Pasted</b><span>${when(a.pasted_at)}</span></div>
     <div class="row"><b>Last rotation (Google answered)</b><span>${when(a.last_rotation_at)} · ${a.rotation_count||0}×</span></div>
     <div class="row"><b>Health check</b><span class="${a.last_status==="AUTHENTICATED"?"ok":"bad"}">${esc(a.last_status)} <small>(${when(a.last_status_at)}${a.heal_attempts?` · self-heal ${a.heal_attempts}×`:""})</small></span></div>`+
     (a.needs_repaste?`<div class="row"><b class="bad">Cookies expired</b><span class="bad">Self-heal failed - gemini.google.com la punha login karun cookies paste kara.</span></div>`:"")+
+    (a.same_session_as?`<div class="row"><b class="bad">Same session</b><span class="bad">Ha '${esc(a.same_session_as)}' sarkhach Google session aahe - donhi ek-mekanche cookies invalidate kartat. Vegla account cha cookies paste kara.</span></div>`:"")+
     (a.rotation_stalled?`<div class="row"><b class="bad">Auto-refresh stalled</b><span class="bad">Authenticated aahe pan rotation zala nahi.</span></div>`:"")+
     `<div class="bar"><button class="s" data-a="replace" data-id="${esc(a.id)}">Replace cookies</button>
      <button class="s" data-a="toggle" data-id="${esc(a.id)}" data-en="${a.enabled?0:1}">${a.enabled?"Disable":"Enable"}</button>
@@ -600,7 +702,7 @@ $("save").onclick=async()=>{
   try{
     const q=target?`?id=${encodeURIComponent(target)}`:`?label=${encodeURIComponent($("lb").value)}`;
     const j=await api("POST",q,v);
-    say(j.action==="added"?"Account added. WebAI instance ~10s madhe suru hoil.":"Cookies updated. Instance restart hotoy (~10s).","ok");
+    say(j.action==="added"?`Account added (${j.cookies} cookies). ~10s madhe suru hoil.`:`Cookies updated (${j.cookies} cookies). Restart ~10s.`,"ok");
     $("j").value="";$("lb").value="";setTarget(null);await load();
   }catch(e){say(String(e.message||e),"bad")}
   finally{$("save").disabled=false}
