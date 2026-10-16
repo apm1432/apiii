@@ -29,12 +29,30 @@ STATUS_SECONDS = 10.0
 POOL_FILE = os.path.join(wc.POOL_DIR, "pool.json")
 PID_FILE = os.path.join(wc.POOL_DIR, "supervisor.pid")
 GUEST_ID = "guest"
+STALL_MAX_RESTARTS = int(os.environ.get("WEBAI_STALL_MAX_RESTARTS", "6"))
 
 _stop = threading.Event()
 
 
 def log(msg):
     print(f"[webai-pool] {msg}", flush=True)
+
+
+def tg_alert(text):
+    """Telegram message to the admin (same TELEGRAM_BOT_TOKENS / ADMIN_TG_ID the admin bot uses). Never raises."""
+    try:
+        import requests
+        clean = lambda v: (v or "").replace('"', "").replace("'", "").strip()
+        token = clean((os.environ.get("TELEGRAM_BOT_TOKENS") or "").split(",")[0])
+        chat = clean(os.environ.get("ADMIN_TG_ID"))
+        if not token or not chat:
+            return False
+        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                          json={"chat_id": chat, "text": text}, timeout=10)
+        return r.ok
+    except Exception as e:
+        log(f"telegram alert failed: {e}")
+        return False
 
 
 def _pdeathsig():
@@ -73,6 +91,7 @@ class Inst:
         # health bookkeeping (accounts only)
         self.bad = 0
         self.ok_since = None
+        self.stall_restarts = 0
 
     # ── process control ──────────────────────────────────────────────────────
     def start(self, doc):
@@ -274,7 +293,21 @@ class Supervisor:
             inst.bad = 0
             if inst.ok_since is None:
                 inst.ok_since = time.time()
-            sets.update(healAttempts=0, needsRepaste=False, okSinceEpoch=inst.ok_since)
+            sets.update(healAttempts=0, needsRepaste=False, okSinceEpoch=inst.ok_since, alerted=False)
+            # STALL_RESTART: gemini-webapi cancels its auto-refresh loop for good when Google rejects one rotation
+            # (AuthError) but keeps reporting AUTHENTICATED, so the cookie quietly ages out. Restarting the instance
+            # starts the refresh loop again. 1st try keeps the saved jar, later tries drop it. Max STALL_MAX_RESTARTS.
+            lr = wc._aware(doc.get("lastRotationAt"))
+            last_rot = lr.timestamp() if lr else 0.0
+            if last_rot > inst.ok_since:
+                inst.stall_restarts = 0                              # rotation works again
+            idle = time.time() - max(inst.ok_since, last_rot)
+            if idle > wc.STALL_SECONDS and inst.stall_restarts < STALL_MAX_RESTARTS:
+                inst.stall_restarts += 1
+                log(f"'{inst.label}' authenticated but no cookie rotation for {int(idle // 60)} min -> "
+                    f"restart #{inst.stall_restarts} (refresh loop is dead)")
+                save()
+                return inst.restart(doc, sync_first=True, drop_jar=inst.stall_restarts > 1)
             return save()
 
         inst.ok_since = None
@@ -283,6 +316,10 @@ class Supervisor:
         if inst.bad < 2 or doc.get("needsRepaste"):                # need 2 bad checks in a row (startup blips)
             return save()
         attempts = int(doc.get("healAttempts") or 0)
+        if attempts >= 1 and not doc.get("alerted"):               # 1st restart did not recover it -> tell the admin now
+            if tg_alert(f"⚠️ Gemini web account '{inst.label}' is logged out (status={status}). "
+                        f"Cookies were rejected by Google - paste fresh ones at /api/web/v1/ui/auth"):
+                sets["alerted"] = True
         if attempts >= wc.HEAL_MAX_ATTEMPTS:
             sets["needsRepaste"] = True
             log(f"cookies of '{inst.label}' look dead - paste fresh ones at /api/web/v1/ui/auth")
