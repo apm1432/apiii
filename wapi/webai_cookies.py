@@ -1,29 +1,34 @@
 """
-WebAI-to-API (Gemini web) cookie store.
+WebAI-to-API (Gemini web) cookie store -- MULTI ACCOUNT.
 
-* /api/web/v1/ui/auth        -> page where you paste the full cookie JSON
-* POST   .../ui/auth/cookies -> extract __Secure-1PSID / __Secure-1PSIDTS, save in MongoDB,
-                                write them to WebAI's config.conf and restart WebAI
-* DELETE .../ui/auth/cookies -> remove from DB + config, restart WebAI
-* GET    .../ui/auth/cookies -> status (masked values, last refresh, upstream auth state)
+Every saved account (a pair __Secure-1PSID / __Secure-1PSIDTS) is one document in the MongoDB collection
+`webai_cookies` and gets its OWN WebAI-to-API process (see wapi/webai_supervisor.py).  Requests are spread over
+all accounts by wapi/webai_pool.py, so no single Gemini account carries all the load.
 
-WebAI-to-API rotates __Secure-1PSIDTS in the background (auto_refresh) and keeps the rotated
-cookies in a private temp cache (/tmp/webai-gemini-*/.cached_cookies_<psid>.json).
-A background thread here copies the newest rotated values from that cache back into MongoDB,
-so a container restart / redeploy always starts from the latest cookies - no env vars needed.
+* /api/web/v1/ui/auth                  -> page: list accounts, add / replace / enable / disable / remove
+* GET    .../ui/auth/cookies           -> status of every account (masked values, health, in-flight requests)
+* POST   .../ui/auth/cookies           -> paste cookie JSON:  ?label=Name  (new account)
+                                          ?id=<account id>    (replace cookies of that account)
+                                          same __Secure-1PSID already saved -> that account is updated
+* PATCH  .../ui/auth/cookies?id=X&enabled=0|1&label=Name
+* DELETE .../ui/auth/cookies?id=X      (id=all removes every account)
 
-CLI (used by start.sh):
-    python3 webai_cookies.py apply   # sync newest rotated cookies -> DB, then DB -> config.conf
-    python3 webai_cookies.py sync    # only rotated cookies -> DB
+The supervisor polls MongoDB every few seconds, so a change is live ~3-10 s later without restarting anything else.
+WebAI-to-API rotates __Secure-1PSIDTS in the background; the supervisor copies the rotated values from each
+instance's private cache dir back into MongoDB, so a redeploy always starts from the newest cookies.
+
+CLI:
+    python3 webai_cookies.py sync     # copy rotated cookies of all accounts -> DB (used on shutdown)
 """
-import os, re, sys, json, glob, time, signal, shutil, tempfile, threading, datetime
+import os, re, sys, json, glob, time, secrets, datetime, threading
 
 COLLECTION = "webai_cookies"
-DOC_ID = "gemini"
-CONFIG_PATH = os.environ.get("WEBAI_CONFIG", "/opt/webai/config.conf")
+LEGACY_ID = "gemini"                      # the single account of the pre-multi-account version
+MAX_ACCOUNTS = max(1, int(os.environ.get("WEBAI_MAX_ACCOUNTS", "4")))
+POOL_DIR = os.environ.get("WEBAI_POOL_DIR", "/tmp/webai-pool")
+CONFIG_TEMPLATE = os.environ.get("WEBAI_CONFIG", "/opt/webai/config.conf")
 SYNC_SECONDS = max(10, int(os.environ.get("WEBAI_COOKIE_SYNC_SECONDS", "30")))
 
-WEBAI_URL = os.environ.get("WEBAI_URL", "http://127.0.0.1:6969").rstrip("/")
 HEAL_MIN_SECONDS = int(os.environ.get("WEBAI_HEAL_MIN_SECONDS", "180"))   # first self-heal wait, doubles each try (max 30 min)
 HEAL_MAX_ATTEMPTS = int(os.environ.get("WEBAI_HEAL_MAX_ATTEMPTS", "4"))   # then: "cookies expired, paste again"
 STALL_SECONDS = int(os.environ.get("WEBAI_ROTATION_STALL_SECONDS", "1800"))  # authenticated but no rotation this long -> warn
@@ -36,9 +41,17 @@ _coll_lock = threading.Lock()
 _sync_lock = threading.Lock()
 
 
+def instance_dir(doc_id):
+    return os.path.join(POOL_DIR, doc_id)
+
+
+def instance_tmp(doc_id):
+    return os.path.join(instance_dir(doc_id), "tmp")
+
+
 # ─── MongoDB ──────────────────────────────────────────────────────────────────
 def _coll():
-    """The single-document collection. Same database Node uses (MONGO_URI)."""
+    """One document per account. Same database Node uses (MONGO_URI)."""
     global _coll_cache
     with _coll_lock:
         if _coll_cache is None:
@@ -51,12 +64,19 @@ def _coll():
         return _coll_cache
 
 
-def get_doc():
-    return _coll().find_one({"_id": DOC_ID})
-
-
 def _now():
     return datetime.datetime.now(datetime.timezone.utc)
+
+
+def list_docs():
+    """All saved accounts, oldest first."""
+    docs = [d for d in _coll().find({}) if d.get("psid")]
+    docs.sort(key=lambda d: (float(d.get("createdAtEpoch") or d.get("pastedAtEpoch") or 0), str(d["_id"])))
+    return docs
+
+
+def get_doc(doc_id):
+    return _coll().find_one({"_id": doc_id})
 
 
 # ─── Parsing pasted cookies ───────────────────────────────────────────────────
@@ -166,21 +186,62 @@ def extract_cookies(payload):
     return psid, psidts
 
 
-# ─── Save / remove ────────────────────────────────────────────────────────────
-def save_pasted(psid, psidts):
+# ─── Save / change / remove accounts ──────────────────────────────────────────
+def _clean_label(label):
+    label = re.sub(r"\s+", " ", str(label or "")).strip()[:40]
+    return label or None
+
+
+def save_pasted(psid, psidts, label=None, doc_id=None):
+    """Add a new account or replace the cookies of an existing one.
+    -> (doc_id, "added" | "updated").  Raises ValueError when the account limit is reached."""
+    c = _coll()
+    existing = c.find_one({"_id": doc_id}) if doc_id else None
+    if doc_id and not existing:
+        raise ValueError("account id sapadla nahi")
+    if existing is None:
+        existing = c.find_one({"psid": psid})                  # same Google account pasted again -> update it
     now = _now()
-    _coll().replace_one({"_id": DOC_ID}, {
-        "_id": DOC_ID, "psid": psid, "psidts": psidts,
+    if existing is None:
+        if c.count_documents({}) >= MAX_ACCOUNTS:
+            raise ValueError(f"Max {MAX_ACCOUNTS} accounts (WEBAI_MAX_ACCOUNTS). Ekhada account remove kara kinva limit vadhva.")
+        doc_id = "acc-" + secrets.token_hex(4)
+        action = "added"
+        n = c.count_documents({}) + 1
+        label = _clean_label(label) or f"Account {n}"
+        enabled, created = True, time.time()
+    else:
+        doc_id = existing["_id"]
+        action = "updated"
+        label = _clean_label(label) or existing.get("label") or ("Account 1" if doc_id == LEGACY_ID else doc_id)
+        enabled = existing.get("enabled", True)
+        created = existing.get("createdAtEpoch") or existing.get("pastedAtEpoch") or time.time()
+    c.replace_one({"_id": doc_id}, {
+        "_id": doc_id, "label": label, "enabled": bool(enabled), "createdAtEpoch": created,
+        "psid": psid, "psidts": psidts,
         "pastedAt": now, "pastedAtEpoch": time.time(),
         "refreshedAt": None, "refreshCount": 0, "cacheMtime": 0.0, "updatedAt": now,
         "lastRotationAt": None, "rotationCount": 0,
         "lastStatus": None, "lastStatusAt": None,
-        "healAttempts": 0, "lastHealAt": None, "needsRepaste": False,
+        "healAttempts": 0, "lastHealAt": None, "needsRepaste": False, "okSinceEpoch": None,
     }, upsert=True)
+    return doc_id, action
 
 
-def delete_doc():
-    return _coll().delete_one({"_id": DOC_ID}).deleted_count
+def update_account(doc_id, enabled=None, label=None):
+    sets = {"updatedAt": _now()}
+    if enabled is not None:
+        sets["enabled"] = bool(enabled)
+    if label is not None:
+        sets["label"] = _clean_label(label) or doc_id
+    return _coll().update_one({"_id": doc_id}, {"$set": sets}).matched_count
+
+
+def delete_doc(doc_id=None):
+    """Remove one account (or every account when doc_id is None)."""
+    if doc_id is None:
+        return _coll().delete_many({}).deleted_count
+    return _coll().delete_one({"_id": doc_id}).deleted_count
 
 
 # ─── WebAI config.conf ────────────────────────────────────────────────────────
@@ -195,39 +256,28 @@ def _set_key(text, key, value):
     return text.rstrip("\n") + f"\n\n[Gemini]\n{line}\n"
 
 
-def write_config(psid, psidts, path=None):
-    path = path or CONFIG_PATH
+def write_config(psid, psidts, path, base=None):
+    """Write an instance's config.conf: the template (WebAI's own defaults) + this account's cookies."""
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(base or CONFIG_TEMPLATE, encoding="utf-8") as f:
             s = f.read()
     except FileNotFoundError:
         s = ""
     s = _set_key(s, PSID_NAME, psid)
     s = _set_key(s, PSIDTS_NAME, psidts)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(s)
     os.replace(tmp, path)
 
 
-def apply_to_config():
-    doc = get_doc()
-    if doc and doc.get("psid"):
-        write_config(doc["psid"], doc.get("psidts"))
-        return True
-    write_config("", "")
-    return False
-
-
 # ─── Rotated cookies (WebAI cache) -> DB ──────────────────────────────────────
-def _cache_dirs():
-    return glob.glob(os.path.join(tempfile.gettempdir(), "webai-gemini-*"))
-
-
-def newest_cache():
-    """(psid, psidts, mtime) of the most recently written rotated-cookie cache, else None."""
+def newest_cache(tmp_root):
+    """(psid, psidts, mtime, cookies) of the most recently written rotated-cookie cache under tmp_root, else None.
+    `cookies` is the library's whole cached jar (every non-expired google.com cookie), not just the two auth cookies."""
     best = None
-    for d in _cache_dirs():
+    for d in glob.glob(os.path.join(tmp_root, "webai-gemini-*")):
         for p in glob.glob(os.path.join(d, ".cached_cookies_*.json")):
             try:
                 m = os.stat(p).st_mtime
@@ -245,28 +295,49 @@ def newest_cache():
         psid, psidts = _pick(cookies, PSID_NAME, now), _pick(cookies, PSIDTS_NAME, now)
     except (OSError, ValueError):
         return None
-    return (psid, psidts, best[0]) if psid else None
+    return (psid, psidts, best[0], cookies) if psid else None
 
 
-def sync_from_cache():
-    """Copy rotated cookies into the DB. Never creates a doc (removed stays removed).
+def _slim_jar(cookies):
+    keep = ("name", "value", "domain", "path", "expires")
+    return [{k: c.get(k) for k in keep if k in c} for c in cookies if isinstance(c, dict) and c.get("name")][:60]
+
+
+def write_seed(doc, seed_dir):
+    """Put the saved cookie jar where the patched WebAI picks it up at start (WEBAI_COOKIE_SEED_DIR), so a restart
+    continues the rotated session instead of starting again from the two pasted cookies.
+    Only used when the jar belongs to the account's current __Secure-1PSID and was saved after the last paste."""
+    jar = doc.get("jar")
+    if not jar or doc.get("jarPsid") != doc.get("psid") or float(doc.get("cacheMtime") or 0) <= float(doc.get("pastedAtEpoch") or 0):
+        return False
+    os.makedirs(seed_dir, exist_ok=True)
+    path = os.path.join(seed_dir, f".cached_cookies_{doc['psid']}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(jar, f)
+    os.chmod(path, 0o600)
+    os.utime(path, (doc["cacheMtime"], doc["cacheMtime"]))      # keep the rotation time -> no fake "rotation" is counted
+    return True
+
+
+def sync_from_cache(doc_id, tmp_root=None):
+    """Copy rotated cookies of ONE account into the DB. Never creates a doc (removed stays removed).
 
     Every time WebAI wrote its cache (= a rotation happened) we record the time + count, even when
     Google handed back the very same value - so the dashboard can show that auto-refresh is alive.
     The cookie values themselves are only rewritten when they really changed."""
     with _sync_lock:
-        doc = get_doc()
+        doc = get_doc(doc_id)
         if not doc or not doc.get("psid"):
             return False
-        found = newest_cache()
+        found = newest_cache(tmp_root or instance_tmp(doc_id))
         if not found:
             return False
-        psid, psidts, mtime = found
+        psid, psidts, mtime, jar = found
         # ignore stale caches from older runs / before the last paste
         if mtime <= float(doc.get("cacheMtime") or 0) or mtime <= float(doc.get("pastedAtEpoch") or 0):
             return False
-        flt = {"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")}   # lose race vs a new paste
-        sets = {"cacheMtime": mtime, "updatedAt": _now(),
+        flt = {"_id": doc_id, "pastedAtEpoch": doc.get("pastedAtEpoch")}   # lose race vs a new paste
+        sets = {"cacheMtime": mtime, "updatedAt": _now(), "jar": _slim_jar(jar), "jarPsid": psid,
                 "lastRotationAt": datetime.datetime.fromtimestamp(mtime, datetime.timezone.utc)}
         incs = {"rotationCount": 1}
         changed = not (psid == doc.get("psid") and (psidts or None) == (doc.get("psidts") or None))
@@ -277,19 +348,22 @@ def sync_from_cache():
         return changed and res.modified_count > 0
 
 
-# ─── Health watchdog: detect "not authenticated any more" and self-heal ──────────
-# gemini-webapi flips account_status to UNAUTHENTICATED on ANY single rejected RPC and then stops its
-# auto-refresh loop for good (and our guest-mode patch keeps answering anonymously, so nobody notices).
-# Restarting WebAI re-initialises it from the newest cookies in the DB, which fixes the transient case.
-# If it still is not authenticated after a few tries the cookies are really dead -> needsRepaste.
-_health = {"bad": 0, "ok_since": None}
+def sync_all():
+    n = 0
+    for d in list_docs():
+        try:
+            if sync_from_cache(d["_id"]):
+                n += 1
+        except Exception as e:
+            print(f"[webai-cookies] sync {d['_id']} failed: {e}", file=sys.stderr, flush=True)
+    return n
 
 
-def _webai_status():
-    """(status, source) from WebAI, or None when it is down / restarting."""
+def webai_status(port):
+    """(status, source) from one WebAI instance, or None when it is down / restarting."""
     try:
         import requests
-        j = requests.get(WEBAI_URL + "/v1/auth/status", timeout=4).json()
+        j = requests.get(f"http://127.0.0.1:{port}/v1/auth/status", timeout=4).json()
         g = j.get("gemini_webapi") or {}
         return g.get("status"), g.get("auth_source")
     except Exception:
@@ -300,107 +374,6 @@ def _aware(d):
     if not isinstance(d, datetime.datetime):
         return None
     return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
-
-
-def check_health():
-    doc = get_doc()
-    if not doc or not doc.get("psid"):
-        _health.update(bad=0, ok_since=None)
-        return
-    st = _webai_status()
-    if st is None:                                   # restarting / down: nothing to judge
-        _health["ok_since"] = None
-        return
-    status = st[0]
-    now = _now()
-    flt = {"_id": DOC_ID, "pastedAtEpoch": doc.get("pastedAtEpoch")}
-    sets = {"lastStatus": status, "lastStatusAt": now}
-
-    def save():
-        _coll().update_one(flt, {"$set": sets})
-
-    if status == "AUTHENTICATED":
-        _health["bad"] = 0
-        if _health["ok_since"] is None:
-            _health["ok_since"] = time.time()
-        sets.update(healAttempts=0, needsRepaste=False)
-        return save()
-
-    _health["ok_since"] = None
-    _health["bad"] += 1
-    if _health["bad"] < 2 or doc.get("needsRepaste"):   # need 2 bad checks in a row (startup blips)
-        return save()
-    attempts = int(doc.get("healAttempts") or 0)
-    if attempts >= HEAL_MAX_ATTEMPTS:
-        sets["needsRepaste"] = True
-        print("[webai-cookies] cookies look dead - paste fresh ones at /api/web/v1/ui/auth", flush=True)
-        return save()
-    last = _aware(doc.get("lastHealAt"))
-    wait = min(HEAL_MIN_SECONDS * (2 ** attempts), 1800)
-    if last and (now - last).total_seconds() < wait:
-        return save()
-    print(f"[webai-cookies] WebAI status={status} -> self-heal restart #{attempts + 1}", flush=True)
-    try:
-        sync_from_cache()                            # keep the newest rotated cookies before caches are wiped
-    except Exception as e:
-        print(f"[webai-cookies] pre-heal sync failed: {e}", file=sys.stderr, flush=True)
-    sets.update(lastHealAt=now, healAttempts=attempts + 1)
-    save()
-    restart_webai()
-    _health["bad"] = 0
-
-
-def _sync_loop():
-    while True:
-        time.sleep(SYNC_SECONDS)
-        for fn in (sync_from_cache, check_health):
-            try:
-                fn()
-            except Exception as e:  # DB hiccup must never kill the thread
-                print(f"[webai-cookies] {fn.__name__} failed: {e}", file=sys.stderr, flush=True)
-
-
-def start_sync_thread():
-    threading.Thread(target=_sync_loop, name="webai-cookie-sync", daemon=True).start()
-
-
-# ─── Restart WebAI so it re-reads config.conf ─────────────────────────────────
-def _webai_pids():
-    pids = []
-    for d in os.listdir("/proc") if os.path.isdir("/proc") else []:
-        if not d.isdigit():
-            continue
-        try:
-            with open(f"/proc/{d}/cmdline", "rb") as f:
-                argv = f.read().decode("utf-8", "replace").split("\0")
-        except OSError:
-            continue
-        if argv and "webai-venv" in argv[0] and any(a.endswith("src/run.py") for a in argv):
-            pids.append(int(d))
-    return pids
-
-
-def restart_webai():
-    """Kill WebAI; start.sh's loop re-applies DB cookies to config.conf and starts it again."""
-    pids = _webai_pids()
-    if not pids:
-        return False
-    for p in pids:
-        try:
-            os.kill(p, signal.SIGTERM)
-        except OSError:
-            pass
-    deadline = time.time() + 15
-    while time.time() < deadline and _webai_pids():
-        time.sleep(0.3)
-    for p in _webai_pids():
-        try:
-            os.kill(p, signal.SIGKILL)
-        except OSError:
-            pass
-    for d in _cache_dirs():                                     # stale rotated caches
-        shutil.rmtree(d, ignore_errors=True)
-    return True
 
 
 # ─── Flask routes ─────────────────────────────────────────────────────────────
@@ -414,9 +387,18 @@ def _iso(d):
     return (d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)).isoformat()
 
 
+def _pool_file_state():
+    try:
+        with open(os.path.join(POOL_DIR, "pool.json"), encoding="utf-8") as f:
+            data = json.load(f)
+        return {i["id"]: i for i in data.get("instances", []) if isinstance(i, dict) and "id" in i}, data.get("updated")
+    except (OSError, ValueError):
+        return {}, None
+
+
 def register(app, authorized, prefix, webai_url):
     from flask import request, jsonify, Response
-    import requests
+    import webai_pool
 
     base = prefix + "/ui/auth"
 
@@ -432,31 +414,37 @@ def register(app, authorized, prefix, webai_url):
         return request.headers.get("X-Requested-With") == "webai-auth"
 
     def status_payload():
-        out = {"stored": False}
+        out = {"max_accounts": MAX_ACCOUNTS, "accounts": []}
         try:
-            doc = get_doc()
+            docs = list_docs()
         except Exception as e:
-            return {"stored": False, "db_error": str(e)}
-        if doc and doc.get("psid"):
-            out.update(stored=True, psid=_mask(doc["psid"]), psidts=_mask(doc.get("psidts")),
-                       has_psidts=bool(doc.get("psidts")), pasted_at=_iso(doc.get("pastedAt")),
-                       refreshed_at=_iso(doc.get("refreshedAt")), refresh_count=doc.get("refreshCount", 0),
-                       last_rotation_at=_iso(doc.get("lastRotationAt")), rotation_count=doc.get("rotationCount", 0),
-                       last_status=doc.get("lastStatus"), last_status_at=_iso(doc.get("lastStatusAt")),
-                       heal_attempts=doc.get("healAttempts", 0), last_heal_at=_iso(doc.get("lastHealAt")),
-                       needs_repaste=bool(doc.get("needsRepaste")))
-            ok = _health.get("ok_since")
-            if ok:                                              # authenticated, but is the rotation actually running?
-                lr = _aware(doc.get("lastRotationAt"))
-                ref = max(ok, lr.timestamp() if lr else 0)
-                out["rotation_stalled"] = (time.time() - ref) > STALL_SECONDS
-        try:
-            r = requests.get(webai_url + "/v1/auth/status", timeout=3)
-            j = r.json()
-            out["webai"] = {"webapi": (j.get("gemini_webapi") or {}).get("status"),
-                            "source": (j.get("gemini_webapi") or {}).get("auth_source")}
-        except Exception:
-            out["webai"] = None                                 # restarting / down
+            out["db_error"] = str(e)
+            return out
+        inst, updated = _pool_file_state()
+        live = webai_pool.get_pool().snapshot()
+        out["supervisor_updated"] = updated
+        for d in docs:
+            i = inst.get(d["_id"], {})
+            lv = live.get(d["_id"], {})
+            ok_since = d.get("okSinceEpoch")
+            stalled = False
+            if ok_since:                                       # authenticated, but is the rotation actually running?
+                lr = _aware(d.get("lastRotationAt"))
+                stalled = (time.time() - max(float(ok_since), lr.timestamp() if lr else 0)) > STALL_SECONDS
+            out["accounts"].append({
+                "id": d["_id"], "label": d.get("label") or d["_id"], "enabled": d.get("enabled", True),
+                "psid": _mask(d["psid"]), "psidts": _mask(d.get("psidts")), "has_psidts": bool(d.get("psidts")),
+                "pasted_at": _iso(d.get("pastedAt")), "refreshed_at": _iso(d.get("refreshedAt")),
+                "refresh_count": d.get("refreshCount", 0), "last_rotation_at": _iso(d.get("lastRotationAt")),
+                "rotation_count": d.get("rotationCount", 0), "last_status": d.get("lastStatus"),
+                "last_status_at": _iso(d.get("lastStatusAt")), "heal_attempts": d.get("healAttempts", 0),
+                "needs_repaste": bool(d.get("needsRepaste")), "rotation_stalled": stalled,
+                "process": i.get("state") or ("stopped" if not d.get("enabled", True) else "pending"),
+                "authenticated": i.get("authenticated"), "port": i.get("port"),
+                "in_flight": lv.get("in_flight", 0), "served_ok": lv.get("ok", 0), "failed": lv.get("fail", 0),
+                "cooldown_left": lv.get("cooldown_left", 0),
+            })
+        out["guest_running"] = (not docs) and "guest" in inst
         return out
 
     @app.route(base, methods=["GET"], endpoint="webai_auth_page")
@@ -467,7 +455,7 @@ def register(app, authorized, prefix, webai_url):
         return Response(PAGE_HTML.replace("__BASE__", base).replace("__UI__", prefix + "/ui"),
                         200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"})
 
-    @app.route(base + "/cookies", methods=["GET", "POST", "DELETE"], endpoint="webai_auth_cookies")
+    @app.route(base + "/cookies", methods=["GET", "POST", "PATCH", "DELETE"], endpoint="webai_auth_cookies")
     def cookies():
         denied = guard()
         if denied:
@@ -476,30 +464,31 @@ def register(app, authorized, prefix, webai_url):
             return jsonify(status_payload())
         if not csrf_ok():
             return jsonify({"error": "missing X-Requested-With header"}), 403
+        acc_id = (request.args.get("id") or "").strip() or None
         try:
             if request.method == "DELETE":
-                removed = delete_doc()
-                try:
-                    write_config("", "")
-                except OSError:
-                    pass
-                restarted = restart_webai()
-                return jsonify({"ok": True, "removed": bool(removed), "restarted": restarted})
+                if not acc_id:
+                    return jsonify({"error": "id required (id=all removes every account)"}), 400
+                removed = delete_doc(None if acc_id == "all" else acc_id)
+                return jsonify({"ok": True, "removed": removed})
+            if request.method == "PATCH":
+                if not acc_id:
+                    return jsonify({"error": "id required"}), 400
+                en = request.args.get("enabled")
+                matched = update_account(acc_id,
+                                         enabled=None if en is None else en.lower() in ("1", "true", "yes", "on"),
+                                         label=request.args.get("label"))
+                return jsonify({"ok": bool(matched)}), (200 if matched else 404)
             raw = request.get_data(as_text=True)
             if len(raw) > 2_000_000:
                 return jsonify({"error": "payload too large"}), 413
             try:
                 psid, psidts = extract_cookies(raw)
+                new_id, action = save_pasted(psid, psidts, label=request.args.get("label"), doc_id=acc_id)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
-            save_pasted(psid, psidts)
-            try:
-                write_config(psid, psidts)
-            except OSError as e:
-                print(f"[webai-cookies] config write failed: {e}", file=sys.stderr, flush=True)
-            restarted = restart_webai()
-            return jsonify({"ok": True, "psid": _mask(psid), "psidts": _mask(psidts),
-                            "has_psidts": bool(psidts), "restarted": restarted})
+            return jsonify({"ok": True, "id": new_id, "action": action, "psid": _mask(psid),
+                            "psidts": _mask(psidts), "has_psidts": bool(psidts)})
         except Exception as e:
             return jsonify({"error": f"DB error: {e}"}), 500
 
@@ -518,77 +507,114 @@ def register(app, authorized, prefix, webai_url):
         return Response(json.dumps(out, ensure_ascii=False, indent=1), 200,
                         {"Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store"})
 
-    start_sync_thread()
-
 
 PAGE_HTML = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gemini Web Cookies</title>
+<title>Gemini Web Accounts</title>
 <style>
-:root{--bg:#0f1115;--fg:#e8eaed;--mut:#9aa0a6;--card:#181b21;--bd:#2a2f38;--ac:#6ea8fe;--ok:#4ade80;--bad:#f87171}
-@media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--fg:#1d2127;--mut:#5f6770;--card:#fff;--bd:#dfe3e8;--ac:#1a56db;--ok:#15803d;--bad:#b91c1c}}
+:root{--bg:#0f1115;--fg:#e8eaed;--mut:#9aa0a6;--card:#181b21;--bd:#2a2f38;--ac:#6ea8fe;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}
+@media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--fg:#1d2127;--mut:#5f6770;--card:#fff;--bd:#dfe3e8;--ac:#1a56db;--ok:#15803d;--bad:#b91c1c;--warn:#b45309}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
-main{max-width:720px;margin:0 auto;padding:20px 16px 48px}h1{font-size:20px;margin:0 0 4px}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:0 0 8px}
 .sub{color:var(--mut);margin:0 0 16px}.sub a{color:var(--ac)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:16px}
-.row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--bd)}.row:last-child{border:0}
+.row{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}.row:last-child{border:0}
 .row b{font-weight:500;color:var(--mut)}code{font-family:ui-monospace,monospace;font-size:13px;word-break:break-all}
-textarea{width:100%;min-height:200px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:10px;font:12px/1.4 ui-monospace,monospace;resize:vertical}
-button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;cursor:pointer}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.pill{font-size:12px;border:1px solid var(--bd);border-radius:99px;padding:1px 9px;margin-left:6px}
+textarea{width:100%;min-height:170px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:10px;font:12px/1.4 ui-monospace,monospace;resize:vertical}
+input[type=text]{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font:inherit;margin-bottom:8px}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:7px 14px;font:inherit;cursor:pointer}
+button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 button.d{background:transparent;color:var(--bad);border:1px solid var(--bad)}button:disabled{opacity:.5;cursor:wait}
-.bar{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}#msg{margin-top:10px;min-height:1.4em}
-.ok{color:var(--ok)}.bad{color:var(--bad)}small{color:var(--mut)}
+.bar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}#msg{margin-top:10px;min-height:1.4em}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}small{color:var(--mut)}
 </style></head><body><main>
-<h1>Gemini Web Cookies</h1>
-<p class="sub">gemini.google.com la login karun cookies export kara (Cookie-Editor &rarr; Export &rarr; JSON) ani khali paste kara. <a href="__UI__">Dashboard</a></p>
-<div class="card" id="st"><small>Loading…</small></div>
+<h1>Gemini Web Accounts</h1>
+<p class="sub">Ekapeksha jast Google account add kara: requests sagalya accounts var parallel vatlya jatat (ek account var jast load yet nahi). <a href="__UI__">Dashboard</a></p>
+<div id="st"><div class="card"><small>Loading…</small></div></div>
 <div class="card">
-  <textarea id="j" spellcheck="false" placeholder='[{"name":"__Secure-1PSID","value":"…","domain":".google.com", …}, …]'></textarea>
-  <div class="bar"><button id="save">Save cookies</button><button id="del" class="d">Remove saved cookies</button></div>
+  <h2 id="ft">Add account</h2>
+  <input type="text" id="lb" maxlength="40" placeholder="Name (optional) - e.g. Rahul account">
+  <textarea id="j" spellcheck="false" placeholder='gemini.google.com la login karun Cookie-Editor &rarr; Export &rarr; JSON paste kara&#10;[{"name":"__Secure-1PSID","value":"…","domain":".google.com", …}, …]'></textarea>
+  <div class="bar"><button id="save">Save account</button><button id="cancel" class="s" style="display:none">Cancel replace</button></div>
   <div id="msg"></div>
-  <p><small>Fakt <code>__Secure-1PSID</code> ani <code>__Secure-1PSIDTS</code> ghetle jatat; baki JSON ignore hote. Auto-refresh zalele values DB madhe apoap update hotat, restart nantar punha paste karaychi garaj nahi.
-  Tip: cookies Incognito window madhun export kara ani to window band kara, mhanje browser ani server ekmekanchi cookie rotate karnar nahit.</small></p>
+  <p><small>Fakt <code>__Secure-1PSID</code> ani <code>__Secure-1PSIDTS</code> ghetle jatat. Pratyek account sathi vegla Incognito window vapara, cookies export kara ani to window band kara; mhanje browser ani server ekmekanchi cookie rotate karnar nahit. Same account punha paste kelat tar to update hoto (duplicate hot nahi). Auto-refresh zalele values DB madhe apoap update hotat.</small></p>
 </div>
 <script>
 const B="__BASE__/cookies", H={"X-Requested-With":"webai-auth"};
-const $=id=>document.getElementById(id), esc=s=>String(s??"—").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const $=id=>document.getElementById(id), esc=s=>String(s??"—").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const when=s=>s?new Date(s).toLocaleString():"—";
+let target=null, cache=null;
 function say(t,c){$("msg").className=c||"";$("msg").textContent=t}
+function proc(a){
+  if(!a.enabled)return '<span class="warn">disabled</span>';
+  if(a.needs_repaste)return '<span class="bad">cookies expired - replace</span>';
+  if(a.process==="running"&&a.authenticated)return '<span class="ok">running · logged in</span>';
+  if(a.process==="running")return '<span class="warn">running · NOT logged in (guest)</span>';
+  return `<span class="warn">${esc(a.process)}</span>`;
+}
+function render(s){
+  if(s.db_error){$("st").innerHTML=`<div class="card"><span class="bad">DB: ${esc(s.db_error)}</span></div>`;return}
+  const n=s.accounts.length;
+  let h=`<div class="card"><div class="hd"><h2>${n} / ${s.max_accounts} accounts</h2><small>${n?"load: least-busy account first":(s.guest_running?"no account saved - anonymous guest mode":"no account saved")}</small></div>`;
+  h+=n?"":`<small>Khali form madhun pahila account add kara.</small>`;
+  h+="</div>";
+  for(const a of s.accounts){
+    h+=`<div class="card"><div class="hd"><h2>${esc(a.label)}<span class="pill">${esc(a.id)}</span></h2><div>${proc(a)}</div></div>
+    <div class="row"><b>__Secure-1PSID</b><code>${esc(a.psid)}</code></div>
+    <div class="row"><b>__Secure-1PSIDTS</b><code>${esc(a.psidts)}</code></div>
+    <div class="row"><b>Requests now / served / failed</b><span>${a.in_flight} / ${a.served_ok} / ${a.failed}${a.cooldown_left?` <span class="warn">· cooldown ${a.cooldown_left}s</span>`:""}</span></div>
+    <div class="row"><b>Pasted</b><span>${when(a.pasted_at)}</span></div>
+    <div class="row"><b>Last rotation (Google answered)</b><span>${when(a.last_rotation_at)} · ${a.rotation_count||0}×</span></div>
+    <div class="row"><b>Health check</b><span class="${a.last_status==="AUTHENTICATED"?"ok":"bad"}">${esc(a.last_status)} <small>(${when(a.last_status_at)}${a.heal_attempts?` · self-heal ${a.heal_attempts}×`:""})</small></span></div>`+
+    (a.needs_repaste?`<div class="row"><b class="bad">Cookies expired</b><span class="bad">Self-heal failed - gemini.google.com la punha login karun cookies paste kara.</span></div>`:"")+
+    (a.rotation_stalled?`<div class="row"><b class="bad">Auto-refresh stalled</b><span class="bad">Authenticated aahe pan rotation zala nahi.</span></div>`:"")+
+    `<div class="bar"><button class="s" data-a="replace" data-id="${esc(a.id)}">Replace cookies</button>
+     <button class="s" data-a="toggle" data-id="${esc(a.id)}" data-en="${a.enabled?0:1}">${a.enabled?"Disable":"Enable"}</button>
+     <button class="d" data-a="del" data-id="${esc(a.id)}">Remove</button></div></div>`;
+  }
+  $("st").innerHTML=h;
+}
 async function load(){
-  try{
-    const r=await fetch(B,{headers:H});const s=await r.json();
-    const w=s.webai?`${esc(s.webai.webapi)} <small>(${esc(s.webai.source)})</small>`:"<span class=bad>WebAI starting / unreachable</span>";
-    $("st").innerHTML=(s.db_error?`<div class="row"><b>DB</b><span class="bad">${esc(s.db_error)}</span></div>`:"")+
-      `<div class="row"><b>Saved in DB</b><span class="${s.stored?"ok":"bad"}">${s.stored?"yes":"no"}</span></div>`+
-      (s.stored?`<div class="row"><b>__Secure-1PSID</b><code>${esc(s.psid)}</code></div>
-      <div class="row"><b>__Secure-1PSIDTS</b><code>${esc(s.psidts)}</code></div>
-      <div class="row"><b>Pasted</b><span>${when(s.pasted_at)}</span></div>
-      <div class="row"><b>Last rotation (Google answered)</b><span>${when(s.last_rotation_at)} · ${s.rotation_count||0}×</span></div>
-      <div class="row"><b>Last cookie value change saved</b><span>${when(s.refreshed_at)} · ${s.refresh_count}×</span></div>
-      <div class="row"><b>Health check</b><span class="${s.last_status==="AUTHENTICATED"?"ok":"bad"}">${esc(s.last_status)} <small>(${when(s.last_status_at)}${s.heal_attempts?` · self-heal ${s.heal_attempts}×`:""})</small></span></div>`+
-      (s.needs_repaste?`<div class="row"><b class="bad">Cookies expired</b><span class="bad">Self-heal failed ${s.heal_attempts}× - gemini.google.com la punha login karun cookies paste kara.</span></div>`:"")+
-      (s.rotation_stalled?`<div class="row"><b class="bad">Auto-refresh stalled</b><span class="bad">Authenticated aahe pan ${Math.round(30)}+ min rotation zala nahi (server log madhe "refresh cookies" warning bagha).</span></div>`:""):"")+
-      `<div class="row"><b>Gemini web auth</b><span>${w}</span></div>`;
-    return s;
-  }catch(e){$("st").textContent="Status load failed: "+e}
+  try{const r=await fetch(B,{headers:H});cache=await r.json();render(cache);return cache}
+  catch(e){$("st").innerHTML=`<div class="card">Status load failed: ${esc(e)}</div>`}
 }
-async function act(method,body,busy){
-  $("save").disabled=$("del").disabled=true;say(busy);
-  try{
-    const r=await fetch(B,{method,headers:{...H,"Content-Type":"application/json"},body});
-    const j=await r.json();
-    if(!r.ok)throw new Error(j.error||r.status);
-    say(j.restarted===false?"Saved. (WebAI restart karaila milala nahi - manually restart kara.)":"Done. WebAI restart hotay (~10s)…","ok");
-    return true;
-  }catch(e){say(String(e.message||e),"bad");return false}
-  finally{$("save").disabled=$("del").disabled=false}
+async function api(method,qs,body){
+  const r=await fetch(B+qs,{method,headers:{...H,"Content-Type":"application/json"},body});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||r.status);
+  return j;
 }
-async function settle(){for(let i=0;i<12;i++){await new Promise(r=>setTimeout(r,2500));const s=await load();if(s&&s.webai)break}}
-$("save").onclick=async()=>{const v=$("j").value.trim();if(!v)return say("JSON paste kara","bad");
-  if(await act("POST",v,"Saving…")){$("j").value="";await load();await settle()}};
-$("del").onclick=async()=>{if(!confirm("Saved cookies remove karaycha?"))return;
-  if(await act("DELETE",null,"Removing…")){await load();await settle()}};
-load();setInterval(load,30000);
+function setTarget(id){
+  target=id;const a=cache&&cache.accounts.find(x=>x.id===id);
+  $("ft").textContent=id?`Replace cookies: ${a?a.label:id}`:"Add account";
+  $("lb").style.display=id?"none":"";$("cancel").style.display=id?"":"none";
+  $("save").textContent=id?"Save cookies":"Save account";
+  if(id)$("j").focus();
+}
+$("cancel").onclick=()=>setTarget(null);
+$("save").onclick=async()=>{
+  const v=$("j").value.trim();if(!v)return say("JSON paste kara","bad");
+  $("save").disabled=true;say("Saving…");
+  try{
+    const q=target?`?id=${encodeURIComponent(target)}`:`?label=${encodeURIComponent($("lb").value)}`;
+    const j=await api("POST",q,v);
+    say(j.action==="added"?"Account added. WebAI instance ~10s madhe suru hoil.":"Cookies updated. Instance restart hotoy (~10s).","ok");
+    $("j").value="";$("lb").value="";setTarget(null);await load();
+  }catch(e){say(String(e.message||e),"bad")}
+  finally{$("save").disabled=false}
+};
+$("st").onclick=async e=>{
+  const b=e.target.closest("button[data-a]");if(!b)return;const id=b.dataset.id,a=b.dataset.a;
+  try{
+    if(a==="replace"){setTarget(id);window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});return}
+    if(a==="toggle"){await api("PATCH",`?id=${encodeURIComponent(id)}&enabled=${b.dataset.en}`)}
+    if(a==="del"){if(!confirm("Ha account remove karaycha?"))return;await api("DELETE",`?id=${encodeURIComponent(id)}`)}
+    await load();
+  }catch(err){say(String(err.message||err),"bad")}
+};
+load();setInterval(load,10000);
 </script></main></body></html>
 """
 
@@ -596,18 +622,13 @@ load();setInterval(load,30000);
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    try:
-        if cmd in ("apply", "sync"):
-            try:
-                if sync_from_cache():
-                    print("[webai-cookies] rotated cookies saved to DB", flush=True)
-            except Exception as e:
-                print(f"[webai-cookies] sync skipped: {e}", file=sys.stderr, flush=True)
-        if cmd == "apply":
-            print("[webai-cookies] cookies from DB written to config" if apply_to_config()
-                  else "[webai-cookies] no cookies in DB - paste them at /api/web/v1/ui/auth", flush=True)
-        elif cmd != "sync":
-            print(__doc__)
-            sys.exit(2)
-    except Exception as e:  # never block WebAI startup because of the DB
-        print(f"[webai-cookies] {cmd} failed: {e}", file=sys.stderr, flush=True)
+    if cmd in ("sync", "apply"):          # "apply" kept for old scripts: nothing to apply any more, the supervisor does it
+        try:
+            n = sync_all()
+            if n:
+                print(f"[webai-cookies] rotated cookies of {n} account(s) saved to DB", flush=True)
+        except Exception as e:  # never block shutdown because of the DB
+            print(f"[webai-cookies] sync skipped: {e}", file=sys.stderr, flush=True)
+    else:
+        print(__doc__)
+        sys.exit(2)

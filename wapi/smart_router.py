@@ -4,6 +4,7 @@ from collections import deque
 from flask import Flask, request, jsonify, Response, render_template_string, g
 from functools import wraps
 import requests
+from urllib.parse import quote
 import base64, copy, hashlib, re, uuid
 import concurrent.futures
 
@@ -1676,7 +1677,8 @@ def _why(status: int, err_text: str, model: str = "") -> str:
 WEBAI_FALLBACK = os.environ.get("WEBAI_FALLBACK", "1") != "0"
 WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
 FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
-_webai_sem = threading.BoundedSemaphore(int(os.environ.get("WEBAI_FALLBACK_CONCURRENCY", "2")))
+# One WebAI process per Gemini account (wapi/webai_supervisor.py); webai_pool spreads the load over them.
+import webai_pool
 _webai_model_cache = {"model": None, "ts": 0.0}
 
 def _webai_pick_model():
@@ -1685,7 +1687,7 @@ def _webai_pick_model():
         return _webai_model_cache["model"]
     model = None
     try:
-        r = requests.get(WEBAI_URL + "/v1/models", timeout=8)
+        r = requests.get(webai_pool.get_pool().any_url() + "/v1/models", timeout=8)
         if r.status_code == 200:
             ids = [m.get("id") for m in (r.json().get("data") or []) if isinstance(m, dict) and m.get("id")]
             lite = [i for i in ids if "lite" in i.lower()]
@@ -1700,11 +1702,12 @@ def _webai_pick_model():
         _webai_model_cache.update(model=model, ts=now)
     return model
 
-def _webai_fix_links(raw: bytes) -> bytes:
+def _webai_fix_links(raw: bytes, acc_id: str = "") -> bytes:
     proto = request.headers.get("X-Forwarded-Proto", "https").split(",")[0].strip() or "https"
     base = f"{proto}://{request.host}{WEBAPI_PREFIX}"
-    return (raw.replace(b'"/v1/artifacts/fetch?', ('"' + base + '/artifacts/fetch?').encode())
-               .replace(b'](/v1/artifacts/fetch?', ('](' + base + '/artifacts/fetch?').encode()))
+    acc = ("a=" + quote(acc_id, safe="") + "&") if acc_id else ""     # artifact must be fetched by the account that made it
+    return (raw.replace(b'"/v1/artifacts/fetch?', ('"' + base + '/artifacts/fetch?' + acc).encode())
+               .replace(b'](/v1/artifacts/fetch?', ('](' + base + '/artifacts/fetch?' + acc).encode()))
 
 def chat_completion_sse(cj: dict):
     ch = (cj.get("choices") or [{}])[0]
@@ -1715,7 +1718,8 @@ def chat_completion_sse(cj: dict):
     yield "data: [DONE]\n\n"
 
 def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: bool):
-    """Returns (flask_response_or_None, info). info = model name on success, else the reason it was not used."""
+    """Returns (flask_response_or_None, info). info = model name on success, else the reason it was not used.
+    The request goes to the least-busy logged-in WebAI account; if that account fails it is retried on the next one."""
     if not WEBAI_FALLBACK:
         return None, "web fallback is OFF (WEBAI_FALLBACK=0)"
     if data.get("tools") or _is_tool_continuation(data.get("messages") or []):
@@ -1732,33 +1736,47 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
     if model:
         body["model"] = model
     raw = _webapi_fix_body(json.dumps(body, ensure_ascii=False).encode("utf-8"))
-    if not _webai_sem.acquire(timeout=30):
-        return None, "web fallback skipped: WebAI busy (concurrency limit reached for 30s)"
-    try:
-        up = requests.post(WEBAI_URL + "/v1/chat/completions", data=raw,
-                           headers={"Content-Type": "application/json"}, timeout=(10, 600))
-    except Exception as e:
-        return None, f"web fallback failed: WebAI unreachable at {WEBAI_URL} ({str(e)[:150]}) - not running or cookies missing?"
-    finally:
-        _webai_sem.release()
-    if up.status_code != 200:
-        return None, f"web fallback failed: WebAI HTTP {up.status_code} (model={model}): {_short_err(up.text, 250)}"
-    try:
-        cj = json.loads(_webai_fix_links(up.content).decode("utf-8", "replace"))
-    except Exception:
-        return None, "web fallback failed: WebAI returned a non-JSON answer"
-    msg = ((cj.get("choices") or [{}])[0].get("message")) or {}
-    if not (msg.get("content") or msg.get("tool_calls")):
-        return None, f"web fallback failed: WebAI returned an empty answer (model={model})"
-    actual = cj.get("model") or model or "webai"
-    if is_responses_api:
-        rj = chat_completion_to_responses_json(cj, actual)
-        resp = Response(responses_sse_stream(rj), mimetype="text/event-stream") if client_stream_requested else jsonify(rj)
-    elif client_stream_requested:
-        resp = Response(chat_completion_sse(cj), mimetype="text/event-stream")
-    else:
-        resp = jsonify(cj)
-    return resp, actual
+    pool = webai_pool.get_pool()
+    tried = set()
+    reason = "no WebAI account is running (add cookies at /api/web/v1/ui/auth)"
+    for _ in range(pool.count()):
+        slot = pool.acquire(exclude=tried, wait=30)
+        if slot is None:
+            break
+        tried.add(slot.id)
+        try:
+            up = requests.post(slot.url + "/v1/chat/completions", data=raw,
+                               headers={"Content-Type": "application/json"}, timeout=(10, 600))
+        except Exception as e:
+            pool.release(slot, error=True)
+            reason = f"web fallback failed: WebAI '{slot.label}' unreachable at {slot.url} ({str(e)[:150]}) - not running or cookies missing?"
+            continue
+        pool.release(slot, status=up.status_code)
+        if up.status_code != 200:
+            reason = f"web fallback failed: WebAI '{slot.label}' HTTP {up.status_code} (model={model}): {_short_err(up.text, 250)}"
+            if up.status_code in webai_pool.RETRY_STATUS:
+                continue            # this account has a problem -> next account
+            break                   # request itself was rejected (400/422...) -> another account would say the same
+        try:
+            cj = json.loads(_webai_fix_links(up.content, slot.id).decode("utf-8", "replace"))
+        except Exception:
+            reason = f"web fallback failed: WebAI '{slot.label}' returned a non-JSON answer"
+            continue
+        msg = ((cj.get("choices") or [{}])[0].get("message")) or {}
+        if not (msg.get("content") or msg.get("tool_calls")):
+            reason = f"web fallback failed: WebAI '{slot.label}' returned an empty answer (model={model})"
+            continue
+        actual = cj.get("model") or model or "webai"
+        g.webai_account = slot.label
+        if is_responses_api:
+            rj = chat_completion_to_responses_json(cj, actual)
+            resp = Response(responses_sse_stream(rj), mimetype="text/event-stream") if client_stream_requested else jsonify(rj)
+        elif client_stream_requested:
+            resp = Response(chat_completion_sse(cj), mimetype="text/event-stream")
+        else:
+            resp = jsonify(cj)
+        return resp, actual
+    return None, reason
 
 # ─── Main Proxy ───────────────────────────────────────────────────────────────
 @app.route('/v1/chat/completions', methods=['POST', 'OPTIONS'])
@@ -2140,7 +2158,7 @@ def proxy_chat():
         if hasattr(g, "log_entry"):
             g.log_entry["status"] = f"200 Success (web fallback: {fb_info})"
             g.log_entry["model"] = f"web:{fb_info}"
-            g.log_entry["route"] = f"Gemini keys FAILED → WebAI fallback ({WEBAI_URL}/v1/chat/completions, model {fb_info})"
+            g.log_entry["route"] = f"Gemini keys FAILED → WebAI fallback (account '{getattr(g, 'webai_account', '?')}', model {fb_info})"
             g.log_entry["error_detail"] = f"Gemini keys could not serve this -> answered by WebAI ({fb_info}). Why keys failed: {keys_report}"
             g.log_entry["attempts"] = attempt_errors[-20:]
         print(f"[WEBAI FALLBACK] served by {fb_info}")
@@ -2362,9 +2380,9 @@ def ping():
 
 # ─── /api/web/v1 : ONLY WebAI-to-API (separate from the Gemini key router) ────
 # Mapping (so it works as an OpenAI base_url):
-#   /api/web/v1/chat/completions  -> {WEBAI_URL}/v1/chat/completions
-#   /api/web/v1/models            -> {WEBAI_URL}/v1/models
-#   /api/web/v1/ui/...            -> {WEBAI_URL}/ui/...   (dashboard: add cookies/login here)
+#   /api/web/v1/chat/completions  -> /v1/chat/completions of the least-busy WebAI account (one process per Gemini account, see webai_pool.py)
+#   /api/web/v1/models            -> /v1/models of one logged-in account
+#   /api/web/v1/ui/...            -> /ui/... of one account   (cookie page: /api/web/v1/ui/auth = add / remove accounts)
 #   /api/web/v1/docs|redoc|openapi.json|health|ready|translate -> same path upstream
 # Auth: "Authorization: Bearer <PASSWORD>" (API clients) OR browser Basic auth
 # (password field = PASSWORD) so the dashboard opens in a browser.
@@ -2457,7 +2475,7 @@ def webapi_proxy(sub):
         sub = "ui"
     first = sub.split("/", 1)[0]
     upstream_path = "/" + sub if first in _WEBAPI_ROOT_PATHS else "/v1/" + sub
-    url = WEBAI_URL + upstream_path
+    url = WEBAI_URL + upstream_path     # replaced by the chosen account's URL below
     _is_chat = request.method == "POST" and sub.endswith("chat/completions")
     # Dashboard pages/assets (GET ui/*) are not logged (they poll constantly); every API route is.
     _log_it = not (request.method == "GET" and first in ("ui", "favicon.ico"))
@@ -2516,15 +2534,62 @@ def webapi_proxy(sub):
     if request.method == "POST" and sub.endswith("chat/completions") and "json" in request.headers.get("Content-Type", "").lower():
         _body = _webapi_fix_body(_body)
         fwd_headers = {k: v for k, v in fwd_headers.items() if k.lower() != "content-length"}
-    try:
-        up = requests.request(request.method, url, params=request.args, data=_body,
-                              headers=fwd_headers, stream=True, timeout=(10, 600),
-                              allow_redirects=False)
-    except Exception as e:
+    # ── pick the WebAI account (one WebAI process per Gemini account) ──────────
+    pool = webai_pool.get_pool()
+    _acc = request.args.get("a") if first == "artifacts" else None       # artifact links carry the account that made them
+    _params = [(k, v) for k, v in request.args.items(multi=True) if not (_acc is not None and k == "a")]
+    _balanced = request.method == "POST" and first != "ui"                # generation requests: load-balanced + failover
+    _conv = None
+    if _is_chat:
+        _j = request.get_json(silent=True)
+        _conv = _j.get("conversation_id") if isinstance(_j, dict) else None
+    _pref = pool.conv_account(_conv)
+    max_tries = pool.count() if _balanced else 1
+    tried, up, slot, last_exc = set(), None, None, None
+    for _try in range(max(1, max_tries)):
+        if _balanced:
+            slot = pool.acquire(exclude=tried, prefer=_pref)
+        else:
+            slot = pool.slot_for(_acc) if _acc else pool.peek()
+        if slot is None:
+            break
+        tried.add(slot.id)
+        url = slot.url + upstream_path
+        try:
+            up = requests.request(request.method, url, params=_params, data=_body,
+                                  headers=fwd_headers, stream=True, timeout=(10, 600),
+                                  allow_redirects=False)
+        except Exception as e:
+            last_exc, up = e, None
+            if _balanced:
+                pool.release(slot, error=True)
+            if _balanced and _try + 1 < max_tries:
+                continue
+            break
+        if _balanced and up.status_code in webai_pool.RETRY_STATUS and pool.has_candidate(tried):
+            pool.release(slot, status=up.status_code)     # this account has a problem -> next account
+            up.close()
+            up = None
+            continue
+        break
+    if up is None:
+        if slot is None and last_exc is None:
+            msg = "no WebAI account is running (add cookies at /api/web/v1/ui/auth)"
+        else:
+            msg = f"WebAI-to-API unreachable: {last_exc}"
         if hasattr(g, "log_entry"):
-            g.log_entry["error_detail"] = f"WebAI unreachable at {WEBAI_URL}: {str(e)[:200]} (WebAI not running / not installed / crashed?)"
-        return jsonify({"error": {"message": f"WebAI-to-API unreachable at {WEBAI_URL}: {e}",
-                                  "type": "upstream_unavailable"}}), 424
+            g.log_entry["error_detail"] = f"{msg} (WebAI not running / not installed / crashed?)"
+        return jsonify({"error": {"message": msg, "type": "upstream_unavailable"}}), 424
+    if hasattr(g, "log_entry"):
+        g.log_entry["route"] = f"WebAI account '{slot.label}' ({request.method} {request.full_path.rstrip('?')} → {url})"
+
+    _rel = {"done": not _balanced}
+    def _release(error=False):
+        if not _rel["done"]:
+            _rel["done"] = True
+            pool.release(slot, status=up.status_code, error=error)
+    if _conv and up.status_code < 400:
+        pool.remember_conv(_conv, slot.id)
 
     out_headers = {}
     for k, v in up.headers.items():
@@ -2561,12 +2626,14 @@ def webapi_proxy(sub):
     # artifact links (/v1/artifacts/fetch?...) -> absolute, working URLs under /api/web/v1
     _proto = request.headers.get("X-Forwarded-Proto", "https").split(",")[0].strip() or "https"
     _art_old = b'"/v1/artifacts/fetch?'
-    _art_new = ('"' + _proto + '://' + request.host + WEBAPI_PREFIX + '/artifacts/fetch?').encode()
+    _acc_q = 'a=' + quote(slot.id, safe='') + '&'
+    _art_new = ('"' + _proto + '://' + request.host + WEBAPI_PREFIX + '/artifacts/fetch?' + _acc_q).encode()
     _md_old = b'](/v1/artifacts/fetch?'
-    _md_new = ('](' + _proto + '://' + request.host + WEBAPI_PREFIX + '/artifacts/fetch?').encode()
+    _md_new = ('](' + _proto + '://' + request.host + WEBAPI_PREFIX + '/artifacts/fetch?' + _acc_q).encode()
     if "application/json" in ctype:
         body = up.content.replace(_art_old, _art_new).replace(_md_old, _md_new)
         up.close()
+        _release()
         return Response(body, status, out_headers)
     if "text/event-stream" in ctype:
         def _sse():
@@ -2581,12 +2648,17 @@ def webapi_proxy(sub):
                         yield b"\n".join(lines).replace(_art_old, _art_new).replace(_md_old, _md_new) + b"\n"
                 if buf:
                     yield buf.replace(_art_old, _art_new).replace(_md_old, _md_new)
+            except Exception:
+                _release(error=True)
+                raise
             finally:
                 up.close()
+                _release()
         return Response(_sse(), status, out_headers)
     if any(t in ctype for t in ("text/html", "text/css", "javascript")):
         body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
         up.close()
+        _release()
         return Response(body.encode("utf-8"), status, out_headers)
 
     def _gen():
@@ -2596,6 +2668,7 @@ def webapi_proxy(sub):
                     yield chunk
         finally:
             up.close()
+            _release()
     return Response(_gen(), status, out_headers)
 
 if __name__ == '__main__':

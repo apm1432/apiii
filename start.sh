@@ -14,18 +14,19 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
   --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!
 
-# WebAI-to-API on 127.0.0.1:6969 (reached only through /api/web/v1 in wapi).
-# Own restart loop and NOT part of `wait -n` below, so if it crashes it never
-# takes the rest of the container down.
+# WebAI-to-API: ONE process per Gemini account (ports 6969, 6970, ...), all on 127.0.0.1 and reached only
+# through /api/web/v1 in wapi, which spreads requests over the accounts (wapi/webai_pool.py).
+# Accounts (cookies) live in MongoDB - add / remove them at /api/web/v1/ui/auth, no env vars and no restart needed.
+# wapi/webai_supervisor.py starts/stops the instances, saves auto-refreshed cookies back to the DB and restarts
+# a crashed one. Own restart loop and NOT part of `wait -n` below, so if it crashes it never takes the rest of
+# the container down.
 if [ -x /opt/webai-venv/bin/python ]; then
-  # Gemini web cookies live in MongoDB (paste them at /api/web/v1/ui/auth).
-  # Before every (re)start webai_cookies.py saves the newest auto-refreshed cookies to the DB
-  # and writes the DB cookies into WebAI's config.conf -> no env vars needed.
-  echo "==> Starting WebAI-to-API on 127.0.0.1:6969..."
-  (cd /opt/webai && while true; do
-     timeout 30 python3 /usr/src/app/wapi/webai_cookies.py apply
-     PYTHONPATH=src PYTHONUNBUFFERED=1 /opt/webai-venv/bin/python src/run.py --host 127.0.0.1 --port 6969
-     echo "[webai] exited, restarting in 5s"; sleep 5
+  echo "==> Starting WebAI pool supervisor (one WebAI-to-API per Gemini account)..."
+  rm -f /tmp/webai-pool/stopping
+  (cd /usr/src/app/wapi && while true; do
+     python3 webai_supervisor.py
+     [ -f /tmp/webai-pool/stopping ] && break      # clean shutdown requested -> do not restart
+     echo "[webai-pool] supervisor exited, restarting in 5s"; sleep 5
    done) &
 else
   echo "==> WebAI-to-API not installed - /api/web/v1 disabled"
@@ -42,7 +43,12 @@ NGINX_PID=$!
 # polling slot -> avoids "409 Conflict" in the new instance.
 shutdown() {
   echo "==> Stopping services..."
-  timeout 10 python3 /usr/src/app/wapi/webai_cookies.py sync   # save latest refreshed cookies to DB
+  # ask the supervisor to save the latest refreshed cookies of every account to the DB and stop its WebAI processes
+  if [ -f /tmp/webai-pool/supervisor.pid ]; then
+    kill -TERM "$(cat /tmp/webai-pool/supervisor.pid)" 2>/dev/null
+    for _ in $(seq 1 30); do [ -f /tmp/webai-pool/supervisor.pid ] || break; sleep 0.5; done
+  fi
+  timeout 10 python3 /usr/src/app/wapi/webai_cookies.py sync   # no-op when the supervisor already did it
   kill -TERM "$NODE_PID" "$PY_PID" "$NGINX_PID" 2>/dev/null
   wait
   exit 0

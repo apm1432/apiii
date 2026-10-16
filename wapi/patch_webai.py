@@ -164,6 +164,26 @@ if "GUEST_OK" not in s:
     s = s.replace(old, '    if status_name in ("AVAILABLE", "UNAUTHENTICATED"):   # GUEST_OK: anonymous (no cookies) client may generate\n        return\n', 1)
     open(p, "w", encoding="utf-8").write(s)
 
+# 2f) COOKIE_SEED: gemini-webapi keeps the ROTATED cookie jar in a cache dir that WebAI creates fresh (mkdtemp) on every
+#     start, so after a restart only the two pasted cookies were left. wapi/webai_supervisor.py saves the whole jar in MongoDB
+#     and points WEBAI_COOKIE_SEED_DIR at it; copy those files into the new cache dir so the library tries them first.
+p = f"{root}/services/providers/gemini/client.py"; s = open(p, encoding="utf-8").read()
+if "COOKIE_SEED" not in s:
+    old = '        os.environ["GEMINI_COOKIE_PATH"] = cache_dir\n        _gemini_cache_dir_initialized = True\n'
+    assert s.count(old) == 1, "client.py cache-dir anchor missing"
+    seed = '''        # COOKIE_SEED (added by patch_webai.py): restore the saved rotated cookie jar
+        _seed_dir = os.environ.get("WEBAI_COOKIE_SEED_DIR")
+        if _seed_dir and os.path.isdir(_seed_dir):
+            import glob as _glob, shutil as _shutil
+            for _f in _glob.glob(os.path.join(_seed_dir, ".cached_cookies_*.json")):
+                try:
+                    _shutil.copy2(_f, os.path.join(cache_dir, os.path.basename(_f)))
+                except OSError as _e:
+                    logger.warning(f"Could not restore cookie seed {_f}: {_e}")
+'''
+    s = s.replace(old, '        os.environ["GEMINI_COOKIE_PATH"] = cache_dir\n' + seed + '        _gemini_cache_dir_initialized = True\n', 1)
+    open(p, "w", encoding="utf-8").write(s)
+
 # 3) diagnostic capture of raw replies (sitecustomize)
 shutil.copy("/usr/src/app/wapi/webai_capture.py", "/opt/webai/src/sitecustomize.py")
 print("webai patches applied")
