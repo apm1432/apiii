@@ -1679,6 +1679,7 @@ WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
 FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
 # One WebAI process per Gemini account (wapi/webai_supervisor.py); webai_pool spreads the load over them.
 import webai_pool
+import webapi_model_fix
 _webai_model_cache = {"model": None, "ts": 0.0}
 
 def _webai_pick_model():
@@ -2555,10 +2556,38 @@ def webapi_proxy(sub):
             break
         tried.add(slot.id)
         url = slot.url + upstream_path
+        _send = _body
+        if _is_chat:
+            # model list of this account already known -> swap an unknown model BEFORE sending
+            _send, _req_m, _used_m = webapi_model_fix.preflight(slot.id, _body)
+            if _used_m and hasattr(g, "log_entry"):
+                g.log_entry["model"] = f"{_req_m} -> {_used_m}"
         try:
-            up = requests.request(request.method, url, params=_params, data=_body,
+            up = requests.request(request.method, url, params=_params, data=_send,
                                   headers=fwd_headers, stream=True, timeout=(10, 600),
                                   allow_redirects=False)
+            if _is_chat and up.status_code in (400, 404, 422):
+                # "Unknown model name: 'x'. Available registered models: a, b" -> retry with a model that works
+                _bad = {webapi_model_fix.get_model(_send)}
+                for _ in range(3):
+                    _txt = up.content.decode("utf-8", "replace")
+                    if not webapi_model_fix.is_unknown_model_error(up.status_code, _txt):
+                        break
+                    _avail = webapi_model_fix.parse_available(_txt) or \
+                             webapi_model_fix.fetch_models(requests, slot.url)
+                    webapi_model_fix.remember(slot.id, _avail)
+                    _alt = webapi_model_fix.pick(_avail, exclude=_bad)
+                    if not _alt:
+                        break
+                    print(f"[WEBAPI MODEL FALLBACK] '{webapi_model_fix.get_model(_send)}' unknown on '{slot.label}' -> '{_alt}'", flush=True)
+                    if hasattr(g, "log_entry"):
+                        g.log_entry["model"] = f"{webapi_model_fix.get_model(_body)} -> {_alt}"
+                    up.close()
+                    _bad.add(_alt)
+                    _send = webapi_model_fix.set_model(_body, _alt)
+                    up = requests.request(request.method, url, params=_params, data=_send,
+                                          headers=fwd_headers, stream=True, timeout=(10, 600),
+                                          allow_redirects=False)
         except Exception as e:
             last_exc, up = e, None
             if _balanced:
