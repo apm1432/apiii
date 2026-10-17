@@ -2039,13 +2039,41 @@ function refreshFullQuestion(qId) {
     updateFloatingStats(visible);
 }
 
+// Question Palette -> go to the question at ONCE (first tap).
+// Why it needed 3-4 taps before: scrollIntoView({behavior:'smooth'}) started the animation towards a position computed while the
+// questions below were still "unrendered" (content-visibility:auto uses a 420px guess per question). While scrolling, the real
+// heights appeared, the target moved and the animation ended in the wrong place. On mobile the sticky palette also covered the top.
+// Now: jump instantly, keep the question's top just below the sticky palette, and re-correct for a few frames while the
+// layout settles.
+window.jumpToFullQuestion = function (idx) {
+    const target = () => document.getElementById('full-q-' + idx);
+    const offset = () => {
+        const c = document.getElementById('jump-grid-container');
+        if (!c || getComputedStyle(c).display === 'none') return 8;
+        const r = c.getBoundingClientRect();
+        return r.width >= window.innerWidth * 0.8 ? Math.ceil(r.height) + 8 : 8;   // mobile: full-width palette sticks on top
+    };
+    let tries = 0, stable = 0;
+    const step = () => {
+        const el = target();
+        if (!el) return;
+        const dy = el.getBoundingClientRect().top - offset();
+        if (Math.abs(dy) > 2) {
+            stable = 0;
+            window.scrollTo({ top: Math.max(0, window.scrollY + dy), behavior: 'instant' });
+        } else stable++;
+        if (stable < 3 && tries++ < 20) requestAnimationFrame(step);   // 3 quiet frames in a row = the layout has settled
+    };
+    step();
+};
+
 function buildJumpGridHtml(questions) {
     let gridHtml = `
         <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
     `;
     questions.forEach((q, idx) => {
         const btnColor = gridBtnStyle(q);
-        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${q.qnum || idx + 1}</button>`;
+        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="jumpToFullQuestion(${idx})">${q.qnum || idx + 1}</button>`;
     });
     return gridHtml + `</div>`;
 }
@@ -2122,13 +2150,19 @@ function updateFloatingStats(questions) {
     const statCorrect = document.getElementById('stat-correct');
     if (statAttempted) statAttempted.innerText = totalAttempted;
     if (statCorrect) statCorrect.innerText = totalCorrect;
+    // marks (with negative marking when the student switched it on - see examsettings.js)
+    const wrongN = Math.max(0, totalAttempted - totalCorrect - questions.filter(q => userAnswers[q._id] && userAnswers[q._id].isCancelled).length);
+    const marksTxt = (typeof window.examMarks === 'function') ? window.examMarks(totalCorrect, wrongN) : String(totalCorrect);
+    const statMarks = document.getElementById('stat-marks');
+    if (statMarks) statMarks.innerText = marksTxt;
 
     const quizScore = document.getElementById('quiz-score-bar');
     if (quizScore) {
         const wrong = totalAttempted - totalCorrect;
         quizScore.innerHTML = `<span>Attempted: <b>${totalAttempted}/${questions.length}</b></span>` +
             `<span style="color:#10b981;">✔ <b>${totalCorrect}</b></span>` +
-            `<span style="color:#ef4444;">✖ <b>${wrong}</b></span>`;
+            `<span style="color:#ef4444;">✖ <b>${wrong}</b></span>` +
+            `<span style="color:#f59e0b;">Score: <b>${marksTxt}</b></span>`;
     }
 }
 

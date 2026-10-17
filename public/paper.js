@@ -548,6 +548,7 @@
         const st = stats();
         const fixedQ = pg.qs.filter(q => q.is_ai_fixed).map(q => 'Q' + esc(q.qnum || ''));
         el.score.innerHTML = `<span style="color:#34d399">✔ ${st.c}</span> &nbsp;<span style="color:#f87171">✖ ${st.w}</span> <span style="color:#9ca3af">/ ${st.n}</span>` +
+            (typeof window.examPaperInfo === 'function' ? window.examPaperInfo(st.c, st.w) : '') +
             (fixedQ.length ? `<br><span class="pm-aifix" title="These questions were corrected by AI">✨ AI Fixed: ${fixedQ.join(', ')}</span>` : '');
         el.autobtn.textContent = PM.auto ? '💡 ON' : '💡 OFF';
         el.autobtn.classList.toggle('on', !!PM.auto);

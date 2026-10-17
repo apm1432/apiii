@@ -18,3 +18,16 @@
 - utils/progressSync.js: AI-fix re-evaluation and the dashboard self-heal are atomic too (no stale save() overwriting new answers).
 - public/script.js: answer OUTBOX. Every answer is stored in localStorage and removed only after the server confirmed it; it is retried
   (network error, 401/429/5xx, internet back, tab visible, every 15 s). Pending answers stay on screen when data is loaded from the server.
+
+## 3. Question Palette goes to the question on the first tap
+- script.js `jumpToFullQuestion(idx)` replaces `scrollIntoView({behavior:'smooth'})`: instant jump, top of the question kept below the
+  sticky mobile palette, re-corrected for a few frames while content-visibility questions get their real height.
+- index.html: script.js?v=32
+
+## 4. Negative marking (-0.25) + Timer, both switchable by the student
+- NEW public/examsettings.js: bar under the paper header with "Negative marking" and "Timer" switches (saved in the browser),
+  timer minutes (default 1.2 min per question, editable), start/pause, restart, live score and a "Result" button.
+- Score = correct x 1 - wrong x 0.25 (cancelled / unattempted = 0). Shown in the bar, Quiz score bar, floating stats and Paper Mode.
+- Timer: remaining time is kept per paper (reload safe), pauses when the paper is left, "Time up" opens the result window. Answers are not locked.
+- Only calculation: answers / progress saved in the database are unchanged.
+- index.html: script.js?v=33, paper.js?v=13, examsettings.js?v=1
