@@ -32,7 +32,7 @@
         const v = JSON.parse(localStorage.getItem(LS_VIEW) || '{}');
         if (typeof v.s === 'number') PM.s = Math.min(MAX_S, Math.max(MIN_S, v.s));
         if (v.fit === 'width' || v.fit === 'screen') PM.fit = v.fit;
-        if (typeof v.min === 'boolean') PM.min = v.min;
+        // (the minimised answer panel is NOT restored: it looked like the options had vanished after a refresh)
         if (typeof v.auto === 'boolean') PM.auto = v.auto;
     } catch (e) { /* ignore */ }
 
@@ -547,7 +547,7 @@
         let html = `<div class="pm-nav">
             <button class="pm-nb" data-a="prev" ${PM.pi === 0 ? 'disabled' : ''}>◀ Prev</button>
             ${pg.urls && pg.urls.length > 1 ? `<button class="pm-nb" data-a="sub" title="This question has more than one page image">🖼 ${(pg.cur || 0) + 1}/${pg.urls.length}</button>` : ''}
-            <button class="pm-count" data-a="min">${PM.pi + 1} / ${PM.pages.length} · ${label} ${PM.min ? '▴' : '▾'}</button>
+            <button class="pm-count" data-a="min">${PM.pi + 1} / ${PM.pages.length} · ${label} ${PM.min ? '▴ Show answers' : '▾'}</button>
             <button class="pm-nb primary" data-a="next" ${PM.pi >= PM.pages.length - 1 ? 'disabled' : ''}>Next ▶</button>
         </div>`;
 
@@ -675,6 +675,7 @@
         PM.sibKey = '';
         PM.pages = buildPages();
         PM.open = true;
+        PM.min = false;                // always open with the question numbers + options visible
         PM.els.root.classList.add('open');
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
