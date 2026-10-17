@@ -345,6 +345,9 @@ def write_config(psid, psidts, path, base=None):
         s = ""
     s = _set_key(s, PSID_NAME, psid)
     s = _set_key(s, PSIDTS_NAME, psidts)
+    proxy = (os.environ.get("WEBAI_PROXY") or "").strip()      # same exit IP for every request of the session
+    if proxy:
+        s = _set_key(s, "http_proxy", proxy)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
