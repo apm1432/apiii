@@ -2025,9 +2025,9 @@ function refreshFullQuestion(qId) {
         const fresh = buildFullQuestionEl(visible[idx], idx);
         old.replaceWith(fresh);
         // the changed question is ABOVE what the student is reading: its new height must not push the page
-        if (r0.bottom < 0) {
+        if (r0.bottom < scrollerTop(getScroller(fresh))) {
             const dh = fresh.getBoundingClientRect().height - r0.height;
-            if (dh) window.scrollTo({ top: window.scrollY + dh, behavior: 'instant' });
+            if (dh) scrollerBy(getScroller(fresh), dh);
         }
     }
     const gb = document.getElementById(`grid-btn-${idx}`);
@@ -2045,6 +2045,18 @@ function refreshFullQuestion(qId) {
 // heights appeared, the target moved and the animation ended in the wrong place. On mobile the sticky palette also covered the top.
 // Now: jump instantly, keep the question's top just below the sticky palette, and re-correct for a few frames while the
 // layout settles.
+// The page does NOT scroll in the window (body is overflow:hidden). The scrolling box is .view-section or .questions-list
+// depending on screen size, so we look for the nearest scrollable parent of the question instead of using window.scrollTo.
+function getScroller(el) {
+    for (let p = el && el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const oy = getComputedStyle(p).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p;
+    }
+    return document.scrollingElement || document.documentElement;
+}
+function scrollerTop(sc) { return (sc === document.scrollingElement || sc === document.documentElement) ? 0 : sc.getBoundingClientRect().top; }
+function scrollerBy(sc, dy) { sc.scrollTo({ top: Math.max(0, sc.scrollTop + dy), behavior: 'instant' }); }
+
 window.jumpToFullQuestion = function (idx) {
     const target = () => document.getElementById('full-q-' + idx);
     const offset = () => {
@@ -2057,11 +2069,9 @@ window.jumpToFullQuestion = function (idx) {
     const step = () => {
         const el = target();
         if (!el) return;
-        const dy = el.getBoundingClientRect().top - offset();
-        if (Math.abs(dy) > 2) {
-            stable = 0;
-            window.scrollTo({ top: Math.max(0, window.scrollY + dy), behavior: 'instant' });
-        } else stable++;
+        const sc = getScroller(el);
+        const dy = el.getBoundingClientRect().top - scrollerTop(sc) - offset();
+        if (Math.abs(dy) > 2) { stable = 0; scrollerBy(sc, dy); } else stable++;
         if (stable < 3 && tries++ < 20) requestAnimationFrame(step);   // 3 quiet frames in a row = the layout has settled
     };
     step();
@@ -2116,11 +2126,13 @@ function renderFullPaper(questions = currentQuestions) {
     }
 
     // full rebuild: remember which question is at the top of the screen
-    let anchor = null;
-    if (list.offsetParent !== null) {
+    let anchor = null, sc0 = null;
+    if (list.offsetParent !== null && kids.length) {
+        sc0 = getScroller(kids[0]);
+        const stTop = scrollerTop(sc0);
         for (const el of kids) {
             const r = el.getBoundingClientRect();
-            if (r.bottom > 0) { anchor = { qid: el.dataset.qid, top: r.top }; break; }
+            if (r.bottom > stTop) { anchor = { qid: el.dataset.qid, top: r.top }; break; }
         }
     }
     list.innerHTML = '';
@@ -2130,7 +2142,7 @@ function renderFullPaper(questions = currentQuestions) {
     jumpGrid.innerHTML = buildJumpGridHtml(questions);
     if (anchor) {
         const el = [...list.children].find(e => e.dataset.qid === anchor.qid);
-        if (el) window.scrollTo({ top: window.scrollY + (el.getBoundingClientRect().top - anchor.top), behavior: 'instant' });
+        if (el) scrollerBy(getScroller(el) || sc0, el.getBoundingClientRect().top - anchor.top);
     }
     updateFloatingStats(questions);
 }

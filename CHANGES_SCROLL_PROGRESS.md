@@ -31,3 +31,8 @@
 - Timer: remaining time is kept per paper (reload safe), pauses when the paper is left, "Time up" opens the result window. Answers are not locked.
 - Only calculation: answers / progress saved in the database are unchanged.
 - index.html: script.js?v=33, paper.js?v=13, examsettings.js?v=1
+
+## 5. Palette click did nothing (fix)
+- The app scrolls inside `.view-section` / `.questions-list` (body is overflow:hidden), NOT in the window, so `window.scrollTo` did nothing.
+  `jumpToFullQuestion`, the "stay at the same question" anchor in `renderFullPaper` and `refreshFullQuestion` now scroll the nearest
+  scrollable parent of the question (`getScroller`). index.html: script.js?v=34
