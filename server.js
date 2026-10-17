@@ -62,6 +62,9 @@ app.use('/api', apiModule.router);
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+// Admin: official answer key (PDF -> verified answers + page images on Telegram -> questions)
+app.use('/api/admin/answer-key', require('./routes/answerkey'));
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);
 });

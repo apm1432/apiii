@@ -31,6 +31,8 @@ const questionSchema = new mongoose.Schema({
   official_answer_key_answers: { type: String },                   // answer according to the official key: '1'..'4', '1/3' (more than one accepted) or '#' (cancelled)
   answer_key_image_url: { type: mongoose.Schema.Types.Mixed },     // same page as official_answer_key
   answer_key_images: { type: [mongoose.Schema.Types.Mixed], default: undefined }, // every page of the official key
+  official_answer_key_msg_id: { type: Number },                    // Telegram message id of the official-key page image (set by the Answer Key admin tool)
+  official_answer_key_set: { type: String },                       // which set (A/B/C/D) of the official key was applied
   ai_answer_option: { type: String },                              // the AI's own answer (kept when the official key overrides it)
   answer_source: { type: String },                                 // 'official' | 'ai' = where correct_answer_option (the answer shown on the site) came from
   explanation_answer: { type: String },                            // option the explanation was written for

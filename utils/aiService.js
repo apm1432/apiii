@@ -1757,6 +1757,7 @@ module.exports = {
     testGemini,
     fixQuestionWithAI,
     normalizeAiFix,
+    chatViaGemini,   // generic Gemini call (used by utils/answerKeyService.js for the vision verify pass)
     // exported for tests
     runAI,
     deepenExplanation,

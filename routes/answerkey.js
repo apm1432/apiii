@@ -1,0 +1,268 @@
+/**
+ * routes/answerkey.js   (mounted at /api/admin/answer-key, admin only)
+ * ──────────────────────────────────────────────────────────────────────────
+ *  GET  /exams            exams (year_exam) + how many questions already have an official answer
+ *  GET  /                 recent uploads
+ *  POST /upload           multipart: pdf (+ examId)  -> starts a background job, returns { id }
+ *  GET  /:id              job status / result (poll this while status === 'processing')
+ *  POST /:id/compare      { examId, set, overrides, acceptSingle }  -> match % between the site's final answers and the official key
+ *  POST /:id/save         { examId, set, overrides, acceptSingle, skipUnresolved } -> writes official answer + key page image into every question
+ *  DELETE /:id            forget an upload (Telegram messages are not deleted)
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const fsp = fs.promises;
+const os = require('os');
+const path = require('path');
+
+const AnswerKey = require('../models/AnswerKey');
+const Question = require('../models/Question');
+const User = require('../models/User');
+const { authMiddleware } = require('../middleware/auth');
+const svc = require('../utils/answerKeyService');
+const dataCache = require('../utils/dataCache');
+
+const UPLOAD_DIR = path.join(os.tmpdir(), 'answerkey_uploads');
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
+
+const upload = multer({
+    dest: UPLOAD_DIR,
+    limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+    fileFilter: (req, file, cb) => {
+        const ok = /pdf/i.test(file.mimetype || '') || /\.pdf$/i.test(file.originalname || '');
+        cb(ok ? null : new Error('Only a PDF file can be uploaded.'), ok);
+    }
+});
+
+const uploadLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { success: false, message: 'Too many uploads, wait a minute.' } });
+
+const okId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
+const okExam = (v) => typeof v === 'string' && v.trim() && v.length <= 300;
+const okSet = (v) => typeof v === 'string' && /^[A-D]$/.test(v);
+
+async function adminOnly(req, res, next) {
+    try {
+        const user = await User.findById(req.user.id).select('isAdmin').lean();
+        if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
+        next();
+    } catch (e) { res.status(500).json({ success: false, message: 'Server Error' }); }
+}
+router.use(authMiddleware, adminOnly);
+
+// ── what the admin sees (no huge blobs) ─────────────────────────────────────────────
+function view(k) {
+    const sets = k.sets || {};
+    const v = k.verification || {};
+    return {
+        id: String(k._id), fileName: k.fileName, examId: k.examId || '', status: k.status, progress: k.progress || '', error: k.error || '',
+        pageCount: k.pageCount || 0,
+        sets: Object.keys(sets).sort().map(s => ({ name: s, answers: Object.keys(sets[s] || {}).length })),
+        verification: { engines: v.engines || [], notes: v.notes || [], perSet: v.perSet || {}, unverified: v.unverified || [], verifiedAt: v.verifiedAt || null },
+        images: (k.images || []).map(i => ({ page: i.page, ref: i.ref, messageId: i.messageId, chatId: i.chatId })),
+        pdf: k.pdf ? { messageId: k.pdf.messageId, chatId: k.pdf.chatId } : null,
+        applied: k.appliedAt ? { set: k.appliedSet, examId: k.appliedExam, at: k.appliedAt, count: k.appliedCount } : null,
+        createdAt: k.createdAt
+    };
+}
+
+// ── exams list ──────────────────────────────────────────────────────────────────────
+router.get('/exams', async (req, res) => {
+    try {
+        const rows = await Question.aggregate([
+            { $match: { year_exam: { $nin: [null, ''] } } },
+            { $group: { _id: '$year_exam', count: { $sum: 1 }, withOfficial: { $sum: { $cond: [{ $gt: [{ $strLenCP: { $toString: { $ifNull: ['$official_answer_key_answers', ''] } } }, 0] }, 1, 0] } } } },
+            { $sort: { _id: 1 } }
+        ]);
+        res.json({ success: true, exams: rows.map(r => ({ examId: r._id, count: r.count, withOfficial: r.withOfficial })), aiVerify: svc.aiAvailable() });
+    } catch (err) { console.error('answer-key exams:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+router.get('/', async (req, res) => {
+    try {
+        const list = await AnswerKey.find({}, 'fileName examId status progress pageCount appliedAt appliedSet appliedExam createdAt').sort({ createdAt: -1 }).limit(15).lean();
+        res.json({ success: true, keys: list.map(k => ({ id: String(k._id), fileName: k.fileName, examId: k.examId || '', status: k.status, pageCount: k.pageCount || 0, applied: k.appliedAt ? `${k.appliedExam} · Set ${k.appliedSet}` : '', createdAt: k.createdAt })) });
+    } catch (err) { res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// ── upload + background processing ──────────────────────────────────────────────────
+const running = new Set();
+
+async function processKey(id, pdfPath, workDir, label) {
+    const setProgress = (m) => AnswerKey.updateOne({ _id: id }, { $set: { progress: String(m).slice(0, 200) } }).catch(() => {});
+    try {
+        const r = await svc.extractVerified(pdfPath, workDir, setProgress);
+        const images = await svc.uploadPages(r.images, label, setProgress);
+        await setProgress('Uploading the original PDF to Telegram…');
+        let pdf = null;
+        try {
+            const u = await svc.uploadFile(await fsp.readFile(pdfPath), 'official_answer_key.pdf', 'application/pdf', `Official Answer Key (PDF) | ${label || ''}`);
+            pdf = { ref: u.ref, messageId: u.messageId, chatId: u.chatId };
+        } catch (e) { console.warn('answer-key: original PDF not uploaded:', e.message); }
+        await AnswerKey.updateOne({ _id: id }, { $set: { status: 'ready', progress: 'Done', error: '', pageCount: r.pageCount, sets: r.sets, pages: r.pages, verification: r.verification, images, pdf } });
+    } catch (err) {
+        console.error('answer-key job failed:', err.message);
+        await AnswerKey.updateOne({ _id: id }, { $set: { status: 'failed', error: String(err.message || err).slice(0, 500), progress: '' } }).catch(() => {});
+    } finally {
+        running.delete(String(id));
+        fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
+        fsp.rm(pdfPath, { force: true }).catch(() => {});
+    }
+}
+
+router.post('/upload', uploadLimiter, (req, res) => {
+    upload.single('pdf')(req, res, async (err) => {
+        if (err) return res.status(400).json({ success: false, message: err.message || 'Upload failed.' });
+        if (!req.file) return res.status(400).json({ success: false, message: 'Choose a PDF file.' });
+        try {
+            const head = Buffer.alloc(5);
+            const fh = await fsp.open(req.file.path, 'r');
+            await fh.read(head, 0, 5, 0); await fh.close();
+            if (head.toString('latin1') !== '%PDF-') { await fsp.rm(req.file.path, { force: true }); return res.status(400).json({ success: false, message: 'This is not a valid PDF file.' }); }
+
+            const examId = okExam(req.body && req.body.examId) ? String(req.body.examId).trim() : '';
+            const name = String(req.file.originalname || 'answer_key.pdf').slice(0, 200);
+            const doc = await AnswerKey.create({ fileName: name, examId, status: 'processing', progress: 'Starting…' });
+            const id = String(doc._id);
+            running.add(id);
+            const workDir = path.join(os.tmpdir(), 'answerkey_' + id);
+            processKey(doc._id, req.file.path, workDir, examId || name); // runs in the background
+            res.json({ success: true, id });
+        } catch (e) {
+            console.error('answer-key upload:', e);
+            fsp.rm(req.file.path, { force: true }).catch(() => {});
+            res.status(500).json({ success: false, message: 'Server Error' });
+        }
+    });
+});
+
+router.get('/:id', async (req, res) => {
+    try {
+        if (!okId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid id.' });
+        const k = await AnswerKey.findById(req.params.id).lean();
+        if (!k) return res.status(404).json({ success: false, message: 'Not found.' });
+        // a job that was running when the server restarted can never finish
+        if (k.status === 'processing' && !running.has(String(k._id)) && Date.now() - new Date(k.updatedAt).getTime() > 3 * 60 * 1000) {
+            await AnswerKey.updateOne({ _id: k._id }, { $set: { status: 'failed', error: 'Processing was interrupted (server restarted). Upload the PDF again.' } });
+            k.status = 'failed'; k.error = 'Processing was interrupted (server restarted). Upload the PDF again.';
+        }
+        res.json({ success: true, key: view(k) });
+    } catch (err) { console.error('answer-key get:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+router.delete('/:id', async (req, res) => {
+    try {
+        if (!okId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid id.' });
+        await AnswerKey.deleteOne({ _id: req.params.id });
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// ── effective answers = verified answers of the set + the admin's confirmed values ──
+function effective(key, set, overrides, acceptSingle) {
+    const base = Object.assign({}, (key.sets && key.sets[set]) || {});
+    const pages = Object.assign({}, (key.pages && key.pages[set]) || {});
+    const unverified = ((key.verification && key.verification.unverified) || []).filter(u => u.set === set);
+    const unresolved = [];
+    const ov = (overrides && typeof overrides === 'object') ? overrides : {};
+    for (const [qRaw, valRaw] of Object.entries(ov)) {
+        const q = parseInt(qRaw, 10), a = svc.normAnswer(valRaw);
+        if (!(q >= 1 && q <= 300) || !a) continue;
+        base[q] = a;
+        const u = unverified.find(x => x.q === q);
+        if (u && u.page && !pages[q]) pages[q] = u.page;
+    }
+    for (const u of unverified) {
+        if (base[u.q]) continue;
+        // read by only ONE pass (the other found nothing): the admin may accept it. A real conflict (two different values) never is.
+        const single = (u.a && !u.b) ? u.a : ((u.b && !u.a) ? u.b : null);
+        if (acceptSingle && single) { base[u.q] = single; if (u.page && !pages[u.q]) pages[u.q] = u.page; continue; }
+        unresolved.push(u.q);
+    }
+    return { answers: base, pages, unresolved };
+}
+
+async function loadExamQuestions(examId) {
+    return Question.find({ year_exam: examId }).select('_id qnum correct_answer_option final_answer_key').lean();
+}
+
+function checkBody(req, res) {
+    const { examId, set } = req.body || {};
+    if (!okId(req.params.id)) { res.status(400).json({ success: false, message: 'Invalid id.' }); return null; }
+    if (!okExam(examId)) { res.status(400).json({ success: false, message: 'Select an exam.' }); return null; }
+    if (!okSet(set)) { res.status(400).json({ success: false, message: 'Select a set (A / B / C / D).' }); return null; }
+    return { examId: String(examId).trim(), set };
+}
+
+router.post('/:id/compare', async (req, res) => {
+    try {
+        const b = checkBody(req, res); if (!b) return;
+        const key = await AnswerKey.findById(req.params.id).lean();
+        if (!key || !['ready', 'applied'].includes(key.status)) return res.status(404).json({ success: false, message: 'Answer key is not ready.' });
+        if (!key.sets || !key.sets[b.set]) return res.status(400).json({ success: false, message: `Set ${b.set} is not in this key.` });
+        const eff = effective(key, b.set, req.body.overrides, !!req.body.acceptSingle);
+        const questions = await loadExamQuestions(b.examId);
+        if (!questions.length) return res.status(404).json({ success: false, message: 'This exam has no questions.' });
+        const result = svc.compare(eff.answers, questions);
+        res.json({ success: true, set: b.set, examId: b.examId, unresolved: eff.unresolved, result });
+    } catch (err) { console.error('answer-key compare:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+router.post('/:id/save', async (req, res) => {
+    try {
+        const b = checkBody(req, res); if (!b) return;
+        const key = await AnswerKey.findById(req.params.id);
+        if (!key || !['ready', 'applied'].includes(key.status)) return res.status(404).json({ success: false, message: 'Answer key is not ready.' });
+        if (!key.sets || !key.sets[b.set]) return res.status(400).json({ success: false, message: `Set ${b.set} is not in this key.` });
+        if (!key.images || !key.images.length) return res.status(400).json({ success: false, message: 'This key has no uploaded page images.' });
+
+        const eff = effective(key, b.set, req.body.overrides, !!req.body.acceptSingle);
+        if (eff.unresolved.length && !req.body.skipUnresolved) {
+            return res.status(409).json({ success: false, code: 'UNRESOLVED', unresolved: eff.unresolved, message: `${eff.unresolved.length} answer(s) could not be verified by both readings (Q ${eff.unresolved.slice(0, 15).join(', ')}${eff.unresolved.length > 15 ? '…' : ''}). Confirm them, or tick "skip unverified".` });
+        }
+
+        const questions = await loadExamQuestions(b.examId);
+        if (!questions.length) return res.status(404).json({ success: false, message: 'This exam has no questions.' });
+
+        const imgOf = (page) => key.images.find(i => i.page === page) || key.images[0];
+        const ops = [];
+        for (const q of questions) {
+            const n = Number(q.qnum);
+            const ans = eff.answers[n];
+            if (!ans) continue;
+            const im = imgOf(eff.pages[n]);
+            ops.push({
+                updateOne: {
+                    filter: { _id: q._id },
+                    update: { $set: {
+                        official_answer_key_answers: ans,
+                        official_answer_key: im.ref,
+                        answer_key_image_url: im.ref,
+                        answer_key_images: [im.ref],
+                        official_answer_key_msg_id: im.messageId,
+                        official_answer_key_set: b.set
+                    } }
+                }
+            });
+        }
+        if (!ops.length) return res.status(400).json({ success: false, message: 'No question number of this exam matches the key.' });
+
+        let updated = 0;
+        for (let i = 0; i < ops.length; i += 500) {
+            const r = await Question.bulkWrite(ops.slice(i, i + 500), { ordered: false });
+            updated += (r.matchedCount !== undefined ? r.matchedCount : r.nMatched) || 0;
+        }
+
+        key.status = 'applied'; key.appliedSet = b.set; key.appliedExam = b.examId; key.appliedAt = new Date(); key.appliedCount = updated; key.examId = b.examId;
+        await key.save();
+        dataCache.invalidateExam(b.examId).catch(() => {});   // students see the new official answer + image at once
+
+        const result = svc.compare(eff.answers, questions);
+        res.json({ success: true, updated, skipped: eff.unresolved.length, set: b.set, examId: b.examId, result });
+    } catch (err) { console.error('answer-key save:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+module.exports = router;
