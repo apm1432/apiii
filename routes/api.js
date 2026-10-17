@@ -130,6 +130,15 @@ router.post('/admin/clear-cache', async (req, res) => {
     res.json({ success: true });
 });
 
+
+// A client asked for a question id the database does not know: its copy of the exam is OLD (the paper was re-imported,
+// so every question got a new _id). Drop the server data cache so the next load is fresh, and tell the client to reload.
+const STALE_MSG = 'हा प्रश्न update झाला आहे. कृपया paper बंद करून पुन्हा उघडा (page refresh करा).';
+function questionGone(res) {
+    dataCache.invalidateAll().catch(() => {});
+    return res.status(404).json({ success: false, code: 'STALE_QUESTION', message: STALE_MSG });
+}
+
 // Admin / AI: Telegram image as Base64 (disk cache first, Telegram only when the file is not on disk yet)
 async function fetchTelegramImageBase64(rawFileId) {
     if (!rawFileId) return null;
@@ -372,7 +381,7 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
         if (!user) return res.status(401).json({ success: false, message: 'User not found' });
 
         const question = await Question.findById(questionId).lean();
-        if (!question) return res.status(404).json({ success: false, message: 'Question not found.' });
+        if (!question) return questionGone(res);
 
         // hidden papers do not exist for normal users
         const { hidden } = await examCatalog.getCatalog();
@@ -747,7 +756,7 @@ router.post('/admin/question-image', authMiddleware, async (req, res) => {
         const okId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
         if (!okId(questionId)) return res.status(400).json({ success: false, message: 'Invalid question.' });
         const q = await Question.findById(questionId);
-        if (!q) return res.status(404).json({ success: false, message: 'Question not found.' });
+        if (!q) return questionGone(res);
 
         if (action === 'reset') {
             if (q.original_image_backup) q.original_image_url = q.original_image_backup;
@@ -822,9 +831,7 @@ router.post('/admin/fix-question', authMiddleware, async (req, res) => {
 
         const { questionId } = req.body;
         const question = await Question.findById(questionId);
-        if (!question) {
-            return res.status(404).json({ success: false, message: 'Question not found.' });
-        }
+        if (!question) return questionGone(res);
 
         let imageBase64 = null;
         if (question.original_image_url) {

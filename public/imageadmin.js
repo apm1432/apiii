@@ -33,7 +33,17 @@
         const msg = overlay.querySelector('#ie-msg');
         msg.textContent = 'Saving...';
         const r = await post({ questionId: qid, ...body });
-        if (!r.success) { msg.textContent = '⚠ ' + (r.message || 'Failed.'); return; }
+        if (!r.success) {
+            msg.textContent = '⚠ ' + (r.message || 'Failed.');
+            if (r.code === 'STALE_QUESTION') { // old copy of the paper on this device: reload it
+                try {
+                    if (window.QCache) window.QCache.clear();
+                    overlay.classList.remove('show');
+                    if (typeof openTest === 'function') openTest(window.activeYearExam, window.activeSubject || null, null, window.activeYearExams || null);
+                } catch (e) { }
+            }
+            return;
+        }
         const q = findQ();
         if (q) {
             q.original_image_url = r.question.original_image_url;

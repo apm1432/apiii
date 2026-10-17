@@ -66,6 +66,17 @@
         addMsg('model', 'नमस्कार! या प्रश्नाबद्दल तुमचा काय doubt आहे? Options, related facts किंवा current स्थिती — काहीही विचारा. (फक्त याच प्रश्नाबद्दल उत्तर मिळेल.)');
     }
 
+    // the exam on this phone is old (paper was re-imported): load it again from the server
+    function reloadExam() {
+        try {
+            if (window.QCache) window.QCache.clear();
+            if (typeof openTest === 'function' && window.activeYearExam !== undefined) {
+                close();
+                openTest(window.activeYearExam, window.activeSubject || null, null, window.activeYearExams || null);
+            }
+        } catch (e) { }
+    }
+
     function close() { if (panel) panel.classList.add('hidden'); }
 
     async function send(text) {
@@ -92,6 +103,7 @@
             } else {
                 wait.classList.add('qchat-err');
                 wait.textContent = '⚠ ' + (data.message || 'काहीतरी चूक झाली. पुन्हा प्रयत्न करा.');
+                if (data.code === 'STALE_QUESTION') reloadExam();
             }
         } catch (e) {
             wait.classList.add('qchat-err');

@@ -159,14 +159,20 @@ async function responseFor(opts) {
 }
 
 // ---- change detection (max 1 cheap DB probe per minute) -------------------------------------------------------
-let lastProbe = 0, probeCount = null, probing = false;
+let lastProbe = 0, probeSig = null, probing = false;
 async function checkFreshness() {
     if (probing || Date.now() - lastProbe < PROBE_EVERY_MS) return;
     probing = true; lastProbe = Date.now();
     try {
-        const n = await Question.estimatedDocumentCount();
-        if (probeCount !== null && n !== probeCount) await reconcile();
-        probeCount = n;
+        // count + newest _id: a paper that was deleted and imported again (same count, NEW _ids) is noticed too
+        const [n, last] = await Promise.all([Question.estimatedDocumentCount(), Question.findOne().sort({ _id: -1 }).select('_id').lean()]);
+        const sig = n + ':' + (last ? String(last._id) : '');
+        if (probeSig !== null && sig !== probeSig) {
+            const [oldN] = probeSig.split(':');
+            if (String(n) === oldN) { await invalidateAll(); if (changeListener) { try { changeListener(); } catch (e) {} } } // same count, different ids
+            else await reconcile();
+        }
+        probeSig = sig;
     } catch (e) { /* the next request will probe again */ }
     finally { probing = false; }
 }
