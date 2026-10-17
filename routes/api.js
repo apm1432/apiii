@@ -465,6 +465,32 @@ router.post('/admin/exams/visibility', authMiddleware, async (req, res) => {
     }
 });
 
+// PERMANENTLY delete ONE exam paper: { examId, confirm: true }
+// Removes only that paper: its questions (with their explanations, answer keys, dates, image references),
+// its "hidden" flag and its name inside exam groups. Nothing belonging to other papers is touched.
+router.post('/admin/exams/delete', authMiddleware, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const examId = typeof req.body.examId === 'string' ? req.body.examId : '';
+        if (!examId.trim() || examId.length > 300 || examId === 'Passage Comprehension') {
+            return res.status(400).json({ success: false, message: 'Invalid exam.' });
+        }
+        if (req.body.confirm !== true) {
+            return res.status(400).json({ success: false, message: 'Confirmation required.' });
+        }
+        const qr = await Question.deleteMany({ year_exam: examId });
+        await ExamHidden.deleteMany({ examId });
+        await ExamGroup.updateMany({ exams: examId }, { $pull: { exams: examId } });
+        await dataCache.invalidateExam(examId).catch(() => {});
+        try { await buildHierarchyBase(); } catch (e) { cachedHierarchy = null; lastCacheTime = 0; }
+        catalogChanged();
+        res.json({ success: true, deletedQuestions: qr.deletedCount || 0 });
+    } catch (err) {
+        console.error('exam delete error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
 // create a group: { name, exams?: [...] }
 router.post('/admin/exam-groups', authMiddleware, async (req, res) => {
     try {

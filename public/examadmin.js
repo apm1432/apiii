@@ -33,6 +33,41 @@
         render();
     };
 
+    // permanent delete of ONE paper (asks for confirmation first)
+    window.adminDeleteExam = async function (examId, questionCount) {
+        const n = questionCount ? ' (' + questionCount + ' questions)' : '';
+        if (!confirm('⚠ PERMANENTLY DELETE "' + examId + '"' + n + '?\n\nThis deletes this paper\'s questions, explanations and all its data from the database. This cannot be undone.\n\nOther papers are not affected.')) return false;
+        const r = await api('POST', '/api/admin/exams/delete', { examId, confirm: true });
+        if (!r.success) { alert(r.message || 'Delete failed.'); return false; }
+        alert('Deleted "' + examId + '" (' + (r.deletedQuestions || 0) + ' questions).');
+        await loadDashboard();
+        render();
+        return true;
+    };
+
+    // the card button: choose "hide / show only" or "delete permanently"
+    window.adminExamOptions = function (examId, isHidden, questionCount) {
+        const old = document.getElementById('xm-opt-overlay');
+        if (old) old.remove();
+        const ov = document.createElement('div');
+        ov.id = 'xm-opt-overlay';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+        ov.innerHTML =
+            '<div style="background:var(--card-bg,#fff);color:var(--text,#111);border-radius:12px;padding:18px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.35)">' +
+            '<div style="font-weight:700;margin-bottom:6px;word-break:break-word">' + esc(examId) + '</div>' +
+            '<div style="font-size:.85rem;opacity:.75;margin-bottom:14px">What do you want to do with this paper?</div>' +
+            '<button class="btn" id="xo-hide" style="width:100%;margin-bottom:8px">' + (isHidden ? '👁 Show on website' : '🙈 Hide only (can be shown again)') + '</button>' +
+            '<button class="btn" id="xo-del" style="width:100%;margin-bottom:8px;background:#dc2626;border-color:#dc2626;color:#fff">🗑 Delete permanently</button>' +
+            '<button class="btn btn-outline" id="xo-cancel" style="width:100%">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(ov);
+        const close = () => ov.remove();
+        ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+        ov.querySelector('#xo-cancel').onclick = close;
+        ov.querySelector('#xo-hide').onclick = () => { close(); window.adminSetHidden([examId], !isHidden); };
+        ov.querySelector('#xo-del').onclick = async () => { close(); await window.adminDeleteExam(examId, questionCount); };
+    };
+
     // ---------------- manager modal ----------------
     let overlay = null;
     const sel = new Set();

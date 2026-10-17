@@ -1152,9 +1152,8 @@ async function loadDashboard() {
 
 // Exam filtering and rendering
 const escapeHtmlX = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const MAINS_RE = /main|paper 1|paper 2|p\s?1|p\s?2|paper-1|paper-2/i;
 
-// Tabs on top of the dashboard: All / Prelims / Mains + one tab per admin-made group (e.g. "MPSC Group A").
+// Tabs on top of the dashboard: All + one tab per admin-made group (e.g. "MPSC Group A").
 // The same tab is used in Exam-Wise AND Subject-Wise mode.
 function renderDashTabs() {
     const box = document.getElementById('exam-tabs');
@@ -1164,6 +1163,7 @@ function renderDashTabs() {
         !groups.some(g => 'g:' + g._id === window.currentExamFilter)) {
         window.currentExamFilter = 'all'; // the group was deleted
     }
+    if (window.currentExamFilter === 'prelims' || window.currentExamFilter === 'mains') window.currentExamFilter = 'all'; // removed tabs
     const cur = window.currentExamFilter || 'all';
     box.innerHTML = '';
     const mk = (key, label) => {
@@ -1178,8 +1178,6 @@ function renderDashTabs() {
         box.appendChild(b);
     };
     mk('all', 'All Exams');
-    mk('prelims', 'Prelims');
-    mk('mains', 'Mains');
     groups.forEach(g => mk('g:' + g._id, g.name));
 }
 
@@ -1188,11 +1186,7 @@ function getTabInfo(filterKey) {
     const filter = filterKey || window.currentExamFilter || 'all';
     let exams = [...(window.allExamsData || [])];
     let label = 'All Exams';
-    if (filter === 'mains') {
-        exams = exams.filter(e => MAINS_RE.test(e._id)); label = 'Mains';
-    } else if (filter === 'prelims') {
-        exams = exams.filter(e => !MAINS_RE.test(e._id)); label = 'Prelims';
-    } else if (filter.startsWith('g:')) {
+    if (filter.startsWith('g:')) {
         const g = (window.examGroups || []).find(x => 'g:' + x._id === filter);
         if (g) { const set = new Set(g.exams); exams = exams.filter(e => set.has(e._id)); label = g.name; }
     }
@@ -1366,8 +1360,9 @@ function renderExamGrid() {
             const hb = document.createElement('button');
             hb.className = 'btn btn-outline';
             hb.style.cssText = 'width: 100%; margin-top: 10px; font-size: 0.85rem; padding: 5px;';
-            hb.textContent = isHidden ? '👁 Show on website' : '🙈 Hide from website';
-            hb.onclick = (ev) => { ev.stopPropagation(); if (window.adminSetHidden) window.adminSetHidden([yearExam], !isHidden); };
+            // Admin gets "Hide / Show" or "Delete permanently" on every paper card (All Exams and groups).
+            hb.textContent = isHidden ? '👁 Show / 🗑 Delete…' : '🙈 Hide / 🗑 Delete…';
+            hb.onclick = (ev) => { ev.stopPropagation(); if (window.adminExamOptions) window.adminExamOptions(yearExam, isHidden, totalQuestions); };
             card.appendChild(hb);
         }
 
