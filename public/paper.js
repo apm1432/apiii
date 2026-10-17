@@ -87,6 +87,16 @@
         const i = parseInt(s, 10) - 1;
         return { cancelled: false, idx: isNaN(i) ? -1 : i };
     }
+    // official answer key (auto_exam.py): which option(s) the official key gives, and does the final answer differ?
+    function okInfo(q) {
+        const off = (typeof window.officialKeyAnswer === 'function') ? window.officialKeyAnswer(q) : '';
+        if (!off) return { has: false, differs: false, set: [], label: '' };
+        const parts = off === '#' ? [] : off.split('/');
+        const fin = String(q.correct_answer_option || q.final_answer_key || q.answer_key || '').trim();
+        const differs = off === '#' ? fin !== '#' : !!(fin && !parts.includes(fin));
+        const set = parts.map(x => parseInt(x, 10) - 1).filter(x => x >= 0);
+        return { has: true, differs, set, label: off === '#' ? 'Cancelled' : set.map(i => LETTERS[i] || '?').join(' / ') };
+    }
     function optionCount(q) {
         const n = Math.max((q.options || []).length, (q.options_eng || []).length, 4);
         return Math.min(n, LETTERS.length);
@@ -210,6 +220,16 @@
 .pm-opt.wrong{background:#ef4444;border-color:#ef4444}
 .pm-opt.cancel{background:#f59e0b;border-color:#f59e0b}
 .pm-opt.dim{opacity:.55}
+.pm-opt.okey.dim{opacity:1}
+.pm-opt.okey{box-shadow:0 0 0 2px #f59e0b inset;position:relative}
+.pm-opt.okey::after{content:'📋';position:absolute;top:-7px;right:-4px;font-size:.7rem}
+.pm-qn.diff{color:#fbbf24}
+.pm-okline{margin:-2px 0 8px 42px;padding:6px 10px;border-radius:8px;background:rgba(245,158,11,.16);border:1px solid #f59e0b;color:#fde68a;font-size:.8rem;line-height:1.45;font-weight:600}
+.pm-expl .okey-box{background:rgba(37,99,235,.18);border-color:#3b82f6;color:#e5e7eb}
+.pm-expl .okey-box.okey-diff{background:rgba(245,158,11,.18);border-color:#f59e0b}
+.pm-expl .okey-warn{color:#fbbf24}
+.pm-expl .okey-note{color:#9ca3af}
+.pm-expl .okey-btn{background:#374151;color:#fff;border:1px solid #4b5563;border-radius:8px;padding:6px 12px;font-size:.82rem}
 .pm-res{flex:0 0 auto;font-size:.78rem;min-width:52px;text-align:right;font-weight:700}
 .pm-res.ok{color:#34d399}.pm-res.bad{color:#f87171}.pm-res.can{color:#fbbf24}
 .pm-ex{flex:0 0 38px;height:38px;border-radius:10px;border:1px solid #374151;background:#1f2937;color:#fff;font-size:1rem}
@@ -539,7 +559,7 @@
                     const isAdm = (typeof currentUser !== 'undefined') && currentUser && currentUser.isAdmin;
                     const aiBtns = (q.is_ai_fixed ? `<button class="pm-xb ok" data-a="aiinfo" data-q="${q._id}" title="Corrected by AI">✨ AI Fixed</button>` : '') +
                         (isAdm ? `<button class="pm-xb" data-a="aifix" data-q="${q._id}" title="Run AI Fix on this question">🤖 ${q.is_ai_fixed ? 'Re-fix' : 'AI Fix'}</button>` : '');
-                    html += `<div class="pm-expl"><h5><span>💡 Q${esc(q.qnum || '')} Explanation</span><span class="pm-h5r">${aiBtns}<button class="pm-ex" style="width:28px;height:26px;font-size:.8rem" data-a="exclose">✕</button></span></h5>${q.toppers_explanation_marathi ? nl2br(q.toppers_explanation_marathi) : 'No explanation available.'}`;
+                    html += `<div class="pm-expl"><h5><span>💡 Q${esc(q.qnum || '')} Explanation</span><span class="pm-h5r">${aiBtns}<button class="pm-ex" style="width:28px;height:26px;font-size:.8rem" data-a="exclose">✕</button></span></h5>${(typeof window.officialKeyHtml === 'function') ? window.officialKeyHtml(q) : ''}${q.toppers_explanation_marathi ? nl2br(q.toppers_explanation_marathi) : 'No explanation available.'}`;
                     if (q.options_explanation && q.options_explanation.length) {
                         html += `<ul>${q.options_explanation.map(x => `<li>${nl2br(x)}</li>`).join('')}</ul>`;
                     }
@@ -551,6 +571,7 @@
                 const ci = correctInfo(q);
                 const n = Math.max(optionCount(q), ci.idx + 1);
                 let btns = '', res = '';
+                const ok = okInfo(q);
                 for (let i = 0; i < n; i++) {
                     let cls = '';
                     if (ans) {
@@ -558,6 +579,7 @@
                         else if (i === ci.idx) cls = 'correct';
                         else if (ans.selected === i) cls = 'wrong';
                         else cls = 'dim';
+                        if (ok.differs && ok.set.includes(i)) cls += ' okey';      // the option the OFFICIAL key gives (amber frame) - differs from the final answer (green)
                     }
                     btns += `<button class="pm-opt ${cls}" data-a="ans" data-q="${q._id}" data-i="${i}" ${ans ? 'disabled' : ''}>${LETTERS[i]}</button>`;
                 }
@@ -570,9 +592,12 @@
                     html += `<div class="pm-cap">📌 Same image · ${esc(q.subject || 'Other subject')}</div>`;
                 }
                 const stOn = typeof isStarred === 'function' && isStarred(q._id);
-                html += `<div class="pm-row"><span class="pm-qn">Q${esc(q.qnum || '')}${q.is_ai_fixed ? '<span class="pm-aitag" title="Corrected by AI">✨AI</span>' : ''}</span><div class="pm-opts">${btns}</div>${res}
+                const finLabel = ci.cancelled ? 'Cancelled' : (LETTERS[ci.idx] || '?');
+                const okLine = (ans && ok.differs)
+                    ? `<div class="pm-okline">⚠ Official key: <b>${esc(ok.label)}</b> &nbsp;·&nbsp; Final answer: <b>${esc(finLabel)}</b></div>` : '';
+                html += `<div class="pm-row"><span class="pm-qn ${ans && ok.differs ? 'diff' : ''}">Q${esc(q.qnum || '')}${ans && ok.differs ? '⚠' : ''}${q.is_ai_fixed ? '<span class="pm-aitag" title="Corrected by AI">✨AI</span>' : ''}</span><div class="pm-opts">${btns}</div>${res}
                     <button class="pm-ex ${String(PM.expl) === String(q._id) ? 'on' : ''}" data-a="ex" data-q="${q._id}" ${ans ? '' : 'disabled'} title="${ans ? 'Explanation' : 'Answer first'}">💡</button>
-                    <button class="pm-ex ${stOn ? 'on' : ''}" data-a="star" data-q="${q._id}" data-star="${q._id}" title="${stOn ? 'Unstar' : 'Star for revision'}">${stOn ? '★' : '☆'}</button></div>`;
+                    <button class="pm-ex ${stOn ? 'on' : ''}" data-a="star" data-q="${q._id}" data-star="${q._id}" title="${stOn ? 'Unstar' : 'Star for revision'}">${stOn ? '★' : '☆'}</button></div>${okLine}`;
             });
         }
         el.panel.innerHTML = html;

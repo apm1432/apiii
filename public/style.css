@@ -714,3 +714,11 @@ header {
 
 /* starred questions */
 .star-btn.on { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+
+/* ---- official answer key box (shown inside the explanation) ---- */
+.okey-box{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border-color,#d1d5db);border-left:4px solid #2563eb;border-radius:8px;background:rgba(37,99,235,.07);font-size:.92rem;line-height:1.55}
+.okey-box.okey-diff{border-left-color:#f59e0b;background:rgba(245,158,11,.10)}
+.okey-row{margin:2px 0}
+.okey-warn{margin-top:6px;font-weight:600;color:#b45309}
+.okey-note{margin-top:6px;font-size:.84rem;color:var(--text-secondary,#6b7280)}
+.okey-btn{margin:10px 0 0}

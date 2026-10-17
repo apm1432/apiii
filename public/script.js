@@ -51,6 +51,53 @@ function starBtnHtml(id) {
     return `<button class="btn btn-secondary star-btn${on ? ' on' : ''}" data-star="${id}" onclick="toggleStar('${id}')" style="margin-bottom: 15px; margin-right: 10px;">${on ? '★ Starred' : '☆ Star'}</button>`;
 }
 function origRef(q) { return q && q._origQnum ? ` · मूळ Q${q._origQnum}` : ''; }
+
+// ===== Official answer key =====
+// DB fields (auto_exam.py): official_answer_key = image of the official key page, official_answer_key_answers = answer per that key
+// ('1'..'4', '1/3', '#'), correct_answer_option = the FINAL answer the site marks as correct, ai_answer_option = the AI's own answer.
+const okEsc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+window.officialKeyAnswer = function (q) { return String((q && q.official_answer_key_answers) || '').trim(); };
+window.officialKeyImages = function (q) {
+    if (!q) return [];
+    const raw = [q.official_answer_key, q.answer_key_image_url, ...(Array.isArray(q.answer_key_images) ? q.answer_key_images : [])]
+        .filter(x => x && (typeof x === 'object' || String(x).trim()));
+    const out = [];
+    raw.forEach(r => { const e = (typeof r === 'object' ? encodeURIComponent(JSON.stringify(r)) : r); if (!out.some(x => x.enc === e)) out.push({ enc: e, main: false }); });
+    return out;
+};
+function okOptName(q, a) {
+    if (a === '#') return 'रद्द (Cancelled by MPSC)';
+    return String(a).split('/').map(n => {
+        const i = parseInt(n, 10) - 1;
+        const t = (q.options && q.options[i]) || (q.options_eng && q.options_eng[i]) || '';
+        const txt = String(t).replace(/\s+/g, ' ').trim().slice(0, 45);
+        return 'Option ' + n + (txt ? ' — ' + txt : '');
+    }).join('  /  ');
+}
+// shown inside the explanation (so only after the student has answered)
+window.officialKeyHtml = function (q) {
+    const off = window.officialKeyAnswer(q);
+    const imgs = window.officialKeyImages(q);
+    if (!off && !imgs.length) return '';
+    const fin = String(q.correct_answer_option || q.final_answer_key || q.answer_key || '').trim();
+    const ai = String(q.ai_answer_option || '').trim();
+    const differs = !!(off && fin && !off.split('/').includes(fin));
+    let h = `<div class="okey-box${differs ? ' okey-diff' : ''}">`;
+    if (off && (differs || (fin && off !== fin))) {
+        h += `<div class="okey-row">📋 <strong>Official answer key नुसार:</strong> ${okEsc(okOptName(q, off))}</div>`;
+        h += `<div class="okey-row">✅ <strong>Final answer key नुसार (website):</strong> ${okEsc(okOptName(q, fin))}</div>`;
+        if (differs) h += `<div class="okey-warn">⚠ Official key आणि final answer वेगळे आहेत.</div>`;
+    } else if (off) {
+        h += `<div class="okey-row">📋 <strong>Official answer key आणि final answer:</strong> ${okEsc(okOptName(q, off))}</div>`;
+    }
+    if (ai && fin && fin !== '#' && ai !== fin && /^[1-4]$/.test(ai)) {
+        h += `<div class="okey-note">ℹ खालील explanation Option ${okEsc(ai)} साठी लिहिलेली असू शकते.</div>`;
+    }
+    if (imgs.length) {
+        h += `<button class="btn btn-secondary okey-btn" onclick="openOfficialKeyImage('${okEsc(q._id)}')">📋 View Official Answer Key${imgs.length > 1 ? ' (' + imgs.length + ' pages)' : ''}</button>`;
+    }
+    return h + '</div>';
+};
 function refreshStarButtons() {
     document.querySelectorAll('[data-star]').forEach(b => {
         const on = isStarred(b.dataset.star);
@@ -1619,7 +1666,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
 
     html += `
         <div id="explanation-quiz-${q._id}" class="explanation ${userAnswers[q._id] ? '' : 'hidden'}">
-            <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+            ${officialKeyHtml(q)}<strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
             ${optsExplHtml}
         </div>
     `;
@@ -1864,7 +1911,7 @@ function buildFullQuestionEl(q, idx) {
         const showExpl = userAnswers[q._id] ? '' : 'hidden';
         html += `
             <div id="explanation-full-${q._id}" class="explanation ${showExpl}">
-                <strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
+                ${officialKeyHtml(q)}<strong>Explanation:</strong> ${q.toppers_explanation_marathi ? q.toppers_explanation_marathi.replace(/\n/g, '<br>') : 'No explanation available.'}
                 ${optsExplHtml}
             </div>
         `;
@@ -2009,7 +2056,7 @@ async function selectOption(el, questionId, mode, index = 0, optIndex = 0) {
     const explId = mode === 'full' ? `explanation-full-${questionId}` : `explanation-quiz-${questionId}`;
     const explanationDiv = document.getElementById(explId);
     if(explanationDiv) {
-        let explHtml = `<strong>Explanation:</strong> ${explanation ? explanation.replace(/\n/g, '<br>') : 'No explanation available.'}`;
+        let explHtml = officialKeyHtml(q) + `<strong>Explanation:</strong> ${explanation ? explanation.replace(/\n/g, '<br>') : 'No explanation available.'}`;
         if (optionsExplanation && optionsExplanation.length > 0) {
             explHtml += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color);">
                 <strong>Options Breakdown:</strong>
@@ -2239,8 +2286,8 @@ function showQuestionImageAt(i) {
     openImageModal(it.enc, it.main ? imgNavState.qid : null);   // the question id is sent only for the MAIN image
     const nav = ensureImgNav();
     nav.style.display = n > 1 ? 'flex' : 'none';
-    nav.querySelector('#img-nav-count').textContent = 'Page ' + (imgNavState.i + 1) + ' / ' + n;
-    ensureImgStart().style.display = 'block';
+    nav.querySelector('#img-nav-count').textContent = (imgNavState.key ? 'Official key · page ' : 'Page ') + (imgNavState.i + 1) + ' / ' + n;
+    ensureImgStart().style.display = imgNavState.key ? 'none' : 'block';      // no "start exam from here" on answer-key pages
 }
 window.openQuestionImages = function(qid) {
     const q = (currentQuestions || []).find(x => String(x._id) === String(qid));
@@ -2249,7 +2296,18 @@ window.openQuestionImages = function(qid) {
     showQuestionImageAt(0);
 };
 
+window.openOfficialKeyImage = function(qid) {
+    const q = (currentQuestions || []).find(x => String(x._id) === String(qid));
+    if (!q) return;
+    const list = window.officialKeyImages(q);
+    if (!list.length) return;
+    imgNavState = { list, i: 0, qid: q._id, key: true };
+    modal.style.zIndex = '30000';          // above Paper Mode (z-index 20000)
+    showQuestionImageAt(0);
+};
+
 window.closeImageModal = function() {
+    modal.style.zIndex = '';
     const nav = document.getElementById('img-nav'); if (nav) nav.style.display = 'none';
     const sb = document.getElementById('img-start-paper'); if (sb) sb.style.display = 'none';
     modal.classList.remove('show');
