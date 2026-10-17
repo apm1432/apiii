@@ -6,7 +6,7 @@ from functools import wraps
 import requests
 from urllib.parse import quote
 import base64, copy, hashlib, re, uuid
-import concurrent.futures
+import concurrent.futures, itertools, gc
 import deploy_badge
 
 app = Flask(__name__)
@@ -1059,7 +1059,103 @@ def get_best_combo(requested_model: str):
 
 
 # ─── Request logs ─────────────────────────────────────────────────────────────
-request_logs = deque(maxlen=50)
+class _LogDeque(deque):
+    """Every log entry gets a unique, increasing id (used by the dashboard to load details on demand)."""
+    _seq = itertools.count(1)
+    def appendleft(self, entry):
+        entry.setdefault("id", next(_LogDeque._seq))
+        super().appendleft(entry)
+
+request_logs = _LogDeque(maxlen=50)
+# Failed requests are ALSO kept here (last 100), so under heavy traffic the 50 newest successes can never push an
+# error off the dashboard before you saw it.
+failed_logs = deque(maxlen=100)
+
+
+def _clip(v, n):
+    v = "" if v is None else (v if isinstance(v, str) else str(v))
+    return v if len(v) <= n else v[:n] + "…"
+
+
+def _log_kind(e):
+    """ok | warn (200 but a fallback/problem happened) | fail | pending"""
+    st = str(e.get("status") or "")
+    if st.startswith("Pending"):
+        return "pending"
+    if st[:1] == "2" and "fail" not in st.lower():
+        return "warn" if (e.get("error_detail") or "web fallback" in st.lower()) else "ok"
+    return "fail"
+
+
+def _slim_log(e):
+    """Small, fixed-size version of a log entry for the dashboard list (no request body, no attempts, no images)."""
+    err = e.get("error_detail")
+    return {"id": e.get("id"), "time": e.get("time"), "ip": _clip(e.get("ip"), 60), "status": _clip(e.get("status"), 80),
+            "kind": _log_kind(e), "model": _clip(e.get("model"), 80), "route": _clip(e.get("route"), 200),
+            "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 160),
+            "is_correct": bool(e.get("is_correct")), "password_used": _clip(e.get("password_used"), 40),
+            "error": _clip(err, 600), "n_attempts": len(e.get("attempts") or []),
+            "has_detail": bool(e.get("request") or e.get("attempts") or len(str(err or "")) > 600)}
+
+
+KEEP_SUCCESS_DETAIL = os.environ.get("LOG_KEEP_SUCCESS_DETAIL", "0") == "1"
+
+
+def _scrub_success(e):
+    """A request that succeeded keeps only a one-line summary (time, status, model, route, ms): its request summary,
+    attempts and message text are deleted for good, so finished requests cost no memory. Failed requests and
+    fallbacks (200 but something went wrong) keep their error + attempts, because that is what you debug with."""
+    if KEEP_SUCCESS_DETAIL or e.get("scrubbed"):
+        return
+    kind = _log_kind(e)
+    if kind not in ("ok", "warn"):
+        return
+    e.pop("request", None)
+    e["message"] = _clip(e.get("message"), 40)
+    if kind == "ok":
+        e.pop("attempts", None)
+        e["error_detail"] = None
+    e["scrubbed"] = True
+
+
+_trim_timer = None
+
+
+def _trim_memory_soon():
+    """After a big upload (images) give the freed memory back to the OS: python/glibc otherwise keeps it."""
+    global _trim_timer
+    if _trim_timer is not None:
+        return
+    def _do():
+        global _trim_timer
+        _trim_timer = None
+        try:
+            gc.collect()
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass
+    _trim_timer = threading.Timer(3.0, _do)
+    _trim_timer.daemon = True
+    _trim_timer.start()
+
+
+def _log_preview(msg):
+    """Short text for a message that may be a multimodal list (text + base64 images). Never str() the raw list."""
+    if isinstance(msg, str):
+        return msg
+    if isinstance(msg, list):
+        texts, files = [], 0
+        for x in msg:
+            if isinstance(x, dict) and x.get("type") in ("text", "input_text"):
+                texts.append(str(x.get("text") or ""))
+            elif isinstance(x, dict):
+                files += 1
+            elif isinstance(x, str):
+                texts.append(x)
+        t = " ".join(texts).strip()
+        return (t[:300] + ("…" if len(t) > 300 else "")) + (f" [+{files} image/file]" if files else "")
+    return _clip(msg, 300)
 
 # ─── Shared question pool (used by test_all_keys AND auto-test on /add) ───────
 # Questions are assigned by model-index so each model always gets a distinct
@@ -1234,10 +1330,16 @@ def strict_password_and_log():
         except Exception:
             pass
 
+    _files_note = ""
+    if isinstance(msg, list):                      # multimodal: text parts + images/files (never str() the raw list)
+        _n = sum(1 for x in msg if isinstance(x, dict) and x.get("type") not in ("text", "input_text"))
+        _files_note = f" [+{_n} image/file]" if _n else ""
+        msg = " ".join(str(x.get("text") or "") for x in msg if isinstance(x, dict) and x.get("type") in ("text", "input_text")).strip()
+    msg = _log_preview(msg)
     if isinstance(msg, str) and len(msg) > 1:
-        formatted_msg = f"{msg[0]}...{msg[-1]}"
+        formatted_msg = f"{msg[0]}...{msg[-1]}" + _files_note
     else:
-        formatted_msg = str(msg) if msg else ""
+        formatted_msg = (str(msg) if msg else "") + _files_note
 
     log_entry = {
         "time": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
@@ -1257,8 +1359,9 @@ def strict_password_and_log():
     _body_note = "(no body)"
     if request.is_json:
         try:
-            _bt = request.get_data(as_text=True)
-            _body_note = "body:\n" + _bt[:500] + ("…" if len(_bt) > 500 else "")
+            _braw = request.get_data()
+            _bt = _braw[:500].decode("utf-8", "replace")
+            _body_note = f"body ({len(_braw) // 1024} KB):\n" + _bt + ("…" if len(_braw) > 500 else "")
         except Exception:
             _body_note = "(unreadable body)"
     elif request.content_length:
@@ -1294,12 +1397,26 @@ def update_log_status(response):
                 pass
         if g.log_entry.get("response_ms") is None and hasattr(g, "_log_start"):
             g.log_entry["response_ms"] = round((time.monotonic() - g._log_start) * 1000)
+        try:                       # logging bookkeeping must never be able to change or break a response
+            if _log_kind(g.log_entry) == "fail" and not g.log_entry.get("_in_failed"):
+                g.log_entry["_in_failed"] = True
+                failed_logs.appendleft(g.log_entry)
+            _scrub_success(g.log_entry)
+        except Exception:
+            pass
+    try:
+        if (request.content_length or 0) > 1_000_000:
+            _trim_memory_soon()
+    except Exception:
+        pass
     return response
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 @app.route('/dashboard_data', methods=['GET'])
 @requires_browser_auth
 def api_dashboard_data():
+    if request.args.get("detail") is not None:
+        return _log_detail(request.args.get("detail"))
     now = time.time()
     now_mono = time.monotonic()
     with state_lock:
@@ -1337,8 +1454,32 @@ def api_dashboard_data():
         "rpm_cooldowns": cooldowns,
         "models": active_models_snap,
         "model_key_info": model_key_info,
-        "logs": list(request_logs)
+        **_dash_logs(request.args.get("slim") == "1"),
     })
+
+
+def _dash_logs(slim):
+    recent = list(request_logs)
+    if not slim:      # old format (kept for any other client); only the huge message text is clipped
+        return {"logs": [dict(e, message=_clip(e.get("message"), 2000)) for e in recent]}
+    ids = {e.get("id") for e in recent}
+    older = [e for e in list(failed_logs) if e.get("id") not in ids]
+    return {"logs": [_slim_log(e) for e in recent], "older_errors": [_slim_log(e) for e in older]}
+
+
+def _log_detail(raw_id):
+    """Heavy part of ONE log entry (request summary, every attempt, full error), loaded only when you click Details."""
+    try:
+        want = int(raw_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "bad id"}), 400
+    e = next((x for x in list(request_logs) + list(failed_logs) if x.get("id") == want), None)
+    if e is None:
+        return jsonify({"error": "log entry is gone (only the newest requests are kept)"}), 404
+    req, err = str(e.get("request") or ""), str(e.get("error_detail") or "")
+    att = [_clip(a, 700) for a in (e.get("attempts") or [])[-20:]]
+    return jsonify({"id": want, "request": _clip(req, 8000), "request_truncated": len(req) > 8000,
+                    "error_detail": _clip(err, 8000), "error_truncated": len(err) > 8000, "attempts": att})
 
 @app.route('/logs', methods=['GET'])
 @requires_browser_auth
@@ -1371,10 +1512,19 @@ tr:hover{background:#252525}
 .tag{background:#333;padding:2px 6px;border-radius:4px;font-size:.8em;color:#ccc;border:1px solid #444}
 .btn{background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:.9em;transition:.2s}
 .btn:hover{background:#2563eb}
+.bg-amber{background:rgba(251,191,36,.2);color:#fbbf24}
+.bg-blue{background:rgba(96,165,250,.2);color:#60a5fa}
+.chip{background:#27272a;color:#d4d4d8;border:1px solid #3f3f46;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:.85em;font-weight:600}
+.chip.on{background:#3b82f6;color:#fff;border-color:#3b82f6}
+.btn-s{background:#27272a;color:#e4e4e7;border:1px solid #3f3f46;border-radius:5px;padding:3px 9px;cursor:pointer;font-size:.8em}
+.btn-s:hover{background:#3f3f46}
+.err{color:#fca5a5;font-weight:600;white-space:pre-wrap;word-break:break-word;max-width:480px;font-size:.88em}
+.err.warn{color:#fcd34d}
+.det{background:#18181b;border-radius:6px;padding:10px;font-family:monospace;font-size:.82em;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;color:#93c5fd}
 </style></head><body><div class="container">
 <h1>🚀 WAPI Live Dashboard
 <div style="display:flex;gap:8px;align-items:center;">
-<button class="btn" onclick="fetchData()" id="refresh-btn">🔄 Refresh</button>
+<button class="btn" onclick="fetchData(true)" id="refresh-btn">🔄 Refresh</button>
 <button class="btn" onclick="testAllKeys()" id="test-btn" style="background:#7c3aed;">🧪 Test All Keys</button>
 </div></h1>
 <div id="error-msg" style="color:#fca5a5;background:#451a1a;padding:10px;border-radius:5px;text-align:center;display:none;margin-bottom:15px;"></div>
@@ -1400,11 +1550,17 @@ tr:hover{background:#252525}
 </div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
-🔐 Secure Access Logs (last 50)
+🔐 Secure Access Logs (last 50 + recent errors)
 </h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+<span id="log-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></span>
+<button class="btn-s" id="pause-btn" onclick="togglePause()">⏸ Pause logs</button>
+<button class="btn-s" id="skip-btn" onclick="skipLoad()" style="display:none;background:#7f1d1d;border-color:#b91c1c;">⏭ Skip this load</button>
+<span id="log-note" style="color:#a1a1aa;font-size:.85em;"></span>
+</div>
 <div class="table-wrapper"><table><thead><tr>
-<th>Time</th><th>IP Address</th><th>Attempted Password</th><th>Status</th><th>Model</th><th>Route</th><th>Response Time</th><th>Message / Prompt</th><th>Request Details</th><th>Error / Why</th>
-</tr></thead><tbody id="logs-body"><tr><td colspan="10" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
+<th>Time</th><th>IP / Auth</th><th>Status</th><th>Model</th><th>Route</th><th>Time</th><th>Message / Prompt</th><th>Error / Why</th><th></th>
+</tr></thead><tbody id="logs-body"><tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
 </div>
 <script>
 let isSelecting=false;
@@ -1461,18 +1617,144 @@ function renderTestResults(data){
   document.getElementById('test-tbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
 }
 
-async function fetchData(){
-  const btn=document.getElementById('refresh-btn');btn.innerText='⏳...';
+let ctl=null,loading=false,paused=false,filter='all',lastSig='',lastMs=0,timer=null;
+const expanded={};
+function setBusy(b){loading=b;document.getElementById('skip-btn').style.display=b?'inline-block':'none';document.getElementById('refresh-btn').textContent=b?'⏳...':'🔄 Refresh';}
+function skipLoad(){if(ctl)ctl.abort();}
+function togglePause(){paused=!paused;document.getElementById('pause-btn').textContent=paused?'▶ Resume logs':'⏸ Pause logs';document.getElementById('log-note').textContent=paused?'Paused - nothing is loading. Click Refresh for one update.':'';}
+async function fetchData(manual){
+  if(manual!==true&&(loading||document.hidden))return;
+  if(ctl)ctl.abort();
+  const my=new AbortController();ctl=my;
+  const to=setTimeout(()=>my.abort(),12000);const t0=Date.now();setBusy(true);
   try{
-    const r=await fetch('/router/dashboard_data',{credentials:'same-origin'});
+    const r=await fetch('/router/dashboard_data?slim=1',{credentials:'same-origin',signal:my.signal});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
+    if(my!==ctl)return;
     document.getElementById('error-msg').style.display='none';
     if(!isSelecting)updateUI(data);
   }catch(e){
-    const el=document.getElementById('error-msg');el.style.display='block';el.innerText='⚠️ Could not load data. '+e.message;
+    if(my!==ctl)return;
+    const el=document.getElementById('error-msg');el.style.display='block';
+    el.textContent=(e.name==='AbortError')?'⏭ Slow load skipped - will retry automatically.':'⚠️ Could not load data. '+e.message;
   }
-  btn.innerText='🔄 Refresh';
+  clearTimeout(to);
+  if(my===ctl){lastMs=Date.now()-t0;setBusy(false);}
+}
+function schedule(){
+  clearTimeout(timer);
+  timer=setTimeout(async()=>{if(!paused)await fetchData(false);schedule();},Math.min(20000,Math.max(5000,lastMs*3)));
+}
+function setFilter(f){filter=f;lastSig='';if(window._last)renderLogs(window._last);}
+async function toggleDetail(id){
+  if(expanded[id]){if(expanded[id].ctl)expanded[id].ctl.abort();delete expanded[id];lastSig='';renderLogs(window._last);return;}
+  const c=new AbortController();expanded[id]={state:'loading',ctl:c};lastSig='';renderLogs(window._last);
+  try{
+    const r=await fetch('/router/dashboard_data?detail='+id,{credentials:'same-origin',signal:c.signal});
+    const d=await r.json();
+    if(!expanded[id]||expanded[id].ctl!==c)return;
+    expanded[id]=r.ok?{state:'ok',d:d}:{state:'err',msg:d.error||('HTTP '+r.status)};
+  }catch(e){
+    if(!expanded[id]||expanded[id].ctl!==c)return;
+    expanded[id]={state:'err',msg:e.message};
+  }
+  lastSig='';renderLogs(window._last);
+}
+function detailHtml(id){
+  const x=expanded[id];if(!x)return '';
+  const nl=String.fromCharCode(10);
+  let body;
+  if(x.state==='loading')body='⏳ Loading details... <button class="btn-s" onclick="toggleDetail('+id+')">⏭ Skip</button>';
+  else if(x.state==='err')body='<span style="color:#f87171">'+esc(x.msg)+'</span> <button class="btn-s" onclick="toggleDetail('+id+')">Close</button>';
+  else{
+    const d=x.d;
+    body='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button>';
+    if(d.error_detail)body+='<div style="margin-top:8px;color:#f87171;font-weight:bold">Error / why'+(d.error_truncated?' (cut at 8000 chars)':'')+'</div><div class="det" style="color:#fca5a5">'+esc(d.error_detail)+'</div>';
+    if(d.attempts&&d.attempts.length)body+='<div style="margin-top:8px;color:#fbbf24;font-weight:bold">Attempts ('+d.attempts.length+')</div><div class="det" style="color:#fcd34d">'+esc(d.attempts.join(nl))+'</div>';
+    body+='<div style="margin-top:8px;color:#93c5fd;font-weight:bold">Request'+(d.request_truncated?' (cut at 8000 chars)':'')+'</div><div class="det">'+esc(d.request||'-')+'</div>';
+  }
+  return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+body+'</td></tr>';
+}
+function renderLogs(data){
+  window._last=data;
+  const recent=data.logs||[],old=data.older_errors||[];
+  const cnt={ok:0,warn:0,fail:0,pending:0};
+  recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
+  const nFail=cnt.fail+old.length;
+  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')']];
+  document.getElementById('log-chips').innerHTML=chips.map(c=>'<span class="chip'+(filter===c[0]?' on':'')+'" onclick="setFilter(&quot;'+c[0]+'&quot;)">'+c[1]+'</span>').join('');
+  let rows;
+  if(filter==='all')rows=recent;
+  else if(filter==='fail')rows=recent.filter(l=>l.kind==='fail').concat(old);
+  else rows=recent.filter(l=>l.kind===filter);
+  rows=rows.slice().sort((a,b)=>b.id-a.id);
+  if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
+  const sig=filter+'|'+rows.map(l=>l.id+l.status+l.response_ms).join(',')+'|'+Object.keys(expanded).map(k=>k+expanded[k].state).join(',');
+  if(sig===lastSig)return;
+  lastSig=sig;
+  const tbody=document.getElementById('logs-body');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">'+(filter==='all'?'No logs yet.':'Nothing here.')+'</td></tr>';return;}
+  let html='';
+  rows.forEach(l=>{
+    const k=l.kind;
+    const bar=k==='fail'?'background:rgba(248,113,113,.09);border-left:3px solid #f87171;':k==='warn'?'background:rgba(251,191,36,.07);border-left:3px solid #fbbf24;':k==='pending'?'border-left:3px solid #60a5fa;':'';
+    const bc=k==='fail'?'bg-red':k==='warn'?'bg-amber':k==='pending'?'bg-blue':'bg-green';
+    const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
+    const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
+    const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
+    const det=(l.has_detail||l.n_attempts)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
+    html+='<tr style="'+bar+'"><td style="white-space:nowrap;color:#888;font-size:.9em;">'+esc(l.time||'')+'</td>'
+      +'<td class="ip">'+esc(l.ip||'')+' '+pwd+'</td>'
+      +'<td><span class="badge '+bc+'">'+esc(l.status||'')+'</span></td>'
+      +'<td style="color:#c4b5fd;font-size:.85em;">'+(l.model?esc(l.model):'—')+'</td>'
+      +'<td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">'+esc(l.route||'—')+'</td>'
+      +'<td style="color:#6b7280;font-size:.85em;white-space:nowrap;">'+ms+'</td>'
+      +'<td><div class="msg">'+esc(l.message||'No message')+'</div></td>'
+      +'<td>'+err+'</td><td>'+det+'</td></tr>';
+    if(expanded[l.id])html+=detailHtml(l.id);
+  });
+  tbody.innerHTML=html;
+}
+function renderLogs(data){
+  window._last=data;
+  const recent=data.logs||[],old=data.older_errors||[];
+  const cnt={ok:0,warn:0,fail:0,pending:0};
+  recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
+  const nFail=cnt.fail+old.length;
+  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')']];
+  document.getElementById('log-chips').innerHTML=chips.map(c=>'<span class="chip'+(filter===c[0]?' on':'')+'" onclick="setFilter(&quot;'+c[0]+'&quot;)">'+c[1]+'</span>').join('');
+  let rows;
+  if(filter==='all')rows=recent;
+  else if(filter==='fail')rows=recent.filter(l=>l.kind==='fail').concat(old);
+  else rows=recent.filter(l=>l.kind===filter);
+  rows=rows.slice().sort((a,b)=>b.id-a.id);
+  if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
+  const sig=filter+'|'+rows.map(l=>l.id+l.status+l.response_ms).join(',')+'|'+Object.keys(expanded).map(k=>k+expanded[k].state).join(',');
+  if(sig===lastSig)return;
+  lastSig=sig;
+  const tbody=document.getElementById('logs-body');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">'+(filter==='all'?'No logs yet.':'Nothing here.')+'</td></tr>';return;}
+  let html='';
+  rows.forEach(l=>{
+    const k=l.kind;
+    const bar=k==='fail'?'background:rgba(248,113,113,.09);border-left:3px solid #f87171;':k==='warn'?'background:rgba(251,191,36,.07);border-left:3px solid #fbbf24;':k==='pending'?'border-left:3px solid #60a5fa;':'';
+    const bc=k==='fail'?'bg-red':k==='warn'?'bg-amber':k==='pending'?'bg-blue':'bg-green';
+    const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
+    const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
+    const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
+    const det=(l.has_detail||l.n_attempts)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
+    html+='<tr style="'+bar+'"><td style="white-space:nowrap;color:#888;font-size:.9em;">'+esc(l.time||'')+'</td>'
+      +'<td class="ip">'+esc(l.ip||'')+' '+pwd+'</td>'
+      +'<td><span class="badge '+bc+'">'+esc(l.status||'')+'</span></td>'
+      +'<td style="color:#c4b5fd;font-size:.85em;">'+(l.model?esc(l.model):'—')+'</td>'
+      +'<td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">'+esc(l.route||'—')+'</td>'
+      +'<td style="color:#6b7280;font-size:.85em;white-space:nowrap;">'+ms+'</td>'
+      +'<td><div class="msg">'+esc(l.message||'No message')+'</div></td>'
+      +'<td>'+err+'</td><td>'+det+'</td></tr>';
+    if(expanded[l.id])html+=detailHtml(l.id);
+  });
+  tbody.innerHTML=html;
 }
 function updateUI(data){
   const m=data.metrics;
@@ -1539,36 +1821,10 @@ function updateUI(data){
       <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span> | Web fallback: <span style="color:#a78bfa">${m.webai_fallback_calls||0}</span></div></div>
     <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
       <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
-  const tbody=document.getElementById('logs-body');
-  if(!data.logs||data.logs.length===0){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#666;padding:30px;">No logs yet.</td></tr>';return;}
-  let html='';
-  data.logs.forEach((log,idx)=>{
-    const pwdClass=log.is_correct?'pwd-correct':'pwd-wrong';
-    const pwdText=log.is_correct?'🛡️ '+log.password_used:(log.password_used||'NONE');
-    const badgeClass=log.is_correct?'bg-green':'bg-red';
-    const modelText=log.model?esc(log.model):'—';
-    const msText=(log.response_ms!==null&&log.response_ms!==undefined)?log.response_ms+'ms':'—';
-    const errText=log.error_detail?esc(log.error_detail):'—';
-    const nl=String.fromCharCode(10);
-    const attText=(log.attempts&&log.attempts.length)?nl+nl+'— attempts —'+nl+esc(log.attempts.join(nl)):'';
-    const reqText=log.request?esc(log.request):'—';
-    html+=`<tr>
-      <td style="white-space:nowrap;color:#888;font-size:.9em;">${log.time||''}</td>
-      <td class="ip">${log.ip||''}</td>
-      <td><span class="${pwdClass}">${esc(pwdText)}</span></td>
-      <td><span class="badge ${badgeClass}">${esc(log.status||'')}</span></td>
-      <td style="color:#c4b5fd;font-size:.85em;">${modelText}</td>
-      <td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">${esc(log.route||'—')}</td>
-      <td style="color:#6b7280;font-size:.85em;white-space:nowrap;">${msText}</td>
-      <td><div class="msg">${esc(log.message||'No message')}</div></td>
-      <td><div class="msg" style="max-width:380px;max-height:220px;overflow:auto;color:#93c5fd;">${reqText}</div></td>
-      <td>${(log.error_detail||attText)?`<div class="msg" style="color:#f87171;max-width:420px;max-height:220px;overflow:auto;">${errText}${attText}</div>`:'<span style="color:#4ade80;">—</span>'}</td>
-    </tr>`;
-  });
-  tbody.innerHTML=html;
+  renderLogs(data);
 }
 function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
-fetchData();setInterval(fetchData,5000);
+fetchData(true).then(schedule);
 </script></body></html>"""
     return render_template_string(deploy_badge.inject(html))
 

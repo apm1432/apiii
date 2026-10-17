@@ -185,16 +185,20 @@ if "COOKIE_SEED" not in s:
     open(p, "w", encoding="utf-8").write(s)
 
 
-# 2g) KEEP_ALIVE: gemini-webapi stops cookie rotation + heartbeat for good after ONE rejected rpc (code 7) -> cookie ages
-#     out after 2-3 h. See wapi/patch_gemini_lib.py for the details.
-import glob
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import patch_gemini_lib
-_libs = glob.glob("/opt/webai-venv/lib/python3*/site-packages/gemini_webapi/client.py")
-assert _libs, "gemini_webapi client.py not found in /opt/webai-venv"
-for _p in _libs:
-    print("gemini-webapi keep-alive patch:", "applied" if patch_gemini_lib.patch_file(_p) else "already applied", _p)
-
 # 3) diagnostic capture of raw replies (sitecustomize)
 shutil.copy("/usr/src/app/wapi/webai_capture.py", "/opt/webai/src/sitecustomize.py")
 print("webai patches applied")
+
+# 4) KEEP_ALIVE: gemini-webapi stops cookie rotation + heartbeat for good after ONE rejected rpc (code 7) -> cookie ages
+#    out after 2-3 h. See wapi/patch_gemini_lib.py. Last step and NOT fatal: if it cannot be applied the image still
+#    builds exactly as before (stock library) and the log says so loudly.
+try:
+    import glob
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import patch_gemini_lib
+    _libs = glob.glob("/opt/webai-venv/lib/python3*/site-packages/gemini_webapi/client.py")
+    assert _libs, "gemini_webapi client.py not found in /opt/webai-venv"
+    for _p in _libs:
+        print("gemini-webapi keep-alive patch:", "applied" if patch_gemini_lib.patch_file(_p) else "already applied", _p)
+except Exception as _e:
+    print(f"WARNING: gemini-webapi keep-alive patch NOT applied ({_e}) - stock library behaviour")

@@ -11,7 +11,7 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
 # workers=1 on purpose: smart_router.py keeps its state (RPM/RPD counters,
 # sticky sessions) in process memory, so more workers would break rate limiting.
 # Concurrency comes from threads. --timeout 0 so slow Gemini calls are never killed.
-(cd /usr/src/app/wapi && exec gunicorn --workers 1 --threads 32 --worker-class gthread \
+(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads 32 --worker-class gthread \
   --timeout 0 --graceful-timeout 30 --keep-alive 75 \
   --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!

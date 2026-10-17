@@ -11,6 +11,8 @@ What this patch changes (library behaviour only, nothing else):
   2. the refresh loop keeps rotating even when the status is not AVAILABLE (rotation is what saves the cookie)
      and re-checks the status after each rotation, so a false alarm heals itself in one interval
   3. the heartbeat waits instead of exiting when the status is not AVAILABLE
+  4. the gap between two rotations is a NEW random value every time, uniform between WEBAI_REFRESH_MIN_SECONDS (180)
+     and WEBAI_REFRESH_MAX_SECONDS (480), e.g. 4.5 min, 3.7 min, 7.2 min (not a fixed 5 min with a few seconds of jitter)
 """
 import sys
 
@@ -46,13 +48,13 @@ def patch_source(s):
 
             try:
                 async with self._lock:""",
-"""            _recheck = False
+"""            # KEEP_ALIVE_PATCH: never stop rotating (rotation is what keeps the cookie alive) and ALWAYS re-check the
+            # real account status afterwards: a one-off glitch heals itself, a real logout is still detected.
+            _recheck = True
             if not self._check_account_status():
-                # KEEP_ALIVE_PATCH: never stop rotating; rotation is what keeps the cookie alive
                 logger.warning(
                     f"Auto-refresh: account status is {self.account_status.name}; still rotating cookies and re-checking status."
                 )
-                _recheck = True
 
             try:
                 async with self._lock:""", "refresh loop head")
@@ -69,14 +71,32 @@ def patch_source(s):
 
             if _recheck and self._running:                     # KEEP_ALIVE_PATCH
                 try:
+                    _was_ok = self._check_account_status()
                     await self._fetch_user_status()
-                    if self._check_account_status():
+                    if self._check_account_status() and not _was_ok:
                         logger.info("Auto-refresh: account is AVAILABLE again.")
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
                     logger.warning(f"Auto-refresh: status re-check failed: {e}")
 """, "refresh loop tail")
+
+    # 2b) random gap between rotations (3-8 min by default), a different value every cycle
+    s = _sub(s,
+"""            jitter = random.uniform(-15, 15)
+            await asyncio.sleep(max(60, self.refresh_interval + jitter))
+""",
+"""            # KEEP_ALIVE_PATCH: new random gap every time (default 3-8 min, fractional seconds)
+            import os as _os
+            try:
+                _lo = float(_os.environ.get("WEBAI_REFRESH_MIN_SECONDS", "180"))
+                _hi = float(_os.environ.get("WEBAI_REFRESH_MAX_SECONDS", "480"))
+            except ValueError:
+                _lo, _hi = 180.0, 480.0
+            if _hi < _lo:
+                _lo, _hi = _hi, _lo
+            await asyncio.sleep(max(60.0, random.uniform(_lo, _hi)))
+""", "refresh gap")
 
     # 3) heartbeat: wait, do not exit
     s = _sub(s,

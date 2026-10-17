@@ -27,8 +27,8 @@ RUN (apt-get update && \
      git clone https://github.com/Amm1rr/WebAI-to-API.git /opt/webai && \
      git -C /opt/webai checkout dd85ae0357720b486cdf193ce37b3134fe65ed38 && \
      rm -rf /opt/webai/.git && \
-     sed -i 's/auto_refresh=False/auto_refresh=True, refresh_interval=540/' /opt/webai/src/app/services/providers/gemini/client.py && \
-     test "$(grep -c 'auto_refresh=True, refresh_interval=540' /opt/webai/src/app/services/providers/gemini/client.py)" = 2 && \
+     sed -i 's/auto_refresh=False/auto_refresh=True, refresh_interval=float(os.environ.get("WEBAI_REFRESH_SECONDS", "300"))/' /opt/webai/src/app/services/providers/gemini/client.py && \
+     test "$(grep -c 'WEBAI_REFRESH_SECONDS' /opt/webai/src/app/services/providers/gemini/client.py)" = 2 && \
      python3 -m venv /opt/webai-venv && \
      /opt/webai-venv/bin/pip install --no-cache-dir -r /opt/webai/requirements.txt && \
      cp /opt/webai/config.conf.example /opt/webai/config.conf) \

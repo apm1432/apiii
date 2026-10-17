@@ -4,6 +4,7 @@ Diagnostic only. Copied to /opt/webai/src/sitecustomize.py (patch_webai.py) so t
 gemini-webapi 2.1.1 does not parse Gemini's generated files / canvas documents, so their payload layout is
 unknown. This saves the raw candidate payload of every reply (one file per reply id, last 25 kept) to
 /tmp/webai-capture/*.json; wapi serves the newest at /api/web/v1/ui/auth/capture?n=2.
+Only active with env WEBAI_CAPTURE=1 (default OFF: no reply is written to disk).
 Never raises: any failure just leaves WebAI unpatched.
 """
 try:
@@ -64,6 +65,8 @@ try:
             except Exception:
                 pass
             try:
+                if os.environ.get("WEBAI_CAPTURE") != "1":      # diagnostics are OFF by default: nothing of a reply is kept
+                    raise StopIteration
                 raw = json.dumps(candidate_data, default=str, ensure_ascii=False)
                 rcid = candidate_data[0] if isinstance(candidate_data, list) and candidate_data else "x"
                 name = re.sub(r"[^A-Za-z0-9_-]", "_", str(rcid))[:60] or "x"
