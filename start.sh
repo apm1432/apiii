@@ -1,6 +1,8 @@
 #!/bin/bash
 # Starts Node (3000), wapi/gunicorn (8085) and nginx (8000) in one container.
 
+export DEPLOYED_AT=$(date +%s)   # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
+
 echo "==> Starting Node.js (apiii) on port 3000..."
 PORT=3000 node server.js &
 NODE_PID=$!

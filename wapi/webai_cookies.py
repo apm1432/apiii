@@ -556,7 +556,8 @@ def register(app, authorized, prefix, webai_url):
         denied = guard()
         if denied:
             return denied
-        return Response(PAGE_HTML.replace("__BASE__", base).replace("__UI__", prefix + "/ui"),
+        import deploy_badge
+        return Response(deploy_badge.inject(PAGE_HTML.replace("__BASE__", base).replace("__UI__", prefix + "/ui")),
                         200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"})
 
     @app.route(base + "/cookies", methods=["GET", "POST", "PATCH", "DELETE"], endpoint="webai_auth_cookies")

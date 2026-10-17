@@ -7,6 +7,7 @@ import requests
 from urllib.parse import quote
 import base64, copy, hashlib, re, uuid
 import concurrent.futures
+import deploy_badge
 
 app = Flask(__name__)
 
@@ -1569,7 +1570,7 @@ function updateUI(data){
 function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 fetchData();setInterval(fetchData,5000);
 </script></body></html>"""
-    return render_template_string(html)
+    return render_template_string(deploy_badge.inject(html))
 
 # ─── Request snapshot + readable error reasons (shown on the dashboard) ──────
 def _msg_text(content) -> str:
@@ -2686,6 +2687,8 @@ def webapi_proxy(sub):
         return Response(_sse(), status, out_headers)
     if any(t in ctype for t in ("text/html", "text/css", "javascript")):
         body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
+        if first == "ui" and "text/html" in ctype:
+            body = deploy_badge.inject(body)
         up.close()
         _release()
         return Response(body.encode("utf-8"), status, out_headers)
