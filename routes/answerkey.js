@@ -284,6 +284,7 @@ router.post('/:id/save', async (req, res) => {
         key.status = 'applied'; key.appliedSet = b.set; key.appliedExam = b.examId; key.appliedAt = new Date(); key.appliedCount = updated; key.examId = b.examId;
         await key.save();
         try { await dataCache.invalidateExam(b.examId); } catch (e) { console.warn('answer-key: cache invalidate failed:', e.message); }   // students get the new data at once
+        try { dataCache.notifyDataChanged(); } catch (e) {}   // the dashboard's "Answer key available" badge is rebuilt
 
         const result = svc.compare(eff.answers, questions);
         let check = null;

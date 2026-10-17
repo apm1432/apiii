@@ -1278,10 +1278,10 @@ function setExamSummary(html) {
     if (!el) { el = document.createElement('div'); el.id = 'exam-summary'; el.className = 'exam-summary'; grid.parentNode.insertBefore(el, grid); }
     el.innerHTML = html;
 }
-// not started / in progress / completed (from the same progress numbers the card shows as "Attempted x / y")
-function examStatus(solved, total) {
-    if (!solved) return 'new';
-    return (total > 0 && solved >= total) ? 'done' : 'part';
+// does this paper have an official answer key?  true / false, or null when the server did not say (old data -> no badge)
+function examKeyState(g) {
+    if (!g || typeof g.keyed !== 'number') return null;
+    return g.keyed > 0;
 }
 
 function renderExamGrid() {
@@ -1318,14 +1318,10 @@ function renderExamGrid() {
     }
 
     // counts for the line above the cards
-    const cnt = { new: 0, part: 0, done: 0 };
-    exams.forEach(g => {
-        const tq = (g.exams || []).reduce((sum, ex) => sum + ex.count, 0);
-        const st0 = (window.progressSectionWise || {})[g._id] || { solved: 0 };
-        cnt[examStatus(st0.solved, tq)]++;
-    });
+    let withKey = 0, withoutKey = 0;
+    exams.forEach(g => { const k = examKeyState(g); if (k === true) withKey++; else if (k === false) withoutKey++; });
     setExamSummary(`📚 <b>${escapeHtmlX(getTabInfo().label)}</b>: <b>${exams.length}</b> paper${exams.length === 1 ? '' : 's'}` +
-        ` &nbsp;·&nbsp; ✅ <b>${cnt.done}</b> completed &nbsp;·&nbsp; 🟡 <b>${cnt.part}</b> in progress &nbsp;·&nbsp; ⚪ <b>${cnt.new}</b> not started`);
+        ((withKey + withoutKey) ? ` &nbsp;·&nbsp; 📋 <b>${withKey}</b> answer key available &nbsp;·&nbsp; ⚪ <b>${withoutKey}</b> not available` : ''));
 
     exams.forEach((yearGroup, examNo) => {
         const yearExam = yearGroup._id;
@@ -1341,8 +1337,10 @@ function renderExamGrid() {
         if (isFree) card.style.border = '2px solid var(--accent)';
         if (isHidden) { card.style.opacity = '0.6'; card.style.border = '2px dashed #9ca3af'; }
 
-        const stKey = examStatus(stats.solved, totalQuestions);
-        const stChip = stKey === 'done' ? '✅ Completed' : (stKey === 'part' ? '🟡 In progress' : '⚪ Not started');
+        const keyState = examKeyState(yearGroup);
+        const keyBadge = keyState === null ? '' : (keyState
+            ? `<div class="exam-key exam-key-yes" title="${yearGroup.keyed} of ${totalQuestions} questions have the official answer key">📋 Answer key available</div>`
+            : `<div class="exam-key exam-key-no" title="The official answer key is not added for this paper yet">Answer key not available</div>`);
         card.innerHTML = `
             <span class="exam-no" title="Paper ${examNo + 1} of ${exams.length}">${examNo + 1}</span>
             ${isFree ? '<span style="position:absolute; top:-10px; right:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">FREE</span>' : ''}
@@ -1351,8 +1349,9 @@ function renderExamGrid() {
             <p>${yearGroup.exams.length} Subjects Included</p>
             <span class="meta">${totalQuestions} Total Questions</span>
             <div style="margin-top: 10px; font-size: 0.9rem; color: var(--accent);">
-                Attempted: ${stats.solved} / ${totalQuestions} &nbsp;<span class="exam-st exam-st-${stKey}">${stChip}</span>
+                Attempted: ${stats.solved} / ${totalQuestions}
             </div>
+            ${keyBadge}
         `;
 
         if (stats.solved > 0) {

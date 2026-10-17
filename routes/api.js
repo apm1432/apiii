@@ -76,6 +76,21 @@ async function buildHierarchyBase() {
     const byExam = {};
     passages.forEach(p => { byExam[String(p._id)] = p.count; });
 
+    // how many questions of each paper have an official answer key (answer and/or key image) -> "Answer key available" badge.
+    // If this query ever fails the exam list still works (the badge is just not shown).
+    try {
+        const keyed = await Question.aggregate([
+            { $match: { $or: [
+                { official_answer_key_answers: { $exists: true, $nin: [null, ''] } },
+                { official_answer_key: { $exists: true, $nin: [null, ''] } }
+            ] } },
+            { $group: { _id: '$year_exam', n: { $sum: 1 } } }
+        ]);
+        const keyedBy = {};
+        keyed.forEach(k => { keyedBy[String(k._id)] = k.n; });
+        hierarchy.forEach(h => { h.keyed = keyedBy[String(h._id)] || 0; });
+    } catch (e) { console.error('hierarchy: answer-key counts unavailable:', e.message); }
+
     cachedHierarchy = hierarchy;
     cachedPassageByExam = byExam;
     lastCacheTime = Date.now();

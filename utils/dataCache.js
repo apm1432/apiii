@@ -46,6 +46,7 @@ const counters = { dbReads: 0, diskReads: 0, memHits: 0, responseHits: 0, respon
 
 let changeListener = null;
 const onDataChanged = (fn) => { changeListener = fn; };
+const notifyDataChanged = () => { if (changeListener) { try { changeListener(); } catch (e) {} } };   // e.g. the answer-key tool changed questions -> the exam list is rebuilt
 
 const hasPassage = (q) => [q.passage_marathi, q.passage_english, q.passage_text].some(x => x && x !== 'null');
 const byQnum = (a, b) => (a.qnum || 0) - (b.qnum || 0);
@@ -239,4 +240,4 @@ async function warm(examIds, refresh) {
 }
 const stopWarm = () => { warmJob.stop = true; };
 
-module.exports = { getExam, responseFor, collect, invalidateExam, invalidateAll, checkFreshness, onDataChanged, stats, warm, stopWarm, warmStatus, DATA_DIR, keyOf };
+module.exports = { getExam, responseFor, collect, invalidateExam, invalidateAll, checkFreshness, onDataChanged, notifyDataChanged, stats, warm, stopWarm, warmStatus, DATA_DIR, keyOf };

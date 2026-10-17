@@ -56,7 +56,10 @@ students ना जाणाऱ्या data (cache) मध्ये कित�
 PDF ≤ 25 MB, ≤ 40 pages. Scanned PDF (text layer नाही) → Gemini key आवश्यक (दोन AI reads).
 Question जुळवणी `qnum` ने होते.
 
-## Dashboard: paper numbering + counts
+## Dashboard: paper numbering + counts + answer key badge
 - Tabs/folders दाखवतात किती papers आहेत: **All Exams (87) · Prelims (40) · Mains (47) · <group> (n)**.
-- Exam cards वर **1, 2, 3 …** number (त्या folder मधला क्रम, नवीन पेपर आधी) आणि status: ✅ Completed / 🟡 In progress / ⚪ Not started.
-- Grid वर summary: "📚 Prelims: 40 papers · ✅ 5 completed · 🟡 7 in progress · ⚪ 28 not started". (`script.js`, `style.css`)
+- Exam cards वर **1, 2, 3 …** number (त्या folder मधला क्रम, नवीन पेपर आधी).
+- प्रत्येक card वर badge: **📋 Answer key available** (त्या paper च्या किमान एका question ला official answer/key image आहे) किंवा **Answer key not available**.
+- Grid वर summary: "📚 Prelims: 40 papers · 📋 12 answer key available · ⚪ 28 not available".
+- (Not started / In progress / Completed badges काढले; "Attempted x / y" तसंच आहे.)
+- Server: `/api/exams/hierarchy` च्या प्रत्येक exam मध्ये `keyed` (किती questions ला official key आहे). Answer Key tool मध्ये Save केल्यावर exam list आपोआप refresh होते.
