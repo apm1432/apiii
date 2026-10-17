@@ -5,6 +5,7 @@
  *  GET  /                 recent uploads
  *  POST /upload           multipart: pdf (+ examId)  -> starts a background job, returns { id }
  *  GET  /:id              job status / result (poll this while status === 'processing')
+ *  POST /check            { examId } -> how many questions of the exam really carry the official answer/image (DB + served copy)
  *  POST /:id/compare      { examId, set, overrides, acceptSingle }  -> match % between the site's final answers and the official key
  *  POST /:id/save         { examId, set, overrides, acceptSingle, skipUnresolved } -> writes official answer + key page image into every question
  *  DELETE /:id            forget an upload (Telegram messages are not deleted)
@@ -197,6 +198,30 @@ function checkBody(req, res) {
     return { examId: String(examId).trim(), set };
 }
 
+// What is REALLY stored / served for an exam right now (DB + the cached copy students receive)
+async function examCheck(examId) {
+    const has = (q) => String(q.official_answer_key_answers || '').trim() !== '';
+    const hasImg = (q) => !!(q.official_answer_key && (typeof q.official_answer_key !== 'object' || Object.keys(q.official_answer_key).length));
+    const total = await Question.countDocuments({ year_exam: examId });
+    const inDbAnswer = await Question.countDocuments({ year_exam: examId, official_answer_key_answers: { $nin: [null, ''] } });
+    const inDbImage = await Question.countDocuments({ year_exam: examId, official_answer_key: { $exists: true, $nin: [null, ''] } });
+    let servedAnswer = 0, servedImage = 0, servedTotal = 0;
+    try {
+        const served = await dataCache.getExam(examId);      // exactly what POST /api/questions sends to students
+        servedTotal = served.length;
+        for (const q of served) { if (has(q)) servedAnswer++; if (hasImg(q)) servedImage++; }
+    } catch (e) { console.warn('answer-key check: served copy unreadable:', e.message); }
+    return { examId, total, inDbAnswer, inDbImage, servedTotal, servedAnswer, servedImage };
+}
+
+router.post('/check', async (req, res) => {
+    try {
+        const examId = req.body && req.body.examId;
+        if (!okExam(examId)) return res.status(400).json({ success: false, message: 'Select an exam.' });
+        res.json({ success: true, check: await examCheck(String(examId).trim()) });
+    } catch (err) { console.error('answer-key check:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
 router.post('/:id/compare', async (req, res) => {
     try {
         const b = checkBody(req, res); if (!b) return;
@@ -258,10 +283,12 @@ router.post('/:id/save', async (req, res) => {
 
         key.status = 'applied'; key.appliedSet = b.set; key.appliedExam = b.examId; key.appliedAt = new Date(); key.appliedCount = updated; key.examId = b.examId;
         await key.save();
-        dataCache.invalidateExam(b.examId).catch(() => {});   // students see the new official answer + image at once
+        try { await dataCache.invalidateExam(b.examId); } catch (e) { console.warn('answer-key: cache invalidate failed:', e.message); }   // students get the new data at once
 
         const result = svc.compare(eff.answers, questions);
-        res.json({ success: true, updated, skipped: eff.unresolved.length, set: b.set, examId: b.examId, result });
+        let check = null;
+        try { check = await examCheck(b.examId); } catch (e) { console.warn('answer-key: read-back failed:', e.message); }
+        res.json({ success: true, updated, skipped: eff.unresolved.length, set: b.set, examId: b.examId, result, check });
     } catch (err) { console.error('answer-key save:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
 

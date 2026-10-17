@@ -167,7 +167,8 @@
             '<label class="xm-chk"><input type="checkbox" id="ak-single"> Accept answers that only one pass could read (conflicts still need confirming)</label>' +
             '<div id="ak-unver"></div>' +
             '<div id="ak-cmp" style="margin-top:8px"></div>' +
-            '<div class="xm-actions"><button class="btn" id="ak-compare">🔍 Compare</button><button class="btn ak-save" id="ak-save">💾 Save to all questions</button></div>' +
+            '<div id="ak-chk"></div>' +
+            '<div class="xm-actions"><button class="btn" id="ak-compare">🔍 Compare</button><button class="btn" id="ak-checkbtn" style="background:#0ea5e9">🔎 Check saved data</button><button class="btn ak-save" id="ak-save">💾 Save to all questions</button></div>' +
             '<label class="xm-chk"><input type="checkbox" id="ak-skip"> Save even if some answers are still unverified (those questions are skipped)</label>' +
             '</div>';
 
@@ -175,6 +176,7 @@
         $('#ak-exam2').onchange = scheduleCompare;
         $('#ak-single').onchange = () => { renderUnverified(); scheduleCompare(); };
         $('#ak-compare').onclick = () => compare();
+        $('#ak-checkbtn').onclick = runCheck;
         $('#ak-save').onclick = save;
         renderUnverified();
         scheduleCompare();
@@ -230,6 +232,25 @@
         return h + '</div>';
     }
 
+    function checkHtml(c, examId) {
+        if (!c) return '';
+        const okAll = c.total > 0 && c.servedAnswer >= c.inDbAnswer && c.inDbAnswer > 0 && c.servedAnswer === c.inDbAnswer;
+        const col = okAll ? '#15803d' : '#b45309';
+        return `<div style="margin:8px 0;padding:8px 10px;border-radius:8px;border:1px solid ${okAll ? '#bbf7d0' : '#fde68a'};background:${okAll ? '#f0fdf4' : '#fffbeb'};font-size:.82rem;color:${col}">` +
+            `<b>🔎 Check: ${esc(examId || c.examId)}</b><br>` +
+            `Database: <b>${c.inDbAnswer}</b> of ${c.total} questions have an official answer, <b>${c.inDbImage}</b> have the key image.<br>` +
+            `Students receive: <b>${c.servedAnswer}</b> of ${c.servedTotal} with official answer, <b>${c.servedImage}</b> with key image.` +
+            (okAll ? '<br>✅ Students will see the official key (open the exam, solve a question, look in the explanation).' : '<br>⚠ The numbers differ or are 0 — students will not see it yet. Tell the developer these numbers.') + '</div>';
+    }
+
+    async function runCheck() {
+        const examId = $('#ak-exam2').value;
+        if (!examId) return say('Select the exam.', 'err');
+        const r = await api('POST', '/check', { examId });
+        if (!r.success) return say(r.message || 'Check failed.', 'err');
+        $('#ak-chk').innerHTML = checkHtml(r.check, examId);
+    }
+
     async function compare() {
         if (!overlay || !state.key || !$('#ak-set')) return;
         const b = body();
@@ -252,6 +273,7 @@
         if (!r.success) { say(r.message || 'Save failed.', 'err'); return; }
         say('Saved.', 'ok');
         $('#ak-cmp').innerHTML = renderResult(r, r);
+        $('#ak-chk').innerHTML = checkHtml(r.check, b.examId);
         loadLists();
     }
 

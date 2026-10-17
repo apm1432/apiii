@@ -20,6 +20,10 @@ key page चा image update होतो.
    `official_answer_key_msg_id`, `official_answer_key_set`. `correct_answer_option` (final answer) **बदलत नाही**.
    Exam cache invalidate होतो, म्हणजे students ला लगेच दिसतं (existing "📋 View Official Answer Key" button).
 
+## Check (Save नंतर काय खरंच save झालं ते)
+Save नंतर आणि **🔎 Check saved data** button ने दिसतं: Database मध्ये किती questions ला official answer / key image आहे, आणि
+students ना जाणाऱ्या data (cache) मध्ये किती. दोन्ही संख्या सारख्या आणि > 0 असतील तरच students ना दिसेल.
+
 ## Supported key formats
 - **Header नसलेला table** (खरी MPSC key, उदा. "Final key … Paper No. 01"): `1 3 4 3 1   26 4 1 1 2` = प्रश्न क्र. + 4 answers (दोन blocks एका line वर).
   Set letters छापलेली नसतात, म्हणून 4 columns = **Set A, B, C, D** (छापलेल्या क्रमाने) — UI मध्ये तसा इशारा दाखवतो. `#` = प्रश्न रद्द.
