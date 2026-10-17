@@ -20,6 +20,11 @@ key page चा image update होतो.
    `official_answer_key_msg_id`, `official_answer_key_set`. `correct_answer_option` (final answer) **बदलत नाही**.
    Exam cache invalidate होतो, म्हणजे students ला लगेच दिसतं (existing "📋 View Official Answer Key" button).
 
+## Question Palette badge (students)
+Full Paper मधल्या **Question Palette** मध्ये ज्या question ला official answer key (official answer आणि/किंवा key image) आहे, त्या number वर
+छोटा **📋** badge दिसतो (long-press/hover वर: "official answer: option 3 + key image"). Palette खाली "📋 = Official answer key available (N)" legend.
+Exam cached असेल आणि official key नंतर आली तरी badge आपोआप येतो. (`script.js`, `style.css`; `index.html` मध्ये file versions वाढवले.)
+
 ## Check (Save नंतर काय खरंच save झालं ते)
 Save नंतर आणि **🔎 Check saved data** button ने दिसतं: Database मध्ये किती questions ला official answer / key image आहे, आणि
 students ना जाणाऱ्या data (cache) मध्ये किती. दोन्ही संख्या सारख्या आणि > 0 असतील तरच students ना दिसेल.
@@ -50,3 +55,8 @@ students ना जाणाऱ्या data (cache) मध्ये कित�
 ## Limits
 PDF ≤ 25 MB, ≤ 40 pages. Scanned PDF (text layer नाही) → Gemini key आवश्यक (दोन AI reads).
 Question जुळवणी `qnum` ने होते.
+
+## Dashboard: paper numbering + counts
+- Tabs/folders दाखवतात किती papers आहेत: **All Exams (87) · Prelims (40) · Mains (47) · <group> (n)**.
+- Exam cards वर **1, 2, 3 …** number (त्या folder मधला क्रम, नवीन पेपर आधी) आणि status: ✅ Completed / 🟡 In progress / ⚪ Not started.
+- Grid वर summary: "📚 Prelims: 40 papers · ✅ 5 completed · 🟡 7 in progress · ⚪ 28 not started". (`script.js`, `style.css`)

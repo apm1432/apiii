@@ -722,3 +722,14 @@ header {
 .okey-warn{margin-top:6px;font-weight:600;color:#b45309}
 .okey-note{margin-top:6px;font-size:.84rem;color:var(--text-secondary,#6b7280)}
 .okey-btn{margin:10px 0 0}
+
+/* Question Palette: 📋 badge = official answer key available for this question */
+.grid-btn{position:relative;overflow:visible}
+.grid-btn[data-okey]::after{content:'📋';position:absolute;top:-6px;right:-4px;font-size:.62rem;line-height:1;background:#fff;border:1px solid #fdba74;border-radius:50%;width:15px;height:15px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.okey-legend{margin-top:8px;font-size:.74rem;color:var(--text-secondary,#6b7280)}
+
+/* Dashboard: paper number badge, status chip and the "N papers" summary line */
+.exam-card .exam-no{position:absolute;top:-10px;left:10px;min-width:24px;height:24px;padding:0 7px;box-sizing:border-box;border-radius:12px;background:var(--accent,#2563eb);color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25);z-index:1}
+.exam-summary{margin:0 0 14px;padding:8px 12px;border-radius:10px;background:var(--card-bg,#fff);border:1px solid var(--border-color,#e5e7eb);font-size:.86rem;color:var(--text-primary,#111827);text-align:center;line-height:1.7}
+.exam-st{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 8px;border-radius:10px;white-space:nowrap}
+.exam-st-done{background:#dcfce7;color:#166534}.exam-st-part{background:#fef3c7;color:#92400e}.exam-st-new{background:#f3f4f6;color:#6b7280}

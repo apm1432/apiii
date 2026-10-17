@@ -1170,7 +1170,10 @@ function renderDashTabs() {
         const b = document.createElement('button');
         b.className = 'btn tab-btn' + (cur === key ? ' active' : '');
         b.style.minWidth = '100px';
-        b.textContent = label;
+        // how many papers are inside this folder/tab (same list the grid shows)
+        const n = window.allExamsData ? getTabInfo(key).exams.length : null;
+        b.textContent = n === null ? label : `${label} (${n})`;
+        b.title = n === null ? label : `${label}: ${n} paper${n === 1 ? '' : 's'}`;
         b.onclick = () => filterExams(key, b);
         box.appendChild(b);
     };
@@ -1181,8 +1184,8 @@ function renderDashTabs() {
 }
 
 // The papers that belong to the selected tab (+ a label for the cards)
-function getTabInfo() {
-    const filter = window.currentExamFilter || 'all';
+function getTabInfo(filterKey) {
+    const filter = filterKey || window.currentExamFilter || 'all';
     let exams = [...(window.allExamsData || [])];
     let label = 'All Exams';
     if (filter === 'mains') {
@@ -1237,6 +1240,7 @@ function renderSubjectGrid() {
     });
 
     const subjects = Object.values(subjectMap).sort((a, b) => b.count - a.count);
+    setExamSummary(subjects.length ? `📚 <b>${escapeHtmlX(label)}</b>: <b>${usable.length}</b> paper${usable.length === 1 ? '' : 's'} &nbsp;·&nbsp; <b>${subjects.length}</b> subject${subjects.length === 1 ? '' : 's'}` : '');
 
     if (subjects.length === 0) {
         grid.insertAdjacentHTML('beforeend', '<p style="color:var(--text-secondary);">No subjects found.</p>');
@@ -1263,6 +1267,21 @@ function renderSubjectGrid() {
         };
         grid.appendChild(card);
     });
+}
+
+// "Where am I?" line above the exam cards: how many papers this folder has and how many are done / in progress / not started.
+function setExamSummary(html) {
+    const grid = document.getElementById('exam-grid');
+    if (!grid || !grid.parentNode) return;
+    let el = document.getElementById('exam-summary');
+    if (!html) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'exam-summary'; el.className = 'exam-summary'; grid.parentNode.insertBefore(el, grid); }
+    el.innerHTML = html;
+}
+// not started / in progress / completed (from the same progress numbers the card shows as "Attempted x / y")
+function examStatus(solved, total) {
+    if (!solved) return 'new';
+    return (total > 0 && solved >= total) ? 'done' : 'part';
 }
 
 function renderExamGrid() {
@@ -1293,11 +1312,22 @@ function renderExamGrid() {
     let exams = getTabInfo().exams.sort(byYear);
 
     if (exams.length === 0) {
+        setExamSummary('');
         grid.insertAdjacentHTML('beforeend', '<p style="color:var(--text-secondary);">No exams found in this category.</p>');
         return;
     }
 
-    exams.forEach(yearGroup => {
+    // counts for the line above the cards
+    const cnt = { new: 0, part: 0, done: 0 };
+    exams.forEach(g => {
+        const tq = (g.exams || []).reduce((sum, ex) => sum + ex.count, 0);
+        const st0 = (window.progressSectionWise || {})[g._id] || { solved: 0 };
+        cnt[examStatus(st0.solved, tq)]++;
+    });
+    setExamSummary(`📚 <b>${escapeHtmlX(getTabInfo().label)}</b>: <b>${exams.length}</b> paper${exams.length === 1 ? '' : 's'}` +
+        ` &nbsp;·&nbsp; ✅ <b>${cnt.done}</b> completed &nbsp;·&nbsp; 🟡 <b>${cnt.part}</b> in progress &nbsp;·&nbsp; ⚪ <b>${cnt.new}</b> not started`);
+
+    exams.forEach((yearGroup, examNo) => {
         const yearExam = yearGroup._id;
         const isHidden = !!yearGroup.hidden; // only admins ever receive hidden papers
 
@@ -1311,14 +1341,17 @@ function renderExamGrid() {
         if (isFree) card.style.border = '2px solid var(--accent)';
         if (isHidden) { card.style.opacity = '0.6'; card.style.border = '2px dashed #9ca3af'; }
 
+        const stKey = examStatus(stats.solved, totalQuestions);
+        const stChip = stKey === 'done' ? '✅ Completed' : (stKey === 'part' ? '🟡 In progress' : '⚪ Not started');
         card.innerHTML = `
+            <span class="exam-no" title="Paper ${examNo + 1} of ${exams.length}">${examNo + 1}</span>
             ${isFree ? '<span style="position:absolute; top:-10px; right:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">FREE</span>' : ''}
             ${isHidden ? '<span style="position:absolute; top:-10px; right:10px; background:#6b7280; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">HIDDEN from users</span>' : ''}
             <h3 title="${escapeHtmlX(yearExam || 'Unknown Exam')}">${escapeHtmlX(yearExam || 'Unknown Exam')}</h3>
             <p>${yearGroup.exams.length} Subjects Included</p>
             <span class="meta">${totalQuestions} Total Questions</span>
             <div style="margin-top: 10px; font-size: 0.9rem; color: var(--accent);">
-                Attempted: ${stats.solved} / ${totalQuestions}
+                Attempted: ${stats.solved} / ${totalQuestions} &nbsp;<span class="exam-st exam-st-${stKey}">${stChip}</span>
             </div>
         `;
 
@@ -2014,6 +2047,37 @@ function gridBtnStyle(q) {
     return a.isCorrect ? 'background: #10b981; color: white; border-color: transparent;' : 'background: #ef4444; color: white; border-color: transparent;';
 }
 
+// Question Palette badge: 📋 on every question number that has an official answer key (official answer and/or key image).
+// Done with a data attribute (+ CSS ::after) so it survives the style/class updates of the palette buttons.
+function okeyInfo(q) {
+    const off = window.officialKeyAnswer ? window.officialKeyAnswer(q) : '';
+    const imgs = window.officialKeyImages ? window.officialKeyImages(q).length : 0;
+    return { off, imgs, has: !!(off || imgs) };
+}
+function okeyTitle(q) {
+    const i = okeyInfo(q);
+    if (!i.has) return '';
+    const parts = [];
+    if (i.off) parts.push(i.off === '#' ? 'official: cancelled (#)' : 'official answer: option ' + i.off);
+    if (i.imgs) parts.push('key image');
+    return '📋 Official answer key available (' + parts.join(' + ') + ')';
+}
+function applyOkeyBadge(gb, q) {
+    if (!gb) return;
+    const t = okeyTitle(q);
+    if (t) { gb.setAttribute('data-okey', '1'); gb.title = t; }
+    else { gb.removeAttribute('data-okey'); gb.removeAttribute('title'); }
+}
+function syncOkeyLegend(questions) {
+    const grid = document.getElementById('jump-grid');
+    if (!grid) return;
+    let lg = document.getElementById('okey-legend');
+    const n = (questions || []).filter(q => okeyInfo(q).has).length;
+    if (!n) { if (lg) lg.remove(); return; }
+    if (!lg) { lg = document.createElement('div'); lg.id = 'okey-legend'; lg.className = 'okey-legend'; grid.insertAdjacentElement('afterend', lg); }   // sibling: #jump-grid is itself a CSS grid
+    lg.textContent = '📋 = Official answer key available (' + n + ')';
+}
+
 // Re-draw ONLY one question of the Full Paper (used after AI Fix) - no full re-render, no lag
 function refreshFullQuestion(qId) {
     const visible = getFilteredQuestions();
@@ -2035,6 +2099,7 @@ function refreshFullQuestion(qId) {
         const st = gridBtnStyle(visible[idx]);
         gb.style.cssText = st;
         if (st) gb.classList.remove('btn-outline'); else gb.classList.add('btn-outline');
+        applyOkeyBadge(gb, visible[idx]);
     }
     updateFloatingStats(visible);
 }
@@ -2083,7 +2148,8 @@ function buildJumpGridHtml(questions) {
     `;
     questions.forEach((q, idx) => {
         const btnColor = gridBtnStyle(q);
-        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="jumpToFullQuestion(${idx})">${q.qnum || idx + 1}</button>`;
+        const okT = okeyTitle(q);
+        gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}"${okT ? ` data-okey="1" title="${okEsc(okT)}"` : ''} onclick="jumpToFullQuestion(${idx})">${q.qnum || idx + 1}</button>`;
     });
     return gridHtml + `</div>`;
 }
@@ -2119,8 +2185,10 @@ function renderFullPaper(questions = currentQuestions) {
                     gb.style.cssText = st;
                     if (st) gb.classList.remove('btn-outline'); else gb.classList.add('btn-outline');
                 }
+                applyOkeyBadge(gb, q);      // the official key may arrive later (background refresh of the exam)
             });
         }
+        syncOkeyLegend(questions);
         updateFloatingStats(questions);
         return;
     }
@@ -2140,6 +2208,7 @@ function renderFullPaper(questions = currentQuestions) {
     questions.forEach((q, idx) => frag.appendChild(buildFullQuestionEl(q, idx)));
     list.appendChild(frag);
     jumpGrid.innerHTML = buildJumpGridHtml(questions);
+    syncOkeyLegend(questions);
     if (anchor) {
         const el = [...list.children].find(e => e.dataset.qid === anchor.qid);
         if (el) scrollerBy(getScroller(el) || sc0, el.getBoundingClientRect().top - anchor.top);
