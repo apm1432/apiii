@@ -123,15 +123,94 @@ function exitStarMode() {
     mainAnswersBackup = null;
 }
 // main exam answers coming from the server must never overwrite the star answers that are on screen
-function setMainAnswers(obj) { if (window.activeStarred) mainAnswersBackup = obj; else userAnswers = obj; }
+function setMainAnswers(obj) { obj = withPending(obj); if (window.activeStarred) mainAnswersBackup = obj; else userAnswers = obj; }
 function persistAnswersLocal() { if (!window.activeStarred) localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers)); }
+// ====== ANSWER OUTBOX (answers can never be lost) ======
+// Before: the answer was sent once, "fire and forget". If the request failed (weak signal, server busy, 429/500,
+// login of another device) the answer stayed only in this browser, and the next sync with the database
+// replaced the browser copy -> the student's progress "went missing".
+// Now every answer is first written to a small queue in localStorage and is removed from it ONLY when the server
+// confirmed it. The queue is retried (with waiting time) until it is saved: after a network error, when the internet
+// comes back, when the tab is opened again and every 15 seconds. The server ignores a repeated answer (first answer wins),
+// so retrying is always safe. Answers waiting in the queue are also kept on screen when data arrives from the server.
+const OUTBOX_KEY = 'mpsc_answer_outbox';
+let outboxBusy = false, outboxTimer = null, outboxFails = 0;
+function outboxLoad() { try { const a = JSON.parse(localStorage.getItem(OUTBOX_KEY)); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function outboxStore(a) { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(a)); } catch (e) { } }
+function outboxUser() { return (currentUser && currentUser.email) || ''; }
+function outboxRemove(it) {
+    outboxStore(outboxLoad().filter(x => !(x.u === it.u && x.q === it.q && !!x.star === !!it.star)));
+}
+function outboxSchedule(ms) {
+    if (outboxTimer) return;
+    outboxTimer = setTimeout(() => { outboxTimer = null; flushOutbox(); }, ms);
+}
+async function flushOutbox() {
+    if (outboxBusy) return;
+    const jwt = localStorage.getItem('jwtToken') || token;
+    if (!jwt) return;
+    const me = outboxUser();
+    if (!outboxLoad().some(x => x.u === me)) return;
+    outboxBusy = true;
+    let failed = false;
+    try {
+        const list = outboxLoad().filter(x => x.u === me);        // other accounts' answers stay untouched
+        for (const it of list) {
+            let res;
+            try {
+                res = await fetch(it.star ? '/api/stars/answer' : '/api/progress/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+                    body: JSON.stringify(it.star ? { questionId: it.q, selectedOption: it.sel } : { questionId: it.q, section: it.section, selectedOption: it.sel })
+                });
+            } catch (e) { failed = true; break; }                  // no internet: keep everything, try again later
+            if (res.ok) { outboxRemove(it); continue; }           // saved
+            if (res.status === 400 || res.status === 404) { outboxRemove(it); continue; }   // can never succeed (question removed / not starred)
+            failed = true;                                         // 401 / 403 / 429 / 5xx: keep it and try again later
+            break;
+        }
+    } finally {
+        outboxBusy = false;
+        if (failed) { outboxFails = Math.min(outboxFails + 1, 6); outboxSchedule(Math.min(60000, 2000 * Math.pow(2, outboxFails))); }
+        else {
+            outboxFails = 0;
+            if (outboxLoad().some(x => x.u === me)) outboxSchedule(500);   // new answers arrived while we were sending
+        }
+    }
+}
+// answers still waiting for the server must stay visible when the saved progress is read from the database
+function withPending(serverAnswers) {
+    const out = (serverAnswers && typeof serverAnswers === 'object') ? serverAnswers : {};
+    try {
+        const me = outboxUser();
+        outboxLoad().forEach(it => {
+            if (it.star || it.u !== me) return;
+            if (out[it.q]) outboxRemove(it);                       // the database already has an answer for it -> nothing to send
+            else if (it.local) out[it.q] = it.local;
+        });
+    } catch (e) { }
+    return out;
+}
+function withPendingStars(serverAnswers) {
+    const out = (serverAnswers && typeof serverAnswers === 'object') ? serverAnswers : {};
+    try {
+        const me = outboxUser();
+        outboxLoad().forEach(it => { if (it.star && it.u === me && !out[it.q] && it.local) out[it.q] = it.local; });
+    } catch (e) { }
+    return out;
+}
+window.addEventListener('online', () => flushOutbox());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flushOutbox(); });
+setInterval(() => { if (outboxLoad().length) flushOutbox(); }, 15000);
+setTimeout(() => flushOutbox(), 2500);                             // answers left over from an earlier visit
+
 function sendAnswerToServer(questionId, section, optIndex) {
-    const star = window.activeStarred;
-    return fetch(star ? '/api/stars/answer' : '/api/progress/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwtToken') || token}` },
-        body: JSON.stringify(star ? { questionId, selectedOption: optIndex } : { questionId, section, selectedOption: optIndex })
-    });
+    const star = !!window.activeStarred;
+    const local = userAnswers[questionId] ? Object.assign({}, userAnswers[questionId]) : null;
+    const it = { u: outboxUser(), q: String(questionId), section: section || '', sel: optIndex, star, local, t: Date.now() };
+    outboxStore(outboxLoad().filter(x => !(x.u === it.u && x.q === it.q && !!x.star === star)).concat([it]));   // first answer wins: keep one entry
+    flushOutbox();
+    return Promise.resolve();
 }
 
 async function loadStars() {
@@ -141,7 +220,7 @@ async function loadStars() {
         const d = await r.json();
         if (!d || !d.success) return;
         window.starIds = new Set(d.ids || []);
-        if (!window.activeStarred) window.starAnswers = d.answers || {};
+        if (!window.activeStarred) window.starAnswers = withPendingStars(d.answers || {});
         persistStarCache();
         refreshStarButtons();
         const dash = document.getElementById('dashboard-section');
@@ -1060,8 +1139,9 @@ async function loadDashboard() {
         if (progData && progData.success && progData.data) {
             if (progData.data.sectionWise) window.progressSectionWise = progData.data.sectionWise;
             if (progData.data.answers) {
-                try { localStorage.setItem('mpsc_user_answers', JSON.stringify(progData.data.answers)); } catch (e) { }
-                setMainAnswers(progData.data.answers);
+                const merged = withPending(progData.data.answers);      // answers not yet confirmed by the server stay
+                try { localStorage.setItem('mpsc_user_answers', JSON.stringify(merged)); } catch (e) { }
+                setMainAnswers(merged);
             }
             if (window.allExamsData) paintDashboard();
         }
@@ -1916,7 +1996,15 @@ function buildFullQuestionEl(q, idx) {
             </div>
         `;
         qDiv.innerHTML = html;
+        qDiv.dataset.qid = String(q._id);
+        qDiv.dataset.sig = questionSig(q, idx);        // lets renderFullPaper redraw ONLY the questions that really changed
         return qDiv;
+}
+
+// everything that decides how one question of the Full Paper looks
+function questionSig(q, idx) {
+    try { return JSON.stringify([idx, q, userAnswers[q._id] || null, !!(currentUser && currentUser.isAdmin)]); }
+    catch (e) { return 'x' + Math.random(); }
 }
 
 function gridBtnStyle(q) {
@@ -1932,7 +2020,16 @@ function refreshFullQuestion(qId) {
     const idx = visible.findIndex(q => q._id === qId);
     if (idx < 0) return;
     const old = document.getElementById(`full-q-${idx}`);
-    if (old) old.replaceWith(buildFullQuestionEl(visible[idx], idx));
+    if (old) {
+        const r0 = old.getBoundingClientRect();
+        const fresh = buildFullQuestionEl(visible[idx], idx);
+        old.replaceWith(fresh);
+        // the changed question is ABOVE what the student is reading: its new height must not push the page
+        if (r0.bottom < 0) {
+            const dh = fresh.getBoundingClientRect().height - r0.height;
+            if (dh) window.scrollTo({ top: window.scrollY + dh, behavior: 'instant' });
+        }
+    }
     const gb = document.getElementById(`grid-btn-${idx}`);
     if (gb) {
         const st = gridBtnStyle(visible[idx]);
@@ -1942,34 +2039,71 @@ function refreshFullQuestion(qId) {
     updateFloatingStats(visible);
 }
 
-function renderFullPaper(questions = currentQuestions) {
-    const list = document.getElementById('full-questions-list');
-    const jumpGrid = document.getElementById('jump-grid');
-    list.innerHTML = '';
-    jumpGrid.innerHTML = '';
-
-    
-    if (questions.length === 0) {
-        list.innerHTML = '<p style="padding: 20px;">No questions found.</p>';
-        return;
-    }
-
-    const frag = document.createDocumentFragment();
-    questions.forEach((q, idx) => frag.appendChild(buildFullQuestionEl(q, idx)));
-    list.appendChild(frag);
-
+function buildJumpGridHtml(questions) {
     let gridHtml = `
         <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
     `;
-    
     questions.forEach((q, idx) => {
         const btnColor = gridBtnStyle(q);
         gridHtml += `<button id="grid-btn-${idx}" class="btn btn-outline grid-btn" style="${btnColor}" onclick="document.getElementById('full-q-${idx}').scrollIntoView({behavior: 'smooth', block: 'start'})">${q.qnum || idx + 1}</button>`;
     });
-    
-    gridHtml += `</div>`;
-    jumpGrid.innerHTML = gridHtml;
-    
+    return gridHtml + `</div>`;
+}
+
+// Draws the Full Paper.  It NEVER throws the student away from the question he is reading:
+//  - same questions as before (AI Fix, progress sync, admin buttons...) -> only the questions that really changed are redrawn
+//  - a different list (subject / topic filter) -> full rebuild, and the page is kept at the same question when it is still there
+function renderFullPaper(questions = currentQuestions) {
+    const list = document.getElementById('full-questions-list');
+    const jumpGrid = document.getElementById('jump-grid');
+
+    if (questions.length === 0) {
+        list.innerHTML = '<p style="padding: 20px;">No questions found.</p>';
+        jumpGrid.innerHTML = '';
+        return;
+    }
+
+    const kids = list.children;
+    const sameShape = kids.length === questions.length && questions.every((q, i) => kids[i].dataset && kids[i].dataset.qid === String(q._id));
+    if (sameShape) {
+        questions.forEach((q, i) => {
+            const el = kids[i];
+            if (el.dataset.sig !== questionSig(q, i)) el.replaceWith(buildFullQuestionEl(q, i));
+        });
+        if (!document.getElementById('grid-btn-0')) {
+            jumpGrid.innerHTML = buildJumpGridHtml(questions);
+        } else {
+            questions.forEach((q, i) => {
+                const gb = document.getElementById(`grid-btn-${i}`);
+                if (!gb) return;
+                const st = gridBtnStyle(q);
+                if ((gb.getAttribute('style') || '') !== st) {
+                    gb.style.cssText = st;
+                    if (st) gb.classList.remove('btn-outline'); else gb.classList.add('btn-outline');
+                }
+            });
+        }
+        updateFloatingStats(questions);
+        return;
+    }
+
+    // full rebuild: remember which question is at the top of the screen
+    let anchor = null;
+    if (list.offsetParent !== null) {
+        for (const el of kids) {
+            const r = el.getBoundingClientRect();
+            if (r.bottom > 0) { anchor = { qid: el.dataset.qid, top: r.top }; break; }
+        }
+    }
+    list.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    questions.forEach((q, idx) => frag.appendChild(buildFullQuestionEl(q, idx)));
+    list.appendChild(frag);
+    jumpGrid.innerHTML = buildJumpGridHtml(questions);
+    if (anchor) {
+        const el = [...list.children].find(e => e.dataset.qid === anchor.qid);
+        if (el) window.scrollTo({ top: window.scrollY + (el.getBoundingClientRect().top - anchor.top), behavior: 'instant' });
+    }
     updateFloatingStats(questions);
 }
 
@@ -2791,7 +2925,13 @@ window.connectAiLiveStream = function(jobId) {
             // Update local state and UI
             const qIndex = currentQuestions.findIndex(q => q._id === data.question._id);
             if (qIndex > -1) {
-                currentQuestions[qIndex] = data.question;
+                // MERGE into the object that is already on screen (same object, same qnum / subject / topic / image links),
+                // so the question keeps its place in the list and nothing else moves
+                const keep = currentQuestions[qIndex];
+                const fresh = Object.assign({}, data.question);
+                ['qnum', 'subject', 'topic'].forEach(k => { if (fresh[k] === undefined || fresh[k] === null) delete fresh[k]; });
+                Object.assign(keep, fresh);
+                data.question = keep;
             }
             // Answer key may have changed -> re-evaluate the user's saved answer so score/progress update instantly
             const ua = userAnswers[data.question._id];
@@ -2865,7 +3005,7 @@ async function syncProgressFromServer() {
         const r = await fetch('/api/progress/dashboard', { headers: { 'Authorization': `Bearer ${token}` } });
         const d = await r.json();
         if (d.success && d.data && d.data.answers) {
-            userAnswers = d.data.answers;
+            userAnswers = withPending(d.data.answers);                 // answers not yet confirmed by the server stay
             localStorage.setItem('mpsc_user_answers', JSON.stringify(userAnswers));
             const visible = getFilteredQuestions();
             const quizView = document.getElementById('quiz-view');

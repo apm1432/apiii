@@ -1199,18 +1199,66 @@ router.post('/questions/siblings', authMiddleware, async (req, res) => {
     }
 });
 
+// Limit per LOGGED-IN USER, not per IP: a whole class on one college / hostel Wi-Fi shares one IP, and with an
+// IP limit the answers of the 61st student in that minute were rejected (429) and never reached the database.
 const submitAnswerLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    limit: 60, // Limit each IP to 60 answer submissions per windowMs
+    limit: 120,          // answers per user per minute (a person cannot tap faster than this)
+    keyGenerator: (req) => 'u:' + String((req.user && req.user.id) || 'anon'),
+    validate: { keyGeneratorIpFallback: false, ip: false },
     message: { success: false, message: 'Too many answers submitted. Please slow down.' }
 });
 
 // 5. Progress Tracking (Protected & Validated)
+// The answer is written with ONE atomic MongoDB update ($set + $inc, "first answer wins" guard).
+// The old code did: load the whole progress document -> change it in memory -> save(). Two answers of the same user
+// arriving together (fast taps, Paper Mode, 2 tabs, the dashboard self-heal) both started from the same old copy,
+// so one answer / one counter increment was overwritten and the progress "went missing" now and then.
+async function recordAnswerAtomic(userId, questionId, answer, isCorrect, safeSection, questionOid) {
+    const mongoose = require('mongoose');
+    const col = Progress.collection;
+    const uid = new mongoose.Types.ObjectId(String(userId));
+    const aKey = `answers.${questionId}`;
+    const filter = { userId: uid, [aKey]: { $exists: false } };
+    const now = new Date();
+    const update = {
+        $set: { [aKey]: answer, lastSolvedQuestion: questionOid, updatedAt: now },
+        $inc: {
+            totalSolved: 1,
+            totalCorrect: isCorrect ? 1 : 0,
+            [`sectionWise.${safeSection}.solved`]: 1,
+            [`sectionWise.${safeSection}.correct`]: isCorrect ? 1 : 0
+        },
+        $setOnInsert: { createdAt: now }
+    };
+    for (let i = 0; i < 4; i++) {
+        const r = await col.updateOne(filter, update);                 // document exists and this question is not answered yet
+        if (r.matchedCount) return 'saved';
+        const ex = await col.findOne({ userId: uid }, { projection: { [aKey]: 1 } });
+        if (ex) {
+            if (ex.answers && ex.answers[questionId]) return 'already';  // first answer wins (also a harmless double tap / retry)
+            continue;
+        }
+        try {                                                           // first answer of a new user: create the document
+            await col.updateOne(filter, update, { upsert: true });
+            return 'saved';
+        } catch (e) {
+            if (e && e.code === 11000) continue;                        // created at the same moment by another request -> retry
+            throw e;
+        }
+    }
+    throw new Error('Could not record the answer (too many concurrent writes)');
+}
+
 router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, res) => {
     try {
-        const { questionId, section, selectedOption } = req.body;
+        const { questionId, section, selectedOption } = req.body || {};
         const userId = req.user.id;
-        
+
+        if (!/^[a-f0-9]{24}$/i.test(String(questionId || '')) || !Number.isInteger(selectedOption) || selectedOption < 0 || selectedOption > 20) {
+            return res.status(400).json({ success: false, message: 'Invalid answer' });
+        }
+
         // 1. Fetch real question
         const question = await Question.findById(questionId).lean();
         if (!question) {
@@ -1228,36 +1276,16 @@ router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, r
             correctOptIndex = parseInt(correctStr) - 1;
             isCorrect = (selectedOption === correctOptIndex);
         }
-        
-        let progress = await Progress.findOne({ userId });
-        if (!progress) {
-            progress = new Progress({ userId, totalSolved: 0, totalCorrect: 0, sectionWise: new Map(), answers: new Map() });
-        }
-        
-        // Check if already answered to prevent double counting
-        const existingAnswer = progress.answers.get(questionId);
-        const safeSection = section.replace(/\./g, '_dot_');
-        
-        if (!existingAnswer) {
-            progress.totalSolved += 1;
-            if (isCorrect) progress.totalCorrect += 1;
 
-            let secStats = progress.sectionWise.get(safeSection) || { solved: 0, correct: 0 };
-            secStats.solved += 1;
-            if (isCorrect) secStats.correct += 1;
-            progress.sectionWise.set(safeSection, secStats);
-        }
+        // the section can be missing (old clients / passage questions): never fail because of that
+        const sectionName = String(section || question.year_exam || 'Unknown');
+        const safeSection = (sectionName.replace(/\./g, '_dot_').replace(/^\$/, '_') || 'Unknown');
 
-        // Save detailed answer
-        if (!existingAnswer) {
-            progress.answers.set(questionId, { selected: selectedOption, isCorrect, isCancelled, section });
-            progress.lastSolvedQuestion = questionId;
-            await progress.save();
-        }
+        await recordAnswerAtomic(userId, String(question._id), { selected: selectedOption, isCorrect, isCancelled, section: sectionName }, isCorrect, safeSection, question._id);
 
-        res.json({ 
-            success: true, 
-            isCorrect, 
+        res.json({
+            success: true,
+            isCorrect,
             isCancelled,
             correctOptionIndex: correctOptIndex,
             explanation: question.toppers_explanation_marathi,
@@ -1273,14 +1301,16 @@ router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, r
 router.get('/progress/dashboard', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
-        const progress = await Progress.findOne({ userId });
+        let progress = await Progress.findOne({ userId });
         
         if (!progress) {
             return res.json({ success: true, data: { totalSolved: 0, totalCorrect: 0, sectionWise: {}, answers: {} } });
         }
 
         // Self-heal: re-check saved answers against the current (maybe AI-fixed) answer keys
-        try { await reconcileUserProgress(progress); } catch (e) { console.error('reconcile failed:', e); }
+        try {
+            if (await reconcileUserProgress(progress)) progress = (await Progress.findOne({ userId })) || progress;   // fixes are atomic -> read the fresh copy
+        } catch (e) { console.error('reconcile failed:', e); }
         
         const unescapedSectionWise = {};
         for (const [key, val] of progress.sectionWise.entries()) {

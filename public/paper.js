@@ -149,6 +149,21 @@
         return pages;
     }
 
+    // Rebuild the pages and stay on the SAME page: found by the questions on it, not by its number.
+    // (After an AI Fix / progress sync the grouping can change; a plain page number then points to another page.)
+    function rebuildPagesKeepingPlace() {
+        const old = PM.pages[PM.pi];
+        const ids = old ? old.qs.map(q => String(q._id)) : [];
+        const cur = old ? (old.cur || 0) : 0;
+        const keep = PM.pi;
+        PM.pages = buildPages();
+        let ni = ids.length ? PM.pages.findIndex(p => p.qs.some(q => ids.includes(String(q._id)))) : -1;
+        if (ni < 0) ni = Math.min(keep, PM.pages.length - 1);
+        PM.pi = Math.max(0, ni);
+        const np = PM.pages[PM.pi];
+        if (np && np.urls && cur < np.urls.length) np.cur = cur;
+    }
+
     // Ask the server for questions that share an image with ours (needed when the paper was opened
     // as "Subject (All Exams)", so other subjects are not loaded on the client).
     async function fetchSiblings() {
@@ -168,9 +183,7 @@
             const d = await r.json();
             if (d && d.success && Array.isArray(d.data) && PM.open) {
                 d.data.forEach(q => PM.serverExtras.set(String(q._id), q));
-                const keep = PM.pi;
-                PM.pages = buildPages();
-                PM.pi = Math.min(keep, PM.pages.length - 1);
+                rebuildPagesKeepingPlace();
                 if (PM.pages.length) renderPanel();
             }
         } catch (e) { console.warn('siblings fetch failed', e); }
@@ -709,7 +722,7 @@
         // bring Quiz / Full Paper views up to date with answers given here
         try {
             const v = getFilteredQuestions();
-            renderFullPaper(v);
+            renderFullPaper(v);                       // redraws only the questions whose answer changed; scroll stays
             if (v[currentQIndex]) renderQuizQuestion(currentQIndex, v);
             updateFloatingStats(v);
         } catch (e) { console.warn(e); }
@@ -732,9 +745,7 @@
         if (!PM.open) return;
         if (newQ === 'images') { PM.sibKey = ''; }   // an admin changed images: pages are rebuilt below
         if (newQ && newQ !== 'images' && PM.serverExtras.has(String(changedId))) PM.serverExtras.set(String(changedId), newQ);
-        const keep = PM.pi;
-        PM.pages = buildPages();
-        PM.pi = Math.min(keep, PM.pages.length - 1);
+        rebuildPagesKeepingPlace();
         if (newQ === 'images') { showPage(PM.pi); return; }   // image changed by an admin: reload the picture too
         renderPanel();     // options / explanation / score use the new AI-fixed answer
         const pg = PM.pages[PM.pi];
