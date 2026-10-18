@@ -2025,7 +2025,7 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
             reason = f"web fallback failed: WebAI '{slot.label}' returned an empty answer (model={model})"
             continue
         actual = cj.get("model") or model or "webai"
-        g.webai_account = slot.label
+        g.webai_account = slot.label + (" [NOT LOGGED IN - anonymous]" if slot.auth is False else "")
         if is_responses_api:
             rj = chat_completion_to_responses_json(cj, actual)
             resp = Response(responses_sse_stream(rj), mimetype="text/event-stream") if client_stream_requested else jsonify(rj)
@@ -2721,6 +2721,8 @@ def _webapi_fix_body(raw: bytes) -> bytes:
 
 import webapi_param_fix
 
+WEBAI_REQUIRE_AUTH = os.environ.get("WEBAI_REQUIRE_AUTH", "0") == "1"   # 1 = never answer from a logged-out (anonymous) WebAI instance
+ANON_TAG = "NOT LOGGED IN - answered anonymously, NOT saved in the Gemini account (cookies expired? re-paste at /api/web/v1/ui/auth)"
 WEBAPI_READ_TIMEOUT = float(os.environ.get("WEBAPI_READ_TIMEOUT", "600"))   # seconds WebAI may take to answer (lower = hung accounts are given up sooner)
 
 
@@ -2735,6 +2737,7 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
     pending = []
     if is_chat:
         send, removed_known = webapi_param_fix.strip_known(send)
+        send = webapi_param_fix.emulate(body, send)
         send, _req_m, _used_m = webapi_model_fix.preflight(slot.id, send)
         if _used_m and log is not None:
             log["model"] = f"{_req_m} -> {_used_m}"
@@ -2775,7 +2778,7 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
             log["model"] = (log.get("model") or first_model or "") + f"  (skipped params: {', '.join(done)})"
         up.close()
         pending += done
-        send = new_send
+        send = webapi_param_fix.emulate(body, new_send)
         up = _do(send)
     if up.status_code < 400:
         if pending:
@@ -2943,7 +2946,7 @@ def webapi_proxy(sub):
         _conv = _j.get("conversation_id") if isinstance(_j, dict) else None
     _pref = pool.conv_account(_conv)
     max_tries = pool.count() if _balanced else 1
-    tried, up, slot, last_exc = set(), None, None, None
+    tried, up, slot, last_exc, _anon_blocked = set(), None, None, None, None
     for _try in range(max(1, max_tries)):
         if _balanced:
             slot = pool.acquire(exclude=tried, prefer=_pref)
@@ -2952,6 +2955,10 @@ def webapi_proxy(sub):
         if slot is None:
             break
         tried.add(slot.id)
+        if _balanced and WEBAI_REQUIRE_AUTH and slot.auth is False and not slot.guest:
+            pool.release(slot)                       # logged out -> do not use it, try the next account
+            _anon_blocked = slot.label
+            continue
         url = slot.url + upstream_path
         try:
             up = _webapi_request(request.method, url, _params, _body, fwd_headers, slot, _is_chat, stream=True,
@@ -2970,7 +2977,9 @@ def webapi_proxy(sub):
             continue
         break
     if up is None:
-        if slot is None and last_exc is None:
+        if _anon_blocked and last_exc is None:
+            msg = f"WebAI account '{_anon_blocked}' is logged out (Gemini rejected the cookies) - paste fresh cookies at /api/web/v1/ui/auth"
+        elif slot is None and last_exc is None:
             msg = "no WebAI account is running (add cookies at /api/web/v1/ui/auth)"
         elif isinstance(last_exc, requests.exceptions.ReadTimeout):
             msg = (f"WebAI account did not answer within {int(WEBAPI_READ_TIMEOUT)}s (Gemini web hung / overloaded - "
@@ -2981,7 +2990,8 @@ def webapi_proxy(sub):
             g.log_entry["error_detail"] = f"{msg} (WebAI not running / not installed / crashed?)"
         return jsonify({"error": {"message": msg, "type": "upstream_unavailable"}}), 424
     if hasattr(g, "log_entry"):
-        g.log_entry["route"] = f"WebAI account '{slot.label}' ({request.method} {request.full_path.rstrip('?')} → {url})"
+        g.log_entry["route"] = (("⚠ " + ANON_TAG + " | ") if slot.auth is False else "") + \
+            f"WebAI account '{slot.label}' ({request.method} {request.full_path.rstrip('?')} → {url})"
 
     _rel = {"done": not _balanced}
     def _release(error=False):
@@ -3000,6 +3010,8 @@ def webapi_proxy(sub):
             v = _webapi_rewrite_location(v)
         out_headers[k] = v
     out_headers.update(cors)
+    if slot.auth is False:
+        out_headers["X-WebAI-Auth"] = "anonymous"
 
     # Koyeb replaces app-sent 502/503/504 with its own generic "no healthy service"
     # page, hiding the real reason -> report WebAI problems as 424 instead.

@@ -27,3 +27,15 @@ Bug fixes in the same area
   (input_text/input_image -> text/image_url) and the answer is returned in Responses format (incl. SSE when stream=true).
 - A WebAI read timeout (Gemini web hung) used to be reported as "not running / crashed"; now it says it timed out.
   `WEBAPI_READ_TIMEOUT` (default 600 s) controls how long a request waits.
+
+## Update 2: response_format keeps its meaning
+Before, a 400 on `response_format` made the caller add "[OUTPUT FORMAT]: Reply with ONLY the valid JSON..." to its prompt.
+Silently dropping the field removed that safety net (the answer could come back as prose). Now, when `response_format`
+(json_object / json_schema) is dropped, the same JSON instruction is appended to the last user message (once).
+
+## Update 3: answers from a logged-out (anonymous) WebAI instance are now visible
+When Gemini rejects the cookies, WebAI keeps answering as an anonymous guest (patch 2d/2e): HTTP 200, but nothing is saved in
+the Gemini account (no history/activity), and file upload / search do not work (requests can hang). The log row said
+"WebAI account '<name>'" so it looked fine. Now: route shows "⚠ NOT LOGGED IN - answered anonymously ...", response header
+`X-WebAI-Auth: anonymous`. Env `WEBAI_REQUIRE_AUTH=1` -> never use a logged-out instance (next account, or a clear 424
+"cookies expired - paste fresh cookies") instead of answering anonymously.

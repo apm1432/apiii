@@ -31,10 +31,12 @@ RETRY_STATUS = (401, 403, 429, 500, 502, 503, 504)
 
 
 class Slot:
-    __slots__ = ("id", "label", "url", "guest")
+    __slots__ = ("id", "label", "url", "guest", "auth")
 
-    def __init__(self, iid, label, url, guest=False):
-        self.id, self.label, self.url, self.guest = iid, label, url, guest
+    def __init__(self, iid, label, url, guest=False, auth=None):
+        # auth: True = logged in, False = Gemini rejected the cookies (WebAI then answers ANONYMOUSLY: nothing is saved in
+        # the Gemini account, no file upload / search), None = not known yet
+        self.id, self.label, self.url, self.guest, self.auth = iid, label, url, guest, auth
 
 
 class WebAIPool:
@@ -95,7 +97,7 @@ class WebAIPool:
     # ── picking ──────────────────────────────────────────────────────────────
     @staticmethod
     def _slot(i):
-        return Slot(i["id"], i.get("label") or i["id"], i["url"], bool(i.get("guest")))
+        return Slot(i["id"], i.get("label") or i["id"], i["url"], bool(i.get("guest")), i.get("authenticated"))
 
     def peek(self, exclude=()):
         """Best instance for light/read-only requests (models, dashboard...). No in-flight accounting."""

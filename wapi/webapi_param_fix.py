@@ -271,3 +271,48 @@ def unlearn(paths):
         for p in paths:
             _BLOCKED.pop(p, None)
         _save()
+
+
+# ── keep the MEANING of a removed parameter ──────────────────────────────────
+JSON_MARK = "[OUTPUT FORMAT]"
+
+
+def emulate(orig_body, new_body):
+    """`response_format` (json_object / json_schema) is removed because WebAI rejects it, but the caller relies on it
+    to get pure JSON back. Without it Gemini answers in prose and the caller's parser breaks (before the fix the 400 made
+    the caller add this instruction itself). So when response_format was dropped, ask for JSON in the prompt instead
+    (same wording the caller uses). Applied once only."""
+    o, n = _parse(orig_body), _parse(new_body)
+    if o is None or n is None or "response_format" in n:
+        return new_body
+    rf = o.get("response_format")
+    if not isinstance(rf, dict) or rf.get("type") not in ("json_object", "json_schema"):
+        return new_body
+    msgs = n.get("messages")
+    if not isinstance(msgs, list):
+        return new_body
+    txt = f"\n\n{JSON_MARK}: Reply with ONLY the valid JSON, nothing before or after it, no markdown code fence."
+    if rf.get("type") == "json_schema":
+        try:
+            sch = (rf.get("json_schema") or {}).get("schema")
+            if sch:
+                txt = f"\n\n{JSON_MARK}: Reply with ONLY valid JSON that matches this JSON schema, nothing before or after it, " \
+                      f"no markdown code fence.\nSchema: {json.dumps(sch, ensure_ascii=False)}"
+        except Exception:
+            pass
+    for m in reversed(msgs):
+        if not isinstance(m, dict) or m.get("role") != "user":
+            continue
+        c = m.get("content")
+        if isinstance(c, str):
+            if JSON_MARK in c:
+                return new_body
+            m["content"] = c + txt
+        elif isinstance(c, list):
+            if any(isinstance(x, dict) and JSON_MARK in str(x.get("text", "")) for x in c):
+                return new_body
+            m["content"] = c + [{"type": "text", "text": txt.strip()}]
+        else:
+            return new_body
+        return _dump(n)
+    return new_body
