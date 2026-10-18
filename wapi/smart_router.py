@@ -1937,27 +1937,48 @@ FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
 # One WebAI process per Gemini account (wapi/webai_supervisor.py); webai_pool spreads the load over them.
 import webai_pool
 import webapi_model_fix
-_webai_model_cache = {"model": None, "ts": 0.0}
+_webai_model_cache = {"model": None, "ts": 0.0, "file_model": None, "file_ts": 0.0}
 
-def _webai_pick_model():
-    now = time.time()
-    if _webai_model_cache["model"] and now - _webai_model_cache["ts"] < 600:
-        return _webai_model_cache["model"]
-    model = None
+def _has_file_parts(data: dict) -> bool:
+    """True when any message carries image / file / audio parts (not plain text)."""
+    for m in (data.get("messages") or []):
+        c = m.get("content") if isinstance(m, dict) else None
+        if isinstance(c, list):
+            for part in c:
+                if isinstance(part, dict) and part.get("type") not in (None, "text"):
+                    return True
+    return False
+
+def _webai_list_models():
     try:
         r = requests.get(webai_pool.get_pool().any_url() + "/v1/models", timeout=8)
         if r.status_code == 200:
-            ids = [m.get("id") for m in (r.json().get("data") or []) if isinstance(m, dict) and m.get("id")]
-            lite = [i for i in ids if "lite" in i.lower()]
-            if lite:
-                model = next((i for i in lite if "flash" in i.lower()), lite[0])
-            elif ids:
-                model = WEBAI_FALLBACK_MODEL if WEBAI_FALLBACK_MODEL in ids else ids[0]
+            return [m.get("id") for m in (r.json().get("data") or []) if isinstance(m, dict) and m.get("id")]
     except Exception as e:
         print(f"[WEBAI FALLBACK] model list failed: {e}")
-    model = model or WEBAI_FALLBACK_MODEL or None
+    return []
+
+def _webai_pick_model(need_files: bool = False):
+    """need_files=True -> never a `playwright/*` model: that backend rejects image/file parts with
+    HTTP 400 'File content parts are only supported on the Gemini WebAPI backend'. Returns None if no
+    WebAPI-backend model exists (caller then skips the fallback instead of sending a doomed request)."""
+    now = time.time()
+    mk, tk = ("file_model", "file_ts") if need_files else ("model", "ts")
+    if _webai_model_cache[mk] and now - _webai_model_cache[tk] < 600:
+        return _webai_model_cache[mk]
+    ids = _webai_list_models()
+    if need_files:
+        ids = [i for i in ids if "playwright" not in i.lower()]
+    model = None
+    lite = [i for i in ids if "lite" in i.lower()]
+    if lite:
+        model = next((i for i in lite if "flash" in i.lower()), lite[0])
+    elif ids:
+        model = WEBAI_FALLBACK_MODEL if WEBAI_FALLBACK_MODEL in ids else ids[0]
+    if not model and not need_files:
+        model = WEBAI_FALLBACK_MODEL or None
     if model:
-        _webai_model_cache.update(model=model, ts=now)
+        _webai_model_cache.update({mk: model, tk: now})
     return model
 
 def _webai_fix_links(raw: bytes, acc_id: str = "") -> bytes:
@@ -1982,7 +2003,10 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
         return None, "web fallback is OFF (WEBAI_FALLBACK=0)"
     if data.get("tools") or _is_tool_continuation(data.get("messages") or []):
         return None, "web fallback skipped: tool-calling request (WebAI has no tool support)"
-    model = _webai_pick_model()
+    need_files = _has_file_parts(data)
+    model = _webai_pick_model(need_files)
+    if need_files and not model:
+        return None, "web fallback skipped: request has image/file but WebAI has no WebAPI-backend model (only playwright/*)"
     msgs = []
     for m in data.get("messages") or []:
         if not isinstance(m, dict):
@@ -2164,6 +2188,10 @@ def proxy_chat():
     # only a very short wait (keys first), then the fallback answers.
     fb_ok = WEBAI_FALLBACK and not is_continuation and not data.get("tools")
     max_wait = FALLBACK_MAX_WAIT if fb_ok else 65
+    # Image/file requests: the WebAI fallback is far less reliable for them (guest accounts cannot take files,
+    # playwright backend rejects them), so wait for the keys much longer instead of failing after 3 s.
+    if fb_ok and _has_file_parts(data):
+        max_wait = max(max_wait, float(os.environ.get("FILE_MAX_WAIT", "45")))
 
     for attempt in range(max_attempts):
         # Atomic: pick a viable (key, model) AND reserve it in one lock

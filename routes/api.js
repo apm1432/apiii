@@ -394,9 +394,19 @@ setInterval(() => { // drop old entries so the map does not grow forever
     for (const [k, v] of chatLimits) { const f = v.filter(t => now - t < 24 * 3600 * 1000); if (f.length) chatLimits.set(k, f); else chatLimits.delete(k); }
 }, 3600 * 1000).unref();
 
+// Obvious technical / coding requests (not GK like "what is ISRO"). The AI prompt also enforces the scope; this just saves quota.
+function looksTechnicalRequest(msg) {
+    const t = String(msg || '');
+    if (/```/.test(t)) return true;
+    if (/\b(write|create|make|build|generate|debug|fix|refactor|optimi[sz]e|convert|implement)\b[^.?\n]{0,40}\b(code|program|script|function|class|query|app|application|website|webpage|api|bot|algorithm|software)\b/i.test(t)) return true;
+    if (/(कोड|प्रोग्राम)\s*(लिहा|लिही|बनवा|तयार करा|दुरुस्त)/.test(t)) return true;
+    if (/\b(python|javascript|typescript|java|c\+\+|html|css|sql|mongodb|react|node\.?js|django|flask|docker|kubernetes|git(hub)?|linux)\b[^.?\n]{0,30}\b(code|program|script|error|bug|install|setup|configure|command|tutorial)\b/i.test(t)) return true;
+    return false;
+}
+
 router.post('/question-chat', authMiddleware, async (req, res) => {
     try {
-        const { questionId, message, history } = req.body || {};
+        const { questionId, message, history, withImage } = req.body || {};
         if (typeof questionId !== 'string' || !/^[a-f0-9]{24}$/i.test(questionId)) {
             return res.status(400).json({ success: false, message: 'Invalid question.' });
         }
@@ -430,8 +440,14 @@ router.post('/question-chat', authMiddleware, async (req, res) => {
             return res.status(429).json({ success: false, message: 'Too many questions. Please wait a few minutes and try again.' });
         }
 
+        // cheap guard: obvious coding / technical-task requests are refused here, before any AI quota is spent
+        if (looksTechnicalRequest(message)) {
+            return res.json({ success: true, reply: 'मी फक्त MPSC / स्पर्धा परीक्षेच्या अभ्यासाशी संबंधित प्रश्नांची उत्तरे देऊ शकतो. Technical / coding प्रश्नांची उत्तरे इथे मिळणार नाहीत. कृपया अभ्यासाचा एखादा प्रश्न विचारा.' });
+        }
+
+        // The question image is sent ONLY when the student switched "send question image" ON (default: OFF).
         let imageBase64 = null;
-        if (question.original_image_url) {
+        if (withImage === true && question.original_image_url) {
             try { imageBase64 = await fetchQuestionImages(question); } catch (e) { imageBase64 = null; }
         }
 

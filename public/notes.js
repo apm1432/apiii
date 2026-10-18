@@ -211,6 +211,7 @@
 
     // ---------------------------------------------------------------- panel
     let panel = null;
+    let kit = null;   // PanelKit: drag / resize / auto-close switch (panelkit.js)
 
     function build() {
         panel = el('div', 'notes-panel');
@@ -240,6 +241,7 @@
         const listBox = el('div', 'notes-list'); listBox.id = 'notes-list';
         panel.append(head, quick, listBox);
         document.body.appendChild(panel);
+        if (window.PanelKit) kit = window.PanelKit.enhance(panel, { id: 'notes', handle: head, controls: tools, autoClose: false });
 
         const doAdd = (text) => {
             const r = add(text, 'pasted');
@@ -354,6 +356,7 @@
     function open() {
         if (!panel) build();
         panel.style.display = 'flex';
+        if (kit) kit.apply();
         render();
         setSync(loadOps().length ? 'busy' : syncState);
         pull();
@@ -409,9 +412,11 @@
     window.MpscNotes = { onLogout, open, close, add: addFromExplanation, addMany: addManyFromExplanation, count: () => load().length, updateCount, sync: pull, _store: { load, add, edit, move, remove, clearAll, clean, applyOps, loadOps } };
 
     updateCount();
-    // touching anywhere OUTSIDE the notes panel closes it (the "📂 Notes" / dashboard Notes buttons keep working)
+    // touching anywhere OUTSIDE the notes panel closes it ONLY when the panel's "Auto-close" switch is ON
+    // (default OFF: the panel stays open until ✕ is pressed). The "📂 Notes" / dashboard Notes buttons keep working.
     document.addEventListener('pointerdown', (e) => {
         if (!panel || panel.style.display === 'none') return;
+        if (kit && !kit.autoClose()) return;
         const t = e.target;
         if (t && t.closest && t.closest('.notes-panel, .expl-btn, #btn-notes, .notes-toast')) return;
         close();

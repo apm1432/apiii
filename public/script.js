@@ -1713,7 +1713,7 @@ function renderQuizQuestion(index, questions = currentQuestions) {
     }
 
     html += starBtnHtml(q._id);
-    html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || index + 1}')">🤖 Ask AI</button>`;
+    html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || index + 1}', ${!!q.original_image_url})">🤖 Ask AI</button>`;
 
     if (currentUser && currentUser.isAdmin) {
         html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageEditor('${q._id}')">🖼 Set Image</button>`;
@@ -1955,7 +1955,7 @@ function buildFullQuestionEl(q, idx) {
         }
         
         html += starBtnHtml(q._id);
-        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || idx + 1}')">🤖 Ask AI</button>`;
+        html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openQuestionChat('${q._id}', '${q.qnum || idx + 1}', ${!!q.original_image_url})">🤖 Ask AI</button>`;
         
         if (currentUser && currentUser.isAdmin) {
             html += `<button class="btn btn-secondary" style="margin-bottom: 15px; margin-right: 10px;" onclick="openImageEditor('${q._id}')">🖼 Set Image</button>`;
