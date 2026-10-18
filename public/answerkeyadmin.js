@@ -23,7 +23,7 @@
     };
     const imgUrl = (ref) => '/api/image/' + encodeURIComponent(JSON.stringify(ref)) + '?token=' + encodeURIComponent(tok());
 
-    let overlay = null, timer = null, state = { key: null, exams: [], aiVerify: false, overrides: {}, cmpTimer: null, busy: false };
+    let overlay = null, timer = null, rescanTimer = null, state = { key: null, exams: [], aiVerify: false, overrides: {}, cmpTimer: null, busy: false };
     const $ = (s) => overlay.querySelector(s);
     const say = (msg, kind) => { const el = $('#ak-msg'); el.textContent = msg || ''; el.style.color = kind === 'err' ? '#b91c1c' : (kind === 'ok' ? '#15803d' : '#6b7280'); };
 
@@ -48,6 +48,8 @@
         .ak-pill.ok{background:#dcfce7;color:#166534}.ak-pill.warn{background:#fef3c7;color:#92400e}.ak-pill.bad{background:#fee2e2;color:#991b1b}
         .ak-sel{padding:4px 6px;border:1px solid #d1d5db;border-radius:6px}
         .ak-save{background:#16a34a}
+        .ak-rescan{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600}
+        .ak-rescan:disabled{opacity:.6;cursor:wait}
         `;
         document.head.appendChild(st);
     }
@@ -79,7 +81,7 @@
     }
 
     function close() { stopPoll(); if (overlay) overlay.classList.remove('show'); }
-    function stopPoll() { if (timer) { clearInterval(timer); timer = null; } }
+    function stopPoll() { if (timer) { clearInterval(timer); timer = null; } if (rescanTimer) { clearInterval(rescanTimer); rescanTimer = null; } }
 
     async function loadLists() {
         const [ex, rec] = await Promise.all([api('GET', '/exams'), api('GET', '/')]);
@@ -156,6 +158,8 @@
             `<div>${engines}<span class="ak-pill">${k.pageCount} page(s)</span><span class="ak-pill">${esc(k.fileName)}</span>${k.pdf ? `<span class="ak-pill">PDF · Telegram msg #${k.pdf.messageId}</span>` : ''}</div>` +
             `<table class="ak-table" style="margin-top:6px">${setRows}</table>` +
             ((v.notes || []).length ? `<div style="margin-top:6px;padding:6px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:.8rem;color:#92400e">${(v.notes || []).map(n => '⚠ ' + esc(n)).join('<br>')}</div>` : '') +
+            '<div class="xm-actions" style="margin-top:8px"><button class="ak-rescan ak-rescan-btn">🔁 Re-scan by AI</button></div>' +
+            rescanSummaryHtml(k) +
             '<div class="xm-note" style="margin-top:6px">Key pages saved on Telegram (message id shown under each page):</div>' +
             `<div class="ak-pages">${pages}</div></div>` +
 
@@ -180,6 +184,47 @@
         $('#ak-save').onclick = save;
         renderUnverified();
         scheduleCompare();
+        bindRescan();
+    }
+
+    // ── Re-scan by AI: re-read the saved page images with the AI; answers that two readings agree on become verified ──
+    function rescanSummaryHtml(k) {
+        const r = k.rescan;
+        if (!r || r.status !== 'done' || !r.summary) return '';
+        const m = r.summary;
+        return `<div class="xm-note" style="margin-top:6px">Last AI re-scan: ✅ <b>${m.confirmed || 0}</b> newly confirmed · ⚠ ${m.stillUnverified || 0} still unverified` +
+            `${m.added ? ' · ' + m.added + ' new' : ''}${m.failedPages ? ' · ' + m.failedPages + ' page(s) not read' : ''}${m.differsFromVerified ? ' · ' + m.differsFromVerified + ' differ from verified (kept)' : ''}</div>`;
+    }
+
+    function bindRescan() {
+        overlay.querySelectorAll('.ak-rescan-btn').forEach(b => { b.onclick = rescan; b.disabled = !!state.rescanning; });
+    }
+
+    async function rescan() {
+        if (!state.key || state.rescanning) return;
+        const id = state.key.id;
+        state.rescanning = true; bindRescan();
+        say('⏳ Starting the AI re-scan…');
+        const r = await api('POST', '/' + id + '/rescan');
+        if (!r.success) { state.rescanning = false; bindRescan(); return say(r.message || 'Could not start the re-scan.', 'err'); }
+        const tick = async () => {
+            const g = await api('GET', '/' + id);
+            if (!g.success) { clearInterval(rescanTimer); rescanTimer = null; state.rescanning = false; bindRescan(); return say(g.message || 'Error', 'err'); }
+            const rs = g.key.rescan;
+            if (rs && rs.status === 'running') { say('⏳ AI re-scan: ' + (rs.progress || 'working…')); return; }
+            clearInterval(rescanTimer); rescanTimer = null; state.rescanning = false;
+            const keepSet = $('#ak-set') && $('#ak-set').value, keepExam = $('#ak-exam2') && $('#ak-exam2').value;
+            state.key = g.key;
+            renderKey();
+            const setSel = $('#ak-set'), examSel = $('#ak-exam2');
+            if (setSel && keepSet && [...setSel.options].some(o => o.value === keepSet)) setSel.value = keepSet;
+            if (examSel && keepExam) examSel.value = keepExam;
+            renderUnverified(); bindRescan(); scheduleCompare();
+            if (rs && rs.status === 'failed') say('❌ AI re-scan failed: ' + (rs.error || 'unknown error'), 'err');
+            else if (rs && rs.summary) say(`✅ AI re-scan done: ${rs.summary.confirmed || 0} answer(s) confirmed, ${rs.summary.stillUnverified || 0} still need you.`, 'ok');
+        };
+        rescanTimer = setInterval(tick, 2000);
+        tick();
     }
 
     function currentSet() { return $('#ak-set').value; }
@@ -191,18 +236,20 @@
         if (!list.length) { box.innerHTML = ''; return; }
         const single = $('#ak-single').checked;
         const shown = list.slice(0, 150);
+        const hasR = list.some(u => (u.r || []).length);
         const pageImg = (p) => { const im = k.images.find(i => i.page === p); return im ? `<a href="${imgUrl(im.ref)}" target="_blank" rel="noopener">page ${p}</a>` : ''; };
-        box.innerHTML = `<div class="xm-note" style="margin:8px 0 4px;color:#92400e"><b>⚠ ${list.length} answer(s) in Set ${esc(set)} were not confirmed by both readings.</b> Look at the page, then choose the right answer (a conflict must be chosen).</div>` +
-            '<div class="ak-scroll"><table class="ak-table"><tr><th>Q</th><th>Pass 1</th><th>Pass 2</th><th>Page</th><th>Your answer</th></tr>' +
+        box.innerHTML = `<div class="xm-note" style="margin:8px 0 4px;color:#92400e"><b>⚠ ${list.length} answer(s) in Set ${esc(set)} were not confirmed by both readings.</b> Look at the page, then choose the right answer (a conflict must be chosen). <button class="ak-rescan ak-rescan-btn" style="margin-left:6px">🔁 Re-scan by AI</button></div>` +
+            `<div class="ak-scroll"><table class="ak-table"><tr><th>Q</th><th>Pass 1</th><th>Pass 2</th>${hasR ? '<th>AI re-scan</th>' : ''}<th>Page</th><th>Your answer</th></tr>` +
             shown.map(u => {
-                const isSingle = (u.a && !u.b) || (u.b && !u.a);
+                const isSingle = new Set([u.a, u.b, ...(u.r || [])].filter(Boolean)).size === 1;
                 const cur = state.overrides[u.q] || '';
                 const auto = single && isSingle ? ' (accepted)' : '';
-                return `<tr><td><b>${u.q}</b></td><td>${esc(fmt(u.a))}</td><td>${esc(fmt(u.b))}</td><td>${pageImg(u.page)}</td><td>` +
+                return `<tr><td><b>${u.q}</b></td><td>${esc(fmt(u.a))}</td><td>${esc(fmt(u.b))}</td>${hasR ? `<td>${esc((u.r || []).map(fmt).join(' · ') || '—')}</td>` : ''}<td>${pageImg(u.page)}</td><td>` +
                     `<select class="ak-sel ak-ov" data-q="${u.q}"><option value="">${isSingle && single ? 'use the one reading' : '— choose —'}${auto}</option>` +
                     ['1', '2', '3', '4', '#'].map(o => `<option value="${o}"${cur === o ? ' selected' : ''}>${esc(fmt(o))}</option>`).join('') +
                     '</select></td></tr>';
             }).join('') + '</table></div>' + (list.length > shown.length ? `<div class="xm-note">…and ${list.length - shown.length} more (the first ${shown.length} are shown).</div>` : '');
+        bindRescan();
         box.querySelectorAll('.ak-ov').forEach(sel => sel.onchange = () => {
             if (sel.value) state.overrides[sel.dataset.q] = sel.value; else delete state.overrides[sel.dataset.q];
             scheduleCompare();

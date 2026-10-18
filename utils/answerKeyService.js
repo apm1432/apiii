@@ -447,7 +447,123 @@ function compare(setAnswers, questions) {
     };
 }
 
+
+// ──────────────────────────── Re-scan by AI (admin button) ────────────────────────────
+// Reads the SAVED page images again with the AI (a different prompt than the first AI read) and merges the new reading
+// into the existing result by voting: an unverified answer becomes verified as soon as two readings agree.
+// Nothing that is already verified is ever changed (a different value is only counted in the summary).
+
+/** Downloads one saved page image ({botIdx: fileId}) from the Telegram channel. */
+async function downloadRef(ref) {
+    const tokens = botTokens();
+    const entries = Object.entries(ref && typeof ref === 'object' ? ref : {}).filter(([, id]) => id);
+    const order = [];
+    for (const [idx, id] of entries) if (tokens[+idx]) order.push([tokens[+idx], id]);          // the bot that uploaded it first
+    for (const [, id] of entries) for (const t of tokens) if (!order.some(o => o[0] === t && o[1] === id)) order.push([t, id]);
+    for (const [token, id] of order) {
+        try {
+            const r = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(15000) });
+            const j = await r.json().catch(() => ({}));
+            if (!j.ok || !j.result || !j.result.file_path) continue;
+            const f = await fetch(`https://api.telegram.org/file/bot${token}/${j.result.file_path}`, { signal: AbortSignal.timeout(60000) });
+            if (!f.ok) continue;
+            const buf = Buffer.from(await f.arrayBuffer());
+            if (buf.length) return buf;
+        } catch (e) { /* try the next bot */ }
+    }
+    throw new Error('Could not download a key page image from Telegram.');
+}
+
+function recomputePerSet(sets, unverified) {
+    const perSet = {};
+    const names = [...new Set([...Object.keys(sets), ...unverified.map(u => u.set)])].sort();
+    for (const s of names) {
+        const ver = Object.keys(sets[s] || {}).map(Number);
+        const unv = unverified.filter(u => u.set === s);
+        let conflicts = 0, onlyOne = 0;
+        for (const u of unv) {
+            const distinct = new Set([u.a, u.b, ...(u.r || [])].filter(Boolean));
+            if (distinct.size >= 2) conflicts++; else onlyOne++;
+        }
+        const all = [...ver, ...unv.map(u => u.q)];
+        const highest = all.length ? Math.max(...all) : 0;
+        const known = new Set(all);
+        const gaps = []; for (let i = 1; i <= highest; i++) if (!known.has(i)) gaps.push(i);
+        perSet[s] = { total: all.length, agreed: ver.length, conflicts, onlyOne, highest, gaps: gaps.slice(0, 60) };
+    }
+    return perSet;
+}
+
+/**
+ * @param {{sets,pages,verification}} base  what is stored now
+ * @param {{sets,pages}} R                  the new AI reading
+ * unverified entry = { set, q, a (pass 1), b (pass 2), r: [AI re-scan values], page }
+ */
+function mergeRescan(base, R) {
+    const sets = JSON.parse(JSON.stringify(base.sets || {}));
+    const pages = JSON.parse(JSON.stringify(base.pages || {}));
+    const unv = JSON.parse(JSON.stringify((base.verification && base.verification.unverified) || []));
+    const stats = { read: 0, confirmed: 0, added: 0, differsFromVerified: 0, stillUnverified: 0 };
+    const idx = new Map(unv.map(u => [u.set + '|' + u.q, u]));
+
+    for (const [set, rows] of Object.entries(R.sets || {})) {
+        for (const [qRaw, val] of Object.entries(rows || {})) {
+            const q = Number(qRaw); if (!val || !(q >= 1 && q <= 300)) continue;
+            stats.read++;
+            const page = (R.pages && R.pages[set] && R.pages[set][q]) || null;
+            if (sets[set] && sets[set][q]) { if (sets[set][q] !== val) stats.differsFromVerified++; continue; }
+            let u = idx.get(set + '|' + q);
+            if (!u) { u = { set, q, a: null, b: null, r: [], page }; unv.push(u); idx.set(set + '|' + q, u); stats.added++; if (!sets[set]) sets[set] = {}; }
+            u.r = [...(u.r || []), val].slice(-6);
+            if (!u.page) u.page = page;
+        }
+    }
+
+    const keep = [];
+    for (const u of unv) {
+        const votes = {};
+        for (const v of [u.a, u.b, ...(u.r || [])]) if (v) votes[v] = (votes[v] || 0) + 1;
+        const ranked = Object.entries(votes).sort((x, y) => y[1] - x[1]);
+        if (ranked.length && ranked[0][1] >= 2 && (ranked.length === 1 || ranked[0][1] > ranked[1][1])) {
+            (sets[u.set] = sets[u.set] || {})[u.q] = ranked[0][0];
+            (pages[u.set] = pages[u.set] || {})[u.q] = u.page || null;
+            stats.confirmed++;
+        } else keep.push(u);
+    }
+    keep.sort((x, y) => x.set.localeCompare(y.set) || x.q - y.q);
+    stats.stillUnverified = keep.length;
+    return { sets, pages, unverified: keep, perSet: recomputePerSet(sets, keep), stats };
+}
+
+/** @param key lean AnswerKey doc @returns { sets, pages, verification, stats } */
+async function rescanByAi(key, workDir, onProgress, variant = 1) {
+    const say = (m) => { if (onProgress) onProgress(m); };
+    if (!(await aiAvailable())) throw new Error('No AI provider (Gemini key / custom endpoint) is configured.');
+    const imgs = (key.images || []).slice().sort((a, b) => a.page - b.page);
+    if (!imgs.length) throw new Error('This key has no saved page images.');
+    await fsp.mkdir(workDir, { recursive: true });
+    const files = [];
+    for (const im of imgs) {
+        say(`Downloading page ${im.page}/${imgs.length} from Telegram…`);
+        const file = path.join(workDir, `page-${String(im.page).padStart(2, '0')}.jpg`);
+        await fsp.writeFile(file, await downloadRef(im.ref));
+        files.push({ page: im.page, file });
+    }
+    const R = await aiReadPages(files, variant, say);
+    if (R.failedPages >= files.length) throw new Error('The AI could not read any page (all AI requests failed). Check AI Settings → Fix list, then try again.');
+    if (!Object.keys(R.sets).length) throw new Error('The AI answered, but no answers were found on the pages.');
+    const m = mergeRescan(key, R);
+    const v = Object.assign({}, key.verification || {});
+    v.engines = [...(v.engines || []), { name: 'gemini-vision-rescan', sets: countSets(R), failedPages: R.failedPages }];
+    v.perSet = m.perSet; v.unverified = m.unverified;
+    v.notes = (v.notes || []).filter(n => !/^AI re-scan/.test(n));
+    v.notes.push(`AI re-scan: ${m.stats.read} answers read, ${m.stats.confirmed} newly confirmed, ${m.stats.stillUnverified} still unverified` +
+        `${R.failedPages ? `, ${R.failedPages} page(s) could not be read` : ''}${m.stats.differsFromVerified ? `, ${m.stats.differsFromVerified} differ from already verified answers (not changed)` : ''}.`);
+    v.verifiedAt = new Date().toISOString();
+    return { sets: m.sets, pages: m.pages, verification: v, stats: Object.assign({ failedPages: R.failedPages }, m.stats) };
+}
+
 module.exports = {
     normAnswer, parseKeyText, mergePasses, extractVerified, uploadFile, uploadPages, compare, finalOf,
-    aiAvailable, pdfPageCount, MAX_PAGES, renderPages
+    aiAvailable, pdfPageCount, MAX_PAGES, renderPages, rescanByAi, mergeRescan, recomputePerSet, downloadRef
 };

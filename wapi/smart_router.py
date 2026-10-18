@@ -1991,6 +1991,8 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
         c = m.get("content")
         msgs.append({"role": role, "content": "" if c is None else c})
     body = {"messages": msgs, "stream": False}
+    if isinstance(data.get("response_format"), dict):
+        body["response_format"] = data["response_format"]      # dropped by _webapi_request, replaced by a prompt instruction + reply cleaning
     if model:
         body["model"] = model
     raw = _webapi_fix_body(json.dumps(body, ensure_ascii=False).encode("utf-8"))
@@ -2020,6 +2022,8 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
         except Exception:
             reason = f"web fallback failed: WebAI '{slot.label}' returned a non-JSON answer"
             continue
+        if getattr(up, "want_json", False):
+            webapi_param_fix.clean_json_reply(cj)
         msg = ((cj.get("choices") or [{}])[0].get("message")) or {}
         if not (msg.get("content") or msg.get("tool_calls")):
             reason = f"web fallback failed: WebAI '{slot.label}' returned an empty answer (model={model})"
@@ -2747,6 +2751,8 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
                                 stream=stream, timeout=(10, WEBAPI_READ_TIMEOUT), allow_redirects=False)
 
     up = _do(send)
+    _want_json = is_chat and webapi_param_fix.wants_json(body)
+    up.want_json = False
     if not is_chat:
         return up
     bad_models = {webapi_model_fix.get_model(send)}
@@ -2780,6 +2786,7 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
         pending += done
         send = webapi_param_fix.emulate(body, new_send)
         up = _do(send)
+    up.want_json = bool(_want_json and not webapi_param_fix.wants_json(send))
     if up.status_code < 400:
         if pending:
             webapi_param_fix.learn(pending, "upstream 4xx, ok without them")
@@ -2835,6 +2842,10 @@ def _webapi_responses_to_chat(raw: bytes):
             role = "system" if item["role"] == "developer" else item["role"]
             msgs.append({"role": role, "content": "" if c is None else c})
     out = {k: v for k, v in d.items() if k not in _RESPONSES_ONLY_KEYS and k != "messages"}
+    _fmt = (d.get("text") or {}).get("format") if isinstance(d.get("text"), dict) else None
+    if isinstance(_fmt, dict) and _fmt.get("type") in ("json_object", "json_schema") and "response_format" not in out:
+        out["response_format"] = ({"type": "json_object"} if _fmt["type"] == "json_object" else
+                                  {"type": "json_schema", "json_schema": {"name": _fmt.get("name", "output"), "schema": _fmt.get("schema") or {}}})
     out["messages"] = msgs
     out["stream"] = False
     out.pop("tools", None)
@@ -3069,6 +3080,19 @@ def webapi_proxy(sub):
         body = up.content.replace(_art_old, _art_new).replace(_md_old, _md_new)
         up.close()
         _release()
+        if getattr(up, "want_json", False) and status < 400:
+            try:
+                _cj0 = json.loads(body.decode("utf-8", "replace"))
+                _chg, _note = webapi_param_fix.clean_json_reply(_cj0)
+                if _chg:
+                    body = json.dumps(_cj0, ensure_ascii=False).encode("utf-8")
+                if hasattr(g, "log_entry"):
+                    if _chg:
+                        g.log_entry["model"] = (g.log_entry.get("model") or "") + "  (JSON cleaned)"
+                    elif _note.startswith("reply is not JSON"):
+                        g.log_entry["error_detail"] = "⚠ " + _note
+            except Exception as _e:
+                print(f"[WEBAPI] json clean failed: {_e}", flush=True)
         if _resp_mode and status < 400:
             try:
                 _cj = json.loads(body.decode("utf-8", "replace"))

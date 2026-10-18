@@ -6,6 +6,7 @@
  *  POST /upload           multipart: pdf (+ examId)  -> starts a background job, returns { id }
  *  GET  /:id              job status / result (poll this while status === 'processing')
  *  POST /check            { examId } -> how many questions of the exam really carry the official answer/image (DB + served copy)
+ *  POST /:id/rescan       re-read the saved page images with the AI and merge (verifies answers that two readings agree on)
  *  POST /:id/compare      { examId, set, overrides, acceptSingle }  -> match % between the site's final answers and the official key
  *  POST /:id/save         { examId, set, overrides, acceptSingle, skipUnresolved } -> writes official answer + key page image into every question
  *  DELETE /:id            forget an upload (Telegram messages are not deleted)
@@ -65,6 +66,7 @@ function view(k) {
         verification: { engines: v.engines || [], notes: v.notes || [], perSet: v.perSet || {}, unverified: v.unverified || [], verifiedAt: v.verifiedAt || null },
         images: (k.images || []).map(i => ({ page: i.page, ref: i.ref, messageId: i.messageId, chatId: i.chatId })),
         pdf: k.pdf ? { messageId: k.pdf.messageId, chatId: k.pdf.chatId } : null,
+        rescan: k.rescan ? { status: k.rescan.status, progress: k.rescan.progress || '', error: k.rescan.error || '', summary: k.rescan.summary || null, at: k.rescan.at || null } : null,
         applied: k.appliedAt ? { set: k.appliedSet, examId: k.appliedExam, at: k.appliedAt, count: k.appliedCount } : null,
         createdAt: k.createdAt
     };
@@ -150,6 +152,10 @@ router.get('/:id', async (req, res) => {
             await AnswerKey.updateOne({ _id: k._id }, { $set: { status: 'failed', error: 'Processing was interrupted (server restarted). Upload the PDF again.' } });
             k.status = 'failed'; k.error = 'Processing was interrupted (server restarted). Upload the PDF again.';
         }
+        if (k.rescan && k.rescan.status === 'running' && !running.has('rescan:' + String(k._id)) && Date.now() - new Date(k.rescan.updatedAt || 0).getTime() > 3 * 60 * 1000) {
+            k.rescan = { status: 'failed', progress: '', error: 'The AI re-scan was interrupted (server restarted). Press Re-scan again.', at: new Date(), updatedAt: new Date() };
+            await AnswerKey.updateOne({ _id: k._id }, { $set: { rescan: k.rescan } });
+        }
         res.json({ success: true, key: view(k) });
     } catch (err) { console.error('answer-key get:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
@@ -179,7 +185,8 @@ function effective(key, set, overrides, acceptSingle) {
     for (const u of unverified) {
         if (base[u.q]) continue;
         // read by only ONE pass (the other found nothing): the admin may accept it. A real conflict (two different values) never is.
-        const single = (u.a && !u.b) ? u.a : ((u.b && !u.a) ? u.b : null);
+        const readings = [...new Set([u.a, u.b, ...(u.r || [])].filter(Boolean))];
+        const single = readings.length === 1 ? readings[0] : null;
         if (acceptSingle && single) { base[u.q] = single; if (u.page && !pages[u.q]) pages[u.q] = u.page; continue; }
         unresolved.push(u.q);
     }
@@ -220,6 +227,41 @@ router.post('/check', async (req, res) => {
         if (!okExam(examId)) return res.status(400).json({ success: false, message: 'Select an exam.' });
         res.json({ success: true, check: await examCheck(String(examId).trim()) });
     } catch (err) { console.error('answer-key check:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// ── Re-scan by AI (background job; the admin UI polls GET /:id and reads key.rescan) ─────────────
+async function rescanJob(id, key) {
+    const idStr = String(id);
+    const setProg = (m) => AnswerKey.updateOne({ _id: id }, { $set: { 'rescan.progress': String(m).slice(0, 200), 'rescan.updatedAt': new Date() } }).catch(() => {});
+    const workDir = path.join(os.tmpdir(), 'answerkey_rescan_' + idStr);
+    try {
+        const r = await svc.rescanByAi(key, workDir, setProg, 1);
+        await AnswerKey.updateOne({ _id: id }, { $set: {
+            sets: r.sets, pages: r.pages, verification: r.verification,
+            rescan: { status: 'done', progress: '', error: '', summary: r.stats, at: new Date(), updatedAt: new Date() }
+        } });
+    } catch (err) {
+        console.error('answer-key rescan failed:', err.message);
+        await AnswerKey.updateOne({ _id: id }, { $set: { rescan: { status: 'failed', progress: '', error: String(err.message || err).slice(0, 500), at: new Date(), updatedAt: new Date() } } }).catch(() => {});
+    } finally {
+        running.delete('rescan:' + idStr);
+        fsp.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+}
+
+router.post('/:id/rescan', async (req, res) => {
+    try {
+        if (!okId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid id.' });
+        const key = await AnswerKey.findById(req.params.id).lean();
+        if (!key || !['ready', 'applied'].includes(key.status)) return res.status(404).json({ success: false, message: 'Answer key is not ready.' });
+        if (!key.images || !key.images.length) return res.status(400).json({ success: false, message: 'This key has no saved page images to re-scan.' });
+        if (running.has('rescan:' + String(key._id))) return res.status(409).json({ success: false, message: 'A re-scan is already running.' });
+        if (!(await svc.aiAvailable())) return res.status(400).json({ success: false, message: 'No AI provider is configured (AI Settings → Fix list / GEMINI_API_KEYS).' });
+        running.add('rescan:' + String(key._id));
+        await AnswerKey.updateOne({ _id: key._id }, { $set: { rescan: { status: 'running', progress: 'Starting…', error: '', summary: null, at: null, updatedAt: new Date() } } });
+        rescanJob(key._id, key);          // background
+        res.json({ success: true });
+    } catch (err) { console.error('answer-key rescan:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
 
 router.post('/:id/compare', async (req, res) => {

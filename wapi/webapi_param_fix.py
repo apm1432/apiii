@@ -316,3 +316,59 @@ def emulate(orig_body, new_body):
             return new_body
         return _dump(n)
     return new_body
+
+
+# ── clean the REPLY when response_format was dropped ─────────────────────────
+def wants_json(body):
+    j = _parse(body)
+    rf = (j or {}).get("response_format")
+    return isinstance(rf, dict) and rf.get("type") in ("json_object", "json_schema")
+
+
+def extract_json(text):
+    """Gemini web wraps JSON in ```json fences or adds 'Here is the JSON:' text. -> (clean_json_text | None, how)"""
+    if not isinstance(text, str):
+        return None, "not text"
+    t = text.strip()
+    if not t:
+        return None, "empty"
+    try:
+        json.loads(t)
+        return t, "already clean"
+    except Exception:
+        pass
+    dec = json.JSONDecoder()
+    # fenced block(s) first, then the first parsable {...} / [...] anywhere in the text
+    starts = [m.start() for m in re.finditer(r"[\{\[]", t)]
+    best = None
+    for i in starts:
+        try:
+            obj, end = dec.raw_decode(t[i:])
+        except Exception:
+            continue
+        if isinstance(obj, (dict, list)) and (best is None or end > best[1]):
+            best = (obj, end)
+            if i == starts[0] or end > len(t) // 2:
+                break
+    if best is None:
+        return None, "no JSON found"
+    return json.dumps(best[0], ensure_ascii=False), "extracted from text/fence"
+
+
+def clean_json_reply(cj):
+    """cj = chat.completion dict. Replaces message.content by pure JSON when possible.
+    -> (changed: bool, note: str)  (note says what happened / why it could not be fixed)"""
+    try:
+        ch = (cj.get("choices") or [None])[0]
+        msg = (ch or {}).get("message") or {}
+        txt = msg.get("content")
+        new, how = extract_json(txt)
+        if new is None:
+            prev = (txt or "")[:300].replace("\n", " ")
+            return False, f"reply is not JSON ({how}): {prev}"
+        if new != (txt or "").strip():
+            msg["content"] = new
+            return True, how
+        return False, how
+    except Exception as e:
+        return False, f"json clean failed: {e}"

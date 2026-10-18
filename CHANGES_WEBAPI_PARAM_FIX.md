@@ -43,3 +43,11 @@ the Gemini account (no history/activity), and file upload / search do not work (
 ## Update 4: see what WebAI is doing while a request is "Pending"
 - `GET /api/web/v1/webai-log[?n=300]` (Bearer password or browser login): last lines printed by the WebAI processes.
 - A Pending chat row now shows in "Error / Why": which account, when it was sent, body size, logged-in state.
+
+## Update 5: JSON answers (exam answer-key jobs) - clean the reply
+Cause of "request OK, but no answers in the portal": `response_format` is dropped (WebAI rejects it), and Gemini web then
+answers with ```json fences or "Here is the JSON: ..." text, which a strict JSON parser rejects.
+Now, when `response_format` (json_object / json_schema) was requested and had to be dropped, the reply's `message.content` is
+reduced to the pure JSON (fence / surrounding text removed, validated). Log row shows "(JSON cleaned)". If the reply contains
+no JSON at all, the row's "Error / Why" shows "⚠ reply is not JSON ...: <first 300 chars>" so you can see what Gemini said.
+Also: `/responses` `text.format` json is mapped to response_format; the Gemini-key -> WebAI fallback passes response_format on.

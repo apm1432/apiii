@@ -20,7 +20,9 @@ const answerKeySchema = new mongoose.Schema({
   appliedSet: { type: String },
   appliedExam: { type: String },
   appliedAt: { type: Date },
-  appliedCount: { type: Number }
+  appliedCount: { type: Number },
+  // last "Re-scan by AI" run: { status: 'running'|'done'|'failed', progress, error, summary, at, updatedAt }
+  rescan: { type: mongoose.Schema.Types.Mixed }
 }, { timestamps: true });
 
 module.exports = mongoose.model('AnswerKey', answerKeySchema);
