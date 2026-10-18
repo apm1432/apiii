@@ -37,6 +37,9 @@ const questionSchema = new mongoose.Schema({
   official_answer_key_set: { type: String },                       // which set (A/B/C/D) of the official key was applied
   ai_answer_option: { type: String },                              // the AI's own answer (kept when the official key overrides it)
   answer_source: { type: String },                                 // 'official' | 'ai' = where correct_answer_option (the answer shown on the site) came from
+  final_answer_prev: { type: String },                             // the final answer before the Answer Key tool first changed it (used by "Undo")
+  final_answer_prev_source: { type: String },
+  final_answer_changed_at: { type: Date },                         // set when the Answer Key tool changed correct_answer_option
   explanation_answer: { type: String },                            // option the explanation was written for
   answer_flags: { type: mongoose.Schema.Types.Mixed },
   is_ai_fixed: { type: Boolean, default: false },

@@ -9,6 +9,9 @@
  *  POST /:id/rescan       re-read the saved page images with the AI and merge (verifies answers that two readings agree on)
  *  POST /:id/compare      { examId, set, overrides, acceptSingle }  -> match % between the site's final answers and the official key
  *  POST /:id/save         { examId, set, overrides, acceptSingle, skipUnresolved } -> writes official answer + key page image into every question
+ *  POST /apply-final      { examId, mode:'official-all' | 'choices', choices:{questionId:'1'..'4'|'#'} } -> writes the FINAL answer (correct_answer_option)
+ *  POST /recalc-students  { examId } -> re-judge students' saved answers for the questions this tool changed
+ *  POST /undo-final       { examId } -> restores the final answers this tool changed
  *  DELETE /:id            forget an upload (Telegram messages are not deleted)
  * ──────────────────────────────────────────────────────────────────────────
  */
@@ -27,6 +30,7 @@ const User = require('../models/User');
 const { authMiddleware } = require('../middleware/auth');
 const svc = require('../utils/answerKeyService');
 const dataCache = require('../utils/dataCache');
+const { recalcProgressForQuestion } = require('../utils/progressSync');
 
 const UPLOAD_DIR = path.join(os.tmpdir(), 'answerkey_uploads');
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
@@ -194,7 +198,65 @@ function effective(key, set, overrides, acceptSingle) {
 }
 
 async function loadExamQuestions(examId) {
-    return Question.find({ year_exam: examId }).select('_id qnum correct_answer_option final_answer_key').lean();
+    return Question.find({ year_exam: examId }).select('_id qnum correct_answer_option final_answer_key ai_answer_option answer_source official_answer_key_answers original_image_url extra_images text text_eng options options_eng final_answer_prev final_answer_prev_source final_answer_changed_at').lean();
+}
+
+// ── FINAL answer writer (correct_answer_option = what the site marks as correct) ─────────────────
+const okFinal = (v) => /^[1-4]$/.test(String(v)) || String(v) === '#';
+const isMulti = (v) => String(v || '').includes('/');
+// 'official answer' of a question -> a single value the site can use ('1'..'4' or '#'), or null (several accepted answers / none)
+const singleOf = (off) => { const a = String(off || '').trim(); return (/^[1-4]$/.test(a) || a === '#') ? a : null; };
+
+// Re-judge every student's saved answer of these questions against the CURRENT final answer (isCorrect / totalCorrect / sectionWise).
+// Atomic per user (utils/progressSync). Returns { questions, users }.
+async function recalcStudents(ids) {
+    const qs = await Question.find({ _id: { $in: ids } }).select('_id correct_answer_option final_answer_key answer_key').lean();
+    let users = 0, i = 0;
+    const worker = async () => {
+        while (i < qs.length) {
+            const q = qs[i++];
+            try { users += await recalcProgressForQuestion(q); } catch (e) { console.error('answer-key recalc failed for', String(q._id), e.message); }
+        }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    return { questions: qs.length, users };
+}
+// wait for the recalculation, but never longer than 20 s (it keeps running in the background if it is slower)
+async function recalcWithin(ids, ms = 20000) {
+    if (!ids.length) return { questions: 0, users: 0, pending: false };
+    const p = recalcStudents(ids);
+    const r = await Promise.race([p, new Promise(res => setTimeout(() => res(null), ms))]);
+    if (r) return Object.assign({ pending: false }, r);
+    p.catch(() => {});
+    return { questions: ids.length, users: 0, pending: true };
+}
+
+async function writeFinals(examId, changes) {
+    // changes: [{ id, value, source }]
+    const out = { changed: 0, same: 0, notFound: 0 };
+    if (!changes.length) return out;
+    const docs = await Question.find({ _id: { $in: changes.map(c => c.id) }, year_exam: examId }).select('_id correct_answer_option final_answer_key ai_answer_option answer_source final_answer_prev final_answer_prev_source').lean();
+    const byId = new Map(docs.map(d => [String(d._id), d]));
+    const ops = []; const changedIds = [];
+    for (const c of changes) {
+        const d = byId.get(String(c.id));
+        if (!d) { out.notFound++; continue; }
+        const old = svc.finalOf(d);
+        if (old === c.value) { out.same++; continue; }
+        const set = { correct_answer_option: c.value, answer_source: c.source, final_answer_changed_at: new Date() };
+        if (d.final_answer_prev === undefined || d.final_answer_prev === null) { set.final_answer_prev = old; set.final_answer_prev_source = d.answer_source || ''; }
+        if (!d.ai_answer_option && /^[1-4]$/.test(old)) set.ai_answer_option = old;    // the explanation was written for that option
+        ops.push({ updateOne: { filter: { _id: d._id }, update: { $set: set } } });
+        changedIds.push(d._id);
+    }
+    for (let i = 0; i < ops.length; i += 500) await Question.bulkWrite(ops.slice(i, i + 500), { ordered: false });
+    out.changed = ops.length;
+    if (out.changed) {
+        try { await dataCache.invalidateExam(examId); } catch (e) { console.warn('answer-key: cache invalidate failed:', e.message); }
+        try { dataCache.notifyDataChanged(); } catch (e) {}
+        out.recalc = await recalcWithin(changedIds);      // students' scores follow the new final answers
+    }
+    return out;
 }
 
 function checkBody(req, res) {
@@ -264,6 +326,29 @@ router.post('/:id/rescan', async (req, res) => {
     } catch (err) { console.error('answer-key rescan:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
 
+
+// each wrong question: id, question image(s), options, the AI answer, what is stored, whether the official key allows one answer only
+function enrichMismatches(result, questions) {
+    const byNum = new Map();
+    for (const q of questions) { const n = Number(q.qnum); if (n > 0 && !byNum.has(n)) byNum.set(n, q); }
+    const clip = (t, n) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, n);
+    result.mismatches = result.mismatches.map(m => {
+        const q = byNum.get(m.q) || {};
+        const imgs = [q.original_image_url, ...(Array.isArray(q.extra_images) ? q.extra_images : [])].filter(x => x && (typeof x !== 'object' || Object.keys(x).length)).slice(0, 4);
+        return Object.assign({}, m, {
+            id: q._id ? String(q._id) : '',
+            single: singleOf(m.official),
+            ai: q.ai_answer_option || '',
+            source: q.answer_source || '',
+            changed: !!q.final_answer_changed_at,
+            images: imgs,
+            text: imgs.length ? '' : clip(q.text || q.text_eng, 400),
+            options: (q.options && q.options.length ? q.options : (q.options_eng || [])).slice(0, 4).map(o => clip(o, 160))
+        });
+    });
+    result.multiOfficial = result.mismatches.filter(m => !m.single).length;
+}
+
 router.post('/:id/compare', async (req, res) => {
     try {
         const b = checkBody(req, res); if (!b) return;
@@ -274,6 +359,7 @@ router.post('/:id/compare', async (req, res) => {
         const questions = await loadExamQuestions(b.examId);
         if (!questions.length) return res.status(404).json({ success: false, message: 'This exam has no questions.' });
         const result = svc.compare(eff.answers, questions);
+        enrichMismatches(result, questions);
         res.json({ success: true, set: b.set, examId: b.examId, unresolved: eff.unresolved, result });
     } catch (err) { console.error('answer-key compare:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
@@ -328,11 +414,89 @@ router.post('/:id/save', async (req, res) => {
         try { await dataCache.invalidateExam(b.examId); } catch (e) { console.warn('answer-key: cache invalidate failed:', e.message); }   // students get the new data at once
         try { dataCache.notifyDataChanged(); } catch (e) {}   // the dashboard's "Answer key available" badge is rebuilt
 
-        const result = svc.compare(eff.answers, questions);
+        // optional: ALSO make the official key the FINAL answer (only questions that have an official answer)
+        let finals = null;
+        if (req.body.replaceFinal) {
+            const changes = [], multi = [];
+            for (const q of questions) {
+                const n = Number(q.qnum), off = eff.answers[n];
+                if (!off) continue;
+                const v = singleOf(off);
+                if (v) changes.push({ id: String(q._id), value: v, source: 'official' }); else multi.push(n);
+            }
+            finals = await writeFinals(b.examId, changes);
+            finals.multi = multi.sort((x, y) => x - y);
+        }
+
+        const fresh = finals && finals.changed ? await loadExamQuestions(b.examId) : questions;
+        const result = svc.compare(eff.answers, fresh);
+        enrichMismatches(result, fresh);
         let check = null;
         try { check = await examCheck(b.examId); } catch (e) { console.warn('answer-key: read-back failed:', e.message); }
-        res.json({ success: true, updated, skipped: eff.unresolved.length, set: b.set, examId: b.examId, result, check });
+        res.json({ success: true, updated, skipped: eff.unresolved.length, set: b.set, examId: b.examId, result, check, finals });
     } catch (err) { console.error('answer-key save:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// ── FINAL answers ────────────────────────────────────────────────────────────────────────────
+// mode 'official-all': every question of the exam that has an official answer SAVED (official_answer_key_answers) gets it as its final answer
+// mode 'choices'     : { questionId: '1'..'4' | '#' } chosen by the admin one by one (e.g. in the compare list)
+router.post('/apply-final', async (req, res) => {
+    try {
+        const { examId, mode } = req.body || {};
+        if (!okExam(examId)) return res.status(400).json({ success: false, message: 'Select an exam.' });
+        const exam = String(examId).trim();
+        const changes = []; const multi = [];
+        if (mode === 'official-all') {
+            const qs = await Question.find({ year_exam: exam, official_answer_key_answers: { $nin: [null, ''] } }).select('_id qnum official_answer_key_answers').lean();
+            if (!qs.length) return res.status(400).json({ success: false, message: 'This exam has no saved official answers. Upload + Save the official answer key first.' });
+            for (const q of qs) {
+                const v = singleOf(q.official_answer_key_answers);
+                if (v) changes.push({ id: String(q._id), value: v, source: 'official' }); else multi.push(Number(q.qnum));
+            }
+        } else if (mode === 'choices') {
+            const ch = (req.body.choices && typeof req.body.choices === 'object') ? req.body.choices : {};
+            for (const [id, v] of Object.entries(ch)) {
+                if (!okId(id)) continue;
+                if (!okFinal(v)) return res.status(400).json({ success: false, message: 'Final answer must be 1, 2, 3, 4 or # (cancelled).' });
+                changes.push({ id, value: String(v), source: 'admin' });
+            }
+            if (!changes.length) return res.status(400).json({ success: false, message: 'Nothing to change.' });
+        } else return res.status(400).json({ success: false, message: 'Invalid mode.' });
+
+        const r = await writeFinals(exam, changes);
+        res.json({ success: true, examId: exam, changed: r.changed, same: r.same, notFound: r.notFound, recalc: r.recalc || null, multi: multi.sort((a, b) => a - b) });
+    } catch (err) { console.error('answer-key apply-final:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// re-judge the students' saved answers of every question whose final answer this tool changed (also fixes older changes)
+router.post('/recalc-students', async (req, res) => {
+    try {
+        const examId = req.body && req.body.examId;
+        if (!okExam(examId)) return res.status(400).json({ success: false, message: 'Select an exam.' });
+        const qs = await Question.find({ year_exam: String(examId).trim(), final_answer_changed_at: { $exists: true, $ne: null } }).select('_id').lean();
+        if (!qs.length) return res.status(400).json({ success: false, message: 'No final answer changed by this tool in this exam.' });
+        res.json({ success: true, recalc: await recalcWithin(qs.map(q => q._id), 25000) });
+    } catch (err) { console.error('answer-key recalc-students:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
+});
+
+// restore the final answers this tool changed (back to what they were before the FIRST change)
+router.post('/undo-final', async (req, res) => {
+    try {
+        const examId = req.body && req.body.examId;
+        if (!okExam(examId)) return res.status(400).json({ success: false, message: 'Select an exam.' });
+        const exam = String(examId).trim();
+        const qs = await Question.find({ year_exam: exam, final_answer_changed_at: { $exists: true, $ne: null } }).select('_id final_answer_prev final_answer_prev_source').lean();
+        if (!qs.length) return res.status(400).json({ success: false, message: 'No final answer changed by this tool in this exam.' });
+        const ops = qs.map(q => ({ updateOne: { filter: { _id: q._id }, update: {
+            $set: { correct_answer_option: q.final_answer_prev || '', answer_source: q.final_answer_prev_source || '' },
+            $unset: { final_answer_prev: '', final_answer_prev_source: '', final_answer_changed_at: '' }
+        } } }));
+        for (let i = 0; i < ops.length; i += 500) await Question.bulkWrite(ops.slice(i, i + 500), { ordered: false });
+        try { await dataCache.invalidateExam(exam); } catch (e) {}
+        try { dataCache.notifyDataChanged(); } catch (e) {}
+        const recalc = await recalcWithin(qs.map(q => q._id));
+        res.json({ success: true, restored: qs.length, recalc });
+    } catch (err) { console.error('answer-key undo-final:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
 
 module.exports = router;

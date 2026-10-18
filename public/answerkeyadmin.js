@@ -2,6 +2,8 @@
 //  PDF -> server reads it twice (2 independent passes) -> pages are uploaded to Telegram -> admin picks exam + set
 //  -> sees the % match between the site's final answers and the official key -> Save writes the official answer and the
 //  key page image into every question of that exam.
+//  FINAL answers: the compare list shows every wrong question with its image(s); the admin picks the final answer for each one
+//  (default = official key) or replaces ALL finals with the official key. Undo restores what this tool changed.
 (function () {
     const tok = () => localStorage.getItem('jwtToken');
     const isAdmin = () => { try { return !!(JSON.parse(localStorage.getItem('currentUser')) || {}).isAdmin; } catch (e) { return false; } };
@@ -23,7 +25,16 @@
     };
     const imgUrl = (ref) => '/api/image/' + encodeURIComponent(JSON.stringify(ref)) + '?token=' + encodeURIComponent(tok());
 
-    let overlay = null, timer = null, rescanTimer = null, state = { key: null, exams: [], aiVerify: false, overrides: {}, cmpTimer: null, busy: false };
+    // url of a stored question image (object {botIdx:fileId}, JSON string or plain id)
+    const rawImgUrl = (raw) => {
+        let o = raw;
+        if (typeof o === 'string') { const t = o.trim(); if (t.startsWith('{')) { try { o = JSON.parse(t); } catch (e) { } } }
+        if (!o) return null;
+        const src = typeof o === 'string' ? (o.startsWith('/api/image/') ? o : '/api/image/' + o) : '/api/image/' + encodeURIComponent(JSON.stringify(o));
+        return src + (src.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok());
+    };
+
+    let overlay = null, timer = null, rescanTimer = null, state = { key: null, exams: [], aiVerify: false, overrides: {}, cmpTimer: null, busy: false, finalChoices: {}, lastResult: null };
     const $ = (s) => overlay.querySelector(s);
     const say = (msg, kind) => { const el = $('#ak-msg'); el.textContent = msg || ''; el.style.color = kind === 'err' ? '#b91c1c' : (kind === 'ok' ? '#15803d' : '#6b7280'); };
 
@@ -50,6 +61,17 @@
         .ak-save{background:#16a34a}
         .ak-rescan{background:#7c3aed;color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600}
         .ak-rescan:disabled{opacity:.6;cursor:wait}
+        .ak-mmwrap{max-height:70vh;overflow:auto;border:1px solid #eee;border-radius:8px;background:#fff;padding:6px}
+        .ak-mm{border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff}
+        .ak-mm.chg{border-color:#f59e0b;background:#fffbeb}
+        .ak-mmh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem;margin-bottom:6px}
+        .ak-mmimg{display:flex;flex-direction:column;gap:6px}
+        .ak-mmimg img{max-width:100%;max-height:340px;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:zoom-in;align-self:flex-start}
+        .ak-opt{font-size:.8rem;padding:1px 0}
+        .ak-opt.off{color:#15803d;font-weight:700}.ak-opt.site{color:#b91c1c;font-weight:700}
+        .ak-fin-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px dashed #e5e7eb;font-size:.82rem}
+        .ak-fin-row select{font-weight:700}
+        .ak-amber{background:#d97706}.ak-grey{background:#6b7280}
         `;
         document.head.appendChild(st);
     }
@@ -172,16 +194,23 @@
             '<div id="ak-unver"></div>' +
             '<div id="ak-cmp" style="margin-top:8px"></div>' +
             '<div id="ak-chk"></div>' +
+            '<div class="ak-card" style="background:#fff7ed;border-color:#fdba74"><h4 style="font-size:.95rem">Final answer (the answer the site marks as correct)</h4>' +
+            '<label class="xm-chk"><input type="checkbox" id="ak-replace"> <b>Also replace the site\'s FINAL answers with the official key</b> when saving (only questions that have an official answer; \'1/3\' type answers are skipped — choose those yourself in the list below)</label>' +
+            '<div class="xm-note">If you leave this off, final answers stay as they are; you can still change them question by question in the list below.</div></div>' +
             '<div class="xm-actions"><button class="btn" id="ak-compare">🔍 Compare</button><button class="btn" id="ak-checkbtn" style="background:#0ea5e9">🔎 Check saved data</button><button class="btn ak-save" id="ak-save">💾 Save to all questions</button></div>' +
+            '<div class="xm-actions"><button class="btn ak-amber" id="ak-replace-all">🔁 Replace final answers with the saved official key</button><button class="btn ak-grey" id="ak-undo">↩ Undo final answer changes</button><button class="btn" id="ak-recalc" style="background:#0ea5e9">🔄 Recalculate student scores</button></div>' +
             '<label class="xm-chk"><input type="checkbox" id="ak-skip"> Save even if some answers are still unverified (those questions are skipped)</label>' +
             '</div>';
 
-        $('#ak-set').onchange = () => { state.overrides = {}; renderUnverified(); scheduleCompare(); };
-        $('#ak-exam2').onchange = scheduleCompare;
+        $('#ak-set').onchange = () => { state.overrides = {}; state.finalChoices = {}; renderUnverified(); scheduleCompare(); };
+        $('#ak-exam2').onchange = () => { state.finalChoices = {}; scheduleCompare(); };
         $('#ak-single').onchange = () => { renderUnverified(); scheduleCompare(); };
         $('#ak-compare').onclick = () => compare();
         $('#ak-checkbtn').onclick = runCheck;
         $('#ak-save').onclick = save;
+        $('#ak-replace-all').onclick = replaceAllFinal;
+        $('#ak-undo').onclick = undoFinal;
+        $('#ak-recalc').onclick = recalcStudents;
         renderUnverified();
         scheduleCompare();
         bindRescan();
@@ -271,12 +300,115 @@
             `${res.noOfficial ? `<br>${res.noOfficial} question(s) have no official answer` : ''}${res.noFinal ? `<br>${res.noFinal} question(s) have no final answer` : ''}${res.officialOnly ? `<br>${res.officialOnly} official answer(s) have no question in this exam` : ''}` +
             `${r.unresolved && r.unresolved.length ? `<br><b style="color:#b45309">⚠ ${r.unresolved.length} unverified answer(s) not counted</b>` : ''}</div></div>` +
             `<div class="ak-bar"><div style="width:${Math.min(100, res.percent)}%"></div></div>`;
-        if (res.mismatches.length) {
-            h += '<div class="xm-note">Questions where the final answer differs from the official key:</div><div class="ak-scroll"><table class="ak-table"><tr><th>Q</th><th>Final answer (site)</th><th>Official key</th></tr>' +
-                res.mismatches.slice(0, 300).map(m => `<tr><td><b>${m.q}</b></td><td>${esc(fmt(m.final))}</td><td>${esc(fmt(m.official))}</td></tr>`).join('') + '</table></div>';
-        }
-        if (saved) h = `<div style="color:#15803d;font-weight:700;margin-bottom:6px">✅ Saved: ${saved.updated} question(s) updated with the official answer + key page image${saved.skipped ? ` (${saved.skipped} unverified skipped)` : ''}.</div>` + h;
+        if (res.mismatches.length) h += mismatchHtml(res);
+        if (saved) h = `<div style="color:#15803d;font-weight:700;margin-bottom:6px">✅ Saved: ${saved.updated} question(s) updated with the official answer + key page image${saved.skipped ? ` (${saved.skipped} unverified skipped)` : ''}.${saved.finals ? `<br>🔁 Final answers replaced with the official key: <b>${saved.finals.changed}</b> changed, ${saved.finals.same} already the same${saved.finals.recalc ? (saved.finals.recalc.pending ? ' · student scores are recalculating in the background' : ` · student scores recalculated (${saved.finals.recalc.users} answer(s) re-judged)`) : ''}${saved.finals.multi && saved.finals.multi.length ? `, <span style="color:#b45309">${saved.finals.multi.length} skipped (more than one accepted answer: Q ${esc(saved.finals.multi.slice(0, 20).join(', '))}) — choose them below</span>` : ''}.` : ''}</div>` + h;
         return h + '</div>';
+    }
+
+    // ── wrong questions: image + site final vs official + the final answer to store ──
+    function mismatchHtml(res) {
+        const list = res.mismatches.slice(0, 300);
+        const cards = list.map(m => {
+            const chosen = state.finalChoices[m.id] !== undefined ? state.finalChoices[m.id] : (m.single || 'keep');
+            const imgs = (m.images || []).map(r => rawImgUrl(r)).filter(Boolean)
+                .map(u => `<img loading="lazy" src="${u}" alt="Q${m.q}" onclick="window.open(this.src,'_blank')">`).join('');
+            const offSet = String(m.official).split('/');
+            const opts = (m.options || []).map((t, i) => {
+                const n = String(i + 1), isOff = offSet.includes(n), isSite = String(m.final) === n;
+                return `<div class="ak-opt${isOff ? ' off' : (isSite ? ' site' : '')}">${n} (${'ABCD'[i]}) ${esc(t)}${isOff ? ' ← official key' : ''}${isSite ? ' ← site final' : ''}</div>`;
+            }).join('');
+            const sel = `<select class="ak-sel ak-fin" data-id="${esc(m.id)}" data-off="${esc(m.single || '')}">` +
+                `<option value="keep"${chosen === 'keep' ? ' selected' : ''}>Keep site's final (${esc(fmt(m.final))})</option>` +
+                ['1', '2', '3', '4', '#'].map(o => `<option value="${o}"${chosen === o ? ' selected' : ''}>${esc(fmt(o))}${m.single === o ? '  ← official key' : ''}</option>`).join('') + '</select>';
+            return `<div class="ak-mm${chosen !== 'keep' ? ' chg' : ''}" data-id="${esc(m.id)}">` +
+                `<div class="ak-mmh"><b style="font-size:1rem">Q${m.q}</b>` +
+                `<span class="ak-pill bad">Site final: ${esc(fmt(m.final))}</span>` +
+                `<span class="ak-pill ok">Official key: ${esc(fmt(m.official))}</span>` +
+                `${m.ai && m.ai !== String(m.final) ? `<span class="ak-pill">AI answer: ${esc(m.ai)}</span>` : ''}` +
+                `${m.changed ? '<span class="ak-pill warn">final changed earlier by this tool</span>' : ''}</div>` +
+                (imgs ? `<div class="ak-mmimg">${imgs}</div>` : (m.text ? `<div style="font-size:.85rem;margin-bottom:4px">${esc(m.text)}</div>` : '<div class="xm-note">No question image.</div>')) +
+                (opts && !imgs ? `<div style="margin-top:4px">${opts}</div>` : '') +
+                `<div class="ak-fin-row"><b>Final answer to store:</b> ${sel}` +
+                `${m.single ? '' : '<span class="xm-note" style="color:#b45309">official key accepts more than one answer — choose one</span>'}</div></div>`;
+        }).join('');
+        const nChange = list.filter(m => (state.finalChoices[m.id] !== undefined ? state.finalChoices[m.id] : (m.single || 'keep')) !== 'keep').length;
+        return `<div class="xm-note" style="margin-top:6px"><b>❌ ${res.mismatches.length} question(s) where the site's final answer differs from the official key.</b> Look at the question, then choose which answer is stored as FINAL (default = official key).</div>` +
+            `<div class="xm-actions" style="margin:6px 0"><button class="btn ak-amber" id="ak-allofficial">Set all below to official key</button><button class="btn ak-grey" id="ak-allkeep">Keep all site finals</button>` +
+            `<button class="btn ak-save" id="ak-applyfinal">✅ Apply final answers below (<span id="ak-nchg">${nChange}</span>)</button></div>` +
+            `<div class="ak-mmwrap">${cards}</div>` +
+            (res.mismatches.length > list.length ? `<div class="xm-note">…and ${res.mismatches.length - list.length} more (the first ${list.length} are shown).</div>` : '');
+    }
+
+    function currentChoices() {
+        const out = {};
+        overlay.querySelectorAll('.ak-fin').forEach(sel => { if (sel.value !== 'keep') out[sel.dataset.id] = sel.value; });
+        return out;
+    }
+    function refreshChg() {
+        const el = $('#ak-nchg'); if (el) el.textContent = Object.keys(currentChoices()).length;
+    }
+    function bindFinal() {
+        overlay.querySelectorAll('.ak-fin').forEach(sel => sel.onchange = () => {
+            state.finalChoices[sel.dataset.id] = sel.value;
+            const card = sel.closest('.ak-mm'); if (card) card.classList.toggle('chg', sel.value !== 'keep');
+            refreshChg();
+        });
+        const setAll = (mode) => overlay.querySelectorAll('.ak-fin').forEach(sel => {
+            const v = mode === 'official' ? (sel.dataset.off || 'keep') : 'keep';
+            sel.value = v; state.finalChoices[sel.dataset.id] = v;
+            const card = sel.closest('.ak-mm'); if (card) card.classList.toggle('chg', v !== 'keep');
+        });
+        const a = $('#ak-allofficial'), k = $('#ak-allkeep'), ap = $('#ak-applyfinal');
+        if (a) a.onclick = () => { setAll('official'); refreshChg(); };
+        if (k) k.onclick = () => { setAll('keep'); refreshChg(); };
+        if (ap) ap.onclick = applyChoices;
+    }
+    function showResult(r, saved) { $('#ak-cmp').innerHTML = renderResult(r, saved); state.lastResult = r.result; bindFinal(); }
+
+    const rcTxt = (rc) => !rc ? '' : (rc.pending ? ' Students\' scores are being recalculated in the background (takes a little longer).' : ` Students' scores recalculated: ${rc.users} answer(s) re-judged.`);
+
+    async function applyChoices() {
+        const examId = $('#ak-exam2').value, choices = currentChoices(), n = Object.keys(choices).length;
+        if (!n) return say('Nothing to change — every question is set to "Keep site\'s final".', 'err');
+        if (!confirm(`Change the FINAL answer of ${n} question(s) in:\n${examId}\n\nStudents will see the new answers at once. (You can undo with "Undo final answer changes".)`)) return;
+        say('Saving final answers…');
+        const r = await api('POST', '/apply-final', { examId, mode: 'choices', choices });
+        if (!r.success) return say(r.message || 'Failed.', 'err');
+        state.finalChoices = {};
+        say(`✅ Final answers changed: ${r.changed} (${r.same} were already the same).` + rcTxt(r.recalc), 'ok');
+        compare();
+    }
+
+    async function replaceAllFinal() {
+        const examId = $('#ak-exam2').value;
+        if (!examId) return say('Select the exam.', 'err');
+        if (!confirm(`Replace the FINAL answer of every question of:\n${examId}\nwith its saved official answer?\n\nOnly questions that have an official answer are changed. (You can undo.)`)) return;
+        say('Replacing final answers…');
+        const r = await api('POST', '/apply-final', { examId, mode: 'official-all' });
+        if (!r.success) return say(r.message || 'Failed.', 'err');
+        state.finalChoices = {};
+        say(`✅ ${r.changed} final answer(s) replaced with the official key, ${r.same} were already the same` + (r.multi && r.multi.length ? `, ${r.multi.length} skipped (more than one accepted answer: Q ${r.multi.slice(0, 20).join(', ')})` : '') + '.', 'ok');
+        compare();
+    }
+
+    async function recalcStudents() {
+        const examId = $('#ak-exam2').value;
+        if (!examId) return say('Select the exam.', 'err');
+        say('Recalculating student scores…');
+        const r = await api('POST', '/recalc-students', { examId });
+        if (!r.success) return say(r.message || 'Failed.', 'err');
+        say('✅ Done.' + rcTxt(r.recalc), 'ok');
+    }
+
+    async function undoFinal() {
+        const examId = $('#ak-exam2').value;
+        if (!examId) return say('Select the exam.', 'err');
+        if (!confirm(`Restore the final answers of:\n${examId}\nto what they were before this tool changed them?`)) return;
+        const r = await api('POST', '/undo-final', { examId });
+        if (!r.success) return say(r.message || 'Failed.', 'err');
+        state.finalChoices = {};
+        say(`↩ ${r.restored} final answer(s) restored.` + rcTxt(r.recalc), 'ok');
+        compare();
     }
 
     function checkHtml(c, examId) {
@@ -305,13 +437,14 @@
         $('#ak-cmp').innerHTML = '<div class="xm-note">Comparing…</div>';
         const r = await api('POST', '/' + state.key.id + '/compare', b);
         if (!r.success) { $('#ak-cmp').innerHTML = `<div style="color:#b91c1c">${esc(r.message || 'Failed.')}</div>`; return; }
-        $('#ak-cmp').innerHTML = renderResult(r);
+        showResult(r);
     }
 
     async function save() {
         const b = body();
         if (!b.examId) return say('Select the exam.', 'err');
-        if (!confirm(`Save official answers of Set ${b.set} into ALL questions of:\n${b.examId}\n\nThe official answer and the key page image will be updated. Final answers are not changed.`)) return;
+        b.replaceFinal = $('#ak-replace').checked;
+        if (!confirm(`Save official answers of Set ${b.set} into ALL questions of:\n${b.examId}\n\nThe official answer and the key page image will be updated.\n` + (b.replaceFinal ? 'The FINAL answers will ALSO be replaced with the official key (undo is possible).' : 'Final answers are not changed.'))) return;
         b.skipUnresolved = $('#ak-skip').checked;
         $('#ak-save').disabled = true;
         say('Saving…');
@@ -319,7 +452,8 @@
         $('#ak-save').disabled = false;
         if (!r.success) { say(r.message || 'Save failed.', 'err'); return; }
         say('Saved.', 'ok');
-        $('#ak-cmp').innerHTML = renderResult(r, r);
+        state.finalChoices = {};
+        showResult(r, r);
         $('#ak-chk').innerHTML = checkHtml(r.check, b.examId);
         loadLists();
     }
