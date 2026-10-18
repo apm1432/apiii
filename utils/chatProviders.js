@@ -534,15 +534,23 @@ async function callOpenAI(p, input, opts = {}) {
     return callChat(p, input, opts, mode, meta, timeout);
 }
 
+const refusals = new Map();   // 'baseUrl|model' -> Set of parameters this endpoint refused ('temperature', 'json', 'max_completion_tokens')
+const refusalKey = (p) => String((p && p.baseUrl) || '').toLowerCase() + '|' + String((p && p.model) || '').toLowerCase();
+
 async function callChat(p, input, opts, mode, meta, timeout) {
     const url = p.baseUrl + '/chat/completions';
     let images = Array.isArray(input.images) ? input.images.slice() : [];
-    let useMaxCompletion = false, sendTemp = true, sendJson = !!opts.jsonMode;
+    // What this endpoint refused earlier is remembered, so the NEXT requests leave those parameters out from the start
+    // (instead of failing with 400 "Unsupported parameter" and being repeated every single time).
+    const lk = refusalKey(p), learned = refusals.get(lk) || new Set();
+    let useMaxCompletion = learned.has('max_completion_tokens'), sendTemp = !learned.has('temperature'), sendJson = !!opts.jsonMode && !learned.has('json');
+    const learn = (what) => { learned.add(what); refusals.set(lk, learned); };
     let searchOn = ['builtin', 'openai_chat', 'openrouter', 'enable_search', 'glm_tools', 'custom'].includes(mode);
     let customExtra = null;
     if (mode === 'custom') { const j = parseSearchJson(p.searchJson); if (j.value) customExtra = j.value; else searchOn = false; }
 
     // 'prompt' mode: no tool / parameter - the model is simply told (in words) to use its own internet access
+    const jsonNote = () => (opts.jsonMode && !sendJson ? '\n\n[OUTPUT FORMAT]: Reply with ONLY the valid JSON, nothing before or after it, no markdown code fence.' : '');
     const promptNote = mode === 'prompt' ? PROMPT_SEARCH_NOTE : '';
     const buildBody = () => {
         const msgs = [];
@@ -551,8 +559,8 @@ async function callChat(p, input, opts, mode, meta, timeout) {
         msgs.push({
             role: 'user',
             content: images.length
-                ? [{ type: 'text', text: input.message + promptNote }].concat(images.map(img => ({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + img } })))
-                : input.message + promptNote
+                ? [{ type: 'text', text: input.message + promptNote + jsonNote() }].concat(images.map(img => ({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + img } })))
+                : input.message + promptNote + jsonNote()
         });
         const body = { model: p.model, messages: msgs, stream: false };
         body[useMaxCompletion ? 'max_completion_tokens' : 'max_tokens'] = opts.maxTokens || 2500;
@@ -594,9 +602,9 @@ async function callChat(p, input, opts, mode, meta, timeout) {
             lastErr = err;
             if (err.status === 400 || err.status === 422) {
                 const t = pickErrorText(e, p.apiKey).toLowerCase();
-                if (!useMaxCompletion && /max_tokens/.test(t) && /max_completion_tokens|not supported|unsupported/.test(t)) { useMaxCompletion = true; continue; }
-                if (sendTemp && /temperature/.test(t)) { sendTemp = false; continue; }
-                if (sendJson && /response_format|json_object|json mode|json_schema/.test(t)) { sendJson = false; continue; }
+                if (!useMaxCompletion && /max_tokens/.test(t) && /max_completion_tokens|not supported|unsupported/.test(t)) { useMaxCompletion = true; learn('max_completion_tokens'); continue; }
+                if (sendTemp && /temperature/.test(t)) { sendTemp = false; learn('temperature'); continue; }
+                if (sendJson && /response_format|json_object|json mode|json_schema/.test(t)) { sendJson = false; learn('json'); continue; }
                 // the endpoint does not know the web-search parameters -> answer without them
                 if (searchOn && opts.evidenceOut) throw err;   // a probe: the method is refused -> report it, do not repeat the call
                 if (searchOn && mode !== 'builtin' && /web_search|plugins|search|tools?\b|unrecognized|unknown (field|param)|extra|not permitted|unsupported/.test(t)) {
