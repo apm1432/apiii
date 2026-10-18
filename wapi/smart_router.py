@@ -2721,6 +2721,8 @@ def _webapi_fix_body(raw: bytes) -> bytes:
 
 import webapi_param_fix
 
+WEBAPI_READ_TIMEOUT = float(os.environ.get("WEBAPI_READ_TIMEOUT", "600"))   # seconds WebAI may take to answer (lower = hung accounts are given up sooner)
+
 
 def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=True, log=None):
     """One request to a WebAI account with two self-healing steps for chat requests:
@@ -2739,7 +2741,7 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
 
     def _do(b):
         return requests.request(method, url, params=params, data=b, headers=headers,
-                                stream=stream, timeout=(10, 600), allow_redirects=False)
+                                stream=stream, timeout=(10, WEBAPI_READ_TIMEOUT), allow_redirects=False)
 
     up = _do(send)
     if not is_chat:
@@ -2788,6 +2790,55 @@ def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=Tr
     return up
 
 
+_RESPONSES_ONLY_KEYS = ("input", "instructions", "text", "reasoning", "store", "previous_response_id", "truncation",
+                        "include", "max_output_tokens", "parallel_tool_calls", "metadata", "user", "service_tier",
+                        "prompt_cache_key", "background")
+
+
+def _webapi_responses_to_chat(raw: bytes):
+    """WebAI-to-API has no /v1/responses (404). Turn a Responses-API body into a chat/completions body.
+    Returns (chat_body_bytes, client_wanted_stream). Images (input_image) become image_url parts."""
+    d = json.loads(raw.decode("utf-8"))
+    stream = bool(d.get("stream"))
+    msgs = []
+    if d.get("instructions"):
+        msgs.append({"role": "system", "content": d["instructions"]})
+    inp = d.get("input")
+    if "messages" in d and isinstance(d["messages"], list):
+        msgs.extend(d["messages"])
+    elif isinstance(inp, str):
+        msgs.append({"role": "user", "content": inp})
+    elif isinstance(inp, list):
+        for item in inp:
+            if not isinstance(item, dict) or "role" not in item:
+                continue
+            c = item.get("content")
+            if isinstance(c, list):
+                parts = []
+                for p in c:
+                    if not isinstance(p, dict):
+                        continue
+                    t = p.get("type")
+                    if t in ("input_text", "output_text", "text"):
+                        parts.append({"type": "text", "text": p.get("text", "")})
+                    elif t == "input_image":
+                        u = p.get("image_url")
+                        u = u.get("url") if isinstance(u, dict) else u
+                        if u:
+                            parts.append({"type": "image_url", "image_url": {"url": u}})
+                    else:
+                        parts.append(p)
+                c = parts
+            role = "system" if item["role"] == "developer" else item["role"]
+            msgs.append({"role": role, "content": "" if c is None else c})
+    out = {k: v for k, v in d.items() if k not in _RESPONSES_ONLY_KEYS and k != "messages"}
+    out["messages"] = msgs
+    out["stream"] = False
+    out.pop("tools", None)
+    out.pop("tool_choice", None)
+    return json.dumps(out, ensure_ascii=False).encode("utf-8"), stream
+
+
 @app.route(WEBAPI_PREFIX + "/param-fix", methods=["GET", "DELETE"])
 def webapi_param_fix_view():
     """GET  -> parameters WebAI rejected and that are now skipped automatically.
@@ -2811,6 +2862,9 @@ def webapi_proxy(sub):
     sub = sub.strip("/")
     if sub == "":
         sub = "ui"
+    _resp_mode = request.method == "POST" and sub == "responses"     # no /v1/responses in WebAI -> answered via chat/completions
+    if _resp_mode:
+        sub = "chat/completions"
     first = sub.split("/", 1)[0]
     upstream_path = "/" + sub if first in _WEBAPI_ROOT_PATHS else "/v1/" + sub
     url = WEBAI_URL + upstream_path     # replaced by the chosen account's URL below
@@ -2869,6 +2923,12 @@ def webapi_proxy(sub):
                    if k.lower() not in _WEBAPI_HOP and k.lower() != "cookie"}
     fwd_headers["Accept-Encoding"] = "identity"
     _body = request.get_data()
+    _resp_stream = False
+    if _resp_mode:
+        try:
+            _body, _resp_stream = _webapi_responses_to_chat(_body)
+        except Exception as _e:
+            return jsonify({"error": {"message": f"invalid /responses body: {_e}", "type": "invalid_request_error"}}), 400
     if request.method == "POST" and sub.endswith("chat/completions") and "json" in request.headers.get("Content-Type", "").lower():
         _body = _webapi_fix_body(_body)
         fwd_headers = {k: v for k, v in fwd_headers.items() if k.lower() != "content-length"}
@@ -2912,6 +2972,9 @@ def webapi_proxy(sub):
     if up is None:
         if slot is None and last_exc is None:
             msg = "no WebAI account is running (add cookies at /api/web/v1/ui/auth)"
+        elif isinstance(last_exc, requests.exceptions.ReadTimeout):
+            msg = (f"WebAI account did not answer within {int(WEBAPI_READ_TIMEOUT)}s (Gemini web hung / overloaded - "
+                   f"process is running). Try again or lower WEBAPI_READ_TIMEOUT.")
         else:
             msg = f"WebAI-to-API unreachable: {last_exc}"
         if hasattr(g, "log_entry"):
@@ -2971,6 +3034,15 @@ def webapi_proxy(sub):
         body = up.content.replace(_art_old, _art_new).replace(_md_old, _md_new)
         up.close()
         _release()
+        if _resp_mode and status < 400:
+            try:
+                _cj = json.loads(body.decode("utf-8", "replace"))
+                _rj = chat_completion_to_responses_json(_cj, _cj.get("model") or "webai")
+                if _resp_stream:
+                    return Response(responses_sse_stream(_rj), mimetype="text/event-stream", headers=cors)
+                return Response(json.dumps(_rj, ensure_ascii=False), 200, {**cors, "Content-Type": "application/json"})
+            except Exception as _e:
+                print(f"[WEBAPI] responses conversion failed: {_e}", flush=True)
         return Response(body, status, out_headers)
     if "text/event-stream" in ctype:
         def _sse():

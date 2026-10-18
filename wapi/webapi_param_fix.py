@@ -36,6 +36,9 @@ _QUOTED_RE = re.compile(r"[`'\"]([A-Za-z_][A-Za-z0-9_.\-]{0,63})[`'\"]")
 _PARAM_ERR_RE = re.compile(
     r"(unsupported|unknown|unrecognized|unexpected|extra inputs|extra fields?|not permitted|not supported|"
     r"not allowed|invalid parameter|additional properties|unsupported parameter|forbidden)", re.I)
+_UNQUOTED_RE = re.compile(
+    r"(?:unsupported|unknown|unrecognized|unexpected|invalid|extra)\s+(?:request\s+)?(?:parameter|param|field|argument|property|key)s?"
+    r"\s*[:=]?\s*[`'\"]?([A-Za-z_][A-Za-z0-9_.\-]{0,63})", re.I)
 _BAD_TYPES = {"extra_forbidden", "unexpected_keyword_argument", "value_error.extra", "unsupported", "unknown_parameter"}
 
 
@@ -177,11 +180,14 @@ def _walk_detail(detail, found):
             elif isinstance(d, str):
                 _walk_detail(d, found)
     elif isinstance(detail, dict):
+        if isinstance(detail.get("param"), str) and detail["param"]:
+            found.append((detail["param"], str(detail.get("code") or "param")))
         _walk_detail(detail.get("detail") or detail.get("errors") or detail.get("error") or detail.get("message"), found)
         if "loc" in detail:
             _walk_detail([detail], found)
     elif isinstance(detail, str) and _PARAM_ERR_RE.search(detail):
-        for name in _QUOTED_RE.findall(detail):
+        names = _UNQUOTED_RE.findall(detail) or _QUOTED_RE.findall(detail)
+        for name in names:
             found.append((name, "text"))
 
 
