@@ -1508,6 +1508,25 @@ async function webResearch(promptText, images, { maxAttempts = 2, maxWaitMs = 15
     }
 }
 
+// Web research through the "Fix" providers: the first OpenAI-compatible endpoint whose search mode is not "none"
+// (responses / openrouter / ... or "prompt" = the endpoint browses by itself and is only told so in the prompt).
+async function webResearchViaEndpoint(promptText, images) {
+    if (!webSearchOn()) return '';
+    let list = [];
+    try { list = await chatProviders.getOrderedProviders('fix'); } catch (e) { return ''; }
+    const imgs = (Array.isArray(images) ? images : (images ? [images] : [])).filter(Boolean);
+    for (const p of list) {
+        if (p.type !== 'openai') continue;
+        if (chatProviders.resolveSearchMode(p) === 'none') continue;
+        try {
+            const t = await chatProviders.callOpenAI(p, { system: '', history: [], message: promptText, images: imgs },
+                { timeoutMs: 180000, maxTokens: 3000, temperature: 0.1, jsonMode: false });
+            if (t && String(t).trim()) return String(t).trim();
+        } catch (e) { console.warn(`web research via "${p.name}" failed:`, e && e.message); }
+    }
+    return '';
+}
+
 // Facts from the web for one question (used by the fix + its verifier). Facts only - it never picks the answer,
 // so the independent "blind" verifier stays independent.
 async function researchQuestionFacts(q, imageBase64, onChunk) {
@@ -1535,7 +1554,10 @@ QUESTION (English): ${clip(q.text_eng, 2500)}
 OPTIONS: ${opts}${optsEng ? '\nOPTIONS (English): ' + optsEng : ''}
 Subject: ${q.subject || ''} | Topic: ${q.topic || ''} | Exam: ${q.official_exam_name || q.year_exam || ''}
 ${hasText ? '' : 'The question text above is missing - read the question from the attached image.'}`;
-    const text = await webResearch(prompt, hasText ? null : imageBase64, { maxAttempts: 3, maxWaitMs: 30000 });
+    // 1) the admin's own endpoint when it can search the web (a search tool, or "prompt only" for endpoints with built-in internet)
+    let text = await webResearchViaEndpoint(prompt, hasText ? null : imageBase64);
+    // 2) otherwise Gemini with its Google Search tool
+    if (!text) text = await webResearch(prompt, hasText ? null : imageBase64, { maxAttempts: 3, maxWaitMs: 30000 });
     if (!text) { log('\n[System] 🌐 Web search gave nothing (off / busy) - continuing without live facts.\n'); return ''; }
     log('\n[System] 🌐 Web facts collected and added to the checking prompts.\n');
     return text.slice(0, 4000);

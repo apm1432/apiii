@@ -206,7 +206,8 @@ async function renderPages(pdfPath, outDir) {
 }
 
 // ──────────────────────────── Gemini vision pass (optional) ────────────────────────────
-const aiAvailable = () => !!(process.env.GEMINI_API_KEYS && process.env.GEMINI_API_KEYS.replace(/['"]/g, '').trim());
+const vision = require('./visionAI');
+const aiAvailable = () => vision.available();   // async: true when Fix-AI providers (Gemini keys or a custom endpoint) can answer
 
 const AI_PROMPTS = [
     `This is ONE page of an official exam ANSWER KEY. Read every answer printed on this page.
@@ -228,20 +229,16 @@ function parseAiJson(text) {
 }
 
 async function aiReadPages(imageFiles, variant, onProgress) {
-    const { chatViaGemini } = require('./aiService');
     const sets = {}, pageOf = {};
     let failedPages = 0;
     for (let i = 0; i < imageFiles.length; i++) {
         const { page, file } = imageFiles[i];
         if (onProgress) onProgress(`AI vision pass ${variant + 1}: page ${page}/${imageFiles.length}`);
         const b64 = (await fsp.readFile(file)).toString('base64');
-        const payload = {
-            contents: [{ role: 'user', parts: [{ inlineData: { mimeType: 'image/jpeg', data: b64 } }, { text: AI_PROMPTS[variant % AI_PROMPTS.length] }] }],
-            generationConfig: { temperature: 0, maxOutputTokens: 8192, responseMimeType: 'application/json' }
-        };
+        const parts = [{ b64 }, { text: AI_PROMPTS[variant % AI_PROMPTS.length] }];
         let parsed = null;
         for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-            try { parsed = parseAiJson(await chatViaGemini(payload, { maxAttempts: 3, maxWaitMs: 20000 })); }
+            try { parsed = parseAiJson(await vision.ask(parts, { json: true, maxTokens: 8192 })); }
             catch (e) { if (attempt === 1) console.warn('answer key AI page', page, 'failed:', e.message); await sleep(1500); }
         }
         if (!parsed || !parsed.sets || typeof parsed.sets !== 'object') { failedPages++; continue; }
@@ -320,7 +317,7 @@ async function extractVerified(pdfPath, workDir, onProgress) {
         p1 = parseKeyText(layoutPages);
         engines.push({ name: 'pdftotext-layout', sets: countSets(p1) });
         let usedAi = false;
-        if (aiAvailable()) {
+        if (await aiAvailable()) {
             try {
                 say('Pass 2: AI vision verification…');
                 const ai = await aiReadPages(images, 0, say);
@@ -334,7 +331,7 @@ async function extractVerified(pdfPath, workDir, onProgress) {
         }
     } else {
         // scanned PDF: no text layer -> two independent AI vision reads
-        if (!aiAvailable()) throw new Error('This PDF is a scan (no text layer) and no Gemini key is configured, so it cannot be read.');
+        if (!(await aiAvailable())) throw new Error('This PDF is a scan (no text layer) and no AI provider (Gemini key / custom endpoint) is configured, so it cannot be read.');
         say('Scanned PDF - AI vision pass 1…');
         p1 = await aiReadPages(images, 0, say);
         engines.push({ name: 'gemini-vision-1', sets: countSets(p1), failedPages: p1.failedPages });
@@ -452,5 +449,5 @@ function compare(setAnswers, questions) {
 
 module.exports = {
     normAnswer, parseKeyText, mergePasses, extractVerified, uploadFile, uploadPages, compare, finalOf,
-    aiAvailable, pdfPageCount, MAX_PAGES
+    aiAvailable, pdfPageCount, MAX_PAGES, renderPages
 };

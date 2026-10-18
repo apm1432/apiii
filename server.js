@@ -65,6 +65,9 @@ app.use('/api/auth', authRoutes);
 // Admin: official answer key (PDF -> verified answers + page images on Telegram -> questions)
 app.use('/api/admin/answer-key', require('./routes/answerkey'));
 
+// Admin: add a NEW exam from PDFs (question paper + official answer key) -> review -> publish
+app.use('/api/admin/exam-import', require('./routes/examimport'));
+
 const server = app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);
 });

@@ -78,7 +78,7 @@ router.get('/exams', async (req, res) => {
             { $group: { _id: '$year_exam', count: { $sum: 1 }, withOfficial: { $sum: { $cond: [{ $gt: [{ $strLenCP: { $toString: { $ifNull: ['$official_answer_key_answers', ''] } } }, 0] }, 1, 0] } } } },
             { $sort: { _id: 1 } }
         ]);
-        res.json({ success: true, exams: rows.map(r => ({ examId: r._id, count: r.count, withOfficial: r.withOfficial })), aiVerify: svc.aiAvailable() });
+        res.json({ success: true, exams: rows.map(r => ({ examId: r._id, count: r.count, withOfficial: r.withOfficial })), aiVerify: await svc.aiAvailable() });
     } catch (err) { console.error('answer-key exams:', err); res.status(500).json({ success: false, message: 'Server Error' }); }
 });
 

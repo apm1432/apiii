@@ -21,6 +21,8 @@ const questionSchema = new mongoose.Schema({
   year_exam: { type: String, index: true }, // e.g., "2018 group b pre" or official name + date
   official_exam_name: { type: String, index: true },
   exam_date: { type: String },
+  paper_code: { type: String },   // question booklet / paper code printed on the first page
+  page_no: { type: Number },      // page of the question paper PDF this question is printed on
   diagram_description: { type: String },
   options_explanation: [{ type: String }],
   passage_marathi: { type: String },

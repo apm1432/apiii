@@ -18,7 +18,7 @@
 
     // show / hide the "Manage Exams" button
     window.syncExamAdminUI = function () {
-        ['btn-manage-exams', 'btn-cache-manager', 'btn-chat-ai', 'btn-answer-key'].forEach(id => {
+        ['btn-manage-exams', 'btn-cache-manager', 'btn-chat-ai', 'btn-answer-key', 'btn-add-exam'].forEach(id => {
             const b = document.getElementById(id);
             if (!b) return;
             if (isAdmin()) b.classList.remove('hidden'); else b.classList.add('hidden');

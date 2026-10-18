@@ -23,7 +23,7 @@ const MAX_OPENAI = 5;
 const CACHE_MS = 15000;           // config is re-read from the database at most every 15 s (and at once after a save)
 const GEMINI_ID = 'gemini';
 // how an OpenAI-compatible endpoint searches the web (admin choice per endpoint)
-const SEARCH_MODES = ['auto', 'off', 'builtin', 'openai_chat', 'responses', 'openrouter', 'enable_search', 'glm_tools', 'custom'];
+const SEARCH_MODES = ['auto', 'off', 'prompt', 'builtin', 'openai_chat', 'responses', 'openrouter', 'enable_search', 'glm_tools', 'custom'];
 const searchModeOk = (m) => (SEARCH_MODES.includes(m) ? m : 'auto');
 const cleanSearchJson = (t) => String(t || '').slice(0, 2000);
 
@@ -347,6 +347,8 @@ function extractOpenAIText(data) {
 
 // ---------------------------------------------------------------- web search of OpenAI-compatible endpoints
 // modes:  off        - never send search parameters
+//         prompt     - the endpoint has internet by itself (e.g. a web / cookie based gateway) but no search TOOL: nothing is sent except a
+//                      sentence added to the prompt that tells the model to use the internet and search
 //         builtin    - the model searches by itself (Perplexity, Groq compound ...): nothing extra is sent
 //         openai_chat- chat completions + web_search_options (OpenAI *-search-preview models)
 //         responses  - OpenAI "Responses" API with the web_search tool (gpt-4o / gpt-4.1 / gpt-5 / xAI ...)
@@ -354,6 +356,8 @@ function extractOpenAIText(data) {
 //         custom     - extra JSON merged into the request body (admin writes it)
 //         auto       - guessed from the Base URL / model; unknown endpoints get no search (Gemini search facts are used instead)
 // If the endpoint refuses the search parameters, the call is repeated without them (never fails because of search).
+const PROMPT_SEARCH_NOTE = `\n\n[INTERNET ACCESS]: You have live internet access. Before answering, USE the internet and SEARCH the web to verify every fact, name, date, number, current office-holder, law or scheme that this task depends on (prefer official / reputable sources such as government sites, PIB, RBI, Gazette, standard references). Do not rely only on memory. If a fact cannot be confirmed online, say so instead of guessing. Still return ONLY the output format requested above - do not add search logs, links or extra text outside it.`;
+
 function resolveSearchMode(p) {
     const m = searchModeOk(p && p.search);
     if (m !== 'auto') return m === 'off' ? 'none' : m;
@@ -538,6 +542,8 @@ async function callChat(p, input, opts, mode, meta, timeout) {
     let customExtra = null;
     if (mode === 'custom') { const j = parseSearchJson(p.searchJson); if (j.value) customExtra = j.value; else searchOn = false; }
 
+    // 'prompt' mode: no tool / parameter - the model is simply told (in words) to use its own internet access
+    const promptNote = mode === 'prompt' ? PROMPT_SEARCH_NOTE : '';
     const buildBody = () => {
         const msgs = [];
         if (input.system) msgs.push({ role: 'system', content: input.system });
@@ -545,8 +551,8 @@ async function callChat(p, input, opts, mode, meta, timeout) {
         msgs.push({
             role: 'user',
             content: images.length
-                ? [{ type: 'text', text: input.message }].concat(images.map(img => ({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + img } })))
-                : input.message
+                ? [{ type: 'text', text: input.message + promptNote }].concat(images.map(img => ({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + img } })))
+                : input.message + promptNote
         });
         const body = { model: p.model, messages: msgs, stream: false };
         body[useMaxCompletion ? 'max_completion_tokens' : 'max_tokens'] = opts.maxTokens || 2500;
@@ -578,7 +584,7 @@ async function callChat(p, input, opts, mode, meta, timeout) {
                 err.kind = 'empty';
                 throw err;
             }
-            meta.searchUsed = searchOn;
+            meta.searchUsed = searchOn || mode === 'prompt';
             if (opts.evidenceOut) opts.evidenceOut.evidence = extractSources(resp.data).length > 0;
             if (searchOn && opts.withSources) { const src = extractSources(resp.data); if (src.length) text += `\n\nSources (web): ${src.join(', ')}`; }
             return text;
