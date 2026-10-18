@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MPSC PYQ Portal</title>
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
@@ -133,6 +133,7 @@
                     <button id="btn-notes" class="btn" style="background-color: #f59e0b; padding: 5px 10px; font-size: 0.85rem;" onclick="MpscNotes.open()">📝 Notes<span id="notes-count" class="notes-count"></span></button>
                     <button id="btn-cache-manager" class="btn hidden" style="background-color: #0ea5e9; padding: 5px 10px; font-size: 0.85rem;" onclick="openCacheManager()">💾 Server Cache</button>
                     <button id="btn-chat-ai" class="btn hidden" style="background-color: #14b8a6; padding: 5px 10px; font-size: 0.85rem;" onclick="openChatAiSettings()">🤖 AI Settings</button>
+                    <button id="btn-plans" class="btn hidden" style="background-color: #db2777; padding: 5px 10px; font-size: 0.85rem;" onclick="openPlanAdmin()">💰 Plans &amp; Pricing</button>
                     <button id="btn-answer-key" class="btn hidden" style="background-color: #ea580c; padding: 5px 10px; font-size: 0.85rem;" onclick="openAnswerKeyAdmin()">📋 Official Answer Key</button>
                     <button id="btn-add-exam" class="btn hidden" style="background-color: #16a34a; padding: 5px 10px; font-size: 0.85rem;" onclick="openExamImport()">➕ Add New Exam</button>
                     <button id="btn-manage-exams" class="btn hidden" style="background-color: #8b5cf6; padding: 5px 10px; font-size: 0.85rem;" onclick="openExamManager()">⚙ Manage Exams</button>
@@ -176,20 +177,9 @@
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px;">For new users only. Unlock the first 2 exams for free!</p>
                 </div>
 
-                <div class="pricing-cards">
-                    <div class="pricing-card">
-                        <h4>1 Month Access</h4>
-                        <p class="price">₹50</p>
-                        <p>Full access to all MPSC PYQ papers.</p>
-                        <button class="btn btn-primary" onclick="initiatePayment('1_month')">Pay ₹50</button>
-                    </div>
-                        <div class="pricing-card">
-                            <h4>2 Years Access</h4>
-                            <p class="price">₹100</p>
-                            <p>Best Value! Uninterrupted access.</p>
-                            <button class="btn btn-primary" onclick="initiatePayment('2_years')">Pay ₹100</button>
-                        </div>
-                    </div>
+                <div class="pricing-cards" id="pricing-cards">
+                    <p class="plans-msg">Loading plans...</p>
+                </div>
                 <button class="btn" onclick="goDashboard()">Back to Dashboard</button>
             </div>
         </section>
@@ -350,18 +340,19 @@
         </div>
     </div>
 
-    <script src="script.js?v=37"></script>
+    <script src="script.js?v=38"></script>
     <script src="paper.js?v=13"></script>
     <script src="examsettings.js?v=1"></script>
     <script src="notes.js?v=5"></script>
     <script src="qchat.js?v=2"></script>
-    <script src="accountsync.js?v=2"></script>
-    <script src="examadmin.js?v=4"></script>
+    <script src="accountsync.js?v=3"></script>
+    <script src="examadmin.js?v=5"></script>
     <script src="cacheadmin.js?v=1"></script>
     <script src="chatadmin.js?v=4"></script>
     <script src="imageadmin.js?v=2"></script>
     <script src="answerkeyadmin.js?v=3"></script>
     <script src="examimport.js?v=1"></script>
+    <script src="planadmin.js?v=1"></script>
         <!-- AI Live Stream Panel -->
     <button id="ai-fab" class="ai-fab hidden" onclick="toggleAiPanel()" title="AI Fix log">🤖</button>
     <div id="ai-live-panel" class="ai-live-panel" data-size="s">

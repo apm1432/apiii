@@ -23,7 +23,7 @@ const notesSvc = require('../utils/notesService');
 // Middleware & Services
 const { authMiddleware, requireSubscription, isSessionActive } = require('../middleware/auth');
 const smtpService = require('../utils/smtpService');
-const { PLANS, applyPayment } = require('../utils/payments');
+const { applyPayment, listActivePlans, getActivePlan, snapshotNotes, toPaise } = require('../utils/payments');
 const examCatalog = require('../utils/examCatalog');
 const ExamGroup = require('../models/ExamGroup');
 const ExamHidden = require('../models/ExamHidden');
@@ -137,7 +137,19 @@ async function isAdminRequest(req) {
 }
 
 // Admin: Clear Cache (Called by bot_manager.js after sync)
+// Needs EITHER a logged-in admin token OR the shared secret header (x-admin-secret = ADMIN_API_SECRET env) used by add_exam.py.
+// It used to be open to the whole internet, so anyone could keep wiping the server cache (cheap denial of service).
 router.post('/admin/clear-cache', async (req, res) => {
+    let allowed = await isAdminRequest(req);
+    if (!allowed) {
+        const secret = process.env.ADMIN_API_SECRET;
+        const sent = String(req.headers['x-admin-secret'] || '');
+        if (secret && sent) {
+            const a = Buffer.from(sent), b = Buffer.from(secret);
+            allowed = a.length === b.length && crypto.timingSafeEqual(a, b);
+        }
+    }
+    if (!allowed) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
     cachedHierarchy = null;
     lastCacheTime = 0;
     await dataCache.invalidateAll().catch(() => {}); // question data on disk is rebuilt from the database
@@ -1041,32 +1053,41 @@ router.post('/payment/free-trial', authMiddleware, async (req, res) => {
 });
 // -------------------------------------
 
+// 2.5 Public price list (students see ONLY active plans; the admin edits them in the admin panel)
+router.get('/plans', async (req, res) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, plans: await listActivePlans() });
+    } catch (e) {
+        console.error('plans list:', e);
+        res.status(500).json({ success: false, message: 'Could not load plans.' });
+    }
+});
+
 // 3. Create Payment Order (Requires Auth to identify user)
 router.post('/payment/create-order', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
-        const { planId } = req.body;
-        
-        const plan = PLANS[planId];
-        const price = plan && plan.price;
-        if (!price) {
-            return res.status(400).json({ success: false, message: 'Invalid Plan' });
+        const planId = req.body && req.body.planId;
+
+        // price + duration are read from the DATABASE here - the browser only says WHICH plan
+        const plan = await getActivePlan(planId);
+        if (!plan) {
+            return res.status(400).json({ success: false, message: 'This plan is no longer available. Please reload the page and choose again.' });
         }
 
         const options = {
-            amount: price * 100,
+            amount: toPaise(plan.price),
             currency: 'INR',
-            receipt: `receipt_order_${Date.now()}`,
-            notes: {
-                userId: userId,
-                planId: planId
-            }
+            receipt: `rcpt_${Date.now()}`,
+            // the plan as it was when the student paid: a later price change or deletion can never break this order
+            notes: { userId: String(userId), ...snapshotNotes(plan) }
         };
 
         const order = await razorpay.orders.create(options);
-        res.json({ success: true, order, key_id: process.env.RAZORPAY_KEY_ID });
+        res.json({ success: true, order, key_id: process.env.RAZORPAY_KEY_ID, plan: { planId: plan.planId, name: plan.name } });
     } catch (error) {
-        console.error('Razorpay Error:', error);
+        console.error('Razorpay Error:', error && (error.error || error.message || error));
         res.status(500).json({ success: false, message: 'Order Creation Failed' });
     }
 });
@@ -1110,7 +1131,8 @@ router.post('/payment/verify-payment', authMiddleware, async (req, res) => {
             userId,
             planId: notes.planId,
             amountPaise: order.amount,
-            source: 'verify'
+            source: 'verify',
+            notes
         });
 
         const u = result.user;
@@ -1169,7 +1191,8 @@ router.post('/payment/webhook', async (req, res) => {
                         userId: notes.userId,
                         planId: notes.planId,
                         amountPaise: pay.amount,
-                        source: 'webhook'
+                        source: 'webhook',
+                        notes
                     });
                     console.log(`Payment ${pay.id}: ${r.alreadyApplied ? 'already applied' : 'applied'} (${notes.planId}) for user ${notes.userId}`);
                 }

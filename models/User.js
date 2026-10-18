@@ -61,8 +61,12 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   },
   resetOtp: {
-    type: String,
+    type: String, // SHA-256 hash of the 6 digit OTP (older accounts may still hold a plain OTP until it expires)
     default: null
+  },
+  resetOtpAttempts: {
+    type: Number, // wrong guesses for the current OTP; the OTP is destroyed after 5
+    default: 0
   },
   resetOtpExpiry: {
     type: Date,

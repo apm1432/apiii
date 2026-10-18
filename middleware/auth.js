@@ -1,7 +1,19 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // ADDED THIS
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_mpsc_portal_123';
+// The signing secret MUST come from the JWT_SECRET environment variable. The old code fell back to a secret that is
+// written in the source code (anyone who can read it could forge tokens). Now, if the variable is missing, a random
+// secret is generated for this run (everyone has to login again after a restart) and a loud warning is printed.
+const MIN_SECRET_LEN = 32;
+let _secret = process.env.JWT_SECRET;
+if (!_secret || _secret.length < MIN_SECRET_LEN) {
+    if (_secret) console.warn(`⚠️  JWT_SECRET is shorter than ${MIN_SECRET_LEN} characters - please set a long random value (e.g. 64 hex chars).`);
+    else {
+        _secret = require('crypto').randomBytes(48).toString('hex');
+        console.warn('⚠️  JWT_SECRET is NOT set. Using a temporary random secret: all users must login again after every restart. Set JWT_SECRET in your environment.');
+    }
+}
+const JWT_SECRET = _secret;
 
 // ---- Single active session -------------------------------------------------
 // Every login creates a new sessionId (stored in DB + inside the JWT). Only the
@@ -37,7 +49,9 @@ const authMiddleware = async (req, res, next) => {
     const authHeader = req.header('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
-    } else if (req.query.token) {
+    } else if (req.method === 'GET' && typeof req.query.token === 'string') {
+        // Only GET requests may carry the token in the URL (live-events stream + <img src>). A URL ends up in logs and
+        // browser history, so it is never accepted for POST / PUT / DELETE.
         token = req.query.token;
     }
 
@@ -49,7 +63,9 @@ const authMiddleware = async (req, res, next) => {
     try {
         decoded = jwt.verify(token, JWT_SECRET);
     } catch (err) {
-        return res.status(400).json({ success: false, message: 'Invalid or Expired Token.' });
+        // 401 (not 400): "login again" is what this means. The browser keeps unsent progress for 401 and
+        // only throws away answers for real 400 errors - with 400 an expired login silently lost the student's saved answers.
+        return res.status(401).json({ success: false, code: 'TOKEN_INVALID', message: 'Session expired. Please login again.' });
     }
 
     try {
@@ -75,7 +91,7 @@ const requireSubscription = async (req, res, next) => {
         // Check if subscribed and not expired
         if (!user.isSubscribed || (user.subscriptionExpiry && user.subscriptionExpiry < new Date())) {
             // Auto-revoke if expired
-            if (user.isSubscribed && user.subscriptionExpiry < new Date()) {
+            if (user.isSubscribed && user.subscriptionExpiry && user.subscriptionExpiry < new Date()) {
                 user.isSubscribed = false;
                 await user.save();
             }

@@ -29,6 +29,32 @@ const otpLimiter = rateLimit({
     message: { success: false, message: 'Too many attempts. Please try again later.' }
 });
 
+// Login: 10 WRONG attempts per 15 minutes for the same IP + email (successful logins are not counted).
+// Without this anyone could try unlimited passwords, and every try runs bcrypt (CPU heavy).
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, limit: 10, skipSuccessfulRequests: true,
+    standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req) => String(req.ip) + '|' + String((req.body && typeof req.body.email === 'string' ? req.body.email : '')).trim().toLowerCase().slice(0, 100),
+    validate: { keyGeneratorIpFallback: false },
+    message: { success: false, message: 'खूप चुकीचे प्रयत्न. कृपया 15 मिनिटांनी पुन्हा प्रयत्न करा. (Too many failed logins)' }
+});
+// Same IP can still not hammer one endpoint for different emails
+const loginIpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, limit: 60, skipSuccessfulRequests: true,
+    standardHeaders: true, legacyHeaders: false,
+    message: { success: false, message: 'खूप चुकीचे प्रयत्न. कृपया 15 मिनिटांनी पुन्हा प्रयत्न करा. (Too many failed logins)' }
+});
+const forgotLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, limit: 10,
+    standardHeaders: true, legacyHeaders: false,
+    message: { success: false, message: 'Too many reset requests. Please try again after an hour.' }
+});
+const resetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, limit: 10,
+    standardHeaders: true, legacyHeaders: false,
+    message: { success: false, message: 'Too many attempts. Please try again later.' }
+});
+
 function tgLinkFor(token) {
     const bot = getBotUsername();
     return bot ? `https://t.me/${bot}?start=${token}` : null;
@@ -413,10 +439,17 @@ router.post('/register', (req, res) => {
 });
 
 // LOGIN
-router.post('/login', async (req, res) => {
+router.post('/login', loginIpLimiter, loginLimiter, async (req, res) => {
     try {
-        const { email, password, deviceId } = req.body;
+        const { email, password, deviceId } = req.body || {};
 
+        // only plain strings: an object here (e.g. {"$ne": null}) would turn the database query into an injection
+        if (typeof email !== 'string' || typeof password !== 'string' || (deviceId != null && typeof deviceId !== 'string')) {
+            return res.status(400).json({ success: false, message: 'Invalid request' });
+        }
+        if (email.length > 254 || password.length > 200) {
+            return res.status(400).json({ success: false, message: 'Invalid credentials' });
+        }
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
         }
@@ -570,21 +603,31 @@ router.get('/session', authMiddleware, (req, res) => {
 });
 
 // FORGOT PASSWORD - Request OTP
-router.post('/forgot-password', async (req, res) => {
+// Security: strings only (no query injection), rate limited, OTP from a cryptographic generator and stored only as a hash,
+// and the answer is the same whether or not the email has an account (so nobody can use this to find out who is registered).
+router.post('/forgot-password', forgotLimiter, async (req, res) => {
     try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+        const email = req.body && req.body.email;
+        if (typeof email !== 'string' || !email.trim() || email.length > 254) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+        const typed = email.trim();
+        const GENERIC = { success: true, message: 'जर हा email registered असेल तर OTP पाठवला आहे. (If this email is registered, an OTP has been sent.)' };
 
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+        const user = await User.findOne({ $or: [{ email: typed }, { email: typed.toLowerCase() }] });
+        if (!user) return res.json(GENERIC);
 
-        // Generate 6 digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        user.resetOtp = otp;
+        // do not let one account be spammed with emails: one OTP per minute
+        if (user.resetOtpExpiry && user.resetOtpExpiry.getTime() - 15 * 60 * 1000 > Date.now() - OTP_RESEND_SEC * 1000) {
+            return res.json(GENERIC);
+        }
+
+        const otp = String(crypto.randomInt(100000, 1000000));
+        user.resetOtp = sha256(otp);
+        user.resetOtpAttempts = 0;
         user.resetOtpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiry
         await user.save();
 
-        // Send Email
         try {
             const smtpUser = assignSmtpToUser();
             const subject = "MPSC PYQ Tracker - Password Reset OTP";
@@ -601,16 +644,15 @@ router.post('/forgot-password', async (req, res) => {
                     <p style="color: #777; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
                 </div>
             `;
-            await sendEmail(smtpUser, email, subject, text, html);
-            res.json({ success: true, message: 'OTP sent to your email.' });
+            await sendEmail(smtpUser, user.email, subject, text, html); // always the address stored on the account
         } catch (emailErr) {
             console.error("Email setup/sending failed:", emailErr.message);
-            // Revert OTP since email failed
             user.resetOtp = null;
             user.resetOtpExpiry = null;
             await user.save();
-            return res.status(500).json({ success: false, message: 'Failed to send OTP email. Please check server SMTP configuration.' });
+            return res.status(500).json({ success: false, message: 'Failed to send OTP email. Please try again later.' });
         }
+        res.json(GENERIC);
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error during forgot password' });
@@ -618,28 +660,50 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // VERIFY OTP & RESET PASSWORD
-router.post('/verify-reset-password', async (req, res) => {
+router.post('/verify-reset-password', resetLimiter, async (req, res) => {
     try {
-        const { email, otp, newPassword } = req.body;
-        if (!email || !otp || !newPassword) return res.status(400).json({ success: false, message: 'Missing required fields' });
+        const { email, otp, newPassword } = req.body || {};
+        if (typeof email !== 'string' || typeof otp !== 'string' || typeof newPassword !== 'string' || !email || !otp || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+        if (newPassword.length < 6 || newPassword.length > 100) {
+            return res.status(400).json({ success: false, message: 'Password किमान 6 अक्षरांचा हवा.' });
+        }
+        const typed = email.trim();
+        const BAD = { success: false, message: 'Invalid or expired OTP' };
 
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ success: false, message: 'User not found' });
+        const user = await User.findOne({ $or: [{ email: typed }, { email: typed.toLowerCase() }] });
+        if (!user || !user.resetOtp || !user.resetOtpExpiry) return res.status(400).json(BAD);
 
-        if (!user.resetOtp || user.resetOtp !== otp) {
+        if (new Date() > user.resetOtpExpiry) {
+            user.resetOtp = null; user.resetOtpExpiry = null; user.resetOtpAttempts = 0;
+            await user.save();
+            return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+        }
+        // 5 wrong guesses and the OTP is destroyed (a 6 digit code could otherwise be guessed in a few thousand tries)
+        if ((user.resetOtpAttempts || 0) >= OTP_MAX_ATTEMPTS) {
+            user.resetOtp = null; user.resetOtpExpiry = null; user.resetOtpAttempts = 0;
+            await user.save();
+            return res.status(429).json({ success: false, message: 'खूप चुकीचे प्रयत्न. कृपया नवीन OTP मागवा.' });
+        }
+
+        const given = /^\d{6}$/.test(otp.trim()) ? sha256(otp.trim()) : '';
+        const stored = String(user.resetOtp);
+        // accepts the hash (new) or a plain 6 digit OTP that was issued by the old code just before this update
+        const a = Buffer.from(given), b = Buffer.from(stored.length === 64 ? stored : sha256(stored));
+        if (!given || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+            await User.updateOne({ _id: user._id }, { $inc: { resetOtpAttempts: 1 } });
             return res.status(400).json({ success: false, message: 'Invalid OTP' });
         }
 
-        if (new Date() > user.resetOtpExpiry) {
-            return res.status(400).json({ success: false, message: 'OTP has expired' });
-        }
-
-        // Hash new password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
         user.resetOtp = null;
         user.resetOtpExpiry = null;
+        user.resetOtpAttempts = 0;
+        user.sessionId = null;                 // password changed -> every old login (maybe the thief's) stops working
         await user.save();
+        setActiveSession(user._id, null);
 
         res.json({ success: true, message: 'Password reset successfully. You can now login.' });
     } catch (err) {

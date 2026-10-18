@@ -19,7 +19,20 @@ process.on('uncaughtException', (err) => console.error('Uncaught Exception:', er
 // Security Middleware: Hide Express X-Powered-By Header
 app.disable('x-powered-by');
 
-app.use(cors());
+// Basic security headers on every response (no extra package needed).
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');                       // the site cannot be put inside another site's iframe (clickjacking)
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    next();
+});
+
+// CORS: the website is served from this same server, so it needs no CORS at all. If you have another site / app that calls
+// this API, list it in the CORS_ORIGINS environment variable (comma separated). Not set = same behaviour as before (open).
+const corsList = String(process.env.CORS_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean);
+app.use(cors(corsList.length ? { origin: corsList } : undefined));
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
@@ -36,6 +49,8 @@ const razorpay = new Razorpay({
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {
     console.log('✅ MongoDB Connected Successfully!');
+    // first start after the plans feature: create the two old plans (₹50 / ₹100) so nothing changes for students
+    require('./utils/payments').seedDefaultPlans();
     // Start Telegram Admin Bot
     startAdminBot();
     // Preload heavy aggregations into memory immediately on startup
@@ -62,11 +77,24 @@ app.use('/api', apiModule.router);
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+// Admin: subscription plans & pricing (add / edit price / duration / hide / delete)
+app.use('/api/admin/plans', require('./routes/plans'));
+
 // Admin: official answer key (PDF -> verified answers + page images on Telegram -> questions)
 app.use('/api/admin/answer-key', require('./routes/answerkey'));
 
 // Admin: add a NEW exam from PDFs (question paper + official answer key) -> review -> publish
 app.use('/api/admin/exam-import', require('./routes/examimport'));
+
+// Unknown /api URL -> JSON 404 ; bad JSON body / any crash -> short JSON error (never a stack trace)
+app.use('/api', (req, res) => res.status(404).json({ success: false, message: 'Not found' }));
+app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    const status = err && (err.status || err.statusCode);
+    if (status && status >= 400 && status < 500) return res.status(status).json({ success: false, message: status === 413 ? 'Request too large' : 'Bad request' });
+    console.error('Unhandled error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+});
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Secure Server running on port ${PORT}`);

@@ -2003,8 +2003,8 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
             break
         tried.add(slot.id)
         try:
-            up = requests.post(slot.url + "/v1/chat/completions", data=raw,
-                               headers={"Content-Type": "application/json"}, timeout=(10, 600))
+            up = _webapi_request("POST", slot.url + "/v1/chat/completions", None, raw,
+                                 {"Content-Type": "application/json"}, slot, True, stream=False)
         except Exception as e:
             pool.release(slot, error=True)
             reason = f"web fallback failed: WebAI '{slot.label}' unreachable at {slot.url} ({str(e)[:150]}) - not running or cookies missing?"
@@ -2719,6 +2719,86 @@ def _webapi_fix_body(raw: bytes) -> bytes:
     except Exception:
         return raw
 
+import webapi_param_fix
+
+
+def _webapi_request(method, url, params, body, headers, slot, is_chat, stream=True, log=None):
+    """One request to a WebAI account with two self-healing steps for chat requests:
+      * unknown model  -> retried with a model the account really has (webapi_model_fix)
+      * unsupported parameter (422/400 naming a field) -> the field is removed and the request is retried at once;
+        once that works the field is remembered and skipped up front on every later request (webapi_param_fix)
+    Returns the final upstream response (may still be an error that is not fixable by us)."""
+    send = body
+    removed_known = []
+    pending = []
+    if is_chat:
+        send, removed_known = webapi_param_fix.strip_known(send)
+        send, _req_m, _used_m = webapi_model_fix.preflight(slot.id, send)
+        if _used_m and log is not None:
+            log["model"] = f"{_req_m} -> {_used_m}"
+
+    def _do(b):
+        return requests.request(method, url, params=params, data=b, headers=headers,
+                                stream=stream, timeout=(10, 600), allow_redirects=False)
+
+    up = _do(send)
+    if not is_chat:
+        return up
+    bad_models = {webapi_model_fix.get_model(send)}
+    first_model = webapi_model_fix.get_model(body)
+    for _ in range(8):
+        if up.status_code not in (400, 404, 422):
+            break
+        txt = up.content.decode("utf-8", "replace")
+        if webapi_model_fix.is_unknown_model_error(up.status_code, txt):
+            avail = webapi_model_fix.parse_available(txt) or webapi_model_fix.fetch_models(requests, slot.url)
+            webapi_model_fix.remember(slot.id, avail)
+            alt = webapi_model_fix.pick(avail, exclude=bad_models)
+            if not alt:
+                break
+            print(f"[WEBAPI MODEL FALLBACK] '{webapi_model_fix.get_model(send)}' unknown on '{slot.label}' -> '{alt}'", flush=True)
+            if log is not None:
+                log["model"] = f"{first_model} -> {alt}"
+            up.close()
+            bad_models.add(alt)
+            send = webapi_model_fix.set_model(send, alt)     # keeps the parameter fixes made so far
+            up = _do(send)
+            continue
+        cands = webapi_param_fix.candidates(up.status_code, txt, send)
+        new_send, done = webapi_param_fix.remove_paths(send, cands) if cands else (send, [])
+        if not done:
+            break
+        print(f"[WEBAPI PARAM FALLBACK] '{slot.label}' rejected {done} -> retrying without them", flush=True)
+        if log is not None:
+            log["model"] = (log.get("model") or first_model or "") + f"  (skipped params: {', '.join(done)})"
+        up.close()
+        pending += done
+        send = new_send
+        up = _do(send)
+    if up.status_code < 400:
+        if pending:
+            webapi_param_fix.learn(pending, "upstream 4xx, ok without them")
+        if removed_known:
+            webapi_param_fix.note_skipped(removed_known)
+            if log is not None and not pending:
+                log["model"] = (log.get("model") or first_model or "") + f"  (auto-skipped: {', '.join(removed_known)})"
+    elif removed_known and not pending and up.status_code in (400, 422):
+        # we already removed learned fields and it STILL fails: not our fields' fault, nothing to change
+        pass
+    return up
+
+
+@app.route(WEBAPI_PREFIX + "/param-fix", methods=["GET", "DELETE"])
+def webapi_param_fix_view():
+    """GET  -> parameters WebAI rejected and that are now skipped automatically.
+    DELETE (optional ?path=temperature) -> forget one / all of them."""
+    if not _webapi_authorized():
+        return jsonify({"error": "Unauthorized Access. Invalid Password."}), 401
+    if request.method == "DELETE":
+        webapi_param_fix.reset(request.args.get("path"))
+    return jsonify({"enabled": webapi_param_fix.ENABLED, "skipped_params": webapi_param_fix.snapshot()})
+
+
 @app.route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 @app.route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 def webapi_proxy(sub):
@@ -2813,38 +2893,9 @@ def webapi_proxy(sub):
             break
         tried.add(slot.id)
         url = slot.url + upstream_path
-        _send = _body
-        if _is_chat:
-            # model list of this account already known -> swap an unknown model BEFORE sending
-            _send, _req_m, _used_m = webapi_model_fix.preflight(slot.id, _body)
-            if _used_m and hasattr(g, "log_entry"):
-                g.log_entry["model"] = f"{_req_m} -> {_used_m}"
         try:
-            up = requests.request(request.method, url, params=_params, data=_send,
-                                  headers=fwd_headers, stream=True, timeout=(10, 600),
-                                  allow_redirects=False)
-            if _is_chat and up.status_code in (400, 404, 422):
-                # "Unknown model name: 'x'. Available registered models: a, b" -> retry with a model that works
-                _bad = {webapi_model_fix.get_model(_send)}
-                for _ in range(3):
-                    _txt = up.content.decode("utf-8", "replace")
-                    if not webapi_model_fix.is_unknown_model_error(up.status_code, _txt):
-                        break
-                    _avail = webapi_model_fix.parse_available(_txt) or \
-                             webapi_model_fix.fetch_models(requests, slot.url)
-                    webapi_model_fix.remember(slot.id, _avail)
-                    _alt = webapi_model_fix.pick(_avail, exclude=_bad)
-                    if not _alt:
-                        break
-                    print(f"[WEBAPI MODEL FALLBACK] '{webapi_model_fix.get_model(_send)}' unknown on '{slot.label}' -> '{_alt}'", flush=True)
-                    if hasattr(g, "log_entry"):
-                        g.log_entry["model"] = f"{webapi_model_fix.get_model(_body)} -> {_alt}"
-                    up.close()
-                    _bad.add(_alt)
-                    _send = webapi_model_fix.set_model(_body, _alt)
-                    up = requests.request(request.method, url, params=_params, data=_send,
-                                          headers=fwd_headers, stream=True, timeout=(10, 600),
-                                          allow_redirects=False)
+            up = _webapi_request(request.method, url, _params, _body, fwd_headers, slot, _is_chat, stream=True,
+                                 log=getattr(g, "log_entry", None))
         except Exception as e:
             last_exc, up = e, None
             if _balanced:
@@ -2852,7 +2903,7 @@ def webapi_proxy(sub):
             if _balanced and _try + 1 < max_tries:
                 continue
             break
-        if _balanced and up.status_code in webai_pool.RETRY_STATUS and pool.has_candidate(tried):
+        if _balanced and up.status_code in webai_pool.RETRY_STATUS and _try + 1 < max_tries and pool.has_candidate(tried):
             pool.release(slot, status=up.status_code)     # this account has a problem -> next account
             up.close()
             up = None

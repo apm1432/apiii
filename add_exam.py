@@ -742,8 +742,14 @@ def run_jobs(jobs, args):
 
     if stats['inserted'] and os.getenv('SITE_URL'):
         try:
-            requests.post(os.getenv('SITE_URL').strip().strip('\'"').rstrip('/') + '/api/admin/clear-cache', timeout=15)
-            log("Server cache refresh केला")
+            _hdr = {}
+            if os.getenv('ADMIN_API_SECRET'):
+                _hdr['x-admin-secret'] = os.getenv('ADMIN_API_SECRET').strip().strip('\'"')
+            _r = requests.post(os.getenv('SITE_URL').strip().strip('\'"').rstrip('/') + '/api/admin/clear-cache', headers=_hdr, timeout=15)
+            if _r.status_code == 200:
+                log("Server cache refresh केला")
+            else:
+                log("Server cache refresh झाला नाही - .env मध्ये ADMIN_API_SECRET (server वरच्या सारखाच) टाका (server restart केल्यावर नवीन paper दिसेल)")
         except Exception:
             log("Server cache refresh झाला नाही (server restart केल्यावर नवीन paper दिसेल)")
     log(f"सगळं झालं. DB मध्ये add केलेले प्रश्न: {stats['inserted']}")

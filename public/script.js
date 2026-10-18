@@ -9,7 +9,7 @@
         if (res.status === 401 && !handled) {
             try {
                 const data = await res.clone().json();
-                if (data && data.code === 'SESSION_EXPIRED') {
+                if (data && (data.code === 'SESSION_EXPIRED' || data.code === 'TOKEN_INVALID')) {
                     handled = true;
                     if (typeof logout === 'function') logout();
                     alert(data.message || 'You were logged out because your account logged in elsewhere.');
@@ -467,6 +467,7 @@ function showSection(sectionId) {
     }
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(sectionId).classList.add('active');
+    if (sectionId === 'payment-section' && typeof loadPlans === 'function') loadPlans();   // always show the CURRENT prices
 }
 
 // ====== VIEW SWITCHING ======
@@ -2365,7 +2366,74 @@ async function startFreeTrial() {
     }
 }
 
-async function initiatePayment(planId) {
+// ====== PLANS (prices come from the server; the admin edits them in "Plans & Pricing") ======
+let publicPlans = [];
+
+function planDurationText(p) {
+    const v = p.durationValue, u = p.durationUnit;
+    const one = { days: 'day', months: 'month', years: 'year' }[u] || u;
+    return v + ' ' + one + (v === 1 ? '' : 's');
+}
+const rupee = (n) => '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+function renderPlans() {
+    const box = document.getElementById('pricing-cards');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!publicPlans.length) {
+        const m = document.createElement('p');
+        m.className = 'plans-msg';
+        m.textContent = 'No plans are available right now. Please try again later.';
+        box.appendChild(m);
+        return;
+    }
+    publicPlans.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'pricing-card' + (p.badge ? ' featured' : '');
+        if (p.badge) { const b = document.createElement('span'); b.className = 'plan-badge'; b.textContent = p.badge; card.appendChild(b); }
+        const h = document.createElement('h4'); h.textContent = p.name; card.appendChild(h);
+        const price = document.createElement('p'); price.className = 'price';
+        if (p.originalPrice && p.originalPrice > p.price) {
+            const old = document.createElement('s'); old.className = 'price-old'; old.textContent = rupee(p.originalPrice);
+            price.appendChild(old); price.appendChild(document.createTextNode(' '));
+        }
+        price.appendChild(document.createTextNode(rupee(p.price)));
+        card.appendChild(price);
+        const dur = document.createElement('p'); dur.className = 'plan-duration'; dur.textContent = 'Valid for ' + planDurationText(p); card.appendChild(dur);
+        if (p.description) { const d = document.createElement('p'); d.className = 'plan-desc'; d.textContent = p.description; card.appendChild(d); }
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary'; btn.textContent = 'Pay ' + rupee(p.price);
+        btn.onclick = () => initiatePayment(p.planId, btn);
+        card.appendChild(btn);
+        box.appendChild(card);
+    });
+}
+
+async function loadPlans() {
+    try {
+        const res = await fetch('/api/plans', { cache: 'no-store' });
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.plans)) publicPlans = data.plans;
+        else if (!publicPlans.length) throw new Error('bad response');
+    } catch (e) {
+        const box = document.getElementById('pricing-cards');
+        if (box && !publicPlans.length) box.innerHTML = '<p class="plans-msg">Could not load plans. Please check your internet and reload.</p>';
+        return;
+    }
+    renderPlans();
+}
+window.reloadPlans = function () {            // called when the admin changes a price while this page is open
+    const sec = document.getElementById('payment-section');
+    if (sec && sec.classList.contains('active')) loadPlans();
+};
+
+let paymentBusy = false;
+async function initiatePayment(planId, btnEl) {
+    if (paymentBusy) return;
+    paymentBusy = true;
+    const oldLabel = btnEl ? btnEl.textContent : '';
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Please wait...'; }
+    const done = () => { paymentBusy = false; if (btnEl) { btnEl.disabled = false; btnEl.textContent = oldLabel; } };
     try {
         const res = await fetch('/api/payment/create-order', {
             method: 'POST',
@@ -2383,8 +2451,9 @@ async function initiatePayment(planId) {
                 amount: data.order.amount,
                 currency: data.order.currency,
                 name: "MPSC PYQ Portal",
-                description: "MPSC PYQ Premium Access",
+                description: (data.plan && data.plan.name) ? data.plan.name : "MPSC PYQ Premium Access",
                 order_id: data.order.id,
+                modal: { ondismiss: done },
                 handler: async function (response) {
                     try {
                         const verifyRes = await fetch('/api/payment/verify-payment', {
@@ -2396,8 +2465,7 @@ async function initiatePayment(planId) {
                             body: JSON.stringify({
                                 razorpay_payment_id: response.razorpay_payment_id,
                                 razorpay_order_id: response.razorpay_order_id,
-                                razorpay_signature: response.razorpay_signature,
-                                planId: planId
+                                razorpay_signature: response.razorpay_signature
                             })
                         });
                         const verifyData = await verifyRes.json();
@@ -2408,10 +2476,12 @@ async function initiatePayment(planId) {
                             alert("Payment Successful! Refreshing your account...");
                             window.location.reload();
                         } else {
+                            done();
                             alert((verifyData.message || "Payment verification failed.") + "\n\n(तुमचे पैसे सुरक्षित आहेत. पुन्हा पैसे भरू नका; plan आपोआप active होईल.)");
                         }
                     } catch (err) {
-                        alert("Error during payment verification.");
+                        done();
+                        alert("Error during payment verification.\n\n(तुमचे पैसे सुरक्षित आहेत. पुन्हा पैसे भरू नका; plan आपोआप active होईल.)");
                     }
                 },
                 prefill: {
@@ -2421,13 +2491,17 @@ async function initiatePayment(planId) {
             };
             const rzp = new Razorpay(options);
             rzp.on('payment.failed', function (response){
+                done();
                 alert("Payment Failed: " + response.error.description);
             });
             rzp.open();
         } else {
-            alert("Order creation failed.");
+            done();
+            alert(data.message || "Order creation failed.");
+            if (res.status === 400) loadPlans();      // the plan was changed / removed by the admin -> show the new list
         }
     } catch (err) {
+        done();
         alert("Payment initiation failed.");
     }
 }

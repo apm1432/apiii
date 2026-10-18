@@ -102,6 +102,7 @@
         try {
             es = new EventSource('/api/auth/events?token=' + encodeURIComponent(t));
             es.addEventListener('account', () => sync());
+            es.addEventListener('plans', () => { if (window.reloadPlans) window.reloadPlans(); });   // admin changed a price / plan
             es.addEventListener('catalog', () => { if (window.onCatalogChanged) window.onCatalogChanged(); });
             es.onerror = () => {
                 // closed for good (e.g. token no longer valid) -> polling keeps working
