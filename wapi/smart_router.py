@@ -2842,6 +2842,23 @@ def _webapi_responses_to_chat(raw: bytes):
     return json.dumps(out, ensure_ascii=False).encode("utf-8"), stream
 
 
+@app.route(WEBAPI_PREFIX + "/webai-log", methods=["GET"])
+def webapi_webai_log():
+    """Last lines printed by the WebAI-to-API processes (what they do while a request is 'Pending')."""
+    if not _webapi_authorized():
+        return Response("Login Required", 401, {"WWW-Authenticate": 'Basic realm="password field = your API PASSWORD"'})
+    try:
+        n = max(10, min(600, int(request.args.get("n", "150"))))
+    except ValueError:
+        n = 150
+    try:
+        with open(os.path.join(os.environ.get("WEBAI_POOL_DIR", "/tmp/webai-pool"), "webai.log"), encoding="utf-8") as f:
+            lines = f.read().splitlines()[-n:]
+    except OSError:
+        lines = ["(no WebAI log yet)"]
+    return Response("\n".join(lines) + "\n", mimetype="text/plain; charset=utf-8")
+
+
 @app.route(WEBAPI_PREFIX + "/param-fix", methods=["GET", "DELETE"])
 def webapi_param_fix_view():
     """GET  -> parameters WebAI rejected and that are now skipped automatically.
@@ -2961,8 +2978,14 @@ def webapi_proxy(sub):
             continue
         url = slot.url + upstream_path
         try:
+            if _is_chat and hasattr(g, "log_entry"):      # shown in the 'Error / Why' column while the row is Pending
+                g.log_entry["error_detail"] = (f"⏳ sent to WebAI '{slot.label}' at {datetime.datetime.now(IST).strftime('%H:%M:%S')} "
+                                               f"({len(_body) // 1024} KB, logged_in={slot.auth}) - waiting for its answer. "
+                                               f"WebAI log: {WEBAPI_PREFIX}/webai-log")
             up = _webapi_request(request.method, url, _params, _body, fwd_headers, slot, _is_chat, stream=True,
                                  log=getattr(g, "log_entry", None))
+            if hasattr(g, "log_entry") and up.status_code < 400 and str(g.log_entry.get("error_detail") or "").startswith("⏳"):
+                g.log_entry["error_detail"] = None
         except Exception as e:
             last_exc, up = e, None
             if _balanced:

@@ -75,6 +75,26 @@ def _port_free(port):
         s.close()
 
 
+# ── last WebAI log lines -> file, so they can be read at /api/web/v1/webai-log without the host's log console ──
+import collections as _collections
+_RING = _collections.deque(maxlen=600)
+_RING_LOCK = threading.Lock()
+_RING_FILE = os.path.join(os.environ.get("WEBAI_POOL_DIR", "/tmp/webai-pool"), "webai.log")
+
+
+def _ring_add(line):
+    try:
+        with _RING_LOCK:
+            _RING.append(line[:600])
+            os.makedirs(os.path.dirname(_RING_FILE), exist_ok=True)
+            with open(_RING_FILE + ".tmp", "w", encoding="utf-8") as f:
+                f.write("\n".join(_RING))
+            os.replace(_RING_FILE + ".tmp", _RING_FILE)
+    except Exception:
+        pass
+
+
+
 class Inst:
     def __init__(self, iid, port, label, guest=False):
         self.id, self.port, self.label, self.guest = iid, port, label, guest
@@ -129,6 +149,7 @@ class Inst:
         try:
             for line in proc.stdout:
                 print(tag + line.rstrip("\n"), flush=True)
+                _ring_add(time.strftime("%H:%M:%S ") + tag + line.rstrip("\n"))
         except Exception:
             pass
 

@@ -39,3 +39,7 @@ the Gemini account (no history/activity), and file upload / search do not work (
 "WebAI account '<name>'" so it looked fine. Now: route shows "⚠ NOT LOGGED IN - answered anonymously ...", response header
 `X-WebAI-Auth: anonymous`. Env `WEBAI_REQUIRE_AUTH=1` -> never use a logged-out instance (next account, or a clear 424
 "cookies expired - paste fresh cookies") instead of answering anonymously.
+
+## Update 4: see what WebAI is doing while a request is "Pending"
+- `GET /api/web/v1/webai-log[?n=300]` (Bearer password or browser login): last lines printed by the WebAI processes.
+- A Pending chat row now shows in "Error / Why": which account, when it was sent, body size, logged-in state.
