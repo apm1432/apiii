@@ -130,6 +130,7 @@
             <header class="dash-header">
                 <h2>Exam Dashboard</h2>
                 <div class="user-controls" style="display: flex; align-items: center; gap: 15px;">
+                    <button id="btn-progress" class="btn" style="background-color: #2563eb; padding: 5px 10px; font-size: 0.85rem;" onclick="MpscInsights.open()">📊 Progress</button>
                     <button id="btn-notes" class="btn" style="background-color: #f59e0b; padding: 5px 10px; font-size: 0.85rem;" onclick="MpscNotes.open()">📝 Notes<span id="notes-count" class="notes-count"></span></button>
                     <button id="btn-cache-manager" class="btn hidden" style="background-color: #0ea5e9; padding: 5px 10px; font-size: 0.85rem;" onclick="openCacheManager()">💾 Server Cache</button>
                     <button id="btn-chat-ai" class="btn hidden" style="background-color: #14b8a6; padding: 5px 10px; font-size: 0.85rem;" onclick="openChatAiSettings()">🤖 AI Settings</button>
@@ -345,6 +346,7 @@
     <script src="examsettings.js?v=1"></script>
     <script src="panelkit.js?v=1"></script>
     <script src="notes.js?v=6"></script>
+    <script src="insights.js?v=1"></script>
     <script src="qchat.js?v=3"></script>
     <script src="accountsync.js?v=3"></script>
     <script src="examadmin.js?v=5"></script>

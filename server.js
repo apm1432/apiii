@@ -86,6 +86,9 @@ app.use('/api/admin/answer-key', require('./routes/answerkey'));
 // Admin: add a NEW exam from PDFs (question paper + official answer key) -> review -> publish
 app.use('/api/admin/exam-import', require('./routes/examimport'));
 
+// Student progress: overall / exam-wise / wrong questions / PYQ trend / revision queue / AI coach
+app.use('/api/insights', require('./routes/insights'));
+
 // Unknown /api URL -> JSON 404 ; bad JSON body / any crash -> short JSON error (never a stack trace)
 app.use('/api', (req, res) => res.status(404).json({ success: false, message: 'Not found' }));
 app.use((err, req, res, next) => {

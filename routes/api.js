@@ -1361,7 +1361,12 @@ router.post('/progress/save', authMiddleware, submitAnswerLimiter, async (req, r
         const sectionName = String(section || question.year_exam || 'Unknown');
         const safeSection = (sectionName.replace(/\./g, '_dot_').replace(/^\$/, '_') || 'Unknown');
 
-        await recordAnswerAtomic(userId, String(question._id), { selected: selectedOption, isCorrect, isCancelled, section: sectionName }, isCorrect, safeSection, question._id);
+        const saved = await recordAnswerAtomic(userId, String(question._id), { selected: selectedOption, isCorrect, isCancelled, section: sectionName, at: new Date() }, isCorrect, safeSection, question._id);
+        // history for the Progress / trend tabs (best effort: a failure here must never fail the answer)
+        if (saved === 'saved' && !isCancelled) {
+            require('../models/AttemptLog').create({ userId, qid: String(question._id), exam: question.year_exam, subject: question.subject, topic: question.topic, selected: selectedOption, isCorrect, src: 'exam' })
+                .catch(e => console.error('attempt log failed:', e.message));
+        }
 
         res.json({
             success: true,
@@ -1586,10 +1591,14 @@ router.post('/stars/answer', authMiddleware, starLimiter, async (req, res) => {
 
         const j = judgeStarAnswer(q, selected);
         // first answer wins (same rule as the exam progress); the filter makes a double tap harmless
-        await UserStars.updateOne(
+        const stRes = await UserStars.updateOne(
             { userId: req.user.id, ids: qid, [`answers.${qid}`]: { $exists: false } },
             { $set: { [`answers.${qid}`]: { selected, isCorrect: j.isCorrect, isCancelled: j.isCancelled, section: q.year_exam } } }
         );
+        if (stRes && stRes.modifiedCount && !j.isCancelled) {
+            require('../models/AttemptLog').create({ userId: req.user.id, qid, exam: q.year_exam, subject: q.subject, topic: q.topic, selected, isCorrect: j.isCorrect, src: 'star' })
+                .catch(e => console.error('attempt log failed:', e.message));
+        }
         res.json({
             success: true, isCorrect: j.isCorrect, isCancelled: j.isCancelled, correctOptionIndex: j.correctOptIndex,
             explanation: q.toppers_explanation_marathi, optionsExplanation: q.options_explanation
@@ -1772,5 +1781,6 @@ router.get('/image/:fileId', async (req, res) => {
 
 module.exports = {
     router,
-    preloadHierarchy
+    preloadHierarchy,
+    freeExamIds
 };
