@@ -121,14 +121,18 @@ async function invalidateAll() {
 }
 
 // ---- queries --------------------------------------------------------------------------------------------
-async function collect({ examIds, subject, passageOnly, limit }) {
+// canon (optional) = utils/subjects resolver: every spelling of a subject is ONE subject, so the subject filter matches all of them
+// and the questions are handed out under that one name (the stored questions are never changed).
+async function collect({ examIds, subject, passageOnly, limit, canon }) {
     const lists = await Promise.all(examIds.map(id => getExam(id)));
+    const want = subject ? (canon ? canon(subject) : subject) : null;
     let out = [];
     for (const list of lists) {
         for (const q of list) {
-            if (subject && q.subject !== subject) continue;
+            if (want && (canon ? canon(q.subject) : q.subject) !== want) continue;
             if (passageOnly && !hasPassage(q)) continue;
-            out.push(q);
+            if (canon && typeof q.subject === 'string' && q.subject.trim()) { const c = canon(q.subject); out.push(c === q.subject ? q : Object.assign({}, q, { subject: c })); }
+            else out.push(q);
         }
     }
     out.sort(byQnum);
@@ -139,7 +143,7 @@ async function collect({ examIds, subject, passageOnly, limit }) {
 // the whole HTTP body, gzipped, ready to send. Cached in RAM (LRU by bytes).
 async function responseFor(opts) {
     const sig = crypto.createHash('sha1').update(JSON.stringify([
-        [...opts.examIds].map(keyOf).sort(), opts.subject || '', !!opts.passageOnly, opts.limit || 0
+        [...opts.examIds].map(keyOf).sort(), opts.subject || '', !!opts.passageOnly, opts.limit || 0, opts.canonVersion || ''
     ])).digest('hex');
     const hit = responses.get(sig);
     if (hit) { responses.delete(sig); responses.set(sig, hit); counters.responseHits++; return hit.buf; }
@@ -240,4 +244,4 @@ async function warm(examIds, refresh) {
 }
 const stopWarm = () => { warmJob.stop = true; };
 
-module.exports = { getExam, responseFor, collect, invalidateExam, invalidateAll, checkFreshness, onDataChanged, notifyDataChanged, stats, warm, stopWarm, warmStatus, DATA_DIR, keyOf };
+module.exports = { getExam, responseFor, collect, clearResponses, invalidateExam, invalidateAll, checkFreshness, onDataChanged, notifyDataChanged, stats, warm, stopWarm, warmStatus, DATA_DIR, keyOf };

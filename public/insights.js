@@ -1,25 +1,45 @@
 /* =====================================================================
    Progress panel:  window.MpscInsights.open()
-   WITHOUT AI : Overall | Exam-wise | Wrong Qs | Revision | PYQ Trend   (exact numbers from the database, instant)
-   WITH AI    : AI Coach (written report + chat)                          (the AI only reads numbers computed by the server)
+   Scope bar: "सर्व" or one of the exam groups the ADMIN made. It starts on the tab the student has open on the dashboard and limits every tab and the AI.
+   WITHOUT AI : Overall | Topic-wise | Exam-wise | Wrong Qs | Revision | PYQ Trend   (exact numbers from the database, instant)
+   WITH AI    : AI Coach (written report + chat + "the data the AI received")      (the AI only reads numbers computed by the server)
    Backend: /api/insights/*  (routes/insights.js)
    ===================================================================== */
 (function () {
     'use strict';
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const jwt = () => localStorage.getItem('jwtToken') || '';
-    let root = null, body = null, state = { mode: 'noai', tab: 'overall', topicFilter: 'weak', cache: {} };
+    let root = null, body = null, state = { mode: 'noai', tab: 'overall', scope: 'all', scopes: [], cache: {} };
 
     async function api(path, opt) {
         opt = opt || {};
-        const r = await fetch('/api/insights' + path, {
+        const url = '/api/insights' + path + (opt.body ? '' : (path.includes('?') ? '&' : '?') + 'scope=' + encodeURIComponent(state.scope));
+        const r = await fetch(url, {
             method: opt.body ? 'POST' : 'GET',
             headers: Object.assign({ 'Authorization': 'Bearer ' + jwt() }, opt.body ? { 'Content-Type': 'application/json' } : {}),
-            body: opt.body ? JSON.stringify(opt.body) : undefined
+            body: opt.body ? JSON.stringify(Object.assign({}, opt.body, { scope: state.scope })) : undefined
         });
         let j = null; try { j = await r.json(); } catch (e) { }
         if (!r.ok || !j || !j.success) { const e = new Error((j && j.message) || 'Error'); e.status = r.status; throw e; }
+        const d = j.data || j;
+        if (Array.isArray(d.scopes)) { state.scopes = d.scopes; if (d.scope && d.scope !== state.scope) { state.scope = d.scope; } drawScope(); }   // a deleted group falls back to "all"
         return j;
+    }
+    const fmtAt = (t) => { if (!t) return '–'; const d = new Date(t), days = Math.floor((Date.now() - d) / 86400000); return d.toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + (days <= 0 ? ' (आज)' : days === 1 ? ' (काल)' : ` (${days} दिवसांपूर्वी)`); };
+    const fmtMin = (m) => (m == null ? '–' : (m >= 60 ? Math.floor(m / 60) + ' ता ' + Math.round(m % 60) + ' मि' : Math.round(m) + ' मि'));
+
+    // ------------------------------------------------------------ scope bar (all / the admin's exam groups)
+    function drawScope() {
+        const box = root && root.querySelector('#ins-scope'); if (!box) return;
+        if (!state.scopes.length || state.scopes.length < 2) { box.style.display = 'none'; return; }
+        box.style.display = 'flex';
+        box.innerHTML = '<span class="ins-sub">📂 निवड:</span>' + state.scopes.map(x => `<button class="ins-chip ${x.id === state.scope ? 'on' : ''}" data-sc="${esc(x.id)}" title="${x.papers} papers">${esc(x.name)} (${x.papers})</button>`).join('');
+        box.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => setScope(b.dataset.sc));
+    }
+    function setScope(id) {
+        if (id === state.scope) return;
+        state.scope = id; state.cache = {}; chat = []; state.wrong = null; state.rev = null; state.tp = null;
+        drawScope(); paint();
     }
 
     // ------------------------------------------------------------ styles (injected once, so style.css is untouched)
@@ -78,6 +98,8 @@
 .ins-chat{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto;margin-bottom:8px}
 .ins-msg{padding:8px 10px;border-radius:10px;white-space:pre-wrap;max-width:92%}
 .ins-msg.u{align-self:flex-end;background:var(--accent,#2563eb);color:#fff}.ins-msg.m{align-self:flex-start;background:rgba(0,0,0,.06)}
+.ins-scope{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:var(--surface-color,#fff);border-bottom:1px solid rgba(0,0,0,.1)}
+.ins-pre{max-height:320px;overflow:auto;font-size:.7rem;background:rgba(0,0,0,.05);padding:8px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
 .ins-form{display:flex;gap:6px}.ins-form input{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,.25)}
 `;
         document.head.appendChild(s);
@@ -122,7 +144,16 @@
             <div class="ins-card"><b>${pc(t.accuracy)}</b><small>Accuracy</small></div>
             <div class="ins-card"><b>${t.wrong}</b><small>चुकलेले प्रश्न</small></div>
             <div class="ins-card"><b>${a.streak} 🔥</b><small>दिवसांचा streak</small></div>
-            <div class="ins-card"><b>${a.last7.solved}</b><small>गेले 7 दिवस${delta == null ? '' : ` · accuracy ${delta >= 0 ? '+' : ''}${Math.round(delta * 10) / 10}`}</small></div></div>`;
+            <div class="ins-card"><b>${a.last7.solved}</b><small>गेले 7 दिवस${delta == null ? '' : ` · accuracy ${delta >= 0 ? '+' : ''}${Math.round(delta * 10) / 10}`}</small></div>
+            <div class="ins-card"><b>${fmtMin(d.activity.study.totalMin)}</b><small>अंदाजे अभ्यास वेळ${a.last7.min != null ? ' · 7 दिवस ' + fmtMin(a.last7.min) : ''}</small></div>
+            <div class="ins-card"><b>${d.activity.lifetime.activeDays}</b><small>अभ्यासाचे दिवस</small></div></div>`;
+        if (d.undated > 0) h += `<div class="ins-sub" style="margin:-6px 0 10px">ℹ ${d.undated} जुन्या उत्तरांना तारीख नाही - ती totals मध्ये आहेत, पण daily graph / वेळेत नाहीत.</div>`;
+        const L = d.activity.learning;
+        if (L.questions) h += `<div class="ins-box"><h3>🧠 चुका आणि सुधारणा</h3><div class="ins-sub">${L.questions} प्रश्न प्रयत्न केले · पहिल्या प्रयत्नात बरोबर ${pc(L.firstTryAccuracy)} · पुन्हा सोडवलेले ${L.retried}</div>
+            <div class="ins-chips"><span class="ins-badge strong">✔ चूक → दुरुस्त ${L.fixed}</span><span class="ins-badge weak">✖ अजून चुकतात ${L.stillWrong}</span><span class="ins-badge average">↻ 2+ वेळा चुकलेले ${L.repeatWrong}</span>${L.revisionAttempts ? `<span class="ins-badge">Revision accuracy ${pc(L.revisionAccuracy)} (${L.revisionAttempts})</span>` : ''}</div></div>`;
+        const rx = d.activity.recentExams || [];
+        if (rx.length) h += `<div class="ins-box"><h3>🕘 शेवटचे attempt केलेले tests</h3>` + rx.slice(0, 5).map((e, i) => `<div class="ins-row"><div class="ins-grow"><b>${i === 0 ? '▶ ' : ''}${esc(e.exam)}</b>${i === 0 ? ' <span class="ins-badge">शेवटचा</span>' : ''}<div class="ins-sub">${esc(fmtAt(e.lastAt))} · ${e.attempts} उत्तरे · accuracy ${pc(e.accuracy)}${i === 0 && e.lastSubject ? ' · शेवटचा प्रश्न: ' + esc(e.lastSubject) + ' › ' + esc(e.lastTopic) : ''}</div></div><button class="ins-btn ghost" data-open="${esc(e.exam)}">Open</button></div>`).join('') + '</div>';
+        if (state.scope === 'all' && (d.groups || []).length) h += `<div class="ins-box"><h3>📂 Group-wise</h3>` + d.groups.map(g => `<div class="ins-row"><div class="ins-grow"><b>${esc(g.name)}</b><div class="ins-sub">${g.papers} papers · सोडवले ${g.solved}/${g.bank} · बरोबर ${g.correct} · चूक ${g.wrong}</div>${bar(g.accuracy, '')}</div><b>${pc(g.accuracy)}</b><button class="ins-btn ghost" data-sc="${esc(g.id)}">उघडा</button></div>`).join('') + '</div>';
 
         const p = d.plan;
         h += `<div class="ins-box"><h3>🎯 पुढे काय करायचं</h3>`;
@@ -137,32 +168,64 @@
 
         h += `<div class="ins-box"><h3>📚 Subject-wise</h3>` + (d.subjects.length ? d.subjects.map(s => `<div class="ins-row"><div class="ins-grow"><b>${esc(s.subject)}</b> ${badge(s.level)}<div class="ins-sub">${s.attempted}/${s.bank} सोडवले · बरोबर ${s.correct} · चूक ${s.wrong}</div>${bar(s.accuracy, s.level)}</div><b>${pc(s.accuracy)}</b></div>`).join('') : '<p class="ins-sub">–</p>') + '</div>';
 
-        const filters = ['weak', 'average', 'strong', 'new', 'all'];
-        const list = d.topics.filter(x => state.topicFilter === 'all' || x.level === state.topicFilter).sort((x, y) => y.priority - x.priority).slice(0, 40);
-        h += `<div class="ins-box"><h3>🧩 Topic-wise</h3><div class="ins-chips">${filters.map(f => `<button class="ins-chip ${state.topicFilter === f ? 'on' : ''}" data-f="${f}">${f === 'all' ? 'सर्व' : LV[f]}</button>`).join('')}</div>` +
-            (list.length ? list.map(x => `<div class="ins-row"><div class="ins-grow">${esc(x.subject)} › <b>${esc(x.topic)}</b> ${badge(x.level)}<div class="ins-sub">${x.attempted}/${x.bank} · बरोबर ${x.correct} · चूक ${x.wrong} · PYQ वाटा ${x.weightPct}%</div>${bar(x.accuracy, x.level)}</div><b>${pc(x.accuracy)}</b>${pBtn(x.subject, x.topic)}</div>`).join('') : '<p class="ins-sub">या गटात topic नाही.</p>') + '</div>';
-
         const days = a.days.slice(-30);
-        if (d.hasHistory && days.length) { const mx = Math.max.apply(null, days.map(x => x.n)) || 1; h += `<div class="ins-box"><h3>📅 गेले 30 दिवस - रोज किती प्रश्न</h3><div class="ins-spark">${days.map(x => `<span title="${esc(x.day)}: ${x.n} प्रश्न, ${x.c} बरोबर" style="height:${Math.max(4, x.n / mx * 100)}%"></span>`).join('')}</div></div>`; }
+        if (d.hasHistory && days.length) { const mx = Math.max.apply(null, days.map(x => x.n)) || 1; h += `<div class="ins-box"><h3>📅 गेले 30 दिवस - रोज किती प्रश्न</h3><div class="ins-spark">${days.map(x => `<span title="${esc(x.day)}: ${x.n} प्रश्न, ${x.c} बरोबर, ~${x.min} मि" style="height:${Math.max(4, x.n / mx * 100)}%"></span>`).join('')}</div></div>`; }
         else h += `<div class="ins-box"><h3>📅 दैनंदिन trend</h3><p class="ins-sub">आतापासून सोडवलेल्या प्रश्नांची तारीख साठवली जाते; काही दिवसांनी इथे daily graph आणि streak दिसेल. जुन्या उत्तरांना तारीख नाही.</p></div>`;
         body.innerHTML = h;
-        body.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { state.topicFilter = b.dataset.f; tabOverall(); });
+        body.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => setScope(b.dataset.sc));
+        body.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { close(); if (window.openTest) window.openTest(b.dataset.open); });
+    }
+
+    // ------------------------------------------------------------ TOPIC-WISE (no AI): every subject, every topic, every sub-topic
+    async function tabTopics() {
+        if (!state.cache.overview) loading();
+        let d = state.cache.overview; if (!d) { try { d = (await api('/overview')).data; state.cache.overview = d; } catch (e) { return fail(e, tabTopics); } }
+        const f = state.tp || (state.tp = { level: 'all', q: '', sort: 'priority', open: {} });
+        const levels = ['all', 'weak', 'average', 'strong', 'new'];
+        const SORT = { priority: 'आधी काय (priority)', accuracy: 'कमी accuracy आधी', attempted: 'जास्त सोडवलेले', pyq: 'PYQ वाटा', name: 'नाव' };
+        const sorters = { priority: (x, y) => y.priority - x.priority, accuracy: (x, y) => ((x.accuracy == null) - (y.accuracy == null)) || (x.accuracy - y.accuracy), attempted: (x, y) => y.attempted - x.attempted, pyq: (x, y) => y.weightPct - x.weightPct, name: (x, y) => x.topic.localeCompare(y.topic) };
+        const subTop = {}; (d.subtopics || []).forEach(x => { (subTop[x.subject + '||' + x.topic] = subTop[x.subject + '||' + x.topic] || []).push(x); });
+        const q = f.q.trim().toLowerCase();
+        const bySubject = {}; d.topics.forEach(t => { (bySubject[t.subject] = bySubject[t.subject] || []).push(t); });
+        const order = d.subjects.map(s => s.subject).concat(Object.keys(bySubject).filter(k => !d.subjects.some(s => s.subject === k)));
+        let shown = 0;
+        const blocks = order.map(sn => {
+            const all = bySubject[sn]; if (!all) return '';
+            const list = all.filter(t => (f.level === 'all' || t.level === f.level) && (!q || (sn + ' ' + t.topic).toLowerCase().includes(q))).sort(sorters[f.sort]);
+            if (!list.length) return '';
+            shown += list.length;
+            const s = d.subjects.find(x => x.subject === sn) || { attempted: 0, bank: 0, accuracy: null, level: 'new', correct: 0, wrong: 0 };
+            const rows = list.map(x => {
+                const st = subTop[x.subject + '||' + x.topic] || [];
+                return `<div class="ins-row"><div class="ins-grow"><b>${esc(x.topic)}</b> ${badge(x.level)}<div class="ins-sub">${x.attempted}/${x.bank} सोडवले · बरोबर ${x.correct} · चूक ${x.wrong} · PYQ वाटा ${x.weightPct}%${x.avgSec != null ? ' · ~' + x.avgSec + ' से/प्रश्न' : ''}</div>${bar(x.accuracy, x.level)}` +
+                    (st.length ? `<details><summary class="ins-sub">उप-topics (${st.length})</summary>${st.map(z => `<div class="ins-sub">• ${esc(z.sub)}: ${z.attempted} सोडवले, चूक ${z.wrong} (${pc(z.accuracy)})</div>`).join('')}</details>` : '') +
+                    `</div><b>${pc(x.accuracy)}</b>${pBtn(x.subject, x.topic)}</div>`;
+            }).join('');
+            return `<details class="ins-box" data-s="${esc(sn)}" ${(f.open[sn] || q) ? 'open' : ''}><summary><b>${esc(sn)}</b> ${s.attempted ? badge(s.level) : ''} <span class="ins-sub">${s.attempted}/${s.bank} सोडवले · बरोबर ${s.correct} · चूक ${s.wrong} · ${pc(s.accuracy)} · ${list.length} topics</span></summary>${rows}</details>`;
+        }).join('');
+        body.innerHTML = `<div class="ins-box"><h3>🧩 Topic-wise (${esc(d.scopeLabel || '')})</h3><div class="ins-chips">${levels.map(l => `<button class="ins-chip ${f.level === l ? 'on' : ''}" data-l="${l}">${l === 'all' ? 'सर्व' : LV[l]}</button>`).join('')}</div>
+            <div class="ins-form"><input id="tp-q" placeholder="Subject / topic शोधा..." value="${esc(f.q)}"><select id="tp-s">${Object.keys(SORT).map(k => `<option value="${k}" ${f.sort === k ? 'selected' : ''}>${SORT[k]}</option>`).join('')}</select></div>
+            <div class="ins-sub" style="margin-top:6px">${shown} topics दिसत आहेत. प्रत्येक subject वर tap करून त्यातले सर्व topics बघा.</div></div>` + (blocks || '<p class="ins-sub">या निवडीत topic नाही.</p>');
+        body.querySelectorAll('[data-l]').forEach(b => b.onclick = () => { f.level = b.dataset.l; tabTopics(); });
+        document.getElementById('tp-s').onchange = (e) => { f.sort = e.target.value; tabTopics(); };
+        const inp = document.getElementById('tp-q');
+        let tm = null; inp.oninput = () => { clearTimeout(tm); tm = setTimeout(async () => { f.q = inp.value; await tabTopics(); const el = document.getElementById('tp-q'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 350); };
+        body.querySelectorAll('details[data-s]').forEach(el => el.addEventListener('toggle', () => { f.open[el.dataset.s] = el.open; }));
     }
 
     // ------------------------------------------------------------ EXAM-WISE (no AI)
     async function tabExams() {
         loading();
         let d = state.cache.overview; if (!d) { try { d = (await api('/overview')).data; state.cache.overview = d; } catch (e) { return fail(e, tabExams); } }
-        const f = state.examFilter || 'all';
-        const keys = ['all', 'B-prelims', 'B-mains', 'C-prelims', 'C-mains'];
-        const match = (e, k) => k === 'all' || (e.group + '-' + e.stage) === k;
-        const list = d.exams.filter(e => match(e, f));
-        let h = `<div class="ins-chips">${keys.map(k => `<button class="ins-chip ${f === k ? 'on' : ''}" data-k="${k}">${k === 'all' ? 'सर्व' : 'Group ' + k.replace('-', ' ')}</button>`).join('')}</div>`;
-        h += list.length ? list.map(e => `<div class="ins-box"><div class="ins-row" style="border:0"><div class="ins-grow"><b>${esc(e.exam)}</b><div class="ins-sub">सोडवले ${e.solved}/${e.total} · बरोबर ${e.correct} · चूक ${e.wrong} · बाकी ${e.unattempted}</div>${bar(e.completion, '')}</div><b>${pc(e.accuracy)}</b><button class="ins-btn ghost" data-open="${esc(e.exam)}">Open</button></div>
+        const last = {}; ((d.activity || {}).recentExams || []).forEach(x => { last[x.exam] = x.lastAt; });
+        const byLast = state.examSort !== 'year';
+        const list = d.exams.slice(); if (byLast) list.sort((a, b) => (last[b.exam] || 0) - (last[a.exam] || 0));   // the scope bar (admin's groups) already limits the papers
+        let h = `<div class="ins-sub" style="margin-bottom:8px">📂 ${esc(d.scopeLabel || '')} · ${list.length} papers</div><div class="ins-chips"><button class="ins-chip ${byLast ? 'on' : ''}" data-es="last">शेवटचा attempt आधी</button><button class="ins-chip ${byLast ? '' : 'on'}" data-es="year">वर्षानुसार</button></div>`;
+        h += list.length ? list.map(e => `<div class="ins-box"><div class="ins-row" style="border:0"><div class="ins-grow"><b>${esc(e.exam)}</b><div class="ins-sub">सोडवले ${e.solved}/${e.total} · बरोबर ${e.correct} · चूक ${e.wrong} · बाकी ${e.unattempted}</div>${last[e.exam] ? `<div class="ins-sub">🕘 शेवटचा attempt: ${esc(fmtAt(last[e.exam]))}</div>` : ''}${bar(e.completion, '')}</div><b>${pc(e.accuracy)}</b><button class="ins-btn ghost" data-open="${esc(e.exam)}">Open</button></div>
             <details><summary class="ins-sub">Subject-wise (या paper मधले)</summary>${e.subjects.map(s => `<div class="ins-row"><div class="ins-grow">${esc(s.subject)} ${s.attempted >= 3 ? badge(s.level) : ''}<div class="ins-sub">${s.attempted}/${s.bank} · बरोबर ${s.correct} · चूक ${s.wrong}</div>${bar(s.accuracy, s.level)}</div><b>${pc(s.accuracy)}</b></div>`).join('')}</details></div>`).join('') : '<p class="ins-sub">या गटात paper नाही.</p>';
         body.innerHTML = h;
-        body.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { state.examFilter = b.dataset.k; tabExams(); });
         body.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { close(); if (window.openTest) window.openTest(b.dataset.open); });
+        body.querySelectorAll('[data-es]').forEach(b => b.onclick = () => { state.examSort = b.dataset.es; tabExams(); });
     }
 
     // ------------------------------------------------------------ WRONG QUESTIONS (no AI)
@@ -230,21 +293,17 @@
 
     // ------------------------------------------------------------ PYQ TREND (no AI)
     async function tabTrend() {
-        const f = state.trend || (state.trend = { group: 'all', stage: 'all' });
         loading();
-        let d; try { d = (await api(`/trend?group=${f.group}&stage=${f.stage}`)).data; } catch (e) { return fail(e, tabTrend); }
-        const sel = (id, arr, cur, lab) => `<select id="${id}"><option value="all">${lab}</option>${arr.filter(x => x !== 'Other' && x !== 'other').map(x => `<option value="${esc(x.toLowerCase())}" ${cur.toLowerCase() === x.toLowerCase() ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-        let h = `<div class="ins-box"><h3>📈 PYQ Trend (खरी आकडेवारी)</h3><div class="ins-form">${sel('t-g', d.options.groups, f.group, 'सर्व Groups')}${sel('t-s', d.options.stages, f.stage, 'Prelims + Mains')}</div>
-            <p class="ins-sub">${d.papers} papers · ${d.totalQuestions} प्रश्न · वर्षे: ${d.years.join(', ') || '–'}. "वाटा" = त्या वर्षाच्या एकूण प्रश्नांपैकी त्या topic चे %. वाढ/घट = अलीकडची वर्षे (${d.recentYears.join(', ') || '–'}) विरुद्ध आधीची वर्षे.</p>`;
+        let d; try { d = (await api('/trend')).data; } catch (e) { return fail(e, tabTrend); }
+        let h = `<div class="ins-box"><h3>📈 PYQ Trend (खरी आकडेवारी) - ${esc(d.scopeLabel || '')}</h3>
+            <p class="ins-sub">${d.papers} papers · ${d.totalQuestions} प्रश्न · वर्षे: ${d.years.join(', ') || '–'}. "वाटा" = त्या वर्षाच्या एकूण प्रश्नांपैकी त्या topic चे %. वाढ/घट = अलीकडची वर्षे (${d.recentYears.join(', ') || '–'}) विरुद्ध आधीची वर्षे. वर निवडलेल्या group चेच papers मोजले जातात.</p>`;
         if (d.quality.untaggedPct > 5) h += `<div class="ins-warn">⚠ ${d.quality.untaggedPct}% प्रश्नांना topic tag नाही, त्यामुळे topic आकडे तेवढ्या प्रमाणात कमी दिसतील.</div>`;
         h += '</div>';
         h += `<div class="ins-box"><h3>Subject × Year (प्रश्नांची संख्या)</h3><div class="ins-scroll"><table class="ins-table"><tr><th>Subject</th>${d.years.map(y => `<th>${y}</th>`).join('')}<th>एकूण</th><th>%</th></tr>${d.subjects.map(s => `<tr><td>${esc(s.subject)}</td>${d.years.map(y => `<td>${s.years[y] || '·'}</td>`).join('')}<td><b>${s.total}</b></td><td>${s.sharePct}</td></tr>`).join('')}</table></div></div>`;
         const mine = {}; ((state.cache.overview || {}).topics || []).forEach(t => { mine[t.subject + '||' + t.topic] = t; });
         h += `<div class="ins-box"><h3>सर्वात जास्त विचारले जाणारे topics</h3><div class="ins-scroll"><table class="ins-table"><tr><th>Topic</th>${d.years.map(y => `<th>${String(y).slice(2)}</th>`).join('')}<th>किती वर्षे</th><th>Trend</th><th>तुमचं</th></tr>` +
-            d.topics.slice(0, 60).map(t => { const m = mine[t.subject + '||' + t.topic]; return `<tr><td>${esc(t.subject)} › ${esc(t.topic)}</td>${d.years.map(y => `<td>${t.years[y] || '·'}</td>`).join('')}<td>${t.askedInYears}/${t.ofYears}</td><td><span class="ins-badge ${t.trend}">${TR[t.trend]}</span><div class="ins-sub">${t.olderPct}% → ${t.recentPct}%</div></td><td>${m && m.attempted >= 3 ? badge(m.level) : '<span class="ins-sub">–</span>'}</td></tr>`; }).join('') + '</table></div></div>';
+            d.topics.slice(0, 80).map(t => { const m = mine[t.subject + '||' + t.topic]; return `<tr><td>${esc(t.subject)} › ${esc(t.topic)}</td>${d.years.map(y => `<td>${t.years[y] || '·'}</td>`).join('')}<td>${t.askedInYears}/${t.ofYears}</td><td><span class="ins-badge ${t.trend}">${TR[t.trend]}</span><div class="ins-sub">${t.olderPct}% → ${t.recentPct}%</div></td><td>${m && m.attempted >= 3 ? badge(m.level) : '<span class="ins-sub">–</span>'}</td></tr>`; }).join('') + '</table></div></div>';
         body.innerHTML = h;
-        document.getElementById('t-g').onchange = (e) => { f.group = e.target.value; tabTrend(); };
-        document.getElementById('t-s').onchange = (e) => { f.stage = e.target.value; tabTrend(); };
         if (!state.cache.overview) api('/overview').then(r => { state.cache.overview = r.data; }).catch(() => { });
     }
 
@@ -257,12 +316,21 @@
             <div class="ins-box ins-ai"><h3>⚠ कमकुवत</h3>${list(r.weaknesses, x => `<p><b>${esc(x.topic)}</b> - ${esc(x.why)}<br><span class="ins-sub">👉 ${esc(x.fix)}</span></p>`)}</div>
             <div class="ins-box ins-ai"><h3>📖 पुढे काय cover करायचं</h3>${list(r.coverNext, x => `<p><b>${esc(x.topic)}</b> - ${esc(x.reason)}</p>`)}</div>
             <div class="ins-box ins-ai"><h3>🔁 Revision plan</h3>${list(r.revisionPlan, x => `<p><b>${esc(x.when)}:</b> ${esc(x.task)}</p>`)}</div>
+            ${r.studyHabits ? `<div class="ins-box ins-ai"><h3>⏱ अभ्यासाच्या सवयी</h3><p>${esc(r.studyHabits)}</p></div>` : ''}
             <div class="ins-box ins-ai"><h3>📈 Trend</h3><p>${esc(r.trendComment)}</p>${r.warning ? `<div class="ins-warn">${esc(r.warning)}</div>` : ''}</div>`;
     }
     async function tabAI(refresh) {
-        body.innerHTML = `<div class="ins-sub">AI तुमचे आकडे (सर्व सोडवलेले प्रश्न, चुकलेल्या प्रश्नांचे नमुने, PYQ trend) वाचून report बनवतो. आकडे AI मोजत नाही - ते वर No-AI tabs मधल्या सारखेच, server ने मोजलेले असतात.</div><div id="ai-report" class="ins-sub" style="margin:10px 0">⏳ Report तयार होत आहे...</div>
-            <div class="ins-box"><h3>💬 Coach ला विचारा</h3><div class="ins-chat" id="ai-chat"></div><div class="ins-chips">${['माझा सर्वात कमकुवत भाग कोणता?', 'पुढचे 7 दिवस कसा अभ्यास करू?', 'कोणत्या topics वर वेळ घालवू आणि कोणते सोडू?', 'माझा trend कसा आहे?'].map(s => `<button class="ins-chip" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div><div class="ins-form"><input id="ai-in" maxlength="800" placeholder="तुमचा प्रश्न..."><button class="ins-btn" id="ai-send">➤</button></div></div>`;
+        body.innerHTML = `<div class="ins-sub">AI तुमचा पूर्ण record (सर्व topics, subjects, अभ्यासाचा वेळ, चुका-सुधारणा, revision, starred, notes, PYQ trend) वाचून report बनवतो - निवडलेल्या group पुरता. आकडे AI मोजत नाही - ते वर No-AI tabs मधल्या सारखेच, server ने मोजलेले असतात.</div><div id="ai-report" class="ins-sub" style="margin:10px 0">⏳ Report तयार होत आहे...</div>
+            <div class="ins-box"><h3>💬 Coach ला विचारा</h3><div class="ins-chat" id="ai-chat"></div><div class="ins-chips">${['माझा सर्वात कमकुवत भाग कोणता?', 'पुढचे 7 दिवस कसा अभ्यास करू?', 'कोणत्या topics वर वेळ घालवू आणि कोणते सोडू?', 'माझा trend कसा आहे?'].map(s => `<button class="ins-chip" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div><div class="ins-form"><input id="ai-in" maxlength="800" placeholder="तुमचा प्रश्न..."><button class="ins-btn" id="ai-send">➤</button></div></div>
+            <div class="ins-box"><h3>👁 AI ला गेलेला data</h3><div class="ins-sub">AI ला नेमके काय मिळते ते तपासा - काही राहिले असेल तर लगेच दिसेल.</div><div class="ins-chips"><button class="ins-btn ghost" id="ai-dg">पहा</button><button class="ins-btn ghost" id="ai-dl" disabled>⬇ JSON download</button></div><div id="ai-dgbox"></div></div>`;
         drawChat();
+        let dgJson = '';
+        document.getElementById('ai-dg').onclick = async () => {
+            const bx = document.getElementById('ai-dgbox'); bx.innerHTML = '<p class="ins-sub">⏳</p>';
+            try { const r = (await api('/digest')).data; dgJson = JSON.stringify(r.digest, null, 1); bx.innerHTML = `<p class="ins-sub">${esc(r.scopeLabel)} · ${r.chars} अक्षरे</p><pre class="ins-pre">${esc(dgJson)}</pre>`; document.getElementById('ai-dl').disabled = false; }
+            catch (e) { bx.innerHTML = `<div class="ins-warn">${esc(e.message)}</div>`; }
+        };
+        document.getElementById('ai-dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([dgJson], { type: 'application/json' })); a.download = 'my-study-data.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
         const send = async (text) => {
             text = (text || '').trim(); if (!text) return;
             const inp = document.getElementById('ai-in'); inp.value = '';
@@ -290,13 +358,13 @@
     }
 
     // ------------------------------------------------------------ shell
-    const TABS = { overall: ['📊 Overall', tabOverall], exams: ['📝 Exam-wise', tabExams], wrong: ['❌ Wrong Qs', tabWrong], revise: ['🔁 Revision', tabRevise], trend: ['📈 PYQ Trend', tabTrend] };
+    const TABS = { overall: ['📊 Overall', tabOverall], topics: ['🧩 Topic-wise', tabTopics], exams: ['📝 Exam-wise', tabExams], wrong: ['❌ Wrong Qs', tabWrong], revise: ['🔁 Revision', tabRevise], trend: ['📈 PYQ Trend', tabTrend] };
     function build() {
         css();
         root = document.createElement('div'); root.id = 'ins-root'; root.className = 'hidden';
         root.innerHTML = `<div class="ins-head"><h2>📊 My Progress</h2><button class="ins-x" aria-label="Close">✕</button></div>
             <div class="ins-modes"><button class="ins-mode" data-m="noai">Without AI (exact)</button><button class="ins-mode" data-m="ai">With AI 🤖</button></div>
-            <div class="ins-tabs" id="ins-tabs"></div><div id="ins-body"></div>`;
+            <div class="ins-scope" id="ins-scope" style="display:none"></div><div class="ins-tabs" id="ins-tabs"></div><div id="ins-body"></div>`;
         document.body.appendChild(root);
         body = root.querySelector('#ins-body');
         root.querySelector('.ins-x').onclick = close;
@@ -308,10 +376,20 @@
         if (state.mode === 'ai') { tabs.style.display = 'none'; tabAI(false); return; }
         tabs.style.display = 'flex';
         tabs.innerHTML = Object.keys(TABS).map(k => `<button class="ins-tab ${state.tab === k ? 'on' : ''}" data-t="${k}">${TABS[k][0]}</button>`).join('');
-        tabs.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { state.tab = b.dataset.t; if (b.dataset.t === 'overall' || b.dataset.t === 'exams') delete state.cache.overview; paint(); });
+        tabs.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { state.tab = b.dataset.t; if (['overall', 'topics', 'exams'].includes(b.dataset.t)) delete state.cache.overview; paint(); });
         TABS[state.tab][1]();
     }
-    function open() { if (!root) build(); delete state.cache.overview; root.classList.remove('hidden'); document.body.style.overflow = 'hidden'; paint(); }
+    function open() {
+        if (!root) build();
+        delete state.cache.overview;
+        // start on the tab the student is looking at on the dashboard (a group tab -> that group, "All Exams" -> all)
+        const cur = String(window.currentExamFilter || 'all');
+        const want = cur.startsWith('g:') ? cur : 'all';
+        if (want !== state.scope) { state.scope = want; chat = []; state.wrong = null; state.rev = null; state.tp = null; }
+        root.classList.remove('hidden'); document.body.style.overflow = 'hidden';
+        drawScope(); paint();
+        api('/scopes').catch(() => { });                       // fills the scope bar (also when the first tab is slow)
+    }
     function close() { if (root) root.classList.add('hidden'); document.body.style.overflow = ''; }
     window.MpscInsights = { open, close, go: (t) => { state.mode = 'noai'; state.tab = t; paint(); } };
 })();

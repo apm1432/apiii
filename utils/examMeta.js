@@ -4,23 +4,16 @@
  * All numbers come straight from the Question collection (COUNT queries), nothing is guessed.
  */
 const Question = require('../models/Question');
+const subjects = require('./subjects');
 
 const DEVA = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
 const toEng = (s) => String(s || '').replace(/[०-९]/g, m => DEVA[m]);
 
-// "2018 group b pre" / "Group C Mains 2023" / "महाराष्ट्र गट-ब पूर्व परीक्षा 2019" ...
+// The year is the only thing read from a paper's NAME (trend needs it). Which "group" a paper belongs to is NOT guessed from
+// the name any more (no Pre / Mains / Group A-B-C rules): it is whatever the admin put in an Exam Group (models/ExamGroup.js).
 function parseExamName(name) {
-    const t = toEng(name);
-    const ym = t.match(/\b(19\d{2}|20\d{2})\b/);
-    let group = 'Other';
-    const g1 = t.match(/group[\s\-_.]*([abc])\b/i);
-    const g2 = t.match(/गट[\s\-_.]*(अ|ब|क)/);
-    if (g1) group = g1[1].toUpperCase();
-    else if (g2) group = { 'अ': 'A', 'ब': 'B', 'क': 'C' }[g2[1]];
-    let stage = 'other';
-    if (/\bmains?\b|मुख्य/i.test(t)) stage = 'mains';
-    else if (/\bpre(lim(s|inary)?)?\b|पूर्व/i.test(t)) stage = 'prelims';
-    return { year: ym ? parseInt(ym[1], 10) : 0, group, stage };
+    const ym = toEng(name).match(/\b(19\d{2}|20\d{2})\b/);
+    return { year: ym ? parseInt(ym[1], 10) : 0 };
 }
 
 const clean = (s, fallback) => {
@@ -36,13 +29,17 @@ async function build() {
     const rows = await Question.aggregate([
         { $group: { _id: { e: '$year_exam', s: '$subject', t: '$topic' }, n: { $sum: 1 } } }
     ]);
-    const exams = {};      // examId -> { total, year, group, stage, subjects:{subject:n} }
+    // one name per subject (see utils/subjects.js); every number below is counted under that name
+    const rawCounts = {};
+    rows.forEach(r => { if (r._id.e) { const k = r._id.s == null ? '' : String(r._id.s); rawCounts[k] = (rawCounts[k] || 0) + r.n; } });
+    const resolver = await subjects.resolverFrom(rawCounts);
+    const exams = {};      // examId -> { total, year, subjects:{subject:n} }
     const topics = {};     // key -> { subject, topic, total, byExam:{exam:n}, byYear:{year:n} }
     let total = 0, untagged = 0;
     rows.forEach(r => {
         const exam = r._id.e;
         if (!exam) return;
-        const subject = clean(r._id.s, 'Unclassified');
+        const subject = clean(resolver.canon(r._id.s), 'Unclassified');
         const topic = clean(r._id.t, 'General');
         const n = r.n;
         if (!exams[exam]) exams[exam] = Object.assign({ total: 0, subjects: {} }, parseExamName(exam));
@@ -57,7 +54,7 @@ async function build() {
         total += n;
         if (subject === 'Unclassified' || topic === 'General') untagged += n;
     });
-    return { exams, topics, total, untagged, builtAt: Date.now() };
+    return { exams, topics, total, untagged, builtAt: Date.now(), canon: resolver.canon, subjectsVersion: resolver.version };
 }
 
 async function getCatalog(force) {

@@ -21,11 +21,12 @@ const smoothed = (attempted, correct) => (correct + PRIOR_ACC * PRIOR_N) / (atte
  * answers : { qid: { selected, isCorrect, isCancelled, section, at? } }
  * qmeta   : { qid: { subject, topic, exam } }   (only questions that still exist)
  * catalog : from examMeta.getCatalog()
- * allowed : Set of exam ids the student may see (null = all)
+ * allowed : Set of exam ids the student may see AND has selected (access + the chosen group; null = all)
+ * groups  : admin-made exam groups [{ _id, name, exams:[paper names] }]  (only used for the per-group summary)
  */
-function computeUserStats({ answers, qmeta, catalog, allowed, now }) {
+function computeUserStats({ answers, qmeta, catalog, allowed, now, groups }) {
     now = now || Date.now();
-    const topicMap = {}, subjMap = {}, examMap = {};
+    const topicMap = {}, subjMap = {}, examMap = {}, subMap = {};
     let solved = 0, correct = 0, wrong = 0, cancelled = 0;
     const wrongList = [];
 
@@ -39,8 +40,10 @@ function computeUserStats({ answers, qmeta, catalog, allowed, now }) {
         solved++;
         if (a.isCancelled) { cancelled++; return; }              // cancelled questions are not the student's fault
         const ok = !!a.isCorrect;
-        if (ok) correct++; else { wrong++; wrongList.push({ qid, subject, topic, exam: m.exam, at: a.at ? new Date(a.at).getTime() : null }); }
+        const sub = clean(m.sub_topic, '');
+        if (ok) correct++; else { wrong++; wrongList.push({ qid, subject, topic, sub, exam: m.exam, at: a.at ? new Date(a.at).getTime() : null }); }
         const tk = topicKey(subject, topic);
+        if (sub) { const st = bump(subMap, tk + '||' + sub.toLowerCase(), () => ({ subject, topic, sub, attempted: 0, correct: 0, wrong: 0 })); st.attempted++; ok ? st.correct++ : st.wrong++; }
         const t = bump(topicMap, tk, () => ({ subject, topic, attempted: 0, correct: 0, wrong: 0 }));
         t.attempted++; ok ? t.correct++ : t.wrong++;
         const s = bump(subjMap, subject.toLowerCase(), () => ({ subject, attempted: 0, correct: 0, wrong: 0 }));
@@ -103,15 +106,28 @@ function computeUserStats({ answers, qmeta, catalog, allowed, now }) {
             const x = u.bySubject[sn] || { attempted: 0, correct: 0, wrong: 0 };
             return { subject: sn, bank: c.subjects[sn], attempted: x.attempted, correct: x.correct, wrong: x.wrong, accuracy: pct(x.correct, x.attempted), level: levelOf(x.attempted, x.correct) };
         }).sort((a, b) => b.bank - a.bank);
-        return { exam: ex, year: c.year, group: c.group, stage: c.stage, total: c.total, solved: u.solved, attempted: u.attempted,
+        return { exam: ex, year: c.year, total: c.total, solved: u.solved, attempted: u.attempted,
                  correct: u.correct, wrong: u.wrong, unattempted: Math.max(0, c.total - u.solved), accuracy: pct(u.correct, u.attempted),
                  completion: pct(u.solved, c.total), subjects: subs };
     }).sort((a, b) => (b.year - a.year) || a.exam.localeCompare(b.exam));
 
+    // one line per admin group (papers of the group that are inside the selected scope)
+    const groupsSummary = (groups || []).map(g => {
+        const set = new Set(g.exams || []);
+        const es = exams.filter(e => set.has(e.exam));
+        if (!es.length) return null;
+        const sum = (k) => es.reduce((n, e) => n + e[k], 0);
+        return { id: 'g:' + g._id, name: g.name, papers: es.length, bank: sum('total'), solved: sum('solved'), correct: sum('correct'), wrong: sum('wrong'),
+                 accuracy: pct(sum('correct'), sum('correct') + sum('wrong')), completion: pct(sum('solved'), sum('total')) };
+    }).filter(Boolean);
+
+    const subtopics = Object.values(subMap).filter(x => x.attempted > 0).map(x => Object.assign(x, { accuracy: pct(x.correct, x.attempted) }))
+        .sort((a, b) => b.wrong - a.wrong || b.attempted - a.attempted);
+
     const plan = buildPlan({ topics, wrongList, now });
     return {
         totals: { solved, correct, wrong, cancelled, accuracy: pct(correct, correct + wrong), bank: bankTotal, completion: pct(solved, bankTotal) },
-        subjects, topics, exams, plan,
+        subjects, topics, subtopics, exams, groups: groupsSummary, plan,
         wrongList
     };
 }
@@ -134,7 +150,7 @@ function buildPlan({ topics, wrongList, now }) {
 }
 
 /**
- * PYQ trend of the question bank (exact counts). scope = Set of exam ids (already filtered by group / stage).
+ * PYQ trend of the question bank (exact counts). scope = Set of exam ids (already limited to the selected exam group).
  * Share per year = topic questions of that year / ALL questions of that year, so a year with more papers does not distort it.
  */
 function computeTrend({ catalog, scope }) {
@@ -192,4 +208,80 @@ function summarizeDaily(rows, now) {
     return { days, streak, last7: { solved: last7.n, accuracy: pct(last7.c, last7.n) }, prev7: { solved: prev7.n, accuracy: pct(prev7.c, prev7.n) } };
 }
 
-module.exports = { computeUserStats, computeTrend, summarizeDaily, buildPlan, levelOf, smoothed, pct };
+
+/**
+ * Everything the student DID, from the append-only AttemptLog (one row per answer: exam practice, starred, revision).
+ * rows    : [{ qid, exam, subject, topic, isCorrect, src, at }]   (ALL rows of the student)
+ * allowed : Set of exam ids in the selected scope (null = all). Study time / days / learning are counted inside the scope;
+ *           the streak always counts every paper ("did you study today").
+ *
+ * STUDY TIME is an estimate and is labelled so: the gap between two answers is the time spent on the later one; a gap of more
+ * than 5 minutes starts a new sitting and that first answer is counted as 40 s; one answer never counts more than 5 minutes.
+ */
+const IST = 5.5 * 3600000, SESSION_GAP = 5 * 60000, FIRST_SEC = 40, CAP_SEC = 300;
+const dayOf = (t) => new Date(t + IST).toISOString().slice(0, 10);
+
+function computeActivity({ rows, allowed, now, canon }) {
+    now = now || Date.now();
+    canon = canon || ((x) => x);
+    const list = (rows || []).map(r => ({ qid: String(r.qid), exam: r.exam, subject: r.subject, topic: r.topic, ok: !!r.isCorrect, src: r.src || 'exam', t: +new Date(r.at) }))
+        .filter(r => r.t > 0).sort((a, b) => a.t - b.t);
+
+    const allDays = new Set(), daily = {}, weekday = Array.from({ length: 7 }, () => ({ n: 0, c: 0 })), hour = Array(24).fill(0);
+    const bySrc = { exam: 0, star: 0, revise: 0 }, perQ = {}, topicTime = {}, subjTime = {}, byExam = {};
+    let attempts = 0, correct = 0, sec = 0, sessions = 0, prev = null, firstAt = null, lastAt = null, revN = 0, revOk = 0;
+
+    list.forEach(r => {
+        const gap = prev == null ? Infinity : r.t - prev;
+        const fresh = gap > SESSION_GAP;
+        const s = fresh ? FIRST_SEC : Math.max(2, Math.min(CAP_SEC, gap / 1000));
+        prev = r.t;
+        const d = dayOf(r.t);
+        allDays.add(d);
+        if (allowed && !allowed.has(r.exam)) return;
+        attempts++; if (r.ok) correct++; sec += s; if (fresh) sessions++;
+        if (firstAt == null) firstAt = r.t; lastAt = r.t;
+        const ex = byExam[r.exam] || (byExam[r.exam] = { exam: r.exam, firstAt: r.t, lastAt: r.t, n: 0, c: 0, lastSubject: null, lastTopic: null });
+        ex.lastAt = r.t; ex.n++; if (r.ok) ex.c++; ex.lastSubject = clean(canon(r.subject), 'Unclassified'); ex.lastTopic = clean(r.topic, 'General');
+        const dd = daily[d] || (daily[d] = { n: 0, c: 0, sec: 0 }); dd.n++; if (r.ok) dd.c++; dd.sec += s;
+        const w = weekday[new Date(r.t + IST).getUTCDay()]; w.n++; if (r.ok) w.c++;
+        hour[new Date(r.t + IST).getUTCHours()]++;
+        if (bySrc[r.src] != null) bySrc[r.src]++;
+        if (r.src === 'revise') { revN++; if (r.ok) revOk++; }
+        const q = perQ[r.qid] || (perQ[r.qid] = { first: r.ok, last: r.ok, wrongs: 0, n: 0 });
+        q.last = r.ok; q.n++; if (!r.ok) q.wrongs++;
+        const sub = clean(canon(r.subject), 'Unclassified'), tk = topicKey(sub, clean(r.topic, 'General'));
+        const tt = topicTime[tk] || (topicTime[tk] = { sec: 0, n: 0 }); tt.sec += s; tt.n++;
+        const st = subjTime[sub] || (subjTime[sub] = { sec: 0, n: 0 }); st.sec += s; st.n++;
+    });
+
+    const days = Object.keys(daily).sort().map(d => ({ day: d, n: daily[d].n, c: daily[d].c, min: Math.round(daily[d].sec / 6) / 10 }));
+    const minIn = (from, to) => Math.round(days.filter(d => d.day >= dayOf(now - to * 86400000) && d.day <= dayOf(now - from * 86400000)).reduce((a, d) => a + d.min, 0) * 10) / 10;
+    let streak = 0;
+    for (let i = (allDays.has(dayOf(now)) ? 0 : 1); i < 800; i++) { if (allDays.has(dayOf(now - i * 86400000))) streak++; else break; }
+
+    const qs = Object.values(perQ);
+    const learning = {
+        questions: qs.length,
+        firstTryCorrect: qs.filter(q => q.first).length,
+        firstTryAccuracy: pct(qs.filter(q => q.first).length, qs.length),
+        retried: qs.filter(q => q.n > 1).length,
+        fixed: qs.filter(q => q.wrongs > 0 && q.last).length,            // was wrong at least once, the latest answer is right
+        stillWrong: qs.filter(q => !q.last).length,                      // the latest answer is wrong
+        repeatWrong: qs.filter(q => q.wrongs >= 2).length,               // wrong two or more times
+        revisionAttempts: revN, revisionAccuracy: pct(revOk, revN)
+    };
+    return {
+        lifetime: { attempts, correct, accuracy: pct(correct, attempts), firstAt, lastAt, activeDays: days.length, bySource: bySrc },
+        study: {
+            estimated: true, totalMin: Math.round(sec / 6) / 10, sessions, avgSecPerQuestion: attempts ? Math.round(sec / attempts) : null,
+            last7Min: minIn(0, 6), prev7Min: minIn(7, 13), last30Min: minIn(0, 29)
+        },
+        days, streakAll: streak, weekday: weekday.map((w, i) => ({ dow: i, n: w.n, accuracy: pct(w.c, w.n) })), hour,
+        // the tests (papers) the student worked on, the one touched last first
+        recentExams: Object.values(byExam).sort((a, b) => b.lastAt - a.lastAt).map(e => ({ exam: e.exam, firstAt: e.firstAt, lastAt: e.lastAt, attempts: e.n, correct: e.c, accuracy: pct(e.c, e.n), lastSubject: e.lastSubject, lastTopic: e.lastTopic })),
+        learning, topicTime, subjTime
+    };
+}
+
+module.exports = { computeUserStats, computeTrend, summarizeDaily, computeActivity, buildPlan, levelOf, smoothed, pct };

@@ -26,6 +26,8 @@ const smtpService = require('../utils/smtpService');
 const { applyPayment, listActivePlans, getActivePlan, snapshotNotes, toPaise } = require('../utils/payments');
 const examCatalog = require('../utils/examCatalog');
 const ExamGroup = require('../models/ExamGroup');
+const SubjectAlias = require('../models/SubjectAlias');
+const subjectNames = require('../utils/subjects');
 const ExamHidden = require('../models/ExamHidden');
 const { broadcast } = require('../utils/userEvents');
 const jwtLib = require('jsonwebtoken');
@@ -104,7 +106,7 @@ async function preloadHierarchy() {
         console.log("✅ Hierarchy preloaded successfully!");
         await imageStore.loadSettings();
         // new / changed papers noticed by the data cache -> refresh the exam list too
-        dataCache.onDataChanged(() => { cachedHierarchy = null; lastCacheTime = 0; buildHierarchyBase().catch(() => {}); });
+        dataCache.onDataChanged(() => { cachedHierarchy = null; lastCacheTime = 0; buildHierarchyBase().catch(() => {}); try { require('../utils/examMeta').invalidate(); subjectNames.invalidate(); } catch (e) {} });
         // load every paper into the disk cache in the background, so the FIRST student is fast too
         if (process.env.WARM_DATA_ON_START !== '0') {
             dataCache.warm(cachedHierarchy.map(e => e._id), false).catch(() => {});
@@ -255,8 +257,9 @@ router.get('/admin/download-options', authMiddleware, async (req, res) => {
         const valid = v => typeof v === 'string' && v.trim() && v !== 'null';
         const exams = (await Question.distinct('year_exam')).filter(valid)
             .sort((a, b) => (examYear(b) - examYear(a)) || a.localeCompare(b));
-        const subjects = (await Question.distinct('subject')).filter(valid)
-            .sort((a, b) => a.localeCompare(b));
+        let subjects = (await Question.distinct('subject')).filter(valid);
+        try { const r = await subjectNames.getResolver(); subjects = [...new Set(subjects.map(r.canon))]; } catch (e) { /* stored names */ }
+        subjects.sort((a, b) => a.localeCompare(b));
         res.json({ success: true, exams, subjects });
     } catch (err) {
         console.error('download-options error:', err);
@@ -269,9 +272,9 @@ router.get('/admin/subjects', authMiddleware, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
-        const subjects = (await Question.distinct('subject'))
-            .filter(s => typeof s === 'string' && s.trim() && s !== 'null')
-            .sort((a, b) => a.localeCompare(b));
+        let subjects = (await Question.distinct('subject')).filter(s => typeof s === 'string' && s.trim() && s !== 'null');
+        try { const r = await subjectNames.getResolver(); subjects = [...new Set(subjects.map(r.canon))]; } catch (e) { /* stored names */ }
+        subjects.sort((a, b) => a.localeCompare(b));
         res.json({ success: true, data: subjects });
     } catch (err) {
         console.error('subjects error:', err);
@@ -295,7 +298,11 @@ router.post('/admin/download-paper', authMiddleware, async (req, res) => {
         if (scope === 'subject') {
             const subject = typeof req.body.subject === 'string' ? req.body.subject.trim() : '';
             if (!subject) return res.status(400).json({ success: false, message: 'subject is required' });
-            const questions = await Question.find({ subject }).lean();
+            // every stored spelling of this subject
+            let spellings = [subject];
+            try { const r = await subjectNames.getResolver(); const all = r.rawsOf(r.canon(subject)); if (all.length) spellings = all; } catch (e) { /* only the given name */ }
+            const noName = subject === subjectNames.UNCLASSIFIED ? [{ subject: null }, { subject: { $exists: false } }, { subject: '' }] : [];
+            const questions = await Question.find({ $or: [{ subject: { $in: spellings } }, ...noName] }).lean();
             if (!questions.length) return res.status(404).json({ success: false, message: 'No questions found for this subject.' });
             text = buildSubjectText(questions, { subject, mode });
         } else {
@@ -511,6 +518,7 @@ router.post('/admin/exams/delete', authMiddleware, async (req, res) => {
         await ExamGroup.updateMany({ exams: examId }, { $pull: { exams: examId } });
         await dataCache.invalidateExam(examId).catch(() => {});
         try { await buildHierarchyBase(); } catch (e) { cachedHierarchy = null; lastCacheTime = 0; }
+        try { require('../utils/examMeta').invalidate(); subjectNames.invalidate(); } catch (e) {}
         catalogChanged();
         res.json({ success: true, deletedQuestions: qr.deletedCount || 0 });
     } catch (err) {
@@ -578,6 +586,73 @@ router.delete('/admin/exam-groups/:id', authMiddleware, async (req, res) => {
     }
 });
 
+
+// -------------------------------------
+// Admin: ONE name for ONE subject. Spellings that the rules can not know are joined here ("Indian Polity" = "Polity").
+// Questions are never rewritten - names are mapped while reading, so every merge can be split again.
+//   GET  /admin/subject-groups        every subject (with all its spellings + counts) and merge suggestions
+//   POST /admin/subject-groups/merge  { names: [shown names to join], into: 'name to show' }   (one name + a new `into` = rename)
+//   POST /admin/subject-groups/split  { stored: 'one stored spelling' }                         (undo an admin merge for it)
+// -------------------------------------
+const subjectLimiter = require('express-rate-limit')({ windowMs: 60 * 1000, limit: 40, message: { success: false, message: 'Too many requests. Please slow down.' } });
+function subjectsChanged() {
+    subjectNames.invalidate();
+    try { require('../utils/examMeta').invalidate(); } catch (e) {}
+    try { dataCache.clearResponses(); } catch (e) {}
+    catalogChanged();
+}
+
+router.get('/admin/subject-groups', authMiddleware, subjectLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const r = await subjectNames.getResolver(true);
+        const list = r.list();
+        res.set('Cache-Control', 'no-store');
+        res.json({ success: true, subjects: list, suggestions: subjectNames.suggest(list), unclassified: subjectNames.UNCLASSIFIED });
+    } catch (err) {
+        console.error('subject groups error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/admin/subject-groups/merge', authMiddleware, subjectLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const names = (Array.isArray(req.body.names) ? req.body.names : []).filter(x => typeof x === 'string' && x.trim()).slice(0, 60);
+        const into = typeof req.body.into === 'string' ? req.body.into.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+        if (!names.length || !into) return res.status(400).json({ success: false, message: 'Choose the subjects and the name to show.' });
+        if (names.includes(subjectNames.UNCLASSIFIED) || subjectNames.subjKey(into) === 'unclassified') return res.status(400).json({ success: false, message: '"Unclassified" (questions without a subject) can not be merged.' });
+        const r = await subjectNames.getResolver(true);
+        const ops = []; const seen = new Set();
+        names.forEach(n => r.rawsOf(n).forEach(raw => {
+            const key = subjectNames.subjKey(raw);
+            if (!key || key === 'unclassified' || seen.has(key)) return;
+            seen.add(key);
+            ops.push({ updateOne: { filter: { key }, update: { $set: { from: String(raw).slice(0, 200), key, to: into, createdAt: new Date() } }, upsert: true } });
+        }));
+        if (!ops.length) return res.status(400).json({ success: false, message: 'Those subjects were not found.' });
+        await SubjectAlias.bulkWrite(ops);
+        subjectsChanged();
+        res.json({ success: true, merged: ops.length });
+    } catch (err) {
+        console.error('subject merge error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
+
+router.post('/admin/subject-groups/split', authMiddleware, subjectLimiter, async (req, res) => {
+    try {
+        if (!(await adminOnly(req, res))) return;
+        const stored = typeof req.body.stored === 'string' ? req.body.stored : '';
+        const r = await SubjectAlias.deleteOne({ key: subjectNames.subjKey(stored) });
+        if (!r.deletedCount) return res.status(404).json({ success: false, message: 'This spelling was not merged by an admin (it is joined automatically: same name, or the English-Marathi pair).' });
+        subjectsChanged();
+        res.json({ success: true });
+    } catch (err) {
+        console.error('subject split error:', err);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+});
 
 // -------------------------------------
 // Admin: AI Chat settings (which AI answers the "Ask AI" chat, in which order). Saved in the database.
@@ -949,9 +1024,19 @@ router.get('/exams/hierarchy', async (req, res) => {
         const isAdmin = await isAdminRequest(req);
         const { hidden, groups } = await examCatalog.getCatalog();
 
+        // one name per subject: "Economics" / "Economics (अर्थशास्त्र)" / "अर्थशास्त्र" are ONE card (utils/subjects.js)
+        let canon = null;
+        try { canon = (await subjectNames.getResolver()).canon; } catch (e) { console.error('subject names unavailable:', e.message); }
+        const oneName = (e) => {
+            if (!canon) return e;
+            const m = new Map();
+            (e.exams || []).forEach(x => { const n = canon(x.subject); m.set(n, (m.get(n) || 0) + x.count); });
+            return { ...e, exams: [...m.entries()].map(([subject, count]) => ({ subject, count })) };
+        };
+
         let data = cachedHierarchy
             .filter(e => isAdmin || !hidden.has(e._id))
-            .map(e => (hidden.has(e._id) ? { ...e, hidden: true } : e));
+            .map(e => oneName(hidden.has(e._id) ? { ...e, hidden: true } : e));
 
         // passage practice = passages of the papers that are visible
         let passageCount = 0;
@@ -1013,7 +1098,9 @@ router.post('/questions', authMiddleware, async (req, res) => {
 
         // Served from the server disk cache: the database is read once per paper, not once per student
         await dataCache.checkFreshness();
-        const buf = await dataCache.responseFor({ examIds, subject: subject || null, passageOnly, limit: limit ? parseInt(limit) : 0 });
+        let resolver = null;
+        try { resolver = await subjectNames.getResolver(); } catch (e) { /* subjects stay as stored */ }
+        const buf = await dataCache.responseFor({ examIds, subject: subject || null, passageOnly, limit: limit ? parseInt(limit) : 0, canon: resolver ? resolver.canon : null, canonVersion: resolver ? resolver.version : '' });
 
         res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-cache', 'Vary': 'Accept-Encoding' });
         if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {

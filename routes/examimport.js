@@ -360,6 +360,8 @@ router.post('/:id/publish', async (req, res) => {
         const key = d.key, set = d.keySet;
         const keyImg = (page) => (key && key.images || []).find(i => i.page === page) || (key && key.images && key.images[0]) || null;
         const meta = d.meta || {};
+        let canonSubject = (x) => x;
+        try { canonSubject = (await require('../utils/subjects').getResolver(true)).canon; } catch (e) { /* keep the written name */ }
         const docs = qs.map(q => {
             const useOfficial = !q.admin_answer && q.official && q.officialState !== 'unverified';
             const finalAns = q.admin_answer || (useOfficial ? q.official : q.ai_answer) || '';
@@ -371,7 +373,7 @@ router.post('/:id/publish', async (req, res) => {
                 final_answer_key: finalAns, correct_answer_option: finalAns,
                 exam_set: meta.paperSet || '', paper_code: meta.examCode || meta.paperSet || '',
                 toppers_explanation_marathi: q.toppers_explanation_marathi || '',
-                subject: q.subject || 'General', topic: q.topic || 'General', sub_topic: q.sub_topic || '',
+                subject: canonSubject(q.subject || 'General'), topic: q.topic || 'General', sub_topic: q.sub_topic || '',
                 original_image_url: q.imageRef || (pg && pg.ref) || null,
                 official_exam_name: yearExam, year_exam: yearExam, exam_date: meta.examDate || '',
                 diagram_description: q.diagram_description || null,
