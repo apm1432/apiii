@@ -245,7 +245,15 @@ async function writeFinals(examId, changes) {
         if (old === c.value) { out.same++; continue; }
         const set = { correct_answer_option: c.value, answer_source: c.source, final_answer_changed_at: new Date() };
         if (d.final_answer_prev === undefined || d.final_answer_prev === null) { set.final_answer_prev = old; set.final_answer_prev_source = d.answer_source || ''; }
-        if (!d.ai_answer_option && /^[1-4]$/.test(old)) set.ai_answer_option = old;    // the explanation was written for that option
+        // FIX 1: Answer changed → clear stale explanation.
+        // The old explanation was written for the OLD answer (possibly by AI Fix).
+        // Keeping it would show wrong facts for the new answer.
+        // Admin re-runs Fix AI to regenerate the explanation for the new answer.
+        // ai_answer_option is also cleared because explanation is gone — no warning needed.
+        set.toppers_explanation_marathi = null;
+        set.options_explanation = [];
+        set.is_ai_fixed = false;
+        set.ai_answer_option = null;
         ops.push({ updateOne: { filter: { _id: d._id }, update: { $set: set } } });
         changedIds.push(d._id);
     }

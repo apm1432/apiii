@@ -1007,6 +1007,7 @@ Before output, verify:
 - I avoided filler, repetition, irrelevant information, and hallucinated facts.
 - I wrote ONE short fact line for each option (what it is + its key fact), with NO "wrong / not related / not the answer" wording.
 - The explanation can be read in 30 to 45 seconds and the notebook line has only keywords.
+- ENTITY CONSISTENCY (critical): Every person, work, organization, scheme, or entity in fixed_explanation AND fixed_options_explanation AND वहीत नोंद: must appear explicitly in the question text, the options, or the image. NEVER introduce a person or entity not present in the question — for example, if Option 3 is "Vidhyaben Nilkanth", the explanation must mention Vidhyaben Nilkanth and NOT substitute another person like "Anandibai Karve". If a name appears in the explanation but is not in any option or in the question text, that is a hallucination — remove it and replace with the actual entity from the question.
 
 ================================================================
 CURRENT DATA
@@ -1389,6 +1390,83 @@ async function deepenExplanation(fixed, q, onChunk) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// FIX 3: OPTION CONSISTENCY CHECK
+// After AI generates the explanation, verify that it doesn't mention people/entities
+// that are NOT in the question text, options, or options_explanation.
+// Catches hallucinations where AI substitutes a well-known name for an actual option
+// e.g. AI writes "Anandibai Karve" in explanation but actual option 3 is "Vidhyaben Nilkanth"
+// ---------------------------------------------------------------------------
+function validateOptionConsistency(fixed, questionData) {
+    const fail = (m) => { const e = new Error(m); e.isNormalizeFailure = true; throw e; };
+
+    const oe = fixed.fixed_options_explanation || [];
+    if (oe.length < 3) return;  // not enough options to meaningfully cross-check
+
+    // Extract subject name from each options_explanation entry (text before first colon)
+    // "Pandita Ramabai: प्रसिद्ध समाजसुधारक..." → "Pandita Ramabai"
+    // "ASEAN: दक्षिण-पूर्व..." → "ASEAN"
+    const oeSubjects = oe.map(e => {
+        const m = String(e).match(/^([^\n:：]{3,60})[:：]/);
+        return m ? m[1].trim() : '';
+    }).filter(Boolean);
+
+    if (oeSubjects.length < 3) return;  // couldn't extract enough subjects to validate
+
+    // Build the full "allowed universe": question text + all options + options_explanation subjects
+    const knownText = [
+        String(questionData.text || ''),
+        String(questionData.text_eng || ''),
+        ...(questionData.options || []).map(o => String(o)),
+        ...(questionData.options_eng || []).map(o => String(o)),
+        ...fixed.fixed_options.map(o => String(o)),
+        oe.join(' ')
+    ].join(' ');
+    const knownLower = knownText.toLowerCase();
+
+    // Terms that are always valid in MPSC explanations (not question-specific names)
+    const alwaysAllowed = new Set([
+        'mpsc', 'hunter', 'commission', 'government', 'maharashtra', 'india', 'article',
+        'section', 'seva', 'sadan', 'marathi', 'english', 'hindi', 'supreme', 'court',
+        'high', 'niti', 'aayog', 'rbi', 'isro', 'upsc', 'union', 'state', 'parliament',
+        'president', 'governor', 'minister', 'constitution', 'assembly', 'council'
+    ]);
+
+    // Check the वहीत नोंद: line — it's a summary of ALL key entities in the explanation
+    // If a name appears here that's not in the question/options, it's almost certainly a hallucination
+    const explanation = String(fixed.fixed_explanation || '');
+    const noterLine = explanation.split('\n').find(l => l.includes('वहीत नोंद:')) || '';
+
+    if (!noterLine) return;  // no वहीत नोंद line to check
+
+    // Parse "शारदा-Govind Ballal, हंटर कमिशन-Pandita Ramabai, माझे पुराण-Anandibai Karve"
+    const noterSegments = noterLine.replace('वहीत नोंद:', '').split(',').map(s => s.trim());
+
+    const suspicious = [];
+    for (const segment of noterSegments) {
+        // Extract capitalized English proper names (multi-word like "Pandita Ramabai")
+        const nameMatches = segment.match(/[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/g) || [];
+        for (const name of nameMatches) {
+            if (name.length < 4) continue;
+            if (alwaysAllowed.has(name.toLowerCase())) continue;
+            // Check if this name appears anywhere in the known universe
+            if (!knownLower.includes(name.toLowerCase())) {
+                suspicious.push(name);
+            }
+        }
+    }
+
+    if (suspicious.length > 0) {
+        fail(
+            `Explanation consistency check FAILED: वहीत नोंद: mentions "${suspicious.join('", "')}" ` +
+            `but these names do NOT appear in the question text, options, or options_explanation. ` +
+            `This is a hallucinated name substitution (e.g. writing "Anandibai Karve" when the actual option is "Vidhyaben Nilkanth"). ` +
+            `ONLY mention people, works, and organizations that are explicitly in the question and options. ` +
+            `Check options_explanation subjects: [${oeSubjects.join(', ')}].`
+        );
+    }
+}
+
 async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
     const log = (m) => { if (onChunk) onChunk(m); };
     // live web facts (once per fix): solver and verifier both get the SAME facts, but not each other's answers
@@ -1411,6 +1489,8 @@ async function fixQuestionWithAI(questionData, imageBase64, onChunk) {
                 }
                 const n = normalizeAiFix(raw, questionData);
                 assertOrderAndFormat(n, questionData, raw, !!imageBase64);
+                // FIX 3: Verify explanation only mentions entities actually in the question/options
+                validateOptionConsistency(n, questionData);
                 return n;
             }, 6, roundHint, { preferStrong: strong });
             if (keep) log('\n[System] Re-using the solver result of the previous round; only the verification is repeated.\n');

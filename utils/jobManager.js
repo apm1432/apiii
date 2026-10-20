@@ -99,6 +99,26 @@ async function processJob(jobId) {
             stopSignal.catch(() => { });
             const parsedContent = await Promise.race([work, stopSignal]);
 
+            // FIX 2: Official MPSC key = cancelled (#) but current website answer is different.
+            // AI independently solves and picks an option — it cannot know WHY MPSC cancelled
+            // (printing error, ambiguous options, outdated info). Official cancellation wins.
+            // Only applies when official='#' AND final answer ≠ '#' (the diverge case).
+            {
+                const officialKey = String(question.official_answer_key_answers || '').trim();
+                const currentFinal = String(question.correct_answer_option || question.final_answer_key || '').trim();
+                if (officialKey === '#' && currentFinal !== '#' && parsedContent.correct_answer_option !== '#') {
+                    broadcast(jobId, { type: 'chunk', index: qIndex, chunk:
+                        `\n[System] ⚠ Official MPSC key = रद्द (#). AI independently chose option ${parsedContent.correct_answer_option} — overriding to # because official cancellation takes priority over AI's independent solve. If you believe the AI is correct, manually set the final answer after this Fix.\n` });
+                    parsedContent.correct_answer_option = '#';
+                    // Prefix explanation to explain the cancellation context
+                    if (parsedContent.fixed_explanation &&
+                        !String(parsedContent.fixed_explanation).startsWith('हा प्रश्न MPSC')) {
+                        parsedContent.fixed_explanation =
+                            'हा प्रश्न MPSC कडून रद्द करण्यात आला आहे.\n' + parsedContent.fixed_explanation;
+                    }
+                }
+            }
+
             // The AI solved the question WITHOUT seeing the old answer. Tell the admin if its answer differs.
             const oldAnswer = String(question.correct_answer_option || question.final_answer_key || '').trim();
             const newAnswer = String(parsedContent.correct_answer_option || '').trim();
