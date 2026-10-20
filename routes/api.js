@@ -1489,10 +1489,17 @@ router.get('/progress/dashboard', authMiddleware, async (req, res) => {
             unescapedSectionWise[key.replace(/_dot_/g, '.')] = val;
         }
 
+        // when each paper was last worked on (newest dated answer of the paper) -> "Last attempted" badge on the dashboard
+        const lastByExam = {};
+        for (const a of progress.answers.values()) {
+            const t = a && a.at ? new Date(a.at).getTime() : 0;
+            if (t && a.section && t > (lastByExam[a.section] || 0)) lastByExam[a.section] = t;
+        }
         res.json({ success: true, data: {
             totalSolved: progress.totalSolved,
             totalCorrect: progress.totalCorrect,
             sectionWise: unescapedSectionWise,
+            lastByExam,
             answers: Object.fromEntries(progress.answers)
         }});
     } catch (err) {

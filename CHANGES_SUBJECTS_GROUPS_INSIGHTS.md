@@ -27,3 +27,6 @@ Notes: topic names are still matched by exact text (case-insensitive); the same 
 
 ## 4. Last attempted test
 Overall shows "🕘 शेवटचे attempt केलेले tests" (latest first, date + how many days ago, answers, accuracy, last subject/topic, Open button). Exam-wise tab shows the last-attempt date on every paper and can sort "शेवटचा attempt आधी". The AI digest has `lastAttemptedTest` and `recentTests`. All follow the selected group.
+
+## 5. Dashboard: "Last attempted" badge, first on top
+The paper you worked on last (inside the selected tab / group) is moved to the FIRST card, gets a blue border and a "🕘 Last attempted · 2 h ago" badge, and the line above the cards says "Last: <paper>". The server sends `lastByExam` from /progress/dashboard (newest dated answer per paper); a paper you answer right now becomes "last" immediately.

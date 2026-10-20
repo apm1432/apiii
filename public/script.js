@@ -208,6 +208,7 @@ function sendAnswerToServer(questionId, section, optIndex) {
     const star = !!window.activeStarred;
     const local = userAnswers[questionId] ? Object.assign({}, userAnswers[questionId]) : null;
     const it = { u: outboxUser(), q: String(questionId), section: section || '', sel: optIndex, star, local, t: Date.now() };
+    if (!star && section) { window.lastAttemptLocal = { exam: String(section), at: Date.now() }; }   // dashboard: this paper is now the last one worked on
     outboxStore(outboxLoad().filter(x => !(x.u === it.u && x.q === it.q && !!x.star === star)).concat([it]));   // first answer wins: keep one entry
     flushOutbox();
     return Promise.resolve();
@@ -1139,6 +1140,7 @@ async function loadDashboard() {
         const progData = await progP;
         if (progData && progData.success && progData.data) {
             if (progData.data.sectionWise) window.progressSectionWise = progData.data.sectionWise;
+            window.lastByExam = progData.data.lastByExam || {};
             if (progData.data.answers) {
                 const merged = withPending(progData.data.answers);      // answers not yet confirmed by the server stay
                 try { localStorage.setItem('mpsc_user_answers', JSON.stringify(merged)); } catch (e) { }
@@ -1306,6 +1308,14 @@ function renderExamGrid() {
 
     let exams = getTabInfo().exams.sort(byYear);
 
+    // The paper the student worked on last (inside this tab) goes FIRST and carries a "Last attempted" badge
+    const lastMap = Object.assign({}, window.lastByExam || {});
+    const loc = window.lastAttemptLocal; if (loc && loc.at > (lastMap[loc.exam] || 0)) lastMap[loc.exam] = loc.at;
+    let lastExam = null, lastAt = 0;
+    exams.forEach(e => { const t = lastMap[e._id] || 0; if (t > lastAt) { lastAt = t; lastExam = e._id; } });
+    if (lastExam) exams = [exams.find(e => e._id === lastExam)].concat(exams.filter(e => e._id !== lastExam));
+    const agoText = (t) => { const m = Math.floor((Date.now() - t) / 60000); if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.floor(m / 60); if (h < 24) return h + ' h ago'; const d = Math.floor(h / 24); return d === 1 ? 'yesterday' : d + ' days ago'; };
+
     if (exams.length === 0) {
         setExamSummary('');
         grid.insertAdjacentHTML('beforeend', '<p style="color:var(--text-secondary);">No exams found in this category.</p>');
@@ -1315,7 +1325,7 @@ function renderExamGrid() {
     // counts for the line above the cards
     let withKey = 0, withoutKey = 0;
     exams.forEach(g => { const k = examKeyState(g); if (k === true) withKey++; else if (k === false) withoutKey++; });
-    setExamSummary(`📚 <b>${escapeHtmlX(getTabInfo().label)}</b>: <b>${exams.length}</b> paper${exams.length === 1 ? '' : 's'}` +
+    setExamSummary(`📚 <b>${escapeHtmlX(getTabInfo().label)}</b>: <b>${exams.length}</b> paper${exams.length === 1 ? '' : 's'}` + (lastExam ? ` &nbsp;·&nbsp; 🕘 Last: <b>${escapeHtmlX(lastExam)}</b> (${agoText(lastAt)})` : '') +
         ((withKey + withoutKey) ? ` &nbsp;·&nbsp; 📋 <b>${withKey}</b> answer key available &nbsp;·&nbsp; ⚪ <b>${withoutKey}</b> not available` : ''));
 
     exams.forEach((yearGroup, examNo) => {
@@ -1331,6 +1341,8 @@ function renderExamGrid() {
         card.style.position = 'relative';
         if (isFree) card.style.border = '2px solid var(--accent)';
         if (isHidden) { card.style.opacity = '0.6'; card.style.border = '2px dashed #9ca3af'; }
+        const isLast = yearExam === lastExam;
+        if (isLast) { card.style.border = '2px solid #2563eb'; card.style.boxShadow = '0 0 0 3px rgba(37,99,235,.18)'; }
 
         const keyState = examKeyState(yearGroup);
         const keyBadge = keyState === null ? '' : (keyState
@@ -1340,6 +1352,7 @@ function renderExamGrid() {
             <span class="exam-no" title="Paper ${examNo + 1} of ${exams.length}">${examNo + 1}</span>
             ${isFree ? '<span style="position:absolute; top:-10px; right:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">FREE</span>' : ''}
             ${isHidden ? '<span style="position:absolute; top:-10px; right:10px; background:#6b7280; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">HIDDEN from users</span>' : ''}
+            ${isLast ? `<div style="display:inline-block;background:#2563eb;color:#fff;padding:2px 10px;border-radius:12px;font-size:0.75rem;font-weight:bold;margin-bottom:6px" title="The paper you worked on last">🕘 Last attempted · ${agoText(lastAt)}</div>` : ''}
             <h3 title="${escapeHtmlX(yearExam || 'Unknown Exam')}">${escapeHtmlX(yearExam || 'Unknown Exam')}</h3>
             <p>${yearGroup.exams.length} Subjects Included</p>
             <span class="meta">${totalQuestions} Total Questions</span>
