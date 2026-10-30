@@ -189,4 +189,31 @@ function buildSubjectText(questions, { subject, mode }) {
     return finish(out);
 }
 
-module.exports = { buildPaperText, buildSubjectText, groupByExamNewestFirst, extractYear, MODES };
+// SEVERAL selected papers in ONE file (each paper in the order the admin gave, or newest -> oldest)
+// papers: [{ exam, questions }]
+function buildMultiPaperText(papers, { mode, title }) {
+    if (!MODES.includes(mode)) mode = 'questions';
+    const total = papers.reduce((n, p) => n + p.questions.length, 0);
+    const out = [];
+    out.push(LINE);
+    out.push(clean(title) || 'Selected Question Papers');
+    out.push(`Papers          : ${papers.length}`);
+    out.push(`Total Questions : ${total}`);
+    out.push(`Content         : ${MODE_LABEL[mode]}`);
+    out.push(LINE);
+    out.push('');
+    out.push('INDEX');
+    papers.forEach((p, i) => out.push(`  ${i + 1}. ${p.exam}  (${p.questions.length} questions)`));
+    out.push('');
+    papers.forEach((p, i) => {
+        out.push('');
+        out.push(LINE);
+        out.push(`PAPER ${i + 1}/${papers.length}: ${p.exam}  (${p.questions.length} questions)`);
+        out.push(LINE);
+        out.push('');
+        renderQuestions(out, p.questions, mode);
+    });
+    return finish(out);
+}
+
+module.exports = { buildPaperText, buildSubjectText, buildMultiPaperText, groupByExamNewestFirst, extractYear, MODES };

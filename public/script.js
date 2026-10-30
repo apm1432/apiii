@@ -2795,6 +2795,24 @@ window.openDownloadPaperModal = function() {
             </label>
             <select id="dl-subject" style="${selStyle}" disabled><option value="">Loading subjects...</option></select>
 
+            <label style="display:block;padding:6px 0 0 0;cursor:pointer;">
+                <input type="radio" name="dl-scope" value="multi"> Multiple papers / groups (one file)
+            </label>
+            <div id="dl-multi" style="display:none;border:1px solid #d1d5db;border-radius:8px;padding:10px;margin:4px 0 10px 0;">
+                <div id="dl-groups-wrap" style="display:none;margin-bottom:8px;">
+                    <div style="font-weight:600;font-size:.85rem;margin-bottom:4px;">Groups</div>
+                    <label style="display:block;padding:3px 0;cursor:pointer;font-size:.9rem;"><input type="checkbox" id="dl-all-groups"> <b>All groups</b></label>
+                    <div id="dl-groups" style="max-height:120px;overflow-y:auto;"></div>
+                </div>
+                <div style="font-weight:600;font-size:.85rem;margin-bottom:4px;">Papers <span id="dl-count" style="font-weight:400;color:#6b7280;"></span></div>
+                <input id="dl-search" type="text" placeholder="Search paper..." style="width:100%;padding:6px 8px;margin-bottom:6px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;">
+                <div style="display:flex;gap:8px;margin-bottom:6px;">
+                    <button type="button" class="btn btn-secondary" id="dl-sel-all" style="padding:4px 10px;font-size:.8rem;">Select all</button>
+                    <button type="button" class="btn btn-secondary" id="dl-sel-none" style="padding:4px 10px;font-size:.8rem;">Unselect all</button>
+                </div>
+                <div id="dl-papers" style="max-height:220px;overflow-y:auto;"></div>
+            </div>
+
             <div style="font-weight:600;margin-bottom:4px;">Include</div>
             <div style="font-size:.85rem;color:#6b7280;margin-bottom:6px;">Questions &amp; options (Marathi + English) are always included.</div>
             <label style="display:block;padding:5px 0;cursor:pointer;"><input type="radio" name="dl-mode" value="questions" checked> Only questions &amp; options</label>
@@ -2817,6 +2835,7 @@ window.openDownloadPaperModal = function() {
         if (r) r.checked = true;
         examSel.disabled = v !== 'paper';
         subjSel.disabled = v !== 'subject';
+        document.getElementById('dl-multi').style.display = v === 'multi' ? 'block' : 'none';
     };
     overlay.querySelectorAll('input[name="dl-scope"]').forEach(r => r.addEventListener('change', () => setScope(getScope())));
     // touching a dropdown switches to its option automatically
@@ -2832,6 +2851,57 @@ window.openDownloadPaperModal = function() {
             : `<option value="">${empty}</option>`;
     };
 
+    // ---- multiple papers / groups ----
+    const sel = new Set();
+    let allExams = [], allGroups = [];
+    const papersBox = document.getElementById('dl-papers');
+    const groupsBox = document.getElementById('dl-groups');
+    const allGroupsCb = document.getElementById('dl-all-groups');
+    const searchBox = document.getElementById('dl-search');
+    const refreshMulti = () => {
+        papersBox.querySelectorAll('input[data-exam]').forEach(cb => { cb.checked = sel.has(cb.dataset.exam); });
+        groupsBox.querySelectorAll('input[data-gid]').forEach(cb => {
+            const g = allGroups.find(x => x._id === cb.dataset.gid);
+            cb.checked = !!g && g.exams.length > 0 && g.exams.every(x => sel.has(x));
+        });
+        const everyGroup = allGroups.length > 0 && allGroups.every(g => g.exams.every(x => sel.has(x)));
+        allGroupsCb.checked = everyGroup;
+        document.getElementById('dl-count').innerText = `(${sel.size} selected of ${allExams.length})`;
+    };
+    const renderPapers = () => {
+        const q = searchBox.value.trim().toLowerCase();
+        const list = allExams.filter(e => !q || e.toLowerCase().includes(q));
+        papersBox.innerHTML = list.length
+            ? list.map(e => `<label style="display:block;padding:3px 0;cursor:pointer;font-size:.9rem;"><input type="checkbox" data-exam="${esc(e)}"> ${esc(e)}</label>`).join('')
+            : '<div style="color:#6b7280;font-size:.85rem;">No papers found</div>';
+        refreshMulti();
+    };
+    papersBox.addEventListener('change', e => {
+        const cb = e.target.closest('input[data-exam]');
+        if (!cb) return;
+        if (cb.checked) sel.add(cb.dataset.exam); else sel.delete(cb.dataset.exam);
+        refreshMulti();
+    });
+    groupsBox.addEventListener('change', e => {
+        const cb = e.target.closest('input[data-gid]');
+        if (!cb) return;
+        const g = allGroups.find(x => x._id === cb.dataset.gid);
+        if (g) g.exams.forEach(x => cb.checked ? sel.add(x) : sel.delete(x));
+        refreshMulti();
+    });
+    allGroupsCb.addEventListener('change', () => {
+        allGroups.forEach(g => g.exams.forEach(x => allGroupsCb.checked ? sel.add(x) : sel.delete(x)));
+        refreshMulti();
+    });
+    document.getElementById('dl-sel-all').onclick = () => {
+        // selects what the search currently shows (everything when the search box is empty)
+        const q = searchBox.value.trim().toLowerCase();
+        allExams.filter(e => !q || e.toLowerCase().includes(q)).forEach(e => sel.add(e));
+        refreshMulti();
+    };
+    document.getElementById('dl-sel-none').onclick = () => { sel.clear(); refreshMulti(); };
+    searchBox.addEventListener('input', renderPapers);
+
     // load every available paper and subject
     fetch('/api/admin/download-options', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(r => r.json())
@@ -2840,6 +2910,11 @@ window.openDownloadPaperModal = function() {
             const subjects = (d && d.success && Array.isArray(d.subjects)) ? d.subjects : [];
             fill(examSel, exams, '-- Select paper --', 'No papers found');
             fill(subjSel, subjects, '-- Select subject --', 'No subjects found');
+            allExams = exams;
+            allGroups = (d && Array.isArray(d.groups)) ? d.groups : [];
+            document.getElementById('dl-groups-wrap').style.display = allGroups.length ? 'block' : 'none';
+            groupsBox.innerHTML = allGroups.map(g => `<label style="display:block;padding:3px 0;cursor:pointer;font-size:.9rem;"><input type="checkbox" data-gid="${esc(g._id)}"> ${esc(g.name)} <span style="color:#6b7280;">(${g.exams.length})</span></label>`).join('');
+            renderPapers();
             // pre-select what is currently open, if any
             if (window.activeYearExam && exams.includes(window.activeYearExam)) examSel.value = window.activeYearExam;
             if (window.activeSubject && subjects.includes(window.activeSubject)) subjSel.value = window.activeSubject;
@@ -2856,6 +2931,7 @@ window.openDownloadPaperModal = function() {
         const subject = subjSel.value;
         if (scope === 'paper' && !exam) { alert('Please select a paper.'); return; }
         if (scope === 'subject' && !subject) { alert('Please select a subject.'); return; }
+        if (scope === 'multi' && !sel.size) { alert('Please select at least one paper.'); return; }
 
         const goBtn = document.getElementById('dl-go');
         goBtn.disabled = true; goBtn.innerText = '⏳ Preparing...';
@@ -2863,7 +2939,7 @@ window.openDownloadPaperModal = function() {
             const res = await fetch('/api/admin/download-paper', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ scope, mode, year_exam: exam, subject })
+                body: JSON.stringify({ scope, mode, year_exam: exam, subject, exams: scope === 'multi' ? [...sel] : undefined })
             });
             if (!res.ok) {
                 let msg = 'Download failed.';
@@ -2874,7 +2950,7 @@ window.openDownloadPaperModal = function() {
             }
             const blob = await res.blob();
             const suffix = { questions: 'questions', answers: 'with_answers', full: 'with_answers_explanations' }[mode];
-            const base = scope === 'subject' ? `${subject}_all_exams` : exam;
+            const base = scope === 'subject' ? `${subject}_all_exams` : (scope === 'multi' ? `${sel.size}_papers` : exam);
             const safeName = base.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, '_').trim() || 'paper';
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);

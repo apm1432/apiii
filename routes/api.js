@@ -33,7 +33,7 @@ const { broadcast } = require('../utils/userEvents');
 const jwtLib = require('jsonwebtoken');
 const { fixQuestionWithAI, chatAboutQuestionEx, getGeminiInfo, testGemini } = require('../utils/aiService');
 const chatProviders = require('../utils/chatProviders');
-const { buildPaperText, buildSubjectText, extractYear: examYear, MODES } = require('../utils/paperExport');
+const { buildPaperText, buildSubjectText, buildMultiPaperText, extractYear: examYear, MODES } = require('../utils/paperExport');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -260,7 +260,15 @@ router.get('/admin/download-options', authMiddleware, async (req, res) => {
         let subjects = (await Question.distinct('subject')).filter(valid);
         try { const r = await subjectNames.getResolver(); subjects = [...new Set(subjects.map(r.canon))]; } catch (e) { /* stored names */ }
         subjects.sort((a, b) => a.localeCompare(b));
-        res.json({ success: true, exams, subjects });
+        // admin-made groups (only papers that really exist), for "download whole group"
+        let groups = [];
+        try {
+            const have = new Set(exams);
+            groups = (await ExamGroup.find().sort({ order: 1, createdAt: 1 }).lean())
+                .map(g => ({ _id: String(g._id), name: g.name, exams: (g.exams || []).filter(x => have.has(x)) }))
+                .filter(g => g.exams.length);
+        } catch (e) { /* groups are optional */ }
+        res.json({ success: true, exams, subjects, groups });
     } catch (err) {
         console.error('download-options error:', err);
         res.status(500).json({ success: false, message: 'Server Error' });
@@ -291,11 +299,24 @@ router.post('/admin/download-paper', authMiddleware, async (req, res) => {
         const user = await User.findById(req.user.id);
         if (!user || !user.isAdmin) return res.status(403).json({ success: false, message: 'Forbidden. Admin access required.' });
 
-        const scope = req.body.scope === 'subject' ? 'subject' : 'paper';
+        const scope = ['subject', 'multi'].includes(req.body.scope) ? req.body.scope : 'paper';
         const mode = MODES.includes(req.body.mode) ? req.body.mode : 'questions';
         let text;
 
-        if (scope === 'subject') {
+        if (scope === 'multi') {
+            // several papers (picked one by one and/or whole groups) -> ONE file
+            const names = [...new Set(cleanExamList(req.body.exams))].slice(0, 200);
+            if (!names.length) return res.status(400).json({ success: false, message: 'Select at least one paper.' });
+            const all = await Question.find({ year_exam: { $in: names } }).lean();
+            const byExam = new Map();
+            for (const q of all) { if (!byExam.has(q.year_exam)) byExam.set(q.year_exam, []); byExam.get(q.year_exam).push(q); }
+            const papers = names.filter(n => byExam.has(n)).map(n => ({ exam: n, questions: byExam.get(n).sort((a, b) => (a.qnum || 0) - (b.qnum || 0)) }));
+            if (!papers.length) return res.status(404).json({ success: false, message: 'No questions found for the selected papers.' });
+            // newest -> oldest (year in the name), same as the subject-wise download
+            papers.sort((a, b) => (examYear(b.exam) - examYear(a.exam)) || a.exam.localeCompare(b.exam));
+            const title = typeof req.body.title === 'string' ? req.body.title.trim().slice(0, 100) : '';
+            text = buildMultiPaperText(papers, { title, mode });
+        } else if (scope === 'subject') {
             const subject = typeof req.body.subject === 'string' ? req.body.subject.trim() : '';
             if (!subject) return res.status(400).json({ success: false, message: 'subject is required' });
             // every stored spelling of this subject
