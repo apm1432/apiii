@@ -3,18 +3,40 @@
 
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
-echo "==> Patching wapi/smart_router.py for 600s timeout & 504 anti-timeout heartbeat..."
+echo "==> Patching nginx.conf & wapi/smart_router.py to eliminate Koyeb 100s 504 timeouts..."
 python3 - << 'PYEOF'
 from pathlib import Path
 import re
 
+# 1. Disable proxy_buffering in nginx.conf across all locations so 200 OK headers
+#    and heartbeat chunks flush immediately through Node.js (3000) and Nginx (8000) to Koyeb Edge.
+ng_path = Path("/usr/src/app/nginx.conf")
+if not ng_path.exists():
+    ng_path = Path("/etc/nginx/nginx.conf")
+for candidate in [Path("/usr/src/app/nginx.conf"), Path("/etc/nginx/nginx.conf"), Path("/etc/nginx/sites-enabled/default")]:
+    if candidate.exists():
+        ntxt = candidate.read_text(encoding="utf-8")
+        if "proxy_request_buffering off;" not in ntxt:
+            ntxt = ntxt.replace(
+                "proxy_read_timeout 360s;",
+                "proxy_read_timeout 3600s;\n            proxy_send_timeout 3600s;\n            proxy_buffering off;\n            proxy_request_buffering off;\n            gzip off;"
+            )
+            candidate.write_text(ntxt, encoding="utf-8")
+            print(f"    [patch] Disabled buffering & extended timeout to 3600s in {candidate}")
+
+# 2. Patch wapi/smart_router.py
 sr_path = Path("/usr/src/app/wapi/smart_router.py")
 if sr_path.exists():
     src = sr_path.read_text(encoding="utf-8")
-    # 1. Upgrade internal 120s HTTP POST timeout in _heal_signature to 600s
-    src = re.sub(r"timeout\s*=\s*120\b", "timeout=600", src)
 
-    # 2. Inject WSGI Keep-Alive Heartbeat wrapper (prevents Cloudflare/Koyeb 100s HTTP 504 on stream=False)
+    # Prevent any single Gemini upstream HTTP call from hanging in 'Pending...' for 600s!
+    # A (10s connect, 75s read) timeout guarantees that if one Gemini key/model hangs,
+    # smart_router catches requests.Timeout at 75s (well before Koyeb's 100s limit)
+    # and immediately retries on the next key/model or WebAI fallback!
+    src = re.sub(r"timeout\s*=\s*600\b", "timeout=(10, 75)", src)
+    src = re.sub(r"timeout\s*=\s*120\b", "timeout=(10, 75)", src)
+
+    # Inject WSGI Keep-Alive Heartbeat wrapper with 4KB immediate flush
     marker = "# --- ANTI_504_HEARTBEAT_PATCH ---"
     if marker not in src:
         patch_code = '''
@@ -22,15 +44,15 @@ if sr_path.exists():
 # --- ANTI_504_HEARTBEAT_PATCH ---
 import io as _hb_io
 import json as _hb_json
-import queue as _hb_queue
 import threading as _hb_threading
 
 class _Anti504HeartbeatMiddleware:
-    """Prevents Cloudflare / Koyeb Edge 100s Gateway Timeout (error code: 504)
-    on long-running non-streaming (/v1/chat/completions, /v1/responses, /api/web/v1/chat/completions)
-    POST requests by sending periodic whitespace bytes after 15s while upstream generates."""
+    """Prevents Koyeb Edge / Cloudflare 100s Gateway Timeout (error code: 504)
+    on non-streaming (/v1/chat/completions, /v1/responses, /api/web/v1/chat/completions)
+    POST requests by flushing HTTP 200 OK + 4KB whitespace padding when upstream takes >10s,
+    followed by 1KB whitespace heartbeats every 10s so Node.js/Nginx/Koyeb buffers flush immediately."""
 
-    def __init__(self, wsgi_app, first_byte_delay=15.0, heartbeat_interval=15.0):
+    def __init__(self, wsgi_app, first_byte_delay=10.0, heartbeat_interval=10.0):
         self.wsgi_app = wsgi_app
         self.first_byte_delay = first_byte_delay
         self.heartbeat_interval = heartbeat_interval
@@ -45,7 +67,6 @@ class _Anti504HeartbeatMiddleware:
         if not self._is_target_request(environ):
             return self.wsgi_app(environ, start_response)
 
-        # Read and restore request body so we can inspect "stream" flag safely
         try:
             content_length = int(environ.get("CONTENT_LENGTH") or 0)
         except ValueError:
@@ -61,7 +82,6 @@ class _Anti504HeartbeatMiddleware:
         except Exception:
             payload = {}
 
-        # If client explicitly asked for SSE streaming, pass through untouched
         if isinstance(payload, dict) and bool(payload.get("stream")):
             return self.wsgi_app(environ, start_response)
 
@@ -91,25 +111,25 @@ class _Anti504HeartbeatMiddleware:
         t = _hb_threading.Thread(target=_worker, daemon=True)
         t.start()
 
-        # Wait up to first_byte_delay (15s). If fast response or fast 4xx/5xx error, return natively!
+        # If upstream finishes within 10s, return native status & headers untouched
         if done_evt.wait(timeout=self.first_byte_delay):
             if captured["exc"] is not None:
                 raise captured["exc"]
             start_response(captured["status"], captured["headers"])
             return captured["body_chunks"]
 
-        # Long-running request (>15s): flush 200 OK + periodic whitespace so Cloudflare/Koyeb never 504s
+        # Upstream is taking >10s: commit 200 OK + 4KB whitespace immediately to defeat proxy buffers
         stream_headers = [
             ("Content-Type", "application/json; charset=utf-8"),
-            ("Cache-Control", "no-cache, no-transform"),
+            ("Cache-Control", "no-cache, no-store, no-transform"),
             ("X-Accel-Buffering", "no"),
         ]
         start_response("200 OK", stream_headers)
 
         def _heartbeat_stream():
-            yield b" "
+            yield (b" " * 4096) + b"\\n"
             while not done_evt.wait(timeout=self.heartbeat_interval):
-                yield b" "
+                yield (b" " * 1024) + b"\\n"
             if captured["exc"] is not None:
                 err_json = _hb_json.dumps({
                     "error": {"message": str(captured["exc"]), "type": "server_error", "code": 500}
@@ -131,7 +151,7 @@ app.wsgi_app = _Anti504HeartbeatMiddleware(app.wsgi_app)
             src = src + "\n" + patch_code
 
     sr_path.write_text(src, encoding="utf-8")
-    print("    [patch] smart_router.py patched successfully (timeout=600 + anti-504 heartbeat).")
+    print("    [patch] smart_router.py patched: upstream timeout=(10, 75) + 4KB anti-504 heartbeat.")
 PYEOF
 
 echo "==> Starting Node.js (apiii) on port 3000..."
