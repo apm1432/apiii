@@ -1348,7 +1348,7 @@ def requires_browser_auth(f):
 def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys']:
+    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -1517,6 +1517,31 @@ def _log_detail(raw_id):
     att = [_clip(a, 700) for a in (e.get("attempts") or [])[-20:]]
     return jsonify({"id": want, "request": _clip(req, 8000), "request_truncated": len(req) > 8000,
                     "error_detail": _clip(err, 8000), "error_truncated": len(err) > 8000, "attempts": att})
+
+@app.route('/release_daily', methods=['POST'])
+@requires_browser_auth
+def release_daily():
+    """Dashboard button: lift daily (RPD) penalties NOW instead of waiting for midnight IST.
+    Body (all optional): {"key": "<last chars of key>", "model": "<model name>"}.
+    No body = release everything. The tracked RPD counter of every released (key, model) is
+    reset too, otherwise the router would still refuse it because of its own counter."""
+    body = request.get_json(silent=True) or {}
+    key_sfx = str(body.get("key") or "").replace("...", "").strip()
+    model = str(body.get("model") or "").strip()
+    released = []
+    with state_lock:
+        for (k, m) in list(key_daily_penalty.keys()):
+            if key_sfx and not k.endswith(key_sfx):
+                continue
+            if model and m != model:
+                continue
+            key_daily_penalty.pop((k, m), None)
+            rate_strikes.pop((k, m), None)
+            rpd_count.pop((k, m), None)
+            released.append(f"...{k[-5:]}|{m}")
+    print(f"[RELEASE DAILY] released {len(released)} penalty(ies): {released}")
+    return jsonify({"released": len(released), "items": released})
+
 
 @app.route('/logs', methods=['GET'])
 @requires_browser_auth
@@ -1793,6 +1818,17 @@ function renderLogs(data){
   });
   tbody.innerHTML=html;
 }
+async function releaseDaily(last5){
+  const what=last5?('key ...'+last5+' (all its models)'):'ALL keys';
+  if(!confirm('Release the daily penalty of '+what+' now?\\n(It is blocked again automatically if Google still says the daily quota is used up.)'))return;
+  try{
+    const r=await fetch('/router/release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(last5?{key:last5}:{})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    document.getElementById('log-note').textContent='🔓 Released '+d.released+' daily penalt'+(d.released===1?'y':'ies');
+    lastSig='';fetchData(true);
+  }catch(e){alert('Release failed: '+e.message);}
+}
 function updateUI(data){
   const m=data.metrics;
   let penHtml='';
@@ -1810,8 +1846,9 @@ function updateUI(data){
     for(const[keyPart,info] of Object.entries(byKey)){
       const last5=keyPart.slice(-5);
       const tooltip=info.models.join(', ')+' ('+info.mins+'m left)';
-      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="alert('Key: ...${last5}\\nModels: ${esc(info.models.join(', '))}\\nTime left: ${info.mins}m')">...${last5} (${info.mins}m)</span>`;
+      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="releaseDaily('${last5}')">...${last5} (${info.mins}m) 🔓</span>`;
     }
+    penHtml+='<button class="btn-s" style="background:#7f1d1d;border-color:#b91c1c;" onclick="releaseDaily(&quot;&quot;)">🔓 Release all</button>';
   }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
   let cdHtml='';
   if(Object.keys(data.rpm_cooldowns||{}).length>0){
