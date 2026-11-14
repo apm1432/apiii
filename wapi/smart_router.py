@@ -1387,7 +1387,7 @@ def requires_browser_auth(f):
 def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily']:
+    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -1497,27 +1497,38 @@ def api_dashboard_data():
     now_mono = time.monotonic()
     with state_lock:
         _maybe_reset_rpd()
-        # key_daily_penalty is now keyed by (key, model) — display it the
-        # same way rpm_cooldowns is displayed, so the dashboard shows which
-        # specific model on which key is daily-exhausted, not the whole key.
-        penalized = {
-            f"{k[:5]}...{k[-5:]}|{m}": round((ts - now)/60, 1)
-            for (k, m), ts in key_daily_penalty.items() if ts > now
-        }
+        now_ist = datetime.datetime.now(IST)
+        next_midnight = (now_ist + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
+        mins_to_midnight = max(1.0, round((next_midnight.astimezone(datetime.timezone.utc).timestamp() - now) / 60, 1))
+        active_models_snap = get_active_models()
+
+        penalized = {}
+        for (k, m), ts in key_daily_penalty.items():
+            if ts > now:
+                penalized[f"{k[:5]}...{k[-5:]}|{m}"] = round((ts - now) / 60, 1)
+        for k in API_KEYS:
+            for m_obj in active_models_snap:
+                mn = m_obj["name"]
+                label = f"{k[:5]}...{k[-5:]}|{mn}"
+                if label not in penalized:
+                    if (k, mn) in PERMANENTLY_BROKEN_MODELS:
+                        penalized[label] = mins_to_midnight
+                    elif not _rpd_available(k, mn, m_obj["rpd"]):
+                        penalized[label] = mins_to_midnight
+
         cooldowns = {
             f"{k[:5]}...{k[-5:]}|{m}": round(ts - now_mono, 1)
             for (k, m), ts in rpm_cooldown.items() if ts > now_mono
         }
         key_list = [f"...{k[-4:]}" for k in API_KEYS]
         # Per-model: count of available keys and list of penalized key last-5 digits
-        active_models_snap = get_active_models()
         model_key_info = {}
         for m in active_models_snap:
             mn = m["name"]
             pen_keys = []
             available = 0
             for k in API_KEYS:
-                if _is_daily_penalized(k, mn) or (k, mn) in PERMANENTLY_BROKEN_MODELS:
+                if _is_daily_penalized(k, mn) or (k, mn) in PERMANENTLY_BROKEN_MODELS or not _rpd_available(k, mn, m["rpd"]):
                     pen_keys.append(k[-5:])
                 else:
                     available += 1
@@ -1558,27 +1569,55 @@ def _log_detail(raw_id):
                     "error_detail": _clip(err, 8000), "error_truncated": len(err) > 8000, "attempts": att})
 
 @app.route('/release_daily', methods=['POST'])
+@app.route('/router/release_daily', methods=['POST'])
 @requires_browser_auth
 def release_daily():
-    """Dashboard button: lift daily (RPD) penalties NOW instead of waiting for midnight IST.
+    """Dashboard button: lift daily (RPD) penalties, RPD exhaustion, cooldowns, and broken-model locks NOW
+    instead of waiting for midnight IST or restarting the server.
     Body (all optional): {"key": "<last chars of key>", "model": "<model name>"}.
-    No body = release everything. The tracked RPD counter of every released (key, model) is
-    reset too, otherwise the router would still refuse it because of its own counter."""
+    No body = release everything."""
     body = request.get_json(silent=True) or {}
     key_sfx = str(body.get("key") or "").replace("...", "").strip()
-    model = str(body.get("model") or "").strip()
-    released = []
+    if "|" in key_sfx and not body.get("model"):
+        parts = key_sfx.split("|", 1)
+        key_sfx = parts[0].replace("...", "").strip()[-5:]
+        model = parts[1].strip()
+    else:
+        if len(key_sfx) > 5:
+            key_sfx = key_sfx[-5:]
+        model = str(body.get("model") or "").strip()
+
+    released_set = set()
     with state_lock:
-        for (k, m) in list(key_daily_penalty.keys()):
+        all_pairs = (
+            set(key_daily_penalty.keys())
+            | set(rpd_count.keys())
+            | set(PERMANENTLY_BROKEN_MODELS)
+            | set(rate_strikes.keys())
+            | set(rpm_cooldown.keys())
+        )
+        for (k, m) in list(all_pairs):
             if key_sfx and not k.endswith(key_sfx):
                 continue
             if model and m != model:
                 continue
+            was_locked = (
+                (k, m) in key_daily_penalty
+                or (k, m) in PERMANENTLY_BROKEN_MODELS
+                or (k, m) in rpm_cooldown
+                or rpd_count.get((k, m), 0) > 0
+            )
             key_daily_penalty.pop((k, m), None)
+            PERMANENTLY_BROKEN_MODELS.discard((k, m))
             rate_strikes.pop((k, m), None)
             rpd_count.pop((k, m), None)
-            released.append(f"...{k[-5:]}|{m}")
-    print(f"[RELEASE DAILY] released {len(released)} penalty(ies): {released}")
+            rpm_cooldown.pop((k, m), None)
+            if was_locked:
+                released_set.add(f"...{k[-5:]}|{m}")
+        if not key_sfx and not model:
+            conversation_sticky.clear()
+    released = sorted(released_set)
+    print(f"[RELEASE DAILY] released {len(released)} lock(s): {released}")
     return jsonify({"released": len(released), "items": released})
 
 
@@ -1857,42 +1896,45 @@ function renderLogs(data){
   });
   tbody.innerHTML=html;
 }
-async function releaseDaily(last5){
-  const what=last5?('key ...'+last5+' (all its models)'):'ALL keys';
-  if(!confirm('Release the daily penalty of '+what+' now?\\n(It is blocked again automatically if Google still says the daily quota is used up.)'))return;
+async function releaseDaily(keyFilter='', modelFilter=''){
+  const payload={};
+  if(keyFilter)payload.key=keyFilter;
+  if(modelFilter)payload.model=modelFilter;
+  const noteEl=document.getElementById('log-note');
+  if(noteEl)noteEl.textContent='⏳ Releasing daily lock...';
   try{
-    const r=await fetch('/router/release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(last5?{key:last5}:{})});
+    let r=await fetch('/router/release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(r.status===404){
+      r=await fetch('release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    }
     if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    document.getElementById('log-note').textContent='🔓 Released '+d.released+' daily penalt'+(d.released===1?'y':'ies');
-    lastSig='';fetchData(true);
+    if(noteEl)noteEl.textContent='🔓 Released '+d.released+' lock'+(d.released===1?'':'s')+(d.items&&d.items.length?' ('+d.items.join(', ')+')':'');
+    lastSig='';await fetchData(true);
   }catch(e){alert('Release failed: '+e.message);}
 }
 function updateUI(data){
   const m=data.metrics;
   let penHtml='';
   const penData=data.penalized_keys||{};
-  if(Object.keys(penData).length>0){
-    // Group entries by key prefix (e.g. "AQ.Ab...5AOiA")
-    const byKey={};
-    for(const[kv,mins] of Object.entries(penData)){
+  const penEntries=Object.entries(penData);
+  if(penEntries.length>0){
+    penHtml+=`<div style="width:100%;margin-bottom:6px;"><button class="btn-s" style="background:#dc2626;border-color:#ef4444;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="releaseDaily('','')">🔓 Release All Daily Locks (${penEntries.length})</button></div>`;
+    for(const[kv,mins] of penEntries){
       const pipe=kv.lastIndexOf('|');
       const keyPart=pipe>=0?kv.slice(0,pipe):kv;
-      const modelPart=pipe>=0?kv.slice(pipe+1):kv;
-      if(!byKey[keyPart])byKey[keyPart]={models:[],mins};
-      byKey[keyPart].models.push(modelPart);
-    }
-    for(const[keyPart,info] of Object.entries(byKey)){
+      const modelPart=pipe>=0?kv.slice(pipe+1):'';
       const last5=keyPart.slice(-5);
-      const tooltip=info.models.join(', ')+' ('+info.mins+'m left)';
-      penHtml+=`<span class="tag" style="background:rgba(248,113,113,.2);color:#f87171;border-color:#f87171;cursor:pointer;" title="${esc(tooltip)}" onclick="releaseDaily('${last5}')">...${last5} (${info.mins}m) 🔓</span>`;
+      penHtml+=`<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.18);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="Click Release to unlock ...${esc(last5)} | ${esc(modelPart)}">...${esc(last5)} | ${esc(modelPart)} (${mins}m) <button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 6px;font-size:.75em;font-weight:bold;" onclick="releaseDaily('${esc(last5)}','${esc(modelPart)}')">🔓 Release</button></span>`;
     }
-    penHtml+='<button class="btn-s" style="background:#7f1d1d;border-color:#b91c1c;" onclick="releaseDaily(&quot;&quot;)">🔓 Release all</button>';
-  }else penHtml='<span style="color:#4ade80;">All Clear ✅</span>';
+  }else{
+    penHtml=`<span style="color:#4ade80;">All Clear ✅</span> <button class="btn-s" style="background:#27272a;border-color:#52525b;padding:2px 8px;font-size:.75em;margin-left:6px;" onclick="releaseDaily('','')" title="Force-reset all daily RPD counters, cooldowns, and locks">🔓 Reset Locks</button>`;
+  }
   let cdHtml='';
   if(Object.keys(data.rpm_cooldowns||{}).length>0){
     for(const[k,v]of Object.entries(data.rpm_cooldowns))
       cdHtml+=`<span class="tag" style="background:rgba(251,191,36,.2);color:#fbbf24;border-color:#fbbf24;">${k} (${v}s)</span>`;
+    cdHtml+=` <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;padding:2px 8px;font-size:.75em;" onclick="releaseDaily('','')">🔓 Clear Cooldowns</button>`;
   }else cdHtml='<span style="color:#4ade80;">None</span>';
   let keysHtml = '';
   if (data.key_list) {
@@ -1900,7 +1942,7 @@ function updateUI(data){
         keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
     });
   }
-  // Build models row: each model shows available key count; click → show penalized last-5 digits
+  // Build models row: each model shows available key count + direct Release button if any keys are penalized
   const mki = data.model_key_info || {};
   let modelsHtml = '';
   (data.models || []).forEach(model => {
@@ -1913,11 +1955,14 @@ function updateUI(data){
     const penTip = penCount > 0
       ? info.penalized_last5.map(k=>'...'+k).join(', ')
       : 'none';
+    const releaseModelBtn = penCount > 0
+      ? ` <button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 7px;font-size:.75em;font-weight:bold;margin-left:6px;" onclick="event.stopPropagation();releaseDaily('','${esc(mn)}')" title="Release all ${penCount} locked key(s) for ${esc(mn)}">🔓 Release (${penCount})</button>`
+      : '';
     const clickHandler = penCount > 0
       ? `onclick="alert('Model: ${mn}\\nPenalized keys (${penCount}):\\n${info.penalized_last5.map(k=>'...'+k).join('\\n')}')"`
       : '';
     const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="background:#1a1a2e;border:1px solid #4c1d95;${cursor}" title="${mn} — ${avail}/${total} keys available${penCount>0?' | penalized: '+penTip:''}" ${clickHandler}>${mn} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span></span>`;
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;background:#1a1a2e;border:1px solid #4c1d95;${cursor}" title="${mn} — ${avail}/${total} keys available${penCount>0?' | penalized: '+penTip:''}" ${clickHandler}><span>${mn} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span></span>${releaseModelBtn}</span>`;
   });
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
