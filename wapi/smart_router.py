@@ -39,6 +39,8 @@ RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "0"))
 
 # +1 second on EVERY wait: a cooldown of 20s ends at 21s, the 60s RPM window is 61s.
 EXTRA_WAIT = float(os.environ.get("EXTRA_WAIT", "1"))
+GEMINI_CONNECT_TIMEOUT = float(os.environ.get("GEMINI_CONNECT_TIMEOUT", "10"))
+GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "120"))
 RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
 
 def _effective_rpm(rpm_limit: int) -> int:
@@ -615,19 +617,56 @@ def responses_sse_stream(resp_json: dict):
     yield f"event: response.completed\ndata: {json.dumps({'type': 'response.completed', 'response': resp_json})}\n\n"
     yield "data: [DONE]\n\n"
 
+def _stream_gemini_sse(resp, log_entry=None, log_start=None):
+    """Streams Gemini SSE chunks immediately to the client without buffering resp.content,
+    while capturing tool_call thought_signatures on the fly as lines arrive."""
+    sig_buf = b""
+    try:
+        for chunk in resp.iter_content(chunk_size=None):
+            if not chunk:
+                continue
+            sig_buf += chunk
+            if b"\n" in sig_buf:
+                *lines, sig_buf = sig_buf.split(b"\n")
+                for ln in lines:
+                    if b"thought_signature" in ln or b"tool_calls" in ln:
+                        capture_signatures(ln)
+            yield chunk
+        if sig_buf and (b"thought_signature" in sig_buf or b"tool_calls" in sig_buf):
+            capture_signatures(sig_buf)
+    finally:
+        try:
+            resp.close()
+        except Exception:
+            pass
+        if log_entry is not None and log_start is not None:
+            log_entry["response_ms"] = round((time.monotonic() - log_start) * 1000)
+
 def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, client_stream_requested: bool):
     """Build the Response for a 200 from Gemini. Plain /v1/chat/completions
-    calls are relayed unchanged (existing behaviour). /v1/responses calls
-    get converted into a real Responses-API object (see above)."""
+    streaming calls are relayed chunk-by-chunk immediately (never buffered via resp.content).
+    /v1/responses calls get converted into a real Responses-API object (see above)."""
     excluded = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     if not is_responses_api:
         out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
-        return Response(resp.content, resp.status_code, out_headers)
+        ctype = (resp.headers.get("Content-Type") or "").lower()
+        if client_stream_requested or "text/event-stream" in ctype:
+            out_headers = [(n, v) for n, v in out_headers if n.lower() not in ('cache-control', 'x-accel-buffering')]
+            out_headers.append(('Cache-Control', 'no-cache, no-store, no-transform'))
+            out_headers.append(('X-Accel-Buffering', 'no'))
+            log_entry = getattr(g, "log_entry", None)
+            log_start = getattr(g, "_log_start", None)
+            return Response(_stream_gemini_sse(resp, log_entry, log_start), resp.status_code, out_headers)
+        body = resp.content
+        capture_signatures(body)
+        return Response(body, resp.status_code, out_headers)
+    body = resp.content
+    capture_signatures(body)
     try:
-        gemini_json = resp.json()
+        gemini_json = json.loads(body.decode("utf-8", "replace"))
     except Exception:
         out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
-        return Response(resp.content, resp.status_code, out_headers)
+        return Response(body, resp.status_code, out_headers)
     responses_json = chat_completion_to_responses_json(gemini_json, actual_model)
     if client_stream_requested:
         return Response(responses_sse_stream(responses_json), mimetype="text/event-stream")
@@ -673,7 +712,7 @@ def _heal_signature(resp, url, headers, data, model_name):
         if resp.status_code == 400 and "thought_signature" in resp.text.lower():
             print(f"[SIG HEAL] {model_name}: signature 400 -> retrying with dummy signature")
             return requests.post(url, json=prepare_payload(data, model_name, force_dummy=True),
-                                 headers=headers, stream=True,timeout=600)
+                                 headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
     except Exception as e:
         print(f"[SIG HEAL ERROR] {e}")
     return resp
@@ -2223,11 +2262,10 @@ def proxy_chat():
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             try:
-                resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True,timeout=600)
+                resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
                 resp = _heal_signature(resp, url, headers, data, actual_model)
                 if resp.status_code == 200:
                     remember_sticky_slot(client_id, key, actual_model)
-                    capture_signatures(resp.content)
                     if hasattr(g, "log_entry"):
                         g.log_entry["status"] = f"200 Success ({actual_model})"
                         g.log_entry["model"] = actual_model
@@ -2339,7 +2377,7 @@ def proxy_chat():
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
         try:
-            resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True,timeout=600)
+            resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
             resp = _heal_signature(resp, url, headers, data, actual_model)
             last_resp = resp
 
@@ -2350,7 +2388,6 @@ def proxy_chat():
                 # request (the tool result) lands back on the same slot and
                 # its thought_signature still validates.
                 remember_sticky_slot(client_id, key, actual_model)
-                capture_signatures(resp.content)
                 if hasattr(g, "log_entry"):
                     g.log_entry["status"] = f"200 Success ({actual_model})"
                     g.log_entry["model"] = actual_model
@@ -3248,6 +3285,272 @@ def webapi_proxy(sub):
             up.close()
             _release()
     return Response(_gen(), status, out_headers)
+
+# --- ANTI_504_HEARTBEAT_PATCH ---
+import io as _hb_io
+import json as _hb_json
+import queue as _hb_queue
+import time as _hb_time
+import threading as _hb_threading
+
+class _Anti504HeartbeatMiddleware:
+    """Prevents Koyeb Edge / Cloudflare 100s Gateway Timeout (error code: 504)
+    on BOTH streaming (stream=true) and non-streaming (stream=false) POST requests
+    to /v1/chat/completions, /v1/responses, and /api/web/v1/chat/completions:
+    - For stream=true: flushes HTTP 200 OK (text/event-stream) + a 2KB SSE comment
+      (: keep-alive ...) after 8s if upstream is still thinking/retrying, followed by
+      ': keep-alive\n\n' every 10s whenever upstream is silent (before first token
+      or between tokens), and streams real SSE chunks immediately without buffering.
+    - For stream=false: flushes HTTP 200 OK (application/json) + 4KB whitespace after
+      10s, followed by 1KB whitespace every 10s until JSON body arrives."""
+
+    def __init__(self, wsgi_app, first_byte_delay=8.0, heartbeat_interval=10.0):
+        self.wsgi_app = wsgi_app
+        self.first_byte_delay = first_byte_delay
+        self.heartbeat_interval = heartbeat_interval
+
+    def _is_target_request(self, environ):
+        if environ.get("REQUEST_METHOD") != "POST":
+            return False
+        path = (environ.get("PATH_INFO") or "").rstrip("/")
+        return path.endswith("/chat/completions") or path.endswith("/responses")
+
+    def __call__(self, environ, start_response):
+        if not self._is_target_request(environ):
+            return self.wsgi_app(environ, start_response)
+
+        try:
+            content_length = int(environ.get("CONTENT_LENGTH") or 0)
+        except ValueError:
+            content_length = 0
+
+        body_bytes = b""
+        if content_length > 0 and environ.get("wsgi.input") is not None:
+            body_bytes = environ["wsgi.input"].read(content_length)
+            environ["wsgi.input"] = _hb_io.BytesIO(body_bytes)
+
+        try:
+            payload = _hb_json.loads(body_bytes.decode("utf-8", "replace")) if body_bytes else {}
+        except Exception:
+            payload = {}
+
+        is_stream = isinstance(payload, dict) and bool(payload.get("stream"))
+
+        if is_stream:
+            return self._handle_streaming(environ, start_response)
+        return self._handle_non_streaming(environ, start_response)
+
+    def _handle_streaming(self, environ, start_response):
+        q = _hb_queue.Queue()
+        captured = {"status": "200 OK", "headers": [], "got_headers": False}
+
+        def _capture_start_response(status, headers, exc_info=None):
+            captured["status"] = status
+            captured["headers"] = list(headers or [])
+            captured["got_headers"] = True
+            q.put(("headers", None))
+            return lambda chunk: q.put(("chunk", chunk)) if chunk else None
+
+        def _worker():
+            try:
+                app_iter = self.wsgi_app(environ, _capture_start_response)
+                try:
+                    for chunk in app_iter:
+                        if chunk:
+                            q.put(("chunk", chunk))
+                finally:
+                    if hasattr(app_iter, "close"):
+                        app_iter.close()
+            except Exception as e:
+                q.put(("exc", e))
+            finally:
+                q.put(("eof", None))
+
+        t = _hb_threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+        deadline = _hb_time.monotonic() + self.first_byte_delay
+        buffered = []
+        first_chunk_seen = False
+        finished_fast = False
+
+        while True:
+            rem = deadline - _hb_time.monotonic()
+            if rem <= 0:
+                break
+            try:
+                ev_type, ev_val = q.get(timeout=rem)
+            except _hb_queue.Empty:
+                break
+            if ev_type == "headers":
+                continue
+            buffered.append((ev_type, ev_val))
+            if ev_type == "chunk":
+                first_chunk_seen = True
+                if captured["status"].startswith("200"):
+                    break
+            elif ev_type in ("eof", "exc"):
+                finished_fast = True
+                break
+
+        # Fast error or empty response within 8s: preserve native status code (401/400/429/etc.)
+        if finished_fast and not captured["status"].startswith("200"):
+            for ev_type, ev_val in buffered:
+                if ev_type == "exc":
+                    raise ev_val
+            start_response(captured["status"], captured["headers"])
+            return [ev_val for ev_type, ev_val in buffered if ev_type == "chunk"]
+
+        sse_headers = [
+            ("Content-Type", "text/event-stream; charset=utf-8"),
+            ("Cache-Control", "no-cache, no-store, no-transform"),
+            ("Connection", "keep-alive"),
+            ("X-Accel-Buffering", "no"),
+        ]
+        for hk, hv in captured.get("headers") or []:
+            if hk.lower() in ("access-control-allow-origin", "access-control-allow-headers",
+                              "access-control-allow-methods", "x-webai-auth", "x-upstream-status"):
+                sse_headers.append((hk, hv))
+        start_response("200 OK", sse_headers)
+
+        def _sse_gen():
+            if not first_chunk_seen:
+                # Immediate 2KB SSE comment padding so Nginx / Koyeb Edge / Cloudflare flush 200 OK headers right away
+                yield b": keep-alive " + (b"." * 2048) + b"\n\n"
+
+            non_sse_buf = []
+
+            def _is_non_sse_response():
+                if not captured["got_headers"]:
+                    return False
+                if not captured["status"].startswith("200"):
+                    return True
+                ctype = ""
+                for hk, hv in captured["headers"]:
+                    if hk.lower() == "content-type":
+                        ctype = hv.lower()
+                        break
+                return "application/json" in ctype and "event-stream" not in ctype
+
+            for ev_type, ev_val in buffered:
+                if ev_type == "chunk":
+                    if _is_non_sse_response():
+                        non_sse_buf.append(ev_val)
+                    else:
+                        yield ev_val
+                elif ev_type == "exc":
+                    err_payload = _hb_json.dumps({"error": {"message": str(ev_val), "type": "server_error", "code": 500}})
+                    yield f"data: {err_payload}\n\ndata: [DONE]\n\n".encode("utf-8")
+                    return
+                elif ev_type == "eof":
+                    if non_sse_buf:
+                        for out_c in self._convert_json_buf_to_sse(b"".join(non_sse_buf), captured["status"]):
+                            yield out_c
+                    return
+
+            while True:
+                try:
+                    ev_type, ev_val = q.get(timeout=self.heartbeat_interval)
+                except _hb_queue.Empty:
+                    yield b": keep-alive\n\n"
+                    continue
+                if ev_type == "headers":
+                    continue
+                if ev_type == "chunk":
+                    if _is_non_sse_response():
+                        non_sse_buf.append(ev_val)
+                    else:
+                        yield ev_val
+                elif ev_type == "exc":
+                    err_payload = _hb_json.dumps({"error": {"message": str(ev_val), "type": "server_error", "code": 500}})
+                    yield f"data: {err_payload}\n\ndata: [DONE]\n\n".encode("utf-8")
+                    return
+                elif ev_type == "eof":
+                    if non_sse_buf:
+                        for out_c in self._convert_json_buf_to_sse(b"".join(non_sse_buf), captured["status"]):
+                            yield out_c
+                    return
+
+        return _sse_gen()
+
+    def _convert_json_buf_to_sse(self, raw_bytes, status_str):
+        try:
+            obj = _hb_json.loads(raw_bytes.decode("utf-8", "replace"))
+            if status_str.startswith("200") and isinstance(obj, dict) and "choices" in obj:
+                for line in chat_completion_sse(obj):
+                    yield line.encode("utf-8") if isinstance(line, str) else line
+                return
+        except Exception:
+            pass
+        err_text = raw_bytes.decode("utf-8", "replace")
+        try:
+            err_obj = _hb_json.loads(err_text)
+            if isinstance(err_obj, dict) and "error" in err_obj:
+                yield f"data: {_hb_json.dumps(err_obj)}\n\ndata: [DONE]\n\n".encode("utf-8")
+                return
+        except Exception:
+            pass
+        code = int(status_str.split()[0]) if status_str and status_str.split()[0].isdigit() else 500
+        err_payload = _hb_json.dumps({"error": {"message": err_text[:500], "type": "upstream_error", "code": code}})
+        yield f"data: {err_payload}\n\ndata: [DONE]\n\n".encode("utf-8")
+
+    def _handle_non_streaming(self, environ, start_response):
+        done_evt = _hb_threading.Event()
+        captured = {"status": "200 OK", "headers": [], "body_chunks": [], "exc": None}
+
+        def _capture_start_response(status, headers, exc_info=None):
+            captured["status"] = status
+            captured["headers"] = list(headers or [])
+            return lambda chunk: captured["body_chunks"].append(chunk)
+
+        def _worker():
+            try:
+                app_iter = self.wsgi_app(environ, _capture_start_response)
+                try:
+                    for chunk in app_iter:
+                        if chunk:
+                            captured["body_chunks"].append(chunk)
+                finally:
+                    if hasattr(app_iter, "close"):
+                        app_iter.close()
+            except Exception as e:
+                captured["exc"] = e
+            finally:
+                done_evt.set()
+
+        t = _hb_threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+        if done_evt.wait(timeout=self.first_byte_delay):
+            if captured["exc"] is not None:
+                raise captured["exc"]
+            start_response(captured["status"], captured["headers"])
+            return captured["body_chunks"]
+
+        stream_headers = [
+            ("Content-Type", "application/json; charset=utf-8"),
+            ("Cache-Control", "no-cache, no-store, no-transform"),
+            ("X-Accel-Buffering", "no"),
+        ]
+        start_response("200 OK", stream_headers)
+
+        def _heartbeat_stream():
+            yield (b" " * 4096) + b"\n"
+            while not done_evt.wait(timeout=self.heartbeat_interval):
+                yield (b" " * 1024) + b"\n"
+            if captured["exc"] is not None:
+                err_json = _hb_json.dumps({
+                    "error": {"message": str(captured["exc"]), "type": "server_error", "code": 500}
+                }).encode("utf-8")
+                yield err_json
+            else:
+                for chunk in captured["body_chunks"]:
+                    if chunk:
+                        yield chunk
+
+        return _heartbeat_stream()
+
+app.wsgi_app = _Anti504HeartbeatMiddleware(app.wsgi_app)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8085, threaded=True)
