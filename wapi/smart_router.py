@@ -33,7 +33,16 @@ if not MODELS:
 # Concurrency safety margin: reserve this many RPM slots as a buffer so that
 # several requests admitted in the same instant (before their timestamps are
 # recorded) can never push the key+model pair over its real RPM limit.
-RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "2"))
+# Default 0 = the RPM you give with the model (GEMINI_MODELS "name:rpm:rpd" or /add) is followed EXACTLY.
+# Slots are reserved atomically under state_lock, so parallel requests can no longer overshoot it.
+RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "0"))
+
+# +1 second on EVERY wait: a cooldown of 20s ends at 21s, the 60s RPM window is 61s.
+EXTRA_WAIT = float(os.environ.get("EXTRA_WAIT", "1"))
+RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
+
+def _effective_rpm(rpm_limit: int) -> int:
+    return max(1, int(rpm_limit) - RPM_SAFETY_MARGIN)
 
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 
@@ -96,7 +105,18 @@ def _client_id_from_request(data: dict, remote_addr: str) -> str:
     explicit = data.get("_conv_hint")
     if explicit:
         return f"id:{explicit}"
-    return f"ip:{remote_addr or 'unknown'}"
+    fp = ""
+    try:   # first user message stays the same for every turn of one conversation
+        first = next((m for m in (data.get("messages") or [])
+                      if isinstance(m, dict) and m.get("role") == "user"), None)
+        if first:
+            c = first.get("content")
+            if isinstance(c, list):
+                c = " ".join(str(p.get("text", "")) for p in c if isinstance(p, dict))
+            fp = hashlib.sha1(str(c or "")[:500].encode("utf-8", "replace")).hexdigest()[:12]
+    except Exception:
+        fp = ""
+    return f"ip:{remote_addr or 'unknown'}" + (f":{fp}" if fp else "")
 
 def _is_tool_continuation(messages: list) -> bool:
     """True if this request is continuing a function-calling turn (an
@@ -683,7 +703,7 @@ def _get_key(key, model_name, d, default_factory):
 
 def _prune_rpm(key, model_name):
     window = _get_key(key, model_name, rpm_window, deque)
-    cutoff = time.monotonic() - 60.0
+    cutoff = time.monotonic() - RPM_WINDOW_SECS
     while window and window[0] < cutoff:
         window.popleft()
     return window
@@ -701,8 +721,7 @@ def _rpm_available(key, model_name, rpm_limit):
     # on the window count alone is correct: the 60-second window
     # automatically limits throughput to `effective_limit` RPM without
     # needlessly serialising bursts across unrelated (key, model) pairs.
-    effective_limit = max(1, rpm_limit - RPM_SAFETY_MARGIN)
-    return len(window) < effective_limit
+    return len(window) < _effective_rpm(rpm_limit)
 
 def _rpd_available(key, model_name, rpd_limit):
     used = _get_key(key, model_name, rpd_count, lambda: 0)
@@ -742,7 +761,7 @@ def _record_rpd_success(key, model_name):
 
 def _apply_rpm_cooldown(key, model_name, seconds=62):
     """Apply 62s cooldown to this key+model pair after 429."""
-    rpm_cooldown[(key, model_name)] = time.monotonic() + seconds
+    rpm_cooldown[(key, model_name)] = time.monotonic() + seconds + EXTRA_WAIT
     print(f"[COOLDOWN] key=…{key[-6:]} model={model_name} blocked for {seconds}s")
 
 def _apply_daily_penalty(key, model_name):
@@ -908,6 +927,11 @@ def get_active_models():
 # ─── Core: Smart Combo Picker ─────────────────────────────────────────────────
 current_combo_idx = 0
 
+LITE_LAST = os.environ.get("LITE_LAST", "1") != "0"   # 0 = old behaviour (lite mixed with the others)
+
+def _is_lite(model_name: str) -> bool:
+    return LITE_LAST and "lite" in (model_name or "").lower()
+
 def _list_combos_in_order(requested_model: str):
     """
     Builds the ordered candidate list (key, model) for a request.
@@ -946,17 +970,29 @@ def _list_combos_in_order(requested_model: str):
             # fewer penalized keys = better; higher rpm = better
             return (penalized_keys, -m["rpm"])
 
-        sorted_models = sorted(active_models, key=_model_sort_key)
-        K, M = len(API_KEYS), len(sorted_models)
-        if M == 0 or K == 0:
+        K = len(API_KEYS)
+        if not active_models or K == 0:
             return []
 
-        # Flat round-robin across all K*M combinations.
-        for i in range(K * M):
-            idx = (current_combo_idx + i) % (K * M)
-            m_i = idx // K
-            k_i = idx % K
-            combos.append((k_i, m_i, API_KEYS[k_i], sorted_models[m_i]))
+        # TWO TIERS: every non-lite model first, "lite" models only LAST.
+        # Inside each tier the key x model combos are rotated round-robin
+        # (so parallel requests spread over the whole tier). Because
+        # acquire_next_slot() takes the first viable combo in this order,
+        # a lite model is used only when no non-lite (key, model) is
+        # usable for this request (RPM full / cooldown / daily-exhausted /
+        # already failed in this request).
+        non_lite = sorted([m for m in active_models if not _is_lite(m["name"])], key=_model_sort_key)
+        lite = sorted([m for m in active_models if _is_lite(m["name"])], key=_model_sort_key)
+        for tier in (non_lite, lite):
+            M = len(tier)
+            if M == 0:
+                continue
+            total = K * M
+            for i in range(total):
+                idx = (current_combo_idx + i) % total
+                m_i = idx // K
+                k_i = idx % K
+                combos.append((k_i, m_i, API_KEYS[k_i], tier[m_i]))
     else:
         model_dict = next(
             (m for m in active_models if m["name"] == requested_model), None
@@ -1024,7 +1060,8 @@ def acquire_next_slot(requested_model: str, exclude: set):
             # Advance by 1 across the total pool of K*M combinations
             # If we are in specific model mode, we still just advance by 1
             # so it moves to the next key.
-            current_combo_idx = (current_combo_idx + 1) % (len(API_KEYS) * max(1, len(MODELS)))
+            # unbounded counter: each tier takes it modulo its own size
+            current_combo_idx += 1
                 
             return (k_i, m_i, key, model)
 
@@ -2229,10 +2266,10 @@ def proxy_chat():
                             waits.append(cd - now_mono)
                         window = list(rpm_window.get((k, m_name), []))
                         if window:
-                            effective_limit = max(1, m_dict["rpm"] - RPM_SAFETY_MARGIN)
+                            effective_limit = _effective_rpm(m_dict["rpm"])
                             if len(window) >= effective_limit:
-                                # oldest entry falls out of the 60s window
-                                waits.append(max(0, window[0] + 60.0 - now_mono))
+                                # the entry that must leave the 60s window to free ONE slot
+                                waits.append(max(0, window[len(window) - effective_limit] + RPM_WINDOW_SECS - now_mono))
 
             if not any_waitable:
                 # Every remaining combo is permanently dead for today.
@@ -2595,9 +2632,15 @@ def add_key_model():
             new_key_added = True
             added_key = data["key"]
         if "model" in data and "rpm" in data:
-            MODELS.append({"name": data["model"], "rpm": int(data["rpm"]),
-                           "rpd": int(data.get("rpd", 500))})
-            new_model_added = True
+            _ex = next((m for m in MODELS if m["name"] == data["model"]), None)
+            if _ex:      # same model again -> just update its limits (no duplicate entry)
+                _ex["rpm"] = int(data["rpm"])
+                if "rpd" in data:
+                    _ex["rpd"] = int(data["rpd"])
+            else:
+                MODELS.append({"name": data["model"], "rpm": int(data["rpm"]),
+                               "rpd": int(data.get("rpd", 500))})
+                new_model_added = True
             added_model = data["model"]
 
     test_results = []
@@ -3170,4 +3213,4 @@ def webapi_proxy(sub):
     return Response(_gen(), status, out_headers)
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8085)
+    app.run(host='127.0.0.1', port=8085, threaded=True)
