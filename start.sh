@@ -186,10 +186,22 @@ else
 fi
 
 echo "==> Waiting for apps to start..."
-while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.2; done
+while ! python3 -c "import socket; socket.create_connection(('127.0.0.1', 3000), 1).close()" 2>/dev/null; do
+  if ! kill -0 "$NODE_PID" 2>/dev/null; then
+    echo "ERROR: Node.js (port 3000) exited before listening!" >&2
+    exit 1
+  fi
+  sleep 0.2
+done
 echo "    Node.js is up on 3000"
 
-while ! nc -z 127.0.0.1 8085 2>/dev/null; do sleep 0.2; done
+while ! python3 -c "import socket; socket.create_connection(('127.0.0.1', 8085), 1).close()" 2>/dev/null; do
+  if ! kill -0 "$PY_PID" 2>/dev/null; then
+    echo "ERROR: wapi (port 8085) exited before listening!" >&2
+    exit 1
+  fi
+  sleep 0.2
+done
 echo "    wapi is up on 8085"
 
 echo "==> Starting nginx on port 8000..."
