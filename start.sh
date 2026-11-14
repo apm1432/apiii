@@ -3,35 +3,155 @@
 
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
-echo "==> Verifying nginx.conf & wapi/smart_router.py anti-504 streaming & heartbeat settings..."
+echo "==> Patching nginx.conf & wapi/smart_router.py to eliminate Koyeb 100s 504 timeouts..."
 python3 - << 'PYEOF'
 from pathlib import Path
 import re
 
-# 1. Ensure proxy_buffering is off in all nginx config locations (including /etc/nginx/conf.d/default.conf)
-for candidate in [
-    Path("/etc/nginx/conf.d/default.conf"),
-    Path("/usr/src/app/nginx.conf"),
-    Path("/etc/nginx/nginx.conf"),
-    Path("/etc/nginx/sites-enabled/default"),
-]:
+# 1. Disable proxy_buffering in nginx.conf across all locations so 200 OK headers
+#    and heartbeat chunks flush immediately through Node.js (3000) and Nginx (8000) to Koyeb Edge.
+ng_path = Path("/usr/src/app/nginx.conf")
+if not ng_path.exists():
+    ng_path = Path("/etc/nginx/nginx.conf")
+for candidate in [Path("/usr/src/app/nginx.conf"), Path("/etc/nginx/nginx.conf"), Path("/etc/nginx/sites-enabled/default")]:
     if candidate.exists():
         ntxt = candidate.read_text(encoding="utf-8")
         if "proxy_request_buffering off;" not in ntxt:
             ntxt = ntxt.replace(
                 "proxy_read_timeout 360s;",
-                "proxy_read_timeout 3600s;\n        proxy_send_timeout 3600s;\n        proxy_buffering off;\n        proxy_request_buffering off;\n        gzip off;"
+                "proxy_read_timeout 3600s;\n            proxy_send_timeout 3600s;\n            proxy_buffering off;\n            proxy_request_buffering off;\n            gzip off;"
             )
             candidate.write_text(ntxt, encoding="utf-8")
             print(f"    [patch] Disabled buffering & extended timeout to 3600s in {candidate}")
 
-# 2. Ensure wapi/smart_router.py has (10, 120) upstream timeout & streaming/non-streaming anti-504 heartbeat
+# 2. Patch wapi/smart_router.py
 sr_path = Path("/usr/src/app/wapi/smart_router.py")
 if sr_path.exists():
     src = sr_path.read_text(encoding="utf-8")
-    src = re.sub(r"timeout\s*=\s*600\b", "timeout=(10, 120)", src)
+
+    # Prevent any single Gemini upstream HTTP call from hanging in 'Pending...' for 600s!
+    # A (10s connect, 75s read) timeout guarantees that if one Gemini key/model hangs,
+    # smart_router catches requests.Timeout at 75s (well before Koyeb's 100s limit)
+    # and immediately retries on the next key/model or WebAI fallback!
+    src = re.sub(r"timeout\s*=\s*600\b", "timeout=(10, 75)", src)
+    src = re.sub(r"timeout\s*=\s*120\b", "timeout=(10, 75)", src)
+
+    # Inject WSGI Keep-Alive Heartbeat wrapper with 4KB immediate flush
+    marker = "# --- ANTI_504_HEARTBEAT_PATCH ---"
+    if marker not in src:
+        patch_code = '''
+
+# --- ANTI_504_HEARTBEAT_PATCH ---
+import io as _hb_io
+import json as _hb_json
+import threading as _hb_threading
+
+class _Anti504HeartbeatMiddleware:
+    """Prevents Koyeb Edge / Cloudflare 100s Gateway Timeout (error code: 504)
+    on non-streaming (/v1/chat/completions, /v1/responses, /api/web/v1/chat/completions)
+    POST requests by flushing HTTP 200 OK + 4KB whitespace padding when upstream takes >10s,
+    followed by 1KB whitespace heartbeats every 10s so Node.js/Nginx/Koyeb buffers flush immediately."""
+
+    def __init__(self, wsgi_app, first_byte_delay=10.0, heartbeat_interval=10.0):
+        self.wsgi_app = wsgi_app
+        self.first_byte_delay = first_byte_delay
+        self.heartbeat_interval = heartbeat_interval
+
+    def _is_target_request(self, environ):
+        if environ.get("REQUEST_METHOD") != "POST":
+            return False
+        path = (environ.get("PATH_INFO") or "").rstrip("/")
+        return path.endswith("/chat/completions") or path.endswith("/responses")
+
+    def __call__(self, environ, start_response):
+        if not self._is_target_request(environ):
+            return self.wsgi_app(environ, start_response)
+
+        try:
+            content_length = int(environ.get("CONTENT_LENGTH") or 0)
+        except ValueError:
+            content_length = 0
+
+        body_bytes = b""
+        if content_length > 0 and environ.get("wsgi.input") is not None:
+            body_bytes = environ["wsgi.input"].read(content_length)
+            environ["wsgi.input"] = _hb_io.BytesIO(body_bytes)
+
+        try:
+            payload = _hb_json.loads(body_bytes.decode("utf-8", "replace")) if body_bytes else {}
+        except Exception:
+            payload = {}
+
+        if isinstance(payload, dict) and bool(payload.get("stream")):
+            return self.wsgi_app(environ, start_response)
+
+        done_evt = _hb_threading.Event()
+        captured = {"status": "200 OK", "headers": [], "body_chunks": [], "exc": None}
+
+        def _capture_start_response(status, headers, exc_info=None):
+            captured["status"] = status
+            captured["headers"] = list(headers or [])
+            return lambda chunk: captured["body_chunks"].append(chunk)
+
+        def _worker():
+            try:
+                app_iter = self.wsgi_app(environ, _capture_start_response)
+                try:
+                    for chunk in app_iter:
+                        if chunk:
+                            captured["body_chunks"].append(chunk)
+                finally:
+                    if hasattr(app_iter, "close"):
+                        app_iter.close()
+            except Exception as e:
+                captured["exc"] = e
+            finally:
+                done_evt.set()
+
+        t = _hb_threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+        # If upstream finishes within 10s, return native status & headers untouched
+        if done_evt.wait(timeout=self.first_byte_delay):
+            if captured["exc"] is not None:
+                raise captured["exc"]
+            start_response(captured["status"], captured["headers"])
+            return captured["body_chunks"]
+
+        # Upstream is taking >10s: commit 200 OK + 4KB whitespace immediately to defeat proxy buffers
+        stream_headers = [
+            ("Content-Type", "application/json; charset=utf-8"),
+            ("Cache-Control", "no-cache, no-store, no-transform"),
+            ("X-Accel-Buffering", "no"),
+        ]
+        start_response("200 OK", stream_headers)
+
+        def _heartbeat_stream():
+            yield (b" " * 4096) + b"\\n"
+            while not done_evt.wait(timeout=self.heartbeat_interval):
+                yield (b" " * 1024) + b"\\n"
+            if captured["exc"] is not None:
+                err_json = _hb_json.dumps({
+                    "error": {"message": str(captured["exc"]), "type": "server_error", "code": 500}
+                }).encode("utf-8")
+                yield err_json
+            else:
+                for chunk in captured["body_chunks"]:
+                    if chunk:
+                        yield chunk
+
+        return _heartbeat_stream()
+
+app.wsgi_app = _Anti504HeartbeatMiddleware(app.wsgi_app)
+'''
+        if "if __name__ ==" in src:
+            idx = src.rfind("if __name__ ==")
+            src = src[:idx] + patch_code + "\n" + src[idx:]
+        else:
+            src = src + "\n" + patch_code
+
     sr_path.write_text(src, encoding="utf-8")
-    print("    [ok] smart_router.py verified: streaming SSE + SSE ': keep-alive' heartbeats active.")
+    print("    [patch] smart_router.py patched: upstream timeout=(10, 75) + 4KB anti-504 heartbeat.")
 PYEOF
 
 echo "==> Starting Node.js (apiii) on port 3000..."
@@ -42,7 +162,9 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
 # workers=1 on purpose: smart_router.py keeps its state (RPM/RPD counters,
 # sticky sessions) in process memory, so more workers would break rate limiting.
 # Concurrency comes from threads. --timeout 0 so slow Gemini calls are never killed.
-(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads 32 --worker-class gthread   --timeout 0 --graceful-timeout 30 --keep-alive 75   --bind 127.0.0.1:8085 smart_router:app) &
+(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads 128 --worker-class gthread \
+  --timeout 0 --graceful-timeout 30 --keep-alive 75 \
+  --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!
 
 # WebAI-to-API: One process per Gemini account (ports 6969, 6970, ...), all on 127.0.0.1 and reached only
@@ -64,22 +186,10 @@ else
 fi
 
 echo "==> Waiting for apps to start..."
-while ! python3 -c "import socket; socket.create_connection(('127.0.0.1', 3000), 1).close()" 2>/dev/null; do
-  if ! kill -0 "$NODE_PID" 2>/dev/null; then
-    echo "ERROR: Node.js (port 3000) exited before listening!" >&2
-    exit 1
-  fi
-  sleep 0.2
-done
+while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.2; done
 echo "    Node.js is up on 3000"
 
-while ! python3 -c "import socket; socket.create_connection(('127.0.0.1', 8085), 1).close()" 2>/dev/null; do
-  if ! kill -0 "$PY_PID" 2>/dev/null; then
-    echo "ERROR: wapi (port 8085) exited before listening!" >&2
-    exit 1
-  fi
-  sleep 0.2
-done
+while ! nc -z 127.0.0.1 8085 2>/dev/null; do sleep 0.2; done
 echo "    wapi is up on 8085"
 
 echo "==> Starting nginx on port 8000..."

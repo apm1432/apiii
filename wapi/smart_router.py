@@ -1,6 +1,7 @@
 import os, json, time, threading, datetime
 
 from collections import deque
+import collections
 from flask import Flask, request, jsonify, Response, render_template_string, g
 from functools import wraps
 import requests
@@ -94,7 +95,7 @@ PERMANENTLY_BROKEN_MODELS: set = set()
 # is unaffected -- only steps *within* one tool-calling task stay glued to
 # the same model.
 CONV_STICKY_TTL = 3 * 60 * 60   # forget a caller's pin after 3h of no traffic
-STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "15"))  # short wait for RPM on the pinned model; after that we switch (signatures are re-injected)
+STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "0"))  # short wait for RPM on the pinned model; after that we switch (signatures are re-injected)
 conversation_sticky: dict = {}   # client_id -> (key, model_name, last_used_monotonic)
 
 def _client_id_from_request(data: dict, remote_addr: str) -> str:
@@ -646,6 +647,7 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
     """Build the Response for a 200 from Gemini. Plain /v1/chat/completions
     streaming calls are relayed chunk-by-chunk immediately (never buffered via resp.content).
     /v1/responses calls get converted into a real Responses-API object (see above)."""
+    _trail(f"200 OK from {actual_model}")
     excluded = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     if not is_responses_api:
         out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
@@ -1383,6 +1385,287 @@ def requires_browser_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+# ─── LIVE CAPTURE (RAM only, short-lived) ─────────────────────────────────────
+# Full request (messages, tool calls, tools) + full response (text, tool calls) + the route trail of every
+# /v1/chat/completions|responses request. NOTHING is written to disk or MongoDB. The record lives in RAM for
+# LIVE_TTL seconds after the request ended; the /logs page in YOUR browser pulls it and keeps it in the browser's
+# IndexedDB, so the server never has to hold history. Pending requests are visible while they run.
+LIVE_TTL = float(os.environ.get("LIVE_TTL", "300"))
+LIVE_MAX = int(os.environ.get("LIVE_MAX", "300"))
+BOOT_ID = str(int(time.time()))
+live_full = collections.OrderedDict()   # log id -> record
+live_lock = threading.Lock()
+
+
+def _live_prune():
+    now = time.time()
+    for k in list(live_full):
+        r = live_full[k]
+        age = now - (r.get("t1") or r["t0"])
+        if (r["done"] and age > LIVE_TTL) or age > 900:
+            live_full.pop(k, None)
+    while len(live_full) > LIVE_MAX:
+        live_full.popitem(last=False)
+
+
+def _lc(v, n):
+    v = "" if v is None else (v if isinstance(v, str) else str(v))
+    return v if len(v) <= n else v[:n] + "…[+" + str(len(v) - n) + " chars]"
+
+
+def _live_content(c, n):
+    if isinstance(c, str):
+        return _lc(c, n)
+    if isinstance(c, list):
+        out = []
+        for x in c:
+            if isinstance(x, dict):
+                t = x.get("type")
+                if t in (None, "text", "input_text", "output_text"):
+                    out.append(_lc(x.get("text"), n))
+                else:
+                    u = x.get("image_url")
+                    size = len((u.get("url") if isinstance(u, dict) else u) or x.get("file_data") or x.get("data") or "")
+                    out.append(f"[{t or 'file'} ~{size // 1024} KB]")
+            else:
+                out.append(_lc(x, n))
+        return "\n".join(out)
+    return _lc(c, n)
+
+
+def _live_tcs(tcs):
+    out = []
+    for tc in (tcs or []):
+        if isinstance(tc, dict):
+            fn = tc.get("function") or tc
+            out.append({"id": tc.get("id") or tc.get("call_id"), "name": fn.get("name"),
+                        "arguments": _lc(fn.get("arguments") if not isinstance(fn.get("arguments"), (dict, list)) else json.dumps(fn.get("arguments"), ensure_ascii=False), 4000)})
+    return out
+
+
+def _live_msg(m):
+    if not isinstance(m, dict):
+        return {"role": "?", "content": _lc(m, 2000)}
+    role = m.get("role") or m.get("type") or "?"
+    d = {"role": role}
+    if m.get("name"):
+        d["name"] = m["name"]
+    if m.get("tool_call_id") or m.get("call_id"):
+        d["tool_call_id"] = m.get("tool_call_id") or m.get("call_id")
+    if "content" in m:
+        d["content"] = _live_content(m.get("content"), 2500 if role in ("system", "developer") else 4000)
+    elif "output" in m:                      # Responses API function_call_output
+        d["content"] = _live_content(m.get("output"), 4000)
+    elif "text" in m:
+        d["content"] = _lc(m.get("text"), 4000)
+    if m.get("tool_calls"):
+        d["tool_calls"] = _live_tcs(m["tool_calls"])
+    if role == "function_call":              # Responses API function_call item
+        d["tool_calls"] = _live_tcs([m])
+    return d
+
+
+def _live_req(raw, path):
+    msgs = raw.get("messages")
+    if msgs is None:
+        inp = raw.get("input")
+        msgs = [{"role": "user", "content": inp}] if isinstance(inp, str) else list(inp or [])
+        if raw.get("instructions"):
+            msgs = [{"role": "system", "content": raw["instructions"]}] + msgs
+    msgs = [m for m in (msgs or [])]
+    tools = []
+    for t in (raw.get("tools") or []):
+        if isinstance(t, dict):
+            fn = t.get("function") or t
+            try:
+                ps = json.dumps(fn.get("parameters") or {}, ensure_ascii=False)
+            except Exception:
+                ps = ""
+            tools.append({"name": str(fn.get("name") or t.get("type") or "?"), "description": _lc(fn.get("description"), 300), "parameters": _lc(ps, 1200)})
+    params = {k: raw[k] for k in ("model", "stream", "temperature", "top_p", "max_tokens", "max_completion_tokens",
+                                  "tool_choice", "reasoning_effort", "response_format") if k in raw}
+    return {"path": path, "params": params, "n_messages": len(msgs),
+            "messages": [_live_msg(m) for m in msgs[-30:]], "messages_cut": max(0, len(msgs) - 30), "tools": tools[:60]}
+
+
+def _live_begin(log_entry, raw, path):
+    try:
+        rec = {"id": log_entry["id"], "boot": BOOT_ID, "t0": time.time(), "t1": None, "done": False,
+               "req": _live_req(raw, path), "resp": None, "trail": [], "attempts": [], "log": log_entry}
+        with live_lock:
+            live_full[rec["id"]] = rec
+            _live_prune()
+        g.live = rec
+    except Exception as e:
+        print(f"[LIVE] begin failed: {e}")
+
+
+def _live_attach(attempt_errors):
+    rec = getattr(g, "live", None)
+    if rec is not None:
+        rec["attempts"] = attempt_errors      # same list object -> always current
+
+
+def _trail(text):
+    try:
+        rec = getattr(g, "live", None)
+        if rec is not None and len(rec["trail"]) < 80:
+            rec["trail"].append(f"+{int((time.time() - rec['t0']) * 1000)}ms {text}")
+    except Exception:
+        pass
+
+
+def _live_resp_from_json(j):
+    out = {}
+    if not isinstance(j, dict):
+        return out
+    if "choices" in j:
+        ch = (j.get("choices") or [{}])[0] or {}
+        m = ch.get("message") or {}
+        out["text"] = _lc(m.get("content") or "", 20000)
+        out["tool_calls"] = _live_tcs(m.get("tool_calls"))
+        out["finish_reason"] = ch.get("finish_reason")
+    elif isinstance(j.get("output"), list):
+        texts, tcs = [], []
+        for it in j["output"]:
+            if not isinstance(it, dict):
+                continue
+            if it.get("type") == "message":
+                for c in (it.get("content") or []):
+                    if isinstance(c, dict) and c.get("text"):
+                        texts.append(str(c["text"]))
+            elif it.get("type") == "function_call":
+                tcs.append(it)
+        out["text"] = _lc("".join(texts), 20000)
+        out["tool_calls"] = _live_tcs(tcs)
+    if j.get("error"):
+        try:
+            out["error"] = _lc(json.dumps(j["error"], ensure_ascii=False), 3000)
+        except Exception:
+            out["error"] = _lc(j["error"], 3000)
+    if isinstance(j.get("usage"), dict):
+        out["usage"] = j["usage"]
+    return out
+
+
+class _LiveAcc:
+    """Collects the answer of an SSE stream (chat deltas + tool-call deltas + Responses 'completed') while it is relayed."""
+    def __init__(self):
+        self.buf = b""
+        self.text = []
+        self.n = 0
+        self.tcs = {}
+        self.finish = None
+        self.usage = None
+        self.final = None
+
+    def feed(self, chunk):
+        self.buf += chunk
+        if b"\n" not in self.buf:
+            return
+        *lines, self.buf = self.buf.split(b"\n")
+        for ln in lines:
+            ln = ln.strip()
+            if not ln.startswith(b"data:") or ln.endswith(b"[DONE]"):
+                continue
+            try:
+                o = json.loads(ln[5:].strip())
+            except Exception:
+                continue
+            if o.get("type") == "response.completed":
+                self.final = o.get("response")
+                continue
+            if isinstance(o.get("usage"), dict):
+                self.usage = o["usage"]
+            for ch in (o.get("choices") or []):
+                d = ch.get("delta") or {}
+                c = d.get("content")
+                if c and self.n < 20000:
+                    self.text.append(c)
+                    self.n += len(c)
+                for tc in (d.get("tool_calls") or []):
+                    cur = self.tcs.setdefault(tc.get("index", 0), {"id": None, "name": "", "arguments": ""})
+                    if tc.get("id"):
+                        cur["id"] = tc["id"]
+                    fn = tc.get("function") or {}
+                    if fn.get("name"):
+                        cur["name"] += fn["name"]
+                    if fn.get("arguments") and len(cur["arguments"]) < 4000:
+                        cur["arguments"] += fn["arguments"]
+                if ch.get("finish_reason"):
+                    self.finish = ch["finish_reason"]
+
+    def result(self):
+        if self.final:
+            return _live_resp_from_json(self.final)
+        out = {"text": _lc("".join(self.text), 20000), "tool_calls": list(self.tcs.values()), "finish_reason": self.finish}
+        if self.usage:
+            out["usage"] = self.usage
+        return out
+
+
+def _live_finish(rec, resp_obj, status_code):
+    rec["resp"] = dict(resp_obj or {}, status_code=status_code)
+    rec["t1"] = time.time()
+    rec["done"] = True
+
+
+def _live_wrap_stream(it, rec, status_code):
+    acc = _LiveAcc()
+    def gen():
+        try:
+            for chunk in it:
+                try:
+                    acc.feed(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace"))
+                except Exception:
+                    pass
+                yield chunk
+        finally:
+            try:
+                _live_finish(rec, acc.result(), status_code)
+            finally:
+                close = getattr(it, "close", None)
+                if close:
+                    try: close()
+                    except Exception: pass
+    return gen()
+
+
+def _live_after(response):
+    rec = getattr(g, "live", None)
+    if rec is None or rec["done"]:
+        return
+    if response.is_streamed:
+        response.response = _live_wrap_stream(response.response, rec, response.status_code)
+        return
+    if response.direct_passthrough:
+        _live_finish(rec, {}, response.status_code)
+        return
+    body = response.get_data()
+    obj = {}
+    if len(body) < 4_000_000 and "json" in (response.mimetype or ""):
+        try:
+            obj = _live_resp_from_json(json.loads(body.decode("utf-8", "replace")))
+        except Exception:
+            obj = {"text": _lc(body.decode("utf-8", "replace"), 3000)}
+    _live_finish(rec, obj, response.status_code)
+
+
+def _live_public(r):
+    return {"id": r["id"], "boot": r["boot"], "t0": r["t0"], "t1": r["t1"], "done": r["done"], "req": r["req"],
+            "resp": r["resp"], "trail": list(r["trail"]), "attempts": [_lc(a, 700) for a in list(r["attempts"])[-25:]],
+            "slim": _slim_log(r["log"])}
+
+
+def _live_view(since, boot, pending):
+    if boot != BOOT_ID:
+        since, pending = 0, set()
+    with live_lock:
+        _live_prune()
+        recs = [r for r in live_full.values() if r["id"] > since or r["id"] in pending]
+    return jsonify({"boot": BOOT_ID, "recs": [_live_public(r) for r in recs[:60]]})
+
+
 @app.before_request
 def strict_password_and_log():
     if request.method == 'OPTIONS':
@@ -1481,6 +1764,10 @@ def update_log_status(response):
         except Exception:
             pass
     try:
+        _live_after(response)
+    except Exception as _e:
+        print(f"[LIVE] after failed: {_e}")
+    try:
         if (request.content_length or 0) > 1_000_000:
             _trim_memory_soon()
     except Exception:
@@ -1493,6 +1780,13 @@ def update_log_status(response):
 def api_dashboard_data():
     if request.args.get("detail") is not None:
         return _log_detail(request.args.get("detail"))
+    if request.args.get("live_since") is not None:
+        try:
+            _since = int(request.args.get("live_since") or 0)
+        except ValueError:
+            _since = 0
+        _pend = {int(x) for x in (request.args.get("pending") or "").split(",") if x.strip().isdigit()}
+        return _live_view(_since, request.args.get("boot", ""), _pend)
     now = time.time()
     now_mono = time.monotonic()
     with state_lock:
@@ -1695,6 +1989,7 @@ tr:hover{background:#252525}
 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
 <span id="log-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></span>
 <button class="btn-s" id="pause-btn" onclick="togglePause()">⏸ Pause logs</button>
+<button class="btn-s" onclick="clearSaved()">🗑 Clear browser logs</button>
 <button class="btn-s" id="skip-btn" onclick="skipLoad()" style="display:none;background:#7f1d1d;border-color:#b91c1c;">⏭ Skip this load</button>
 <span id="log-note" style="color:#a1a1aa;font-size:.85em;"></span>
 </div>
@@ -1774,6 +2069,7 @@ async function fetchData(manual){
     if(my!==ctl)return;
     document.getElementById('error-msg').style.display='none';
     if(!isSelecting)updateUI(data);
+    syncLive();
   }catch(e){
     if(my!==ctl)return;
     const el=document.getElementById('error-msg');el.style.display='block';
@@ -1786,9 +2082,11 @@ function schedule(){
   clearTimeout(timer);
   timer=setTimeout(async()=>{if(!paused)await fetchData(false);schedule();},Math.min(20000,Math.max(5000,lastMs*3)));
 }
-function setFilter(f){filter=f;lastSig='';if(window._last)renderLogs(window._last);}
+async function setFilter(f){filter=f;lastSig='';if(f==='saved')await loadSaved();if(window._last)renderLogs(window._last);}
 async function toggleDetail(id){
   if(expanded[id]){if(expanded[id].ctl)expanded[id].ctl.abort();delete expanded[id];lastSig='';renderLogs(window._last);return;}
+  const _rec=await idbGet(filter==='saved'?((savedRows.find(r=>r.id===id)||{}).k):(liveMeta.boot+':'+id));
+  if(_rec){expanded[id]={state:'ok',live:_rec};lastSig='';renderLogs(window._last);return;}
   const c=new AbortController();expanded[id]={state:'loading',ctl:c};lastSig='';renderLogs(window._last);
   try{
     const r=await fetch('/router/dashboard_data?detail='+id,{credentials:'same-origin',signal:c.signal});
@@ -1802,7 +2100,7 @@ async function toggleDetail(id){
   lastSig='';renderLogs(window._last);
 }
 function detailHtml(id){
-  const x=expanded[id];if(!x)return '';
+  const x=expanded[id];if(!x)return '';if(x.live)return liveRow(id,x.live);
   const nl=String.fromCharCode(10);
   let body;
   if(x.state==='loading')body='⏳ Loading details... <button class="btn-s" onclick="toggleDetail('+id+')">⏭ Skip</button>';
@@ -1822,11 +2120,12 @@ function renderLogs(data){
   const cnt={ok:0,warn:0,fail:0,pending:0};
   recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
   const nFail=cnt.fail+old.length;
-  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')']];
+  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')'],['saved','💾 Saved in browser ('+savedCount+')']];
   document.getElementById('log-chips').innerHTML=chips.map(c=>'<span class="chip'+(filter===c[0]?' on':'')+'" onclick="setFilter(&quot;'+c[0]+'&quot;)">'+c[1]+'</span>').join('');
   let rows;
   if(filter==='all')rows=recent;
   else if(filter==='fail')rows=recent.filter(l=>l.kind==='fail').concat(old);
+  else if(filter==='saved')rows=savedRows.map(r=>r.slim);
   else rows=recent.filter(l=>l.kind===filter);
   rows=rows.slice().sort((a,b)=>b.id-a.id);
   if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
@@ -1843,7 +2142,7 @@ function renderLogs(data){
     const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
     const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
     const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
-    const det=(l.has_detail||l.n_attempts)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
+    const det=(true)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
     html+='<tr style="'+bar+'"><td style="white-space:nowrap;color:#888;font-size:.9em;">'+esc(l.time||'')+'</td>'
       +'<td class="ip">'+esc(l.ip||'')+' '+pwd+'</td>'
       +'<td><span class="badge '+bc+'">'+esc(l.status||'')+'</span></td>'
@@ -1862,11 +2161,12 @@ function renderLogs(data){
   const cnt={ok:0,warn:0,fail:0,pending:0};
   recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
   const nFail=cnt.fail+old.length;
-  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')']];
+  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')'],['saved','💾 Saved in browser ('+savedCount+')']];
   document.getElementById('log-chips').innerHTML=chips.map(c=>'<span class="chip'+(filter===c[0]?' on':'')+'" onclick="setFilter(&quot;'+c[0]+'&quot;)">'+c[1]+'</span>').join('');
   let rows;
   if(filter==='all')rows=recent;
   else if(filter==='fail')rows=recent.filter(l=>l.kind==='fail').concat(old);
+  else if(filter==='saved')rows=savedRows.map(r=>r.slim);
   else rows=recent.filter(l=>l.kind===filter);
   rows=rows.slice().sort((a,b)=>b.id-a.id);
   if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
@@ -1883,7 +2183,7 @@ function renderLogs(data){
     const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
     const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
     const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
-    const det=(l.has_detail||l.n_attempts)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
+    const det=(true)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
     html+='<tr style="'+bar+'"><td style="white-space:nowrap;color:#888;font-size:.9em;">'+esc(l.time||'')+'</td>'
       +'<td class="ip">'+esc(l.ip||'')+' '+pwd+'</td>'
       +'<td><span class="badge '+bc+'">'+esc(l.status||'')+'</span></td>'
@@ -1896,6 +2196,107 @@ function renderLogs(data){
   });
   tbody.innerHTML=html;
 }
+// ===== Browser-side log store (IndexedDB): full request / tool calls / response stay in THIS browser only =====
+const IDB_NAME='wapi_logs',IDB_STORE='recs',IDB_MAX=300;
+let idb=null,liveBusy=false,savedRows=[],savedCount=0;
+const liveMeta={boot:'',maxId:0,pending:new Set()};
+function idbOpen(){
+  return new Promise((res)=>{
+    if(!window.indexedDB){res(null);return;}
+    const rq=indexedDB.open(IDB_NAME,1);
+    rq.onupgradeneeded=()=>{const s=rq.result.createObjectStore(IDB_STORE,{keyPath:'k'});s.createIndex('t0','t0');};
+    rq.onsuccess=()=>res(rq.result);
+    rq.onerror=()=>res(null);
+  });
+}
+function idbStore(mode){return idb.transaction(IDB_STORE,mode).objectStore(IDB_STORE);}
+function idbReq(rq){return new Promise((res)=>{rq.onsuccess=()=>res(rq.result);rq.onerror=()=>res(null);});}
+async function idbPut(rec){if(!idb)return;rec.k=rec.boot+':'+rec.id;await idbReq(idbStore('readwrite').put(rec));}
+async function idbGet(k){if(!idb||!k)return null;return await idbReq(idbStore('readonly').get(k));}
+async function idbAll(){if(!idb)return [];return (await idbReq(idbStore('readonly').getAll()))||[];}
+async function idbTrim(){
+  if(!idb)return;
+  const n=(await idbReq(idbStore('readonly').count()))||0;
+  savedCount=n;
+  if(n<=IDB_MAX)return;
+  const keys=(await idbReq(idbStore('readonly').index('t0').getAllKeys()))||[];
+  for(let i=0;i<n-IDB_MAX;i++)await idbReq(idbStore('readwrite').delete(keys[i]));
+  savedCount=IDB_MAX;
+}
+async function loadSaved(){savedRows=(await idbAll()).sort((a,b)=>b.t0-a.t0);savedCount=savedRows.length;}
+async function clearSaved(){
+  if(!confirm('Delete all logs saved in this browser?'))return;
+  if(idb)await idbReq(idbStore('readwrite').clear());
+  savedRows=[];savedCount=0;liveMeta.maxId=0;liveMeta.pending.clear();
+  Object.keys(expanded).forEach(k=>{if(expanded[k]&&expanded[k].live)delete expanded[k];});
+  lastSig='';if(window._last)renderLogs(window._last);
+}
+async function syncLive(){
+  if(liveBusy||!idb)return;
+  liveBusy=true;
+  try{
+    const url='/router/dashboard_data?live_since='+liveMeta.maxId+'&boot='+encodeURIComponent(liveMeta.boot)+'&pending='+Array.from(liveMeta.pending).join(',');
+    const r=await fetch(url,{credentials:'same-origin'});
+    if(!r.ok){liveBusy=false;return;}
+    const d=await r.json();
+    if(d.boot!==liveMeta.boot){liveMeta.boot=d.boot;liveMeta.maxId=0;liveMeta.pending.clear();}
+    const recs=d.recs||[];
+    for(const rec of recs){
+      await idbPut(rec);
+      liveMeta.maxId=Math.max(liveMeta.maxId,rec.id);
+      if(rec.done)liveMeta.pending.delete(rec.id);else liveMeta.pending.add(rec.id);
+      const x=expanded[rec.id];if(x&&x.live)x.live=rec;
+    }
+    if(recs.length){await idbTrim();if(filter==='saved')await loadSaved();lastSig='';if(window._last)renderLogs(window._last);}
+  }catch(e){}
+  liveBusy=false;
+}
+(async function liveInit(){
+  idb=await idbOpen();
+  if(!idb)return;
+  const all=(await idbAll()).sort((a,b)=>a.t0-b.t0);
+  savedCount=all.length;
+  const last=all[all.length-1];
+  if(last){
+    liveMeta.boot=last.boot;
+    all.forEach(r=>{if(r.boot===last.boot){liveMeta.maxId=Math.max(liveMeta.maxId,r.id);if(!r.done)liveMeta.pending.add(r.id);}});
+  }
+  syncLive();
+})();
+setInterval(()=>{if(!paused&&!document.hidden&&liveMeta.pending.size)syncLive();},2000);
+
+function pj(a){try{return JSON.stringify(JSON.parse(a),null,2);}catch(e){return a||'';}}
+function liveMsgBlock(m){
+  const nl=String.fromCharCode(10);
+  const col={system:'#a1a1aa',developer:'#a1a1aa',user:'#93c5fd',assistant:'#86efac',tool:'#fcd34d'}[m.role]||'#d4d4d8';
+  let t='['+m.role+(m.name?' '+m.name:'')+(m.tool_call_id?' #'+m.tool_call_id:'')+']'+nl+(m.content||'');
+  (m.tool_calls||[]).forEach(c=>{t+=nl+'🔧 '+c.name+'('+pj(c.arguments)+')'+(c.id?'  id='+c.id:'');});
+  return '<div class="det" style="color:'+col+';margin-top:4px;max-height:220px">'+esc(t)+'</div>';
+}
+function liveRow(id,rec){
+  const nl=String.fromCharCode(10);
+  const h=(t,c)=>'<div style="margin-top:10px;color:'+c+';font-weight:bold">'+t+'</div>';
+  const pre=(t,c)=>'<div class="det" style="color:'+c+'">'+esc(t)+'</div>';
+  const q=rec.req||{};
+  let o='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button> <span style="color:#6b7280;font-size:.8em">saved in this browser only (not on the server)</span>';
+  if(rec.trail&&rec.trail.length)o+=h('Route trail (which key/model got it)','#fbbf24')+pre(rec.trail.join(nl),'#fcd34d');
+  o+=h('Request - '+esc(JSON.stringify(q.params||{}))+' | '+(q.n_messages||0)+' messages'+(q.messages_cut?' (older '+q.messages_cut+' not shown)':''),'#93c5fd');
+  if(q.tools&&q.tools.length)o+=h('Tools offered ('+q.tools.length+')','#a78bfa')+pre(q.tools.map(t=>t.name+' - '+t.description).join(nl),'#c4b5fd');
+  (q.messages||[]).forEach(m=>{o+=liveMsgBlock(m);});
+  const p=rec.resp;
+  const stale=!rec.done&&(Date.now()/1000-rec.t0>900);
+  if(!rec.done)o+=h(stale?'⚠️ never finished (server restarted?)':'⏳ Response: still running...','#60a5fa');
+  else if(p){
+    o+=h('Response - HTTP '+p.status_code+(p.finish_reason?' | finish: '+p.finish_reason:'')+(p.usage?' | usage: '+esc(JSON.stringify(p.usage)):'')+(rec.t1?' | '+Math.round((rec.t1-rec.t0)*1000)+'ms':''),'#4ade80');
+    if(p.error)o+=pre(p.error,'#fca5a5');
+    if(p.text)o+=pre(p.text,'#d1fae5');
+    (p.tool_calls||[]).forEach(c=>{o+=pre('🔧 TOOL CALL -> '+c.name+nl+pj(c.arguments)+(c.id?nl+'id='+c.id:''),'#fcd34d');});
+    if(!p.text&&!p.error&&!(p.tool_calls||[]).length)o+=pre('(empty response body)','#9ca3af');
+  }
+  if(rec.attempts&&rec.attempts.length)o+=h('Failed attempts ('+rec.attempts.length+')','#f87171')+pre(rec.attempts.join(nl),'#fca5a5');
+  return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+o+'</td></tr>';
+}
+
 async function releaseDaily(keyFilter='', modelFilter=''){
   const payload={};
   if(keyFilter)payload.key=keyFilter;
@@ -2092,6 +2493,8 @@ def _why(status: int, err_text: str, model: str = "") -> str:
 WEBAI_FALLBACK = os.environ.get("WEBAI_FALLBACK", "1") != "0"
 WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
 FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
+# Without the WebAI fallback (tool calls / continuations) wait at most this long for a free (key, model) slot.
+POOL_MAX_WAIT = float(os.environ.get("POOL_MAX_WAIT", "5"))
 # One WebAI process per Gemini account (wapi/webai_supervisor.py); webai_pool spreads the load over them.
 import webai_pool
 import webapi_model_fix
@@ -2235,6 +2638,7 @@ def proxy_chat():
 
     data = request.json or {}
     if hasattr(g, "log_entry"):
+        _live_begin(g.log_entry, data, request.path)
         g.log_entry["request"] = _req_snapshot(data, request.path) + "\nheaders:\n" + _safe_headers(request.headers)
         g.log_entry["route"] = f"Gemini key pool ({request.path})"
     # Capture a conversation id BEFORE popping these -- session_id/user are
@@ -2280,6 +2684,7 @@ def proxy_chat():
                               # show WHY (not just a bare status code) -- see
                               # g.log_entry["error_detail"] set right before we
                               # return to the client below.
+    _live_attach(attempt_errors)
     tried = set()            # (key, model_name) permanently excluded this request
                               # (daily-penalized, permanently broken, or attempt-cap reached)
     attempt_counts = {}      # (key, model_name) -> attempts made this request, for
@@ -2302,6 +2707,7 @@ def proxy_chat():
         if outcome == "ok":
             actual_model = model["name"]
             print(f"[STICKY] {client_id} → preferring key=…{key[-6:]} model={actual_model}")
+            _trail(f"sticky slot {actual_model} (key …{key[-4:]}) is free")
             tried.add((key, actual_model))
             data["model"] = actual_model
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
@@ -2344,7 +2750,7 @@ def proxy_chat():
     # With the WebAI fallback available we never sit for long waiting on keys:
     # only a very short wait (keys first), then the fallback answers.
     fb_ok = WEBAI_FALLBACK and not is_continuation and not data.get("tools")
-    max_wait = FALLBACK_MAX_WAIT if fb_ok else 65
+    max_wait = FALLBACK_MAX_WAIT if fb_ok else POOL_MAX_WAIT
     # Image/file requests: the WebAI fallback is far less reliable for them (guest accounts cannot take files,
     # playwright backend rejects them), so wait for the keys much longer instead of failing after 3 s.
     if fb_ok and _has_file_parts(data):
@@ -2404,9 +2810,11 @@ def proxy_chat():
                 # HTTP request this long. Return 429 now so the caller can
                 # retry; the next call will likely find a fresh slot.
                 print(f"[WAIT TOO LONG] Soonest slot in {wait_secs:.0f}s — giving up on keys for this request.")
+                _trail(f"soonest slot in {wait_secs:.0f}s -> not waiting")
                 attempt_errors.append(f"pool: all key×model slots cooling down (RPM/429), soonest free in {wait_secs:.0f}s")
                 break
             print(f"[WAIT] All slots RPM-busy, sleeping {wait_secs:.1f}s for next available slot...")
+            _trail(f"all slots busy -> waiting {wait_secs:.1f}s")
             time.sleep(wait_secs)
             continue
 
@@ -2414,6 +2822,7 @@ def proxy_chat():
         actual_model = model["name"]
         tried.add((key, actual_model))
         data["model"] = actual_model
+        _trail(f"sent to {actual_model} (key …{key[-4:]})")
 
         headers = {
             "Authorization": f"Bearer {key}",
@@ -2469,6 +2878,7 @@ def proxy_chat():
                         # after which it's fair game again on a later pass.
 
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
+                _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit -> next slot")
                 attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit | {_short_err(err_text, 220)}")
                 continue  # instantly retry with the next best slot
 
@@ -2597,6 +3007,7 @@ def proxy_chat():
     # Every key×model combo was tried (or the pool is genuinely exhausted / cooling down).
     # LAST RESORT: answer through WebAI (cookies). Keys were tried first, always.
     keys_report = " || ".join(attempt_errors[-6:]) if attempt_errors else "no key/model combo was usable (pool empty?)"
+    _trail("Gemini keys could not serve this -> trying WebAI fallback")
     fb_resp, fb_info = webai_fallback(data, is_responses_api, client_stream_requested)
     if fb_resp is not None:
         with state_lock:
