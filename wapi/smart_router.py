@@ -3602,6 +3602,23 @@ function detailHtml(id){
   }
   return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+body+'</td></tr>';
 }
+// ===== Do not disturb the reader: no re-render while text is selected / a message box is being scrolled or hovered =====
+let readTs=0,deferredRender=false;
+function markRead(e){const t=e.target;if(t&&t.closest&&t.closest('.det'))readTs=Date.now();}
+['scroll','wheel','mousemove','touchstart','touchmove','mousedown'].forEach(ev=>document.addEventListener(ev,markRead,{capture:true,passive:true}));
+// a deliberate click on any button / chip must always update the page at once
+document.addEventListener('click',e=>{const t=e.target;if(t&&t.closest&&t.closest('button,.chip')){readTs=0;const s=window.getSelection&&window.getSelection();if(s&&s.removeAllRanges)s.removeAllRanges();}},true);
+function userReading(){
+  const s=window.getSelection?window.getSelection():null;
+  if(s&&!s.isCollapsed&&s.toString().length>0){const lb=document.getElementById('logs-body');if(lb&&s.anchorNode&&lb.contains(s.anchorNode))return true;}
+  return Date.now()-readTs<8000;
+}
+function snapScroll(tb){return {y:window.scrollY,d:Array.from(tb.querySelectorAll('.det')).map(e=>[e.scrollTop,e.scrollLeft])};}
+function restoreScroll(tb,sv){
+  Array.from(tb.querySelectorAll('.det')).forEach((e,i)=>{const v=sv.d[i];if(v){e.scrollTop=v[0];e.scrollLeft=v[1];}});
+  if(Math.abs(window.scrollY-sv.y)>1)window.scrollTo(window.scrollX,sv.y);
+}
+setInterval(()=>{if(deferredRender&&window._last&&!userReading()){deferredRender=false;renderLogs(window._last);}},1000);
 function renderLogs(data){
   window._last=data;
   const recent=data.logs||[],old=data.older_errors||[];
@@ -3619,6 +3636,7 @@ function renderLogs(data){
   if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
   const sig=filter+'|'+rows.map(l=>l.id+l.status+l.response_ms).join(',')+'|'+Object.keys(expanded).map(k=>k+expanded[k].state).join(',');
   if(sig===lastSig)return;
+  if(userReading()){deferredRender=true;return;}      // reader is busy: show the update later, do not touch the page now
   lastSig=sig;
   const tbody=document.getElementById('logs-body');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">'+(filter==='all'?'No logs yet.':'Nothing here.')+'</td></tr>';return;}
@@ -3642,7 +3660,9 @@ function renderLogs(data){
       +'<td>'+err+'</td><td style="white-space:nowrap;">'+det+stp+'</td></tr>';
     if(expanded[l.id])html+=detailHtml(l.id);
   });
+  const sv=snapScroll(tbody);
   tbody.innerHTML=html;
+  restoreScroll(tbody,sv);
 }
 // ===== Browser-side log store (IndexedDB): full request / tool calls / response stay in THIS browser only =====
 const IDB_NAME='wapi_logs',IDB_STORE='recs',IDB_MAX=300;
