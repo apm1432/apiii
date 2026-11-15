@@ -9,6 +9,7 @@ from urllib.parse import quote
 import base64, copy, hashlib, re, uuid
 import concurrent.futures, itertools, gc
 import deploy_badge
+import image_fix   # repairs broken image parts + recognises 'this model can't take this input' 400s
 
 app = Flask(__name__)
 
@@ -4436,6 +4437,19 @@ def proxy_chat():
     data.pop('session_id', None)
     data.pop('user', None)
     data = normalize_to_chat_completions(data)  # <-- strips Responses-API/unknown fields that caused the 400s
+    # Repair image parts BEFORE Google sees them (wrong mime label, bad base64, gif/bmp/tiff, tiny/huge pictures ...).
+    has_images = False
+    try:
+        _img = image_fix.normalize_images(data)
+        has_images = _img["images"] > 0
+        if _img["fixed"] or _img["dropped"]:
+            _trail(f"images: {_img['fixed']} repaired, {_img['dropped']} unreadable removed"
+                   + (f" ({'; '.join(_img['notes'][:2])})" if _img["notes"] else ""))
+    except Exception as _e:
+        print(f"[IMAGE FIX FAILED] {_e} -> sending images unchanged")
+        has_images = any(isinstance(m, dict) and isinstance(m.get("content"), list)
+                         and any(isinstance(x, dict) and x.get("type") == "image_url" for x in m["content"])
+                         for m in (data.get("messages") or []))
     wants_search = bool(data.pop('_wants_search', False)) and ROUTER_WEB_SEARCH
     is_responses_api = request.path.startswith('/v1/responses')
     client_stream_requested = bool(data.get("stream"))
@@ -4501,6 +4515,17 @@ def proxy_chat():
                               # excluded for the rest of this request.
     MAX_ATTEMPTS_PER_COMBO = 3
     bad_400 = {}             # error text -> how often Google answered exactly that 400 (a bad REQUEST is not a bad key)
+    img_fail_models = set()  # models that answered "cannot process input image" for THIS request
+    img_skip = set()         # (key, model) pairs skipped because of that (undone if we have to strip the images)
+    images_stripped = False
+    cap_fail_models = set()  # models that said "I do not support this" (non-image); after 3 the request itself is blamed
+
+    def _skip_model_this_request(model_name):
+        # this MODEL cannot take this input -> no key of it is tried again for this request
+        for _k in API_KEYS:
+            if (_k, model_name) not in tried:
+                tried.add((_k, model_name))
+                img_skip.add((_k, model_name))
 
     if is_continuation:
         # PREFER the (key, model) that produced the tool call (its signature
@@ -4535,6 +4560,13 @@ def proxy_chat():
                     err = resp.text.lower()
                     with state_lock:
                         _handle_429(key, actual_model, err)
+                if resp.status_code == 400:
+                    _e400 = resp.text.lower()
+                    if (has_images and image_fix.is_image_error(_e400)) or image_fix.is_capability_error(_e400):
+                        _skip_model_this_request(actual_model)
+                        if has_images and image_fix.is_image_error(_e400):
+                            img_fail_models.add(actual_model)
+                        _trail(f"{actual_model} cannot take this input -> forwarding to another model")
                 print(f"[STICKY] pinned slot returned {resp.status_code} → switching slot")
                 last_resp = resp
             except RequestCancelled:
@@ -4765,6 +4797,35 @@ def proxy_chat():
                           f"does not work via this proxy shape → disabled for this key, switching instantly")
                     attempt_errors.append(f"400 {actual_model} (…{key[-4:]}): incompatible with this proxy shape "
                                            f"-> permanently disabled for this key")
+                elif resp.status_code == 400 and ((has_images and not images_stripped and image_fix.is_image_error(err_text))
+                                                  or (image_fix.is_capability_error(err_text) and len(cap_fail_models) < 3)):
+                    # The MODEL (not the request) cannot handle this input (e.g. gemini-4-hydrogen + image):
+                    # skip it on every key for this request and forward to the next model that supports it.
+                    _is_img = has_images and not images_stripped and image_fix.is_image_error(err_text)
+                    if not _is_img:
+                        cap_fail_models.add(actual_model)
+                    _skip_model_this_request(actual_model)
+                    attempt_errors.append(f"400 {actual_model} (…{key[-4:]}): model cannot take this "
+                                          f"{'image' if _is_img else 'input'} -> forwarded to another model | {_short_err(err_text, 160)}")
+                    _trail(f"400 {actual_model}: cannot take this {'image' if _is_img else 'input'} -> trying another model")
+                    if not _is_pool_req:
+                        # the client named this model: still serve the request, from the pool
+                        requested_model = "auto"
+                        _is_pool_req = True
+                        _trail("named model unsupported for this input -> switching to auto pool")
+                    if _is_img:
+                        img_fail_models.add(actual_model)
+                        if len(img_fail_models) >= 2:
+                            # two different models both refuse the picture -> the picture itself is bad. Last resort:
+                            # replace it by a text note so the agent can go on, and give those models another chance.
+                            n_str = image_fix.strip_images(data, "no model accepted it")
+                            images_stripped, has_images = True, False
+                            tried.difference_update(img_skip)
+                            img_skip.clear()
+                            _trail(f"{n_str} image(s) rejected by {len(img_fail_models)} models -> removed, retrying text-only")
+                            if hasattr(g, "log_entry"):
+                                g.log_entry["error_detail"] = f"{n_str} image(s) could not be processed by any model and were removed"
+                    continue
                 else:
                     tried.add((key, actual_model))
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
