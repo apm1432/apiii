@@ -1,12 +1,13 @@
 #!/bin/bash
 # Starts Node (3000), wapi/gunicorn (8085) and nginx (8000) in one container.
 
-# WEBAI_ENABLED=0 / false / no / off -> WebAI is completely OFF: no supervisor, no WebAI process, and wapi does not
-# register /api/web/v1 at all (see WEBAI_ENABLED in wapi/smart_router.py). Default = on.
-case "$(echo "${WEBAI_ENABLED:-1}" | tr '[:upper:]' '[:lower:]')" in
-  0|false|no|off) WEBAI_ON=0 ;;
-  *)              WEBAI_ON=1 ;;
-esac
+# Safeguard for mobile GitHub uploads (if smart_router.py was uploaded to root or renamed by Android)
+for _cand in "/usr/src/app/smart_router.py" "/usr/src/app/smart_router (1).py" "/usr/src/app/wapi/smart_router (1).py"; do
+  if [ -f "$_cand" ]; then
+    echo "==> Copying uploaded $_cand to /usr/src/app/wapi/smart_router.py"
+    cp -f "$_cand" /usr/src/app/wapi/smart_router.py
+  fi
+done
 
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
@@ -169,7 +170,7 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
 # workers=1 on purpose: smart_router.py keeps its state (RPM/RPD counters,
 # sticky sessions) in process memory, so more workers would break rate limiting.
 # Concurrency comes from threads. --timeout 0 so slow Gemini calls are never killed.
-(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads ${WAPI_THREADS:-96} --worker-class gthread \
+(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads 32 --worker-class gthread \
   --timeout 0 --graceful-timeout 30 --keep-alive 75 \
   --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!
@@ -180,9 +181,7 @@ PY_PID=$!
 # wapi/webai_supervisor.py starts/stops the instances, saves auto-refreshed cookies back to the DB and restarts
 # a crashed one. Own restart loop and NOT part of `wait -n` below, so if it crashes it never takes the rest of
 # the container down.
-if [ "$WEBAI_ON" = "0" ]; then
-  echo "==> WEBAI_ENABLED=0 - WebAI is OFF (no supervisor, no WebAI process, /api/web/v1 disabled)"
-elif [ -x /opt/webai-venv/bin/python ]; then
+if [ -x /opt/webai-venv/bin/python ]; then
   echo "==> Starting WebAI pool supervisor (one WebAI-to-API per Gemini account)..."
   rm -f /tmp/webai-pool/stopping
   (cd /usr/src/app/wapi && while true; do
@@ -195,41 +194,11 @@ else
 fi
 
 echo "==> Waiting for apps to start..."
-# Plain bash /dev/tcp instead of `nc`: node:20-slim does not ship netcat, and with `nc` missing this loop never
-# ended -> nginx (port 8000) never started -> Koyeb "TCP health check failed on port 8000".
-# Also gives up after 120 s and starts nginx anyway, so the port is always open and the real error shows in the logs.
-wait_port() {   # wait_port <port> <label>
-  local i=0
-  until (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; do
-    i=$((i+1)); [ "$i" -ge 600 ] && { echo "    WARNING: $2 not reachable on $1 after 120s - continuing anyway"; return; }
-    sleep 0.2
-  done
-  echo "    $2 is up on $1"
-}
-wait_port 3000 "Node.js"
-wait_port 8085 "wapi"
+while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.2; done
+echo "    Node.js is up on 3000"
+
+while ! nc -z 127.0.0.1 8085 2>/dev/null; do sleep 0.2; done
+echo "    wapi is up on 8085"
 
 echo "==> Starting nginx on port 8000..."
-nginx -g "daemon off;" &
-NGINX_PID=$!
-
-# Graceful stop. Koyeb sends SIGTERM to PID 1 (this script) once the NEW instance is healthy. Before, `exec nginx`
-# made nginx PID 1, so Node never got the signal and never released the Telegram polling slot (-> 409 Conflict).
-# Now Node is stopped FIRST (stops polling + releases the lock), then wapi / WebAI / nginx.
-_term() {
-  echo "==> SIGTERM received - stopping Node (releases Telegram polling), then wapi, WebAI, nginx..."
-  mkdir -p /tmp/webai-pool; touch /tmp/webai-pool/stopping
-  kill -TERM "$NODE_PID" 2>/dev/null
-  for _ in $(seq 1 60); do kill -0 "$NODE_PID" 2>/dev/null || break; sleep 0.1; done
-  pkill -TERM -f webai_supervisor.py 2>/dev/null
-  kill -TERM "$PY_PID" "$NGINX_PID" 2>/dev/null
-  wait
-  exit 0
-}
-trap _term TERM INT
-
-# If Node, wapi or nginx dies on its own, stop the container so Koyeb restarts it (before, only nginx counted).
-wait -n "$NODE_PID" "$PY_PID" "$NGINX_PID"
-CODE=$?
-echo "==> a main process exited (code $CODE) - stopping container"
-exit "$CODE"
+exec nginx -g "daemon off;"
