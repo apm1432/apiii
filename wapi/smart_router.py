@@ -3574,7 +3574,7 @@ async function setFilter(f){filter=f;lastSig='';if(f==='saved')await loadSaved()
 async function toggleDetail(id){
   if(expanded[id]){if(expanded[id].ctl)expanded[id].ctl.abort();delete expanded[id];lastSig='';renderLogs(window._last);return;}
   const _rec=await idbGet(filter==='saved'?((savedRows.find(r=>r.id===id)||{}).k):(liveMeta.boot+':'+id));
-  if(_rec){expanded[id]={state:'ok',live:_rec};lastSig='';renderLogs(window._last);return;}
+  if(_rec){expanded[id]={state:'ok',live:_rec,seen:await buildSeen(_rec)};lastSig='';renderLogs(window._last);return;}
   const c=new AbortController();expanded[id]={state:'loading',ctl:c};lastSig='';renderLogs(window._last);
   try{
     const r=await fetch('/router/dashboard_data?detail='+id,{credentials:'same-origin',signal:c.signal});
@@ -3588,7 +3588,7 @@ async function toggleDetail(id){
   lastSig='';renderLogs(window._last);
 }
 function detailHtml(id){
-  const x=expanded[id];if(!x)return '';if(x.live)return liveRow(id,x.live);
+  const x=expanded[id];if(!x)return '';if(x.live)return liveRow(id,x.live,x.seen);
   const nl=String.fromCharCode(10);
   let body;
   if(x.state==='loading')body='⏳ Loading details... <button class="btn-s" onclick="toggleDetail('+id+')">⏭ Skip</button>';
@@ -3721,16 +3721,73 @@ function liveMsgBlock(m){
   (m.tool_calls||[]).forEach(c=>{t+=nl+'🔧 '+c.name+'('+pj(c.arguments)+')'+(c.id?'  id='+c.id:'');});
   return '<div class="det" style="color:'+col+';margin-top:4px;max-height:220px">'+esc(t)+'</div>';
 }
-function liveRow(id,rec){
+// ===== Detail view modes: Short = only NEW messages | Detailed = new + tools/trail | Complete = everything (old behaviour) =====
+// Display only: nothing is changed on the server. A message that already appeared in an EARLIER request is hidden.
+let viewMode='short';
+try{viewMode=localStorage.getItem('wapi_view')||'short';}catch(e){}
+function setViewMode(m){viewMode=m;try{localStorage.setItem('wapi_view',m);}catch(e){}lastSig='';if(window._last)renderLogs(window._last);}
+function hh(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
+function msgSig(m){let s=(m.role||'')+'|'+(m.name||'')+'|'+(m.tool_call_id||'')+'|'+(m.content||'');(m.tool_calls||[]).forEach(c=>{s+='|'+(c.id||'')+(c.name||'')+(c.arguments||'');});return hh(s);}
+function toolsSig(q){return hh((q.tools||[]).map(t=>t.name+t.description).join('|'));}
+function newSeen(){return {p:new Set(),s:new Set(),tc:new Set(),at:new Set(),tl:new Set()};}
+function addSeen(S,rec){
+  const q=rec.req||{};let prev='^';
+  (q.messages||[]).forEach(m=>{const g=msgSig(m);S.p.add(g+'#'+prev);S.s.add(g);prev=g;});
+  S.tl.add(toolsSig(q));
+  const p=rec.resp;
+  if(p){(p.tool_calls||[]).forEach(c=>{if(c.id)S.tc.add(c.id);});if(p.text)S.at.add(hh(p.text.slice(0,200)));}
+}
+async function buildSeen(rec){
+  const S=newSeen();
+  try{
+    const all=(await idbAll()).filter(r=>r.boot===rec.boot&&(r.t0<rec.t0||(r.t0===rec.t0&&r.id<rec.id))).sort((a,b)=>a.t0-b.t0);
+    all.forEach(r=>addSeen(S,r));
+  }catch(e){}
+  return S;
+}
+function isOldMsg(m,i,prevg,S){
+  if(m.role==='assistant'){
+    const tcs=m.tool_calls||[];
+    if(tcs.length&&tcs.every(c=>c.id&&S.tc.has(c.id)))return true;      // = the response of an earlier request
+    if(!tcs.length&&m.content&&S.at.has(hh(m.content.slice(0,200))))return true;
+  }
+  return i===0?S.s.has(msgSig(m)):S.p.has(msgSig(m)+'#'+prevg);
+}
+function liveRow(id,rec,S){
+  S=S||newSeen();
   const nl=String.fromCharCode(10);
   const h=(t,c)=>'<div style="margin-top:10px;color:'+c+';font-weight:bold">'+t+'</div>';
   const pre=(t,c)=>'<div class="det" style="color:'+c+'">'+esc(t)+'</div>';
+  const small=(t,c)=>'<div style="margin-top:6px;color:'+c+';font-size:.78em">'+t+'</div>';
   const q=rec.req||{};
-  let o='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button> <span style="color:#6b7280;font-size:.8em">saved in this browser only (not on the server)</span>';
-  if(rec.trail&&rec.trail.length)o+=h('Route trail (which key/model got it)','#fbbf24')+pre(rec.trail.join(nl),'#fcd34d');
-  o+=h('Request - '+esc(JSON.stringify(q.params||{}))+' | '+(q.n_messages||0)+' messages'+(q.messages_cut?' (older '+q.messages_cut+' not shown)':''),'#93c5fd');
-  if(q.tools&&q.tools.length)o+=h('Tools offered ('+q.tools.length+')','#a78bfa')+pre(q.tools.map(t=>t.name+' - '+t.description).join(nl),'#c4b5fd');
-  (q.messages||[]).forEach(m=>{o+=liveMsgBlock(m);});
+  const mode=viewMode;
+  const mb=(m,t)=>'<button class="btn-s" style="margin-left:4px;'+(mode===m?'background:#3b82f6;border-color:#3b82f6;color:#fff;':'')+'" onclick="setViewMode(&quot;'+m+'&quot;)">'+t+'</button>';
+  let o='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button> '+mb('short','📄 Short')+mb('detail','📋 Detailed')+mb('full','🗂 Complete')+' <span style="color:#6b7280;font-size:.8em">saved in this browser only</span>';
+  if(rec.trail&&rec.trail.length){
+    if(mode==='short')o+=small('🛣 '+esc(rec.trail.join(' → ')),'#fcd34d');
+    else o+=h('Route trail (which key/model got it)','#fbbf24')+pre(rec.trail.join(nl),'#fcd34d');
+  }
+  // which messages are new (not seen in an earlier request)?
+  const ms=q.messages||[];
+  let prevg='^';
+  const old=ms.map((m,i)=>{const f=isOldMsg(m,i,prevg,S);prevg=msgSig(m);return f;});
+  const nOld=old.filter(f=>f).length,nNew=ms.length-nOld;
+  let idx=ms.map((m,i)=>i);
+  if(mode!=='full'){
+    idx=idx.filter(i=>!old[i]);
+    if(!idx.length&&ms.length)idx=[ms.length-1];                      // nothing new -> at least the last message
+  }
+  let cutNew=0;
+  if(mode==='short'&&idx.length>3){cutNew=idx.length-3;idx=idx.slice(-3);}
+  if(mode==='full')o+=h('Request - '+esc(JSON.stringify(q.params||{}))+' | '+(q.n_messages||0)+' messages'+(q.messages_cut?' (older '+q.messages_cut+' not shown)':''),'#93c5fd');
+  else o+=h('Request - '+(q.n_messages||0)+' messages | '+nNew+' new'+(mode==='detail'?' | '+esc(JSON.stringify(q.params||{})):''),'#93c5fd');
+  if(q.tools&&q.tools.length){
+    const same=S.tl.has(toolsSig(q));
+    if(mode==='full'||(mode==='detail'&&!same))o+=h('Tools offered ('+q.tools.length+')'+(same?'':' - changed'),'#a78bfa')+pre(q.tools.map(t=>t.name+' - '+t.description).join(nl),'#c4b5fd');
+    else o+=small('🧰 '+q.tools.length+' tools'+(same?' (same as before, hidden)':' (changed - see Detailed)'),'#8b8b95');
+  }
+  if(mode!=='full'&&(nOld>0||cutNew>0))o+=small('⋯ '+(nOld>0?nOld+' older message(s) already shown in earlier requests, hidden':'')+(nOld>0&&cutNew>0?' · ':'')+(cutNew>0?cutNew+' more new message(s) hidden (use Detailed)':'')+' <button class="btn-s" onclick="setViewMode(&quot;'+(cutNew>0&&nOld===0?'detail':'full')+'&quot;)">show</button>','#8b8b95');
+  idx.forEach(i=>{o+=liveMsgBlock(ms[i]);});
   const p=rec.resp;
   const stale=!rec.done&&(Date.now()/1000-rec.t0>900);
   if(!rec.done)o+=h(stale?'⚠️ never finished (server restarted?)':'⏳ Response: still running...','#60a5fa');
