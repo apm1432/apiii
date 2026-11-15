@@ -1147,6 +1147,124 @@ def _maybe_reset_rpd():
         key_daily_penalty.clear()
         _last_rpd_reset = today
 
+# ─── Requests per day, per key and model (shown on /logs; only TODAY + YESTERDAY are kept) ───────────────────
+# Counted at the same place as the RPD counter (_record_rpd_success = a confirmed 200 from Google), so the numbers
+# match what is used against RPD. Saved in MongoDB (collection wapi_usage_daily, one document per IST day, API keys are
+# stored only as a short hash) so a restart / redeploy does not lose today's count; documents older than yesterday are
+# deleted. The day changes at midnight IST. After a restart today's saved count is also put back into the RPD counter.
+USAGE_COLLECTION = os.environ.get("USAGE_COLLECTION", "wapi_usage_daily")
+USAGE_FLUSH_SECS = float(os.environ.get("USAGE_FLUSH_SECS", "15"))
+USAGE: dict = {}                    # "YYYY-MM-DD" -> {(key hash, model name): requests}
+_usage_lock = threading.Lock()
+_usage_dirty = False
+_usage_loaded = threading.Event()
+
+
+def _kid(key) -> str:
+    return hashlib.sha256(str(key).encode()).hexdigest()[:12]
+
+
+def _yesterday_ist():
+    return (datetime.datetime.now(IST) - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def _usage_add(key, model_name):
+    global _usage_dirty
+    day = _today_ist()
+    with _usage_lock:
+        d = USAGE.setdefault(day, {})
+        k = (_kid(key), str(model_name))
+        d[k] = d.get(k, 0) + 1
+        if len(USAGE) > 2:
+            keep = _yesterday_ist()
+            for old in [x for x in USAGE if x < keep]:
+                USAGE.pop(old, None)
+        _usage_dirty = True
+
+
+def _usage_view():
+    """{"today", "yesterday", "models": {model: {"today": n, "yesterday": n, "rows": [{key, today, yesterday}]}}}"""
+    today, yday = _today_ist(), _yesterday_ist()
+    with _usage_lock:
+        t = {(kid, _bk(m)): n for (kid, m), n in USAGE.get(today, {}).items()}
+        y = {(kid, _bk(m)): n for (kid, m), n in USAGE.get(yday, {}).items()}
+    keys = [(_kid(k), "..." + k[-4:]) for k in list(API_KEYS)]
+    out = {}
+    for m in list(MODELS):
+        bk, rows, tt, ty = _bk(m["name"]), [], 0, 0
+        for kid, label in keys:
+            a, b = t.get((kid, bk), 0), y.get((kid, bk), 0)
+            rows.append({"key": label, "today": a, "yesterday": b})
+            tt += a
+            ty += b
+        out[m["name"]] = {"today": tt, "yesterday": ty, "rows": rows}
+    return {"today": today, "yesterday": yday, "models": out}
+
+
+def _usage_coll():
+    c = _blocks_coll()          # same MongoDB database as the blocks
+    return None if c is None else c.database[USAGE_COLLECTION]
+
+
+def _usage_flush():
+    global _usage_dirty
+    if not _usage_loaded.is_set():
+        return                  # never overwrite the saved days before they were read back
+    coll = _usage_coll()
+    if coll is None:
+        return
+    keep = _yesterday_ist()
+    with _usage_lock:
+        snap = {day: [{"k": k, "m": m, "n": n} for (k, m), n in d.items()] for day, d in USAGE.items() if day >= keep}
+        _usage_dirty = False
+    try:
+        for day, rows in snap.items():
+            coll.replace_one({"_id": day}, {"_id": day, "rows": rows, "updated": time.time()}, upsert=True)
+        coll.delete_many({"_id": {"$lt": keep}})
+    except Exception as e:
+        _usage_dirty = True
+        print(f"[USAGE] MongoDB save failed, will retry: {e}")
+
+
+def _usage_load():
+    if not os.environ.get("MONGO_URI"):
+        return
+    def _bg():
+        for _ in range(40):
+            try:
+                docs = list(_usage_coll().find({"_id": {"$gte": _yesterday_ist()}}))      # read first, apply once
+                today, n = _today_ist(), 0
+                with _usage_lock:
+                    for doc in docs:
+                        d = USAGE.setdefault(str(doc["_id"]), {})
+                        for r in doc.get("rows", []):
+                            kk = (str(r["k"]), str(r["m"]))
+                            d[kk] = d.get(kk, 0) + int(r["n"])
+                            n += 1
+                    cur = dict(USAGE.get(today, {}))
+                by_kid = {_kid(k): k for k in API_KEYS}
+                with state_lock:
+                    for (kid, m), c in cur.items():
+                        if kid in by_kid:
+                            rpd_count[(by_kid[kid], m)] = max(rpd_count.get((by_kid[kid], m), 0), c)
+                _usage_loaded.set()
+                print(f"[USAGE] loaded {n} saved row(s) from MongoDB (today + yesterday)")
+                return
+            except Exception as e:
+                print(f"[USAGE] MongoDB load failed, retrying in 30s: {e}")
+                time.sleep(30)
+    threading.Thread(target=_bg, daemon=True, name="usage-load").start()
+
+    def _loop():
+        while True:
+            time.sleep(USAGE_FLUSH_SECS)
+            if _usage_dirty:
+                _usage_flush()
+    threading.Thread(target=_loop, daemon=True, name="usage-flush").start()
+    import atexit
+    atexit.register(_usage_flush)
+
+
 def _get_key(key, model_name, d, default_factory):
     k = (key, model_name)
     if k not in d:
@@ -1210,6 +1328,10 @@ def _record_rpd_success(key, model_name):
     request actually consumed quota on Google's side."""
     k = (key, model_name)
     rpd_count[k] = rpd_count.get(k, 0) + 1
+    try:
+        _usage_add(key, model_name)
+    except Exception as e:      # statistics must never break a request
+        print(f"[USAGE] {e}")
 
 def _apply_rpm_cooldown(key, model_name, seconds=62):
     """Apply 62s cooldown to this key+model pair after 429."""
@@ -2101,7 +2223,7 @@ def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
-                        '/model_block', '/router/model_block', '/model_config', '/router/model_config']:
+                        '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -2268,6 +2390,7 @@ def api_dashboard_data():
         "models": active_models_snap,
         "model_key_info": model_key_info,
         "model_blocks": _model_blocks_view(),
+        "usage": _usage_view(),
         "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"]} for m in _cfg_view()},
         **_dash_logs(request.args.get("slim") == "1"),
     })
@@ -2442,6 +2565,93 @@ def model_config_api():
     return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "created": created, "models": _cfg_view()})
 
 
+_avail_cache = {"t": 0.0, "models": None}
+_avail_lock = threading.Lock()
+_AVAIL_SKIP = ("embedding", "tts", "image", "transcribe", "robotics", "aqa", "imagen", "veo", "live", "audio")
+
+
+def _google_models(force=False):
+    """The model list of your Google account (models.list, all pages), cached for 5 min. Tries the keys one by one."""
+    with _avail_lock:
+        if not force and _avail_cache["models"] is not None and time.time() - _avail_cache["t"] < 300:
+            return _avail_cache["models"]
+    if not API_KEYS:
+        raise RuntimeError("no API keys configured")
+    last = "unknown error"
+    for key in list(API_KEYS):
+        try:
+            out, token = [], None
+            for _ in range(10):
+                params = {"pageSize": 1000}
+                if token:
+                    params["pageToken"] = token
+                r = requests.get("https://generativelanguage.googleapis.com/v1beta/models", params=params,
+                                 headers={"x-goog-api-key": key}, timeout=(5, 20))
+                if r.status_code != 200:
+                    raise RuntimeError(f"Google answered HTTP {r.status_code}")
+                j = r.json()
+                out += j.get("models", [])
+                token = j.get("nextPageToken")
+                if not token:
+                    break
+            with _avail_lock:
+                _avail_cache.update(t=time.time(), models=out)
+            return out
+        except Exception as e:
+            last = str(e).replace(key, "…")
+    raise RuntimeError(last)
+
+
+def _suggest_limits(name):
+    """Google's API does not publish RPM / RPD, so copy them from the newest model of the same family you already
+    have (flash-lite / flash / pro); otherwise the cautious default 5 / 20. The dashboard lets you change them."""
+    n = name.lower()
+    fam = "flash-lite" if "flash-lite" in n else ("flash" if "flash" in n else ("pro" if "pro" in n else None))
+    def same(m):
+        mn = m["name"].lower()
+        if fam == "flash-lite":
+            return "flash-lite" in mn
+        if fam == "flash":
+            return "flash" in mn and "lite" not in mn
+        return fam == "pro" and "pro" in mn
+    pool = [m for m in MODELS if fam and same(m)]
+    if pool:
+        return pool[-1]["rpm"], pool[-1]["rpd"], f"copied from {pool[-1]['name']}"
+    return 5, 20, "cautious default"
+
+
+@app.route('/model_available', methods=['GET', 'OPTIONS'])
+@app.route('/router/model_available', methods=['GET', 'OPTIONS'])
+def model_available_api():
+    """Live model list from Google for the dashboard's "➕ Add model" drop-down (so a name is never typed wrong).
+      GET [?refresh=1] [&all=1]   all=1 also lists embedding / image / audio ... models
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    show_all = request.args.get("all") == "1"
+    try:
+        raw = _google_models(force=request.args.get("refresh") == "1")
+    except Exception as e:
+        return jsonify({"error": f"could not fetch the model list from Google: {e}"}), 502
+    have = {_bk(m["name"]) for m in MODELS}
+    out = []
+    for m in raw:
+        name = str(m.get("name", "")).replace("models/", "")
+        methods = m.get("supportedGenerationMethods", [])
+        if not name or "generateContent" not in methods:
+            continue
+        if not show_all and any(x in name.lower() for x in _AVAIL_SKIP):
+            continue
+        rpm, rpd, src = _suggest_limits(name)
+        out.append({"name": name, "display": m.get("displayName", ""), "description": str(m.get("description", ""))[:200],
+                    "input_tokens": m.get("inputTokenLimit"), "output_tokens": m.get("outputTokenLimit"),
+                    "added": _bk(name) in have, "rpm": rpm, "rpd": rpd, "limits_from": src})
+    out.sort(key=lambda x: (x["added"], [-ord(c) for c in x["name"]]))      # not added first, then Z -> A (newest versions on top)
+    return jsonify({"models": out, "count": len(out), "new": sum(1 for x in out if not x["added"])})
+
+
 @app.route('/release_daily', methods=['POST'])
 @app.route('/router/release_daily', methods=['POST'])
 @requires_browser_auth
@@ -2584,7 +2794,15 @@ tr:hover{background:#252525}
 <div id="model-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
 <div style="width:100%;max-width:460px;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:22px;">
 <h2 style="margin:0 0 12px;color:#c4b5fd;" id="mdl-title">➕ Add model</h2>
-<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Model name (exactly as Google names it)</div>
+<div id="mdl-pick-row" style="margin-bottom:10px;">
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Pick from Google (live list of your account)</div>
+<div style="display:flex;gap:6px;">
+<select id="mdl-pick" onchange="pickModel()" style="flex:1;min-width:0;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;"><option value="">Loading...</option></select>
+<button class="btn-s" onclick="loadAvailable(true)" style="padding:6px 10px;" title="Fetch the list from Google again">🔄</button>
+</div>
+<div id="mdl-pick-note" style="color:#9ca3af;font-size:.78em;margin-top:5px;min-height:1.1em;"></div>
+</div>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Model name (filled by the list above, or type it)</div>
 <input id="mdl-name" placeholder="e.g. gemini-3.9-flash" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
 <div style="display:flex;gap:10px;">
 <div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPM (per minute, per key)</div>
@@ -2974,6 +3192,37 @@ async function modelBlockCall(payload){
 }
 
 let mdlEditing=false,mdlSavedFlag=false,mdlInEnv=false;
+let availModels=[],usageOpen={};
+async function loadAvailable(force){
+  const sel=document.getElementById('mdl-pick'),note=document.getElementById('mdl-pick-note');
+  sel.innerHTML='<option value="">Loading from Google...</option>';note.textContent='';
+  const q=force?'?refresh=1':'';
+  try{
+    let r=await fetch('/router/model_available'+q,{credentials:'same-origin'});
+    if(r.status===404){r=await fetch('model_available'+q,{credentials:'same-origin'});}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    availModels=d.models||[];
+    const fresh=availModels.filter(m=>!m.added),have=availModels.filter(m=>m.added);
+    let h='<option value="">'+(fresh.length?('Choose a model ('+fresh.length+' not added yet)'):'All Google models are already added')+'</option>';
+    if(fresh.length)h+='<optgroup label="Not added yet">'+fresh.map(m=>'<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>').join('')+'</optgroup>';
+    if(have.length)h+='<optgroup label="Already added">'+have.map(m=>'<option value="'+esc(m.name)+'" disabled>'+esc(m.name)+'</option>').join('')+'</optgroup>';
+    sel.innerHTML=h;
+  }catch(e){
+    sel.innerHTML='<option value="">Could not load the list - type the name below</option>';
+    note.textContent='⚠️ '+e.message;
+  }
+}
+function pickModel(){
+  const name=document.getElementById('mdl-pick').value;
+  const m=availModels.find(x=>x.name===name),note=document.getElementById('mdl-pick-note');
+  if(!m){note.textContent='';return;}
+  document.getElementById('mdl-name').value=m.name;
+  document.getElementById('mdl-rpm').value=m.rpm;
+  document.getElementById('mdl-rpd').value=m.rpd;
+  const tok=m.input_tokens?(' · '+Number(m.input_tokens).toLocaleString()+' input tokens'):'';
+  note.textContent='RPM/RPD suggested ('+m.limits_from+') - Google does not publish them through the API, please check your quota and edit if different.'+tok;
+}
 function openModelForm(name,rpm,rpd,saved,inEnv){
   mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
   document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
@@ -2985,6 +3234,8 @@ function openModelForm(name,rpm,rpd,saved,inEnv){
   const del=document.getElementById('mdl-del');
   del.style.display=(mdlEditing&&mdlSavedFlag)?'inline-block':'none';
   del.textContent=mdlInEnv?'↩ Reset to env limits':'🗑 Delete model';
+  document.getElementById('mdl-pick-row').style.display=mdlEditing?'none':'block';
+  if(!mdlEditing)loadAvailable(false);
   document.getElementById('model-modal').style.display='flex';
   (mdlEditing?document.getElementById('mdl-rpm'):n).focus();
 }
@@ -3094,13 +3345,32 @@ function updateUI(data){
     const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
     const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
     const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span> <span style="color:#60a5fa;font-size:.78em;" title="requests today, all keys">today ${((data.usage||{}).models||{})[mn]?data.usage.models[mn].today:0}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
   });
   let blkHtml = '';
   (data.model_blocks || []).forEach(b => {
     blkHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="until ${esc(b.until_ist)}">⛔ ${esc(b.model)} · ${fmtLeft(b.seconds_left)} left (${esc(b.until_ist)})${b.reason?' · '+esc(b.reason):''} <button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 6px;font-size:.75em;" data-m="${esc(b.model)}" onclick="unblockModel(this.dataset.m)">✅ Unblock</button></span>`;
   });
   blkHtml = blkHtml ? blkHtml + ` <button class="btn-s" style="padding:2px 8px;font-size:.75em;" onclick="unblockModel('*')">Unblock all</button>` : '<span style="color:#4ade80;">No model is blocked</span>';
+  let usageHtml = '';
+  const um = (data.usage || {}).models || {};
+  (data.models || []).forEach(model => {
+    const u = um[model.name]; if (!u) return;
+    const rpd = model.rpd || 1;
+    const rowsH = u.rows.map(r => {
+      const pct = Math.min(100, Math.round(r.today * 100 / rpd));
+      const col = r.today >= rpd ? '#f87171' : (r.today >= rpd * 0.7 ? '#fbbf24' : '#4ade80');
+      return `<tr><td style="padding:3px 8px;font-family:monospace;color:#93c5fd;">${esc(r.key)}</td>
+        <td style="padding:3px 8px;min-width:170px;"><div style="display:flex;align-items:center;gap:8px;"><b style="color:${r.today?col:'#6b7280'};min-width:34px;">${r.today}</b><div style="flex:1;height:6px;background:#27272a;border-radius:3px;"><div style="width:${pct}%;height:6px;background:${col};border-radius:3px;"></div></div><span style="color:#6b7280;font-size:.8em;">/ ${rpd}</span></div></td>
+        <td style="padding:3px 8px;color:${r.yesterday?'#e5e7eb':'#6b7280'};">${r.yesterday}</td></tr>`;
+    }).join('');
+    usageHtml += `<details data-m="${esc(model.name)}" ${usageOpen[model.name]?'open':''} ontoggle="usageOpen[this.dataset.m]=this.open" style="background:#1a1a2e;border:1px solid #4c1d95;border-radius:6px;padding:6px 10px;margin-bottom:6px;">
+      <summary style="cursor:pointer;display:flex;gap:14px;flex-wrap:wrap;align-items:center;"><span style="font-family:monospace;color:#c4b5fd;">${esc(model.name)}</span>
+        <span>today <b style="color:#60a5fa;">${u.today}</b></span><span style="color:#9ca3af;">yesterday ${u.yesterday}</span><span style="color:#6b7280;font-size:.8em;">limit ${rpd}/key/day</span></summary>
+      <div style="overflow-x:auto;margin-top:6px;"><table style="border-collapse:collapse;font-size:.9em;"><thead><tr style="color:#9ca3af;text-align:left;"><th style="padding:3px 8px;">Key</th><th style="padding:3px 8px;">Today</th><th style="padding:3px 8px;">Yesterday</th></tr></thead><tbody>${rowsH}</tbody></table></div>
+    </details>`;
+  });
+  if (!usageHtml) usageHtml = '<span style="color:#6b7280;">No models.</span>';
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
@@ -3111,6 +3381,10 @@ function updateUI(data){
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
       <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
       <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys</div>
+    </div>
+    <div class="card" style="flex:1 1 100%;"><h3>📊 Requests per day (per key)</h3>
+      <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
+      ${usageHtml}
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
@@ -4850,6 +5124,7 @@ def _janitor_loop():
 threading.Thread(target=_janitor_loop, daemon=True, name="wapi-janitor").start()
 _blocks_load()
 _cfg_load()
+_usage_load()
 
 
 if __name__ == '__main__':
