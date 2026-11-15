@@ -11,10 +11,12 @@ const { completeRegistration, isValidToken, TRIAL_HOURS } = require('./utils/reg
 const AuthRequest = require('./models/AuthRequest');
 const { setActiveSession } = require('./middleware/auth');
 const { notifyUser } = require('./utils/userEvents');
+const { createPollingLock } = require('./utils/pollingLock');
 
 let bot = null;
 let botUsername = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim() || null;
 let tokens = [];
+let pollingLock = null;
 
 // Track state for dynamic input
 // e.g. { '123456': { action: 'awaiting_months', userId: 'user_mongo_id' } }
@@ -38,8 +40,10 @@ async function startAdminBot() {
         await tmp.deleteWebHook();
     } catch (e) { /* ignore */ }
 
-    bot = new TelegramBot(token, { polling: { autoStart: true, params: { timeout: 30 } } });
-    console.log("🤖 Interactive Telegram Admin Bot is running...");
+    // autoStart:false -> polling starts only after this instance gets the polling lock (see utils/pollingLock.js),
+    // so a new instance never fights the old one (409 Conflict) during a redeploy.
+    bot = new TelegramBot(token, { polling: { autoStart: false, params: { timeout: 30 } } });
+    console.log("🤖 Interactive Telegram Admin Bot is ready (waiting for polling lock)...");
 
     // Bot username is needed to build the registration deep link (https://t.me/<username>?start=<token>)
     try {
@@ -58,11 +62,11 @@ async function startAdminBot() {
             lastPollLog = now;
         }
         // 409 = another instance (old deploy / local PC) is polling with the same token
-        if (/409/.test(msg) && !restarting) {
+        if (/409/.test(msg) && !restarting && pollingLock && pollingLock.isHeld()) {
             restarting = true;
             try { await bot.stopPolling(); } catch (e) {}
             setTimeout(async () => {
-                try { await bot.startPolling(); } catch (e) {}
+                if (pollingLock && pollingLock.isHeld()) { try { await bot.startPolling(); } catch (e) {} }
                 restarting = false;
             }, 20000);
         }
@@ -256,6 +260,14 @@ async function startAdminBot() {
             bot.sendMessage(chatId, `⚠️ Error: ${err.message}`);
         }
     });
+
+    // Start long polling only when no other instance (old deploy) holds the lease
+    pollingLock = createPollingLock({
+        getCollection: () => mongoose.connection.db.collection('bot_locks'),
+        onAcquire: () => bot.startPolling(),
+        onLose: () => bot.stopPolling(),
+    });
+    pollingLock.start();
 }
 
 function sendMainMenu(chatId, messageId = null) {
@@ -597,7 +609,9 @@ async function handleRecoverStart(msg, token) {
 function getBotUsername() { return botUsername; }
 
 async function stopAdminBot() {
-    if (bot) {
+    if (pollingLock) {
+        await pollingLock.stop();          // stops polling, then releases the lock so the new instance can take over
+    } else if (bot) {
         try { await bot.stopPolling(); } catch (e) {}
     }
 }

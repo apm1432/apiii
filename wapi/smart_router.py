@@ -3823,7 +3823,17 @@ def _why(status: int, err_text: str, model: str = "") -> str:
 # again, so as soon as a key wakes up it is used first.
 # Model: always a "lite" model when WebAI offers one (auto-detected from
 # WebAI's /v1/models), otherwise WEBAI_FALLBACK_MODEL, otherwise WebAI's first.
-WEBAI_FALLBACK = os.environ.get("WEBAI_FALLBACK", "1") != "0"
+# WEBAI_ENABLED=0 (or false / no / off) -> WebAI is OFF completely: start.sh starts no WebAI process, the
+# /api/web/v1 URLs do not exist (plain 404), the cookie page is not registered and there is no WebAI fallback.
+# Default (not set) = enabled.
+WEBAI_ENABLED = os.environ.get("WEBAI_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
+WEBAI_FALLBACK = WEBAI_ENABLED and os.environ.get("WEBAI_FALLBACK", "1") != "0"
+
+def _webai_route(*args, **kwargs):
+    """Same as @app.route, but registers NOTHING when WebAI is disabled (the URL then simply does not exist)."""
+    if WEBAI_ENABLED:
+        return app.route(*args, **kwargs)
+    return lambda f: f
 WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
 FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
 # Without the WebAI fallback (tool calls / continuations) wait at most this long for a free (key, model) slot.
@@ -3902,7 +3912,7 @@ def webai_fallback(data: dict, is_responses_api: bool, client_stream_requested: 
     """Returns (flask_response_or_None, info). info = model name on success, else the reason it was not used.
     The request goes to the least-busy logged-in WebAI account; if that account fails it is retried on the next one."""
     if not WEBAI_FALLBACK:
-        return None, "web fallback is OFF (WEBAI_FALLBACK=0)"
+        return None, "web fallback is OFF (" + ("WEBAI_ENABLED=0" if not WEBAI_ENABLED else "WEBAI_FALLBACK=0") + ")"
     if data.get("tools") or _is_tool_continuation(data.get("messages") or []):
         return None, "web fallback skipped: tool-calling request (WebAI has no tool support)"
     need_files = _has_file_parts(data)
@@ -4644,6 +4654,8 @@ def _webapi_rewrite_location(loc: str) -> str:
 # /api/web/v1/ui/auth : paste-cookies page (cookies kept in MongoDB, auto-refreshed values synced back).
 # Registered BEFORE the catch-all proxy below; exact routes win over <path:sub>.
 try:
+    if not WEBAI_ENABLED:
+        raise RuntimeError("WEBAI_ENABLED=0")
     import webai_cookies
     webai_cookies.register(app, _webapi_authorized, WEBAPI_PREFIX, WEBAI_URL)
 except Exception as _e:  # pymongo missing etc. -> proxy still works, only the paste page is lost
@@ -4815,7 +4827,7 @@ def _webapi_responses_to_chat(raw: bytes):
     return json.dumps(out, ensure_ascii=False).encode("utf-8"), stream
 
 
-@app.route(WEBAPI_PREFIX + "/webai-log", methods=["GET"])
+@_webai_route(WEBAPI_PREFIX + "/webai-log", methods=["GET"])
 def webapi_webai_log():
     """Last lines printed by the WebAI-to-API processes (what they do while a request is 'Pending')."""
     if not _webapi_authorized():
@@ -4832,7 +4844,7 @@ def webapi_webai_log():
     return Response("\n".join(lines) + "\n", mimetype="text/plain; charset=utf-8")
 
 
-@app.route(WEBAPI_PREFIX + "/param-fix", methods=["GET", "DELETE"])
+@_webai_route(WEBAPI_PREFIX + "/param-fix", methods=["GET", "DELETE"])
 def webapi_param_fix_view():
     """GET  -> parameters WebAI rejected and that are now skipped automatically.
     DELETE (optional ?path=temperature) -> forget one / all of them."""
@@ -4843,8 +4855,8 @@ def webapi_param_fix_view():
     return jsonify({"enabled": webapi_param_fix.ENABLED, "skipped_params": webapi_param_fix.snapshot()})
 
 
-@app.route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
-@app.route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+@_webai_route(WEBAPI_PREFIX, defaults={'sub': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+@_webai_route(WEBAPI_PREFIX + '/<path:sub>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 def webapi_proxy(sub):
     cors = {"Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "*",
@@ -5427,10 +5439,11 @@ def _janitor_once(trim: bool = False):
             sig_cache.pop(k, None)
     with live_lock:
         _live_prune()
-    try:
-        webai_pool.get_pool().trim()
-    except Exception:
-        pass
+    if WEBAI_ENABLED:
+        try:
+            webai_pool.get_pool().trim()
+        except Exception:
+            pass
     if trim:
         try:
             gc.collect()
