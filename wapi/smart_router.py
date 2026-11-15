@@ -261,6 +261,169 @@ def _blocks_load():
                 time.sleep(30)
     threading.Thread(target=_bg, daemon=True).start()
 
+# ─── Persistent model list (dashboard "➕ Add model", POST /model_config, POST /add) ──────────────────────
+# Models added / edited on the dashboard are saved in MongoDB (collection wapi_custom_models) with a JSON file as
+# a fallback, and are re-applied on every start, so they survive restarts / redeploys together with their RPM and RPD.
+# A saved entry for a model that is also in GEMINI_MODELS overrides that model's limits; deleting the saved entry
+# restores the GEMINI_MODELS values. Models that exist only in the saved list are removed from routing on delete.
+ENV_MODELS = [dict(m) for m in MODELS]          # snapshot of GEMINI_MODELS (env), taken before any saved change
+CUSTOM_MODELS_COLLECTION = os.environ.get("CUSTOM_MODELS_COLLECTION", "wapi_custom_models")
+CUSTOM_MODELS_FILE = os.environ.get("CUSTOM_MODELS_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_models.json"))
+CUSTOM_CFG: dict = {}       # model key (lower-case) -> {"name", "rpm", "rpd", "added", "updated"}
+_MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]{0,99}$")
+_cfg_io_lock = threading.Lock()
+
+
+def _cfg_clean_name(raw):
+    """'models/gemini-x' -> 'gemini-x'. None when the name is not usable (spaces, ':', ',' ...)."""
+    n = str(raw or "").strip()
+    if n.lower().startswith("models/"):
+        n = n[7:]
+    if not _MODEL_NAME_RE.match(n) or _bk(n) in _GENERIC_MODEL_ALIASES:
+        return None
+    return n
+
+
+def _cfg_int(v, lo, hi):
+    try:
+        f = float(str(v).strip())
+    except (TypeError, ValueError):
+        return None
+    if f != int(f) or not (lo <= int(f) <= hi):
+        return None
+    return int(f)
+
+
+def _cfg_apply(name, rpm, rpd):
+    """Put the model in the routing list (or update its limits). Returns True when a new entry was created."""
+    bk = _bk(name)
+    with state_lock:
+        ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
+        if ex is not None:
+            ex["rpm"], ex["rpd"] = int(rpm), int(rpd)
+            return False
+        MODELS.append({"name": name, "rpm": int(rpm), "rpd": int(rpd)})
+        return True
+
+
+def _cfg_remove(name):
+    """Undo a saved entry: env models get their GEMINI_MODELS limits back, the others leave the routing list."""
+    bk = _bk(name)
+    with state_lock:
+        env = next((m for m in ENV_MODELS if _bk(m["name"]) == bk), None)
+        ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
+        if env is not None:
+            if ex is not None:
+                ex["rpm"], ex["rpd"] = env["rpm"], env["rpd"]
+            else:
+                MODELS.append(dict(env))
+            return "reset"
+        if ex is not None and len(MODELS) > 1:
+            MODELS.remove(ex)
+            return "removed"
+        return "kept"       # never remove the last model
+
+
+def _cfg_save_file():
+    try:
+        with state_lock:
+            snap = {k: dict(v) for k, v in CUSTOM_CFG.items()}
+        tmp = CUSTOM_MODELS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        os.replace(tmp, CUSTOM_MODELS_FILE)
+    except Exception as e:
+        print(f"[MODEL CFG] file save failed: {e}")
+
+
+def _cfg_coll():
+    c = _blocks_coll()          # same MongoDB database as the blocks
+    return None if c is None else c.database[CUSTOM_MODELS_COLLECTION]
+
+
+def _cfg_persist(op, bk):
+    """Background write of one change ('set' bk / 'del' bk). Never blocks or breaks a request."""
+    def _run():
+        with _cfg_io_lock:
+            _cfg_save_file()
+            try:
+                coll = _cfg_coll()
+                if coll is None:
+                    return
+                if op == "set":
+                    r = CUSTOM_CFG.get(bk)
+                    if r:
+                        coll.replace_one({"_id": bk}, dict(r, _id=bk), upsert=True)
+                elif op == "del":
+                    coll.delete_one({"_id": bk})
+            except Exception as e:
+                print(f"[MODEL CFG] MongoDB save failed (still kept in memory + file): {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _cfg_merge(rows):
+    n = 0
+    for r in rows:
+        try:
+            name = _cfg_clean_name(r.get("name") or r.get("_id"))
+            rpm, rpd = _cfg_int(r.get("rpm"), 1, 1_000_000), _cfg_int(r.get("rpd"), 1, 100_000_000)
+            if not name or rpm is None or rpd is None:
+                continue
+            bk = _bk(name)
+            with state_lock:
+                cur = CUSTOM_CFG.get(bk)
+                if cur is not None and float(cur.get("updated") or 0) > float(r.get("updated") or 0):
+                    continue
+                CUSTOM_CFG[bk] = {"name": name, "rpm": rpm, "rpd": rpd,
+                                  "added": float(r.get("added") or time.time()),
+                                  "updated": float(r.get("updated") or time.time())}
+            _cfg_apply(name, rpm, rpd)
+            n += 1
+        except Exception:
+            continue
+    return n
+
+
+def _cfg_load():
+    """Startup: file first (fast, local), then MongoDB in the background (retries until it answers)."""
+    try:
+        with open(CUSTOM_MODELS_FILE, encoding="utf-8") as f:
+            _cfg_merge(list(json.load(f).values()))
+    except (OSError, ValueError):
+        pass
+    if not os.environ.get("MONGO_URI"):
+        return
+    def _bg():
+        for _ in range(20):
+            try:
+                n = _cfg_merge(list(_cfg_coll().find({})))
+                print(f"[MODEL CFG] loaded {n} saved model(s) from MongoDB; routing list now has {len(MODELS)} model(s)")
+                return
+            except Exception as e:
+                print(f"[MODEL CFG] MongoDB load failed, retrying in 30s: {e}")
+                time.sleep(30)
+    threading.Thread(target=_bg, daemon=True).start()
+
+
+def _cfg_save(name, rpm, rpd):
+    """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new."""
+    bk, now = _bk(name), time.time()
+    with state_lock:
+        prev = CUSTOM_CFG.get(bk)
+        CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd),
+                          "added": (prev or {}).get("added", now), "updated": now}
+    created = _cfg_apply(name, rpm, rpd)
+    _cfg_persist("set", bk)
+    return created
+
+
+def _cfg_view():
+    with state_lock:
+        env = {_bk(m["name"]) for m in ENV_MODELS}
+        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "saved": _bk(m["name"]) in CUSTOM_CFG,
+                 "in_env": _bk(m["name"]) in env} for m in MODELS]
+
+
 # ─── Conversation stickiness (fixes Gemini thought_signature 400s) ───────────
 # Gemini 2.5/3 "thinking" models attach an encrypted thought_signature to
 # function-call parts. That signature is only valid when it is echoed back
@@ -1938,7 +2101,7 @@ def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
-                        '/model_block', '/router/model_block']:
+                        '/model_block', '/router/model_block', '/model_config', '/router/model_config']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -2105,6 +2268,7 @@ def api_dashboard_data():
         "models": active_models_snap,
         "model_key_info": model_key_info,
         "model_blocks": _model_blocks_view(),
+        "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"]} for m in _cfg_view()},
         **_dash_logs(request.args.get("slim") == "1"),
     })
 
@@ -2231,6 +2395,51 @@ def model_block_api():
     print(f"[MODEL BLOCK] {display} blocked on all keys for {int(secs)}s")
     return jsonify({"blocked": display, "seconds": int(secs), "known_model": any(_bk(m["name"]) == bk for m in MODELS),
                     "blocks": _model_blocks_view()})
+
+
+@app.route('/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+@app.route('/router/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+def model_config_api():
+    """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, or remove it.
+      GET                                                    -> {"models": [{name, rpm, rpd, saved, in_env}, ...]}
+      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250}   add (or update the limits of an existing model)
+      POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
+           saved-only model -> removed from routing; GEMINI_MODELS model -> back to its env limits
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    if request.method == 'GET':
+        return jsonify({"models": _cfg_view()})
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action") or ("delete" if request.method == 'DELETE' else "set")).lower()
+    raw = body.get("model") or body.get("name") or request.args.get("model")
+    name = _cfg_clean_name(raw)
+    if name is None:
+        return jsonify({"error": "model name is required: letters, digits, . _ - / only (no spaces), e.g. gemini-3.9-flash"}), 400
+    bk = _bk(name)
+
+    if action == "delete":
+        with state_lock:
+            had = CUSTOM_CFG.pop(bk, None)
+        if had is not None:
+            _cfg_persist("del", bk)
+        if had is None and not any(_bk(m["name"]) == bk for m in ENV_MODELS):
+            return jsonify({"error": f"'{name}' is not a saved model (models from GEMINI_MODELS are changed by saving new limits)"}), 404
+        res = _cfg_remove(name) if had is not None else "kept"
+        print(f"[MODEL CFG] {name} deleted from the saved list -> {res}")
+        return jsonify({"result": res, "model": name, "models": _cfg_view()})
+
+    if action not in ("set", "add", "update"):
+        return jsonify({"error": f"unknown action '{action}' (set | delete)"}), 400
+    rpm = _cfg_int(body.get("rpm"), 1, 1_000_000)
+    rpd = _cfg_int(body.get("rpd"), 1, 100_000_000)
+    if rpm is None or rpd is None:
+        return jsonify({"error": "rpm and rpd are required whole numbers >= 1"}), 400
+    created = _cfg_save(name, rpm, rpd)
+    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} (saved)")
+    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "created": created, "models": _cfg_view()})
 
 
 @app.route('/release_daily', methods=['POST'])
@@ -2371,6 +2580,24 @@ tr:hover{background:#252525}
 <div style="display:flex;gap:8px;justify-content:flex-end;">
 <button class="btn-s" onclick="closeBlock()" style="padding:8px 16px;">Cancel</button>
 <button class="btn" onclick="confirmBlock()" style="background:#dc2626;">⛔ Block</button>
+</div></div></div>
+<div id="model-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+<div style="width:100%;max-width:460px;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:22px;">
+<h2 style="margin:0 0 12px;color:#c4b5fd;" id="mdl-title">➕ Add model</h2>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Model name (exactly as Google names it)</div>
+<input id="mdl-name" placeholder="e.g. gemini-3.9-flash" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<div style="display:flex;gap:10px;">
+<div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPM (per minute, per key)</div>
+<input id="mdl-rpm" type="number" min="1" placeholder="e.g. 10" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
+<div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPD (per day, per key)</div>
+<input id="mdl-rpd" type="number" min="1" placeholder="e.g. 250" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
+</div>
+<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Saved in the database: the model and its limits stay after a restart / redeploy. RPD resets at midnight IST.</div>
+<div id="mdl-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="btn-s" id="mdl-del" onclick="deleteModelCfg()" style="padding:8px 16px;display:none;background:#7f1d1d;border-color:#f87171;color:#fee2e2;">🗑 Delete</button>
+<button class="btn-s" onclick="closeModelForm()" style="padding:8px 16px;">Cancel</button>
+<button class="btn" onclick="saveModelCfg()" style="background:#6d28d9;">💾 Save</button>
 </div></div></div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
@@ -2746,6 +2973,56 @@ async function modelBlockCall(payload){
   }
 }
 
+let mdlEditing=false,mdlSavedFlag=false,mdlInEnv=false;
+function openModelForm(name,rpm,rpd,saved,inEnv){
+  mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
+  document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
+  const n=document.getElementById('mdl-name');
+  n.value=name||'';n.readOnly=mdlEditing;n.style.opacity=mdlEditing?'.6':'1';
+  document.getElementById('mdl-rpm').value=rpm||'';
+  document.getElementById('mdl-rpd').value=rpd||'';
+  document.getElementById('mdl-err').textContent='';
+  const del=document.getElementById('mdl-del');
+  del.style.display=(mdlEditing&&mdlSavedFlag)?'inline-block':'none';
+  del.textContent=mdlInEnv?'↩ Reset to env limits':'🗑 Delete model';
+  document.getElementById('model-modal').style.display='flex';
+  (mdlEditing?document.getElementById('mdl-rpm'):n).focus();
+}
+function closeModelForm(){document.getElementById('model-modal').style.display='none';}
+async function modelCfgCall(payload){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
+  const errEl=document.getElementById('mdl-err');
+  try{
+    let r=await fetch('/router/model_config',opts);
+    if(r.status===404){r=await fetch('model_config',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){errEl.textContent=d.error||('HTTP '+r.status);return null;}
+    lastSig='';await fetchData(true);
+    return d;
+  }catch(e){errEl.textContent='Failed: '+e.message;return null;}
+}
+async function saveModelCfg(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const rpm=document.getElementById('mdl-rpm').value.trim();
+  const rpd=document.getElementById('mdl-rpd').value.trim();
+  const errEl=document.getElementById('mdl-err');
+  if(!name){errEl.textContent='Enter the model name';return;}
+  if(!rpm||!rpd){errEl.textContent='Enter both RPM and RPD';return;}
+  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd});
+  if(d){
+    closeModelForm();
+    const noteEl=document.getElementById('log-note');
+    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+') - saved';
+  }
+}
+async function deleteModelCfg(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const msg=mdlInEnv?('Reset '+name+' to the limits from GEMINI_MODELS?'):('Delete model '+name+' from the router?');
+  if(!confirm(msg))return;
+  const d=await modelCfgCall({action:'delete',model:name});
+  if(d)closeModelForm();
+}
+
 async function releaseDaily(keyFilter='', modelFilter=''){
   const payload={};
   if(keyFilter)payload.key=keyFilter;
@@ -2812,10 +3089,12 @@ function updateUI(data){
     const blockBtn = blockedLeft > 0
       ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)" title="Lift the block now">✅ Unblock</button>`
       : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em} on all keys for a custom time">⛔ Block</button>`;
+    const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;padding:1px 7px;font-size:.75em;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
     const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
     const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
     const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span>${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
   });
   let blkHtml = '';
   (data.model_blocks || []).forEach(b => {
@@ -2828,10 +3107,10 @@ function updateUI(data){
       <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
       <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
     </div>
-    <div class="card"><h3>Models</h3>
+    <div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;">Models <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;" onclick="openModelForm()">➕ Add model</button></h3>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
       <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
-      <div class="sub" style="margin-top:8px;color:#6b7280;">🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys</div>
+      <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys</div>
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
@@ -3644,15 +3923,10 @@ def add_key_model():
             new_key_added = True
             added_key = data["key"]
         if "model" in data and "rpm" in data:
-            _ex = next((m for m in MODELS if m["name"] == data["model"]), None)
-            if _ex:      # same model again -> just update its limits (no duplicate entry)
-                _ex["rpm"] = int(data["rpm"])
-                if "rpd" in data:
-                    _ex["rpd"] = int(data["rpd"])
-            else:
-                MODELS.append({"name": data["model"], "rpm": int(data["rpm"]),
-                               "rpd": int(data.get("rpd", 500))})
-                new_model_added = True
+            _ex = next((m for m in MODELS if _bk(m["name"]) == _bk(data["model"])), None)
+            _rpd_new = int(data["rpd"]) if "rpd" in data else (_ex["rpd"] if _ex else 500)
+            new_model_added = _cfg_save(_ex["name"] if _ex else _cfg_clean_name(data["model"]) or data["model"],
+                                        int(data["rpm"]), _rpd_new)      # saved -> survives restarts
             added_model = data["model"]
 
     test_results = []
@@ -4575,6 +4849,7 @@ def _janitor_loop():
 
 threading.Thread(target=_janitor_loop, daemon=True, name="wapi-janitor").start()
 _blocks_load()
+_cfg_load()
 
 
 if __name__ == '__main__':
