@@ -3,12 +3,6 @@
 
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
-# WebAI-to-API (/api/web/v1) is ON by default. Set env WEBAI_ENABLED=0 in Koyeb to turn it off
-# (then the smart_router WebAI fallback is disabled too). WebAI is started in the background and is
-# NEVER waited for: nginx / the health check depend only on Node (3000) and wapi (8085).
-WEBAI_ENABLED="${WEBAI_ENABLED:-1}"
-if [ "$WEBAI_ENABLED" != "1" ]; then export WEBAI_FALLBACK=0; fi
-
 echo "==> Patching nginx.conf & wapi/smart_router.py to eliminate Koyeb 100s 504 timeouts..."
 python3 - << 'PYEOF'
 from pathlib import Path
@@ -168,7 +162,7 @@ echo "==> Starting wapi (Flask via gunicorn) on port 8085..."
 # workers=1 on purpose: smart_router.py keeps its state (RPM/RPD counters,
 # sticky sessions) in process memory, so more workers would break rate limiting.
 # Concurrency comes from threads. --timeout 0 so slow Gemini calls are never killed.
-(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads 32 --worker-class gthread \
+(cd /usr/src/app/wapi && export MALLOC_MMAP_THRESHOLD_=262144 MALLOC_TRIM_THRESHOLD_=262144 && exec gunicorn --workers 1 --threads ${WAPI_THREADS:-96} --worker-class gthread \
   --timeout 0 --graceful-timeout 30 --keep-alive 75 \
   --bind 127.0.0.1:8085 smart_router:app) &
 PY_PID=$!
@@ -179,9 +173,7 @@ PY_PID=$!
 # wapi/webai_supervisor.py starts/stops the instances, saves auto-refreshed cookies back to the DB and restarts
 # a crashed one. Own restart loop and NOT part of `wait -n` below, so if it crashes it never takes the rest of
 # the container down.
-if [ "$WEBAI_ENABLED" != "1" ]; then
-  echo "==> WebAI pool DISABLED (WEBAI_ENABLED!=1) - /api/web/v1 off, WebAI fallback off, no extra RAM used"
-elif [ -x /opt/webai-venv/bin/python ]; then
+if [ -x /opt/webai-venv/bin/python ]; then
   echo "==> Starting WebAI pool supervisor (one WebAI-to-API per Gemini account)..."
   rm -f /tmp/webai-pool/stopping
   (cd /usr/src/app/wapi && while true; do
@@ -194,20 +186,11 @@ else
 fi
 
 echo "==> Waiting for apps to start..."
-# Port check in pure bash (/dev/tcp): node:20-slim has no `nc`, so the old `nc -z` loop never succeeded,
-# nginx (8000) never started and Koyeb's TCP health check failed. Gives up after 120 s and starts nginx anyway,
-# so port 8000 is always opened (a dead backend then returns 502 instead of failing the health check).
-wait_port() {  # $1 = port, $2 = name
-  local i=0
-  while ! (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null; do
-    i=$((i+1))
-    if [ "$i" -ge 600 ]; then echo "    WARNING: $2 not up on $1 after 120s - starting nginx anyway"; return 1; fi
-    sleep 0.2
-  done
-  echo "    $2 is up on $1"
-}
-wait_port 3000 "Node.js"
-wait_port 8085 "wapi"
+while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.2; done
+echo "    Node.js is up on 3000"
+
+while ! nc -z 127.0.0.1 8085 2>/dev/null; do sleep 0.2; done
+echo "    wapi is up on 8085"
 
 echo "==> Starting nginx on port 8000..."
 exec nginx -g "daemon off;"

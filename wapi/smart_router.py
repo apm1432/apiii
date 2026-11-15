@@ -1369,6 +1369,10 @@ metrics = {
 # a DAILY limit and locked the model until midnight even after a 1-minute hit.
 # We now read the quotaId (…PerDay… / …PerMinute…) and the retryDelay.
 rate_strikes: dict = {}   # (key, model) -> consecutive ambiguous 429 count
+# An ambiguous 429 ("resource has been exhausted", no quotaId, no retryDelay) is an RPM-style 429. It used to be
+# promoted to a midnight DAILY penalty after 5 in a row -> healthy keys were locked for a whole day. Now it is only
+# a cooldown, unless you opt in with AMBIGUOUS_429_STRIKES=<n> (0 = never, the default).
+AMBIGUOUS_429_STRIKES = int(os.environ.get("AMBIGUOUS_429_STRIKES", "0"))
 
 def _handle_429(key, model_name, err_text: str) -> str:
     """Classify a 429 and apply the right penalty. Call with state_lock held.
@@ -1443,7 +1447,7 @@ def _escalate_or_stay_rpm(k, key, model_name) -> str:
     0 on any success (see remember_sticky_slot)."""
     n = rate_strikes.get(k, 0) + 1
     rate_strikes[k] = n
-    if n >= 5:
+    if AMBIGUOUS_429_STRIKES > 0 and n >= AMBIGUOUS_429_STRIKES:
         _apply_daily_penalty(key, model_name)
         rate_strikes.pop(k, None)
         return "daily"
@@ -2223,7 +2227,7 @@ def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
-                        '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available']:
+                        '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available', '/model_test', '/router/model_test']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -2652,6 +2656,225 @@ def model_available_api():
     return jsonify({"models": out, "count": len(out), "new": sum(1 for x in out if not x["added"])})
 
 
+
+# ─── Model probe: which models WORK and what TYPE they are (dashboard: Test selected / Test all models / Add model) ──
+# One real call per model, on ONE key that is free right now (not RPM-busy, not cooling, not daily-locked). If that key
+# answers 429/5xx the next free key is tried (PROBE_MAX_KEYS). The call is a normal request: it uses an RPM slot and, on
+# a 200, one RPD of the key it used (only for models that are in the router pool).
+PROBE_TIMEOUT = float(os.environ.get("PROBE_TIMEOUT", "60"))
+PROBE_MAX_KEYS = int(os.environ.get("PROBE_MAX_KEYS", "3"))
+PROBE_MAX_MODELS = 40
+_probe_rr = 0
+_KIND_LABEL = {
+    "text-out": "text out", "image-out": "image out (+text)", "audio-out": "audio out (TTS)",
+    "embedding": "embedding (vector out)", "live": "live / realtime (audio+text)",
+    "image-video-out": "image / video out (Imagen, Veo)", "aqa": "AQA (grounded answer)",
+}
+
+
+def _model_kind(name, methods):
+    """text-out / image-out / audio-out / embedding / live ... from Google's supportedGenerationMethods (+ the name)."""
+    n = (name or "").lower()
+    m = set(methods or [])
+    if m and "generateContent" not in m:
+        if m & {"embedContent", "embedText", "batchEmbedContents", "batchEmbedText"}:
+            return "embedding"
+        if m & {"predict", "predictLongRunning"}:
+            return "image-video-out"
+        if "bidiGenerateContent" in m:
+            return "live"
+        if "generateAnswer" in m:
+            return "aqa"
+    if "embedding" in n:
+        return "embedding"
+    if "tts" in n:
+        return "audio-out"
+    if "native-audio" in n or "-live" in n or n.startswith("live-"):
+        return "live"
+    if "imagen" in n or "veo" in n:
+        return "image-video-out"
+    if "image" in n:
+        return "image-out"
+    return "text-out"
+
+
+def _probe_pick_key(name, skip_keys):
+    """Pick a free key for `name` and reserve its RPM slot (models outside the pool have no limits to respect)."""
+    global _probe_rr
+    with state_lock:
+        _maybe_reset_rpd()
+        md = next((m for m in MODELS if _bk(m["name"]) == _bk(name)), None)
+        pname = md["name"] if md else name
+        n = len(API_KEYS)
+        if not n:
+            return None, md
+        start = _probe_rr % n
+        _probe_rr += 1
+        for i in range(n):
+            key = API_KEYS[(start + i) % n]
+            if key in skip_keys or (key, pname) in PERMANENTLY_BROKEN_MODELS:
+                continue
+            if _is_daily_penalized(key, pname) or _is_rpm_cooldown(key, pname):
+                continue
+            if md:
+                if not _rpd_available(key, pname, md["rpd"]) or not _rpm_available(key, pname, md["rpm"]):
+                    continue
+                _record_request(key, pname)
+            return key, md
+    return None, md
+
+
+def _probe_call(key, name, kind):
+    base = "https://generativelanguage.googleapis.com"
+    t = (GEMINI_CONNECT_TIMEOUT, PROBE_TIMEOUT)
+    nat = {"x-goog-api-key": key, "Content-Type": "application/json"}
+    if kind == "text-out":
+        return requests.post(base + "/v1beta/openai/chat/completions",
+                             headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+                             json={"model": name, "max_tokens": 200,
+                                   "messages": [{"role": "user", "content": "What is 2 + 2? Answer in one short sentence."}]},
+                             timeout=t)
+    if kind == "image-out":
+        return requests.post(f"{base}/v1beta/models/{name}:generateContent", headers=nat, timeout=t,
+                             json={"contents": [{"parts": [{"text": "Draw a small red circle on a white background."}]}],
+                                   "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]}})
+    if kind == "audio-out":
+        return requests.post(f"{base}/v1beta/models/{name}:generateContent", headers=nat, timeout=t,
+                             json={"contents": [{"parts": [{"text": "Say: hello"}]}],
+                                   "generationConfig": {"responseModalities": ["AUDIO"],
+                                                        "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": "Kore"}}}}})
+    if kind == "embedding":
+        return requests.post(f"{base}/v1beta/models/{name}:embedContent", headers=nat, timeout=t,
+                             json={"content": {"parts": [{"text": "hello world"}]}})
+    return None
+
+
+def _probe_parse(kind, j):
+    """-> (outputs list, short preview text)"""
+    if kind == "text-out":
+        ch = (j.get("choices") or [{}])[0]
+        txt = str((ch.get("message") or {}).get("content") or "").strip()
+        return ["text"], (txt or "(answered, but the text is empty - the model used its token budget for thinking)")
+    if kind == "embedding":
+        vals = (j.get("embedding") or {}).get("values") or []
+        return ["vector"], f"{len(vals)} dimensions"
+    outs, txt = [], ""
+    for p in (((j.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []):
+        if p.get("text"):
+            txt += p["text"]
+            if "text" not in outs:
+                outs.append("text")
+        inl = p.get("inlineData") or p.get("inline_data")
+        if inl:
+            mt = str(inl.get("mimeType") or inl.get("mime_type") or "")
+            o = mt.split("/")[0] or "binary"
+            if o not in outs:
+                outs.append(o)
+            txt += f" [{mt}, {len(str(inl.get('data') or ''))//1365} KB]"
+    return outs, (txt.strip() or "(no content returned)")
+
+
+def _probe_err(r):
+    try:
+        e = r.json().get("error") or {}
+        return str(e.get("message") or r.text)[:260]
+    except Exception:
+        return (r.text or "")[:260]
+
+
+def _probe_model(name, meta):
+    methods = (meta or {}).get("supportedGenerationMethods", []) or []
+    kind = _model_kind(name, methods)
+    in_pool = any(_bk(m["name"]) == _bk(name) for m in MODELS)
+    res = {"model": name, "kind": kind, "type": _KIND_LABEL.get(kind, kind), "ok": False, "tested": True, "status": 0,
+           "ms": 0, "key": "", "outputs": [], "response": "", "in_pool": in_pool,
+           "blocked_left": int(_model_block_left(name)), "display": (meta or {}).get("displayName", ""),
+           "input_tokens": (meta or {}).get("inputTokenLimit"), "output_tokens": (meta or {}).get("outputTokenLimit"),
+           "methods": methods, "exists": bool(meta) if meta is not None else None}
+    if kind in ("image-video-out", "live", "aqa"):
+        res.update(tested=False, ok=None, response="Not tested here: this model type does not use the normal chat / generateContent call. "
+                                                   "It exists in your Google account, so it can be used by the right client.")
+        return res
+    skip, last_err = set(), None
+    for _ in range(max(1, PROBE_MAX_KEYS)):
+        key, md = _probe_pick_key(name, skip)
+        if key is None:
+            if last_err is None:
+                res.update(status=0, response="No key is free for this model right now (every key is RPM-busy, cooling down or daily-locked). Try again in a minute.")
+            break
+        skip.add(key)
+        t0 = time.time()
+        try:
+            r = _probe_call(key, name, kind)
+            ms = round((time.time() - t0) * 1000)
+            res.update(key="…" + key[-4:], ms=ms, status=r.status_code)
+            if r.status_code == 200:
+                outs, txt = _probe_parse(kind, r.json())
+                res.update(ok=True, outputs=outs, response=txt[:400])
+                if md:
+                    with state_lock:
+                        _record_rpd_success(key, md["name"])
+                return res
+            err = _probe_err(r)
+            last_err = err
+            res["response"] = err
+            if r.status_code in (429, 403) and md:
+                with state_lock:
+                    _handle_429(key, md["name"], (r.text or "").lower())
+            if r.status_code in (400, 404):
+                break                                    # the MODEL is the problem, other keys will say the same
+        except Exception as e:
+            last_err = str(e)[:200]
+            res.update(key="…" + key[-4:], ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + last_err)
+    if res["status"] in (429, 403):
+        res["response"] = "Rate-limited right now (" + res["response"][:160] + ") - the model exists, try again later."
+    return res
+
+
+@app.route('/model_test', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/router/model_test', methods=['GET', 'POST', 'OPTIONS'])
+def model_test_api():
+    """Dashboard: test one / several / all models and report whether each works + its type.
+      POST {"models": ["a","b"]} | {"all": true}      or      GET ?models=a,b | ?all=1
+    Auth: Bearer <PASSWORD> or the dashboard's browser login."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+    else:
+        body = {"models": [x for x in (request.args.get("models") or "").split(",") if x.strip()],
+                "all": request.args.get("all") == "1"}
+    raw = [m["name"] for m in MODELS] if body.get("all") else (body.get("models") or [])
+    names, seen = [], set()
+    for x in raw:
+        n = _cfg_clean_name(x)
+        if n and _bk(n) not in seen:
+            seen.add(_bk(n))
+            names.append(n)
+    if not names:
+        return jsonify({"error": "no valid model name given"}), 400
+    names = names[:PROBE_MAX_MODELS]
+    try:
+        meta_map = {str(m.get("name", "")).replace("models/", "").lower(): m for m in _google_models()}
+    except Exception:
+        meta_map = None                      # Google list unavailable: probe by name only
+    jobs = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        for n in names:
+            meta = (meta_map.get(_bk(n)) or {}) if meta_map is not None else None
+            jobs.append(ex.submit(_probe_model, n, meta))
+            time.sleep(0.15)
+    results = [j.result() for j in jobs]
+    for r in results:
+        if r.get("exists") is False:
+            r["response"] = "This model name is not in your Google account's model list. " + (r["response"] or "")
+    ok = sum(1 for r in results if r["ok"] is True)
+    return jsonify({"total": len(results), "ok": ok, "failed": sum(1 for r in results if r["ok"] is False),
+                    "untested": sum(1 for r in results if r["ok"] is None), "results": results})
+
+
 @app.route('/release_daily', methods=['POST'])
 @app.route('/router/release_daily', methods=['POST'])
 @requires_browser_auth
@@ -2810,6 +3033,11 @@ tr:hover{background:#252525}
 <div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPD (per day, per key)</div>
 <input id="mdl-rpd" type="number" min="1" placeholder="e.g. 250" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
 </div>
+<div style='display:flex;gap:8px;align-items:center;margin-bottom:6px;'>
+<button class='btn-s' id='mdl-test-btn' onclick='mdlTest()' style='background:#2d1b69;border-color:#4c1d95;padding:6px 12px;'>🧪 Test this model</button>
+<span style='color:#6b7280;font-size:.78em;'>checks that it works and shows its type (text / image / audio ...) - before you save</span>
+</div>
+<div id='mdl-test-out' style='font-size:.85em;min-height:1.2em;margin-bottom:10px;word-break:break-word;'></div>
 <div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Saved in the database: the model and its limits stay after a restart / redeploy. RPD resets at midnight IST.</div>
 <div id="mdl-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
 <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -2817,6 +3045,19 @@ tr:hover{background:#252525}
 <button class="btn-s" onclick="closeModelForm()" style="padding:8px 16px;">Cancel</button>
 <button class="btn" onclick="saveModelCfg()" style="background:#6d28d9;">💾 Save</button>
 </div></div></div>
+<div id='mt-modal' style='display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;'>
+<div style='max-width:1040px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;'>
+<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>
+<h2 id='mt-title' style='margin:0;color:#a78bfa;'>🧪 Model test</h2>
+<button onclick='mtClose()' style='background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;'>✕ Close</button>
+</div>
+<div id='mt-summary' style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;'></div>
+<div id='mt-bytype' style='color:#9ca3af;font-size:.9em;margin-bottom:12px;'></div>
+<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;min-width:760px;'>
+<thead><tr style='background:#2d1b69;color:#c4b5fd;text-align:left;'>
+<th style='padding:9px;'>Model</th><th style='padding:9px;'>Works?</th><th style='padding:9px;'>Type</th><th style='padding:9px;'>Output</th><th style='padding:9px;'>Key</th><th style='padding:9px;text-align:right;'>ms</th><th style='padding:9px;'>Answer / error</th>
+</tr></thead><tbody id='mt-tbody'></tbody></table></div>
+</div></div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
 🔐 Secure Access Logs (last 50 + recent errors)
@@ -3274,6 +3515,81 @@ async function deleteModelCfg(){
   if(d)closeModelForm();
 }
 
+
+let mtSel={};
+function mtCount(){return Object.keys(mtSel).filter(k=>mtSel[k]).length;}
+function mtChosen(){return Object.keys(mtSel).filter(k=>mtSel[k]);}
+function mtRefreshBtn(){const b=document.getElementById('mt-sel-btn');if(!b)return;const n=mtCount();b.textContent='🧪 Test selected ('+n+')';b.disabled=n===0;b.style.opacity=n?'1':'.5';}
+function mtToggle(name,on){mtSel[name]=!!on;mtRefreshBtn();}
+function mtSelectAll(on){(window._mtNames||[]).forEach(n=>{mtSel[n]=on;});document.querySelectorAll('.mt-chk').forEach(c=>{c.checked=on;});mtRefreshBtn();}
+function mtClose(){document.getElementById('mt-modal').style.display='none';}
+async function mtCall(names,all){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(all?{all:true}:{models:names})};
+  let r=await fetch('/router/model_test',opts);
+  if(r.status===404){r=await fetch('model_test',opts);}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+  return d;
+}
+function mtKindColor(k){return {'text-out':'#60a5fa','image-out':'#f472b6','audio-out':'#fbbf24','embedding':'#2dd4bf','live':'#c084fc'}[k]||'#9ca3af';}
+async function mtRun(names,all){
+  if(!all&&!names.length){return;}
+  document.getElementById('mt-modal').style.display='block';
+  document.getElementById('mt-title').textContent='🧪 Model test - '+(all?'all models':names.length+' selected');
+  document.getElementById('mt-summary').innerHTML='';
+  document.getElementById('mt-bytype').textContent='';
+  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#a78bfa;">⏳ Testing... one real request per model on a free key (up to a minute for slow models)</td></tr>';
+  try{
+    const d=await mtCall(names,all);
+    mtRender(d);
+  }catch(e){
+    document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:20px;color:#f87171;">❌ '+esc(e.message)+'</td></tr>';
+  }
+}
+function mtRender(d){
+  const rs=d.results||[];
+  document.getElementById('mt-summary').innerHTML=
+    '<div style="background:rgba(74,222,128,.15);border:1px solid #4ade80;border-radius:8px;padding:8px 16px;color:#4ade80;font-weight:bold;">✅ Working: '+(d.ok||0)+'</div>'+
+    '<div style="background:rgba(248,113,113,.15);border:1px solid #f87171;border-radius:8px;padding:8px 16px;color:#f87171;font-weight:bold;">❌ Not working: '+(d.failed||0)+'</div>'+
+    (d.untested?'<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">➖ Not testable here: '+d.untested+'</div>':'')+
+    '<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">📊 Total: '+(d.total||0)+'</div>';
+  const by={};
+  rs.filter(r=>r.ok===true).forEach(r=>{(by[r.type]=by[r.type]||[]).push(r.model);});
+  document.getElementById('mt-bytype').innerHTML=Object.keys(by).length?('Working by type: '+Object.keys(by).map(t=>'<b>'+esc(t)+'</b> ('+by[t].length+')').join(' · ')):'';
+  let h='';
+  rs.forEach(r=>{
+    const st=r.ok===true?['✅ works','#4ade80','rgba(74,222,128,.05)']:(r.ok===null?['➖ not tested','#9ca3af','rgba(156,163,175,.05)']:((r.status===429||r.status===403)?['⚠️ '+r.status+' limited','#fbbf24','rgba(251,191,36,.05)']:['❌ '+(r.status||'error'),'#f87171','rgba(248,113,113,.05)']));
+    const tags=(r.in_pool?'':' <span style="color:#fbbf24;font-size:.75em;" title="not added to the router pool yet">not in pool</span>')+(r.blocked_left>0?' <span style="color:#f87171;font-size:.75em;">⛔ blocked</span>':'');
+    h+='<tr style="background:'+st[2]+';border-bottom:1px solid #2d2d2d;">'+
+      '<td style="padding:9px;font-family:monospace;color:#c4b5fd;font-size:.85em;">'+esc(r.model)+tags+'</td>'+
+      '<td style="padding:9px;font-weight:bold;color:'+st[1]+';white-space:nowrap;">'+st[0]+'</td>'+
+      '<td style="padding:9px;color:'+mtKindColor(r.kind)+';font-size:.85em;">'+esc(r.type||'')+'</td>'+
+      '<td style="padding:9px;color:#e5e7eb;font-size:.85em;">'+esc((r.outputs||[]).join(' + ')||'-')+'</td>'+
+      '<td style="padding:9px;font-family:monospace;color:#93c5fd;font-size:.8em;">'+esc(r.key||'')+'</td>'+
+      '<td style="padding:9px;text-align:right;color:#6b7280;font-size:.8em;">'+(r.ms||'')+'</td>'+
+      '<td style="padding:9px;font-size:.82em;max-width:340px;word-break:break-word;color:'+(r.ok===true?'#e5e7eb':'#fca5a5')+';">'+esc(r.response||'')+'</td></tr>';
+  });
+  document.getElementById('mt-tbody').innerHTML=h||'<tr><td colspan=7 style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
+}
+async function mdlTest(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const out=document.getElementById('mdl-test-out'),btn=document.getElementById('mdl-test-btn');
+  if(!name){out.innerHTML='<span style="color:#f87171;">Pick or type a model name first</span>';return;}
+  out.innerHTML='<span style="color:#a78bfa;">⏳ Testing '+esc(name)+'...</span>';btn.disabled=true;
+  try{
+    const d=await mtCall([name],false);
+    const r=(d.results||[])[0];
+    if(!r){out.textContent='No result';}
+    else{
+      const c=r.ok===true?'#4ade80':(r.ok===null?'#9ca3af':'#f87171');
+      out.innerHTML='<b style="color:'+c+';">'+(r.ok===true?'✅ Works':(r.ok===null?'➖ Not testable here':'❌ Not working ('+(r.status||'error')+')'))+'</b>'+
+        ' · type: <b style="color:'+mtKindColor(r.kind)+';">'+esc(r.type)+'</b>'+((r.outputs||[]).length?' · output: '+esc(r.outputs.join(' + ')):'')+(r.ms?' · '+r.ms+'ms':'')+
+        '<div style="color:#9ca3af;margin-top:3px;">'+esc(r.response||'')+'</div>';
+    }
+  }catch(e){out.innerHTML='<span style="color:#f87171;">❌ '+esc(e.message)+'</span>';}
+  btn.disabled=false;
+}
+
 async function releaseDaily(keyFilter='', modelFilter=''){
   const payload={};
   if(keyFilter)payload.key=keyFilter;
@@ -3293,6 +3609,7 @@ async function releaseDaily(keyFilter='', modelFilter=''){
 }
 function updateUI(data){
   const m=data.metrics;
+  window._mtNames=(data.models||[]).map(x=>x.name);
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -3345,7 +3662,7 @@ function updateUI(data){
     const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
     const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
     const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span> <span style="color:#60a5fa;font-size:.78em;" title="requests today, all keys">today ${((data.usage||{}).models||{})[mn]?data.usage.models[mn].today:0}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span><input type='checkbox' class='mt-chk' data-m='${em}' ${mtSel[mn]?'checked':''} onclick='event.stopPropagation()' onchange='mtToggle(this.dataset.m,this.checked)' title='tick to test several models together'> ${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span> <span style="color:#60a5fa;font-size:.78em;" title="requests today, all keys">today ${((data.usage||{}).models||{})[mn]?data.usage.models[mn].today:0}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
   });
   let blkHtml = '';
   (data.model_blocks || []).forEach(b => {
@@ -3377,10 +3694,15 @@ function updateUI(data){
       <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
       <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
     </div>
-    <div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center;">Models <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;" onclick="openModelForm()">➕ Add model</button></h3>
+    <div class="card"><h3 style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;'>Models <span style='display:inline-flex;gap:5px;flex-wrap:wrap;'>
+<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(true)' title='tick every model'>☑ All</button>
+<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(false)' title='untick every model'>☐ None</button>
+<button class='btn-s' id='mt-sel-btn' style='background:#2d1b69;border-color:#4c1d95;padding:3px 10px;font-size:.8em;font-weight:bold;opacity:${mtCount()?1:.5};' ${mtCount()?'':'disabled'} onclick='mtRun(mtChosen(),false)' title='test only the ticked models'>🧪 Test selected (${mtCount()})</button>
+<button class='btn-s' style='background:#7c3aed;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='mtRun([],true)' title='test every model once (one free key each)'>🧪 Test all models</button>
+<button class='btn-s' style='background:#6d28d9;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='openModelForm()'>➕ Add model</button></span></h3>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
       <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
-      <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys</div>
+      <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys · ☑ tick models + 🧪 Test selected / Test all models = which models work and their type (text / image / audio / embedding)</div>
     </div>
     <div class="card" style="flex:1 1 100%;"><h3>📊 Requests per day (per key)</h3>
       <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
@@ -3505,7 +3827,15 @@ WEBAI_FALLBACK = os.environ.get("WEBAI_FALLBACK", "1") != "0"
 WEBAI_FALLBACK_MODEL = os.environ.get("WEBAI_FALLBACK_MODEL", "").strip()
 FALLBACK_MAX_WAIT = float(os.environ.get("FALLBACK_MAX_WAIT", "3"))
 # Without the WebAI fallback (tool calls / continuations) wait at most this long for a free (key, model) slot.
-POOL_MAX_WAIT = float(os.environ.get("POOL_MAX_WAIT", "5"))
+POOL_MAX_WAIT = float(os.environ.get("POOL_MAX_WAIT", "5"))   # (no longer used: requests now wait until every key is daily-dead)
+# A request keeps retrying (waiting out RPM cooldowns, switching key/model) until EVERY key x model is daily-locked.
+# Safety net so a client that already hung up does not hold a worker thread forever: give up after this many seconds
+# (0 = never give up, only stop when all keys are daily-penalized).
+REQUEST_MAX_SECS = float(os.environ.get("REQUEST_MAX_SECS", "900"))
+# A request for ONE specific model (not auto) tries every key at most ONCE (hammering a model that fails on all keys
+# could get the keys banned by Google). It only waits up to this many seconds for a key that is cooling down; after that,
+# or when every key has been tried, the last Google error is returned to the client as it is.
+SPECIFIC_MAX_WAIT = float(os.environ.get("SPECIFIC_MAX_WAIT", "20"))
 # One WebAI process per Gemini account (wapi/webai_supervisor.py); webai_pool spreads the load over them.
 import webai_pool
 import webapi_model_fix
@@ -3763,48 +4093,43 @@ def proxy_chat():
                 print(f"[STICKY ERROR] {e} → switching slot")
         # exhausted / busy / no pin / pinned failed -> normal routing below
 
-    # How many total loop iterations (attempts + wait-cycles) to allow.
-    # We want up to 3 full round-robin passes over the ENTIRE key×model pool
-    # (first-to-last, then first-to-last again, then a third time) before
-    # giving up on this request -- not 3 back-to-back tries of the SAME
-    # combo. A combo that fails transiently (503/500/timeout) is only
-    # excluded after MAX_ATTEMPTS_PER_COMBO tries (see attempt_counts
-    # below), so it naturally gets revisited on a later pass once the rest
-    # of the pool has had its turn. We also keep a small buffer of extra
-    # iterations purely for RPM wait-cycles (sleeping for a slot that's
-    # about to free up rather than giving up on it).
-    pool_size = len(API_KEYS) * max(1, len(MODELS))
-    max_attempts = pool_size * 3 + 6
-    # With the WebAI fallback available we never sit for long waiting on keys:
-    # only a very short wait (keys first), then the fallback answers.
-    fb_ok = WEBAI_FALLBACK and not is_continuation and not data.get("tools")
-    max_wait = FALLBACK_MAX_WAIT if fb_ok else POOL_MAX_WAIT
-    # Image/file requests: the WebAI fallback is far less reliable for them (guest accounts cannot take files,
-    # playwright backend rejects them), so wait for the keys much longer instead of failing after 3 s.
-    if fb_ok and _has_file_parts(data):
-        max_wait = max(max_wait, float(os.environ.get("FILE_MAX_WAIT", "45")))
+    # ── Keep trying until EVERY (key, model) is dead for today ────────────────────────────────────────
+    # A request now only ends when
+    #   (a) one slot answers 200, or
+    #   (b) every key x model is daily-penalized / RPD-exhausted / permanently broken / manually blocked, or
+    #   (c) REQUEST_MAX_SECS passed (safety net, default 15 min).
+    # RPM 429s are NOT failures: that (key, model) gets a cooldown until its RPM window is over, nothing else is sent
+    # to it meanwhile, and the request just goes on with the other slots (or sleeps until the soonest one frees up).
+    deadline = (time.monotonic() + REQUEST_MAX_SECS) if REQUEST_MAX_SECS > 0 else None
+    exit_reason = "all_daily"
+    _wait_note_ts = 0.0
+    _is_pool_req = (requested_model or "").lower() in _GENERIC_MODEL_ALIASES
 
-    for attempt in range(max_attempts):
-        # Atomic: pick a viable (key, model) AND reserve it in one lock
-        # hold. This closes the race window multiple simultaneous users
-        # could hit under the old "list combos, then record separately"
-        # approach. Fresh (non-continuation) requests are free to spread
-        # across every key/model -- this is what keeps your whole pool's
-        # quota in use.
+    while True:
+        if deadline is not None and time.monotonic() >= deadline:
+            exit_reason = "deadline"
+            attempt_errors.append(f"gave up after {int(REQUEST_MAX_SECS)}s of waiting for a free key")
+            break
+
+        # Atomic: pick a viable (key, model) AND reserve its RPM slot in one lock hold.
         slot = acquire_next_slot(requested_model, exclude=tried)
 
         if slot is None:
-            # acquire_next_slot found no viable combo right now.
-            # Work out whether any slot is merely RPM-throttled (transient)
-            # or everything is daily-exhausted/broken (permanent for today).
+            # Nothing usable right now. Is anything merely waiting (RPM window / cooldown) or is all of it dead for today?
             with state_lock:
                 now_mono = time.monotonic()
                 waits = []
                 any_waitable = False
-                for m_dict in get_active_models():
+                cand_models = get_active_models()
+                if not _is_pool_req:      # a specific model was requested: only that one is ever picked
+                    cand_models = [m for m in cand_models if m["name"] == requested_model] or \
+                                  [{"name": requested_model, "rpm": 15 if "flash" in requested_model.lower() else 2,
+                                    "rpd": 1500 if "flash" in requested_model.lower() else 50}]
+                for m_dict in cand_models:
                     m_name = m_dict["name"]
                     if _is_model_blocked(m_name):
-                        continue                      # manually blocked: not "coming back soon", never wait for it
+                        continue                      # manually blocked: never wait for it
+                    eff = _effective_rpm(m_dict["rpm"])
                     for k in API_KEYS:
                         if (k, m_name) in tried:
                             continue
@@ -3814,43 +4139,42 @@ def proxy_chat():
                             continue
                         if not _rpd_available(k, m_name, m_dict["rpd"]):
                             continue
-                        # This combo is not permanently dead — it's just
-                        # RPM-limited right now. Find when it opens up.
                         any_waitable = True
+                        # free only when BOTH the 429 cooldown and the RPM window allow it -> take the later one.
+                        free_in = 0.0
                         cd = rpm_cooldown.get((k, m_name), 0)
                         if cd > now_mono:
-                            waits.append(cd - now_mono)
-                        window = list(rpm_window.get((k, m_name), []))
-                        if window:
-                            effective_limit = _effective_rpm(m_dict["rpm"])
-                            if len(window) >= effective_limit:
-                                # the entry that must leave the 60s window to free ONE slot
-                                waits.append(max(0, window[len(window) - effective_limit] + RPM_WINDOW_SECS - now_mono))
+                            free_in = cd - now_mono
+                        window = _prune_rpm(k, m_name)          # prune FIRST (a stale window made this loop spin every 0.2 s)
+                        if len(window) >= eff:
+                            free_in = max(free_in, window[len(window) - eff] + RPM_WINDOW_SECS - now_mono)
+                        waits.append(max(0.0, free_in))
 
             if not any_waitable:
-                # Every remaining combo is permanently dead for today.
-                print("[EXHAUSTED] All key×model combos are daily-exhausted or broken.")
+                print("[EXHAUSTED] All key×model combos are daily-exhausted, blocked or broken.")
                 attempt_errors.append("pool: every key×model is daily-exhausted / broken for today (resets midnight IST)")
+                exit_reason = "all_daily"
                 break
 
-            # At least one slot is coming back — sleep until the soonest one.
-            wait_secs = min(waits) + 0.2 if waits else 2.0
-            if wait_secs > max_wait:
-                # Cooldown/window is too far away — not worth blocking the
-                # HTTP request this long. Return 429 now so the caller can
-                # retry; the next call will likely find a fresh slot.
-                print(f"[WAIT TOO LONG] Soonest slot in {wait_secs:.0f}s — giving up on keys for this request.")
-                _trail(f"soonest slot in {wait_secs:.0f}s -> not waiting")
-                attempt_errors.append(f"pool: all key×model slots cooling down (RPM/429), soonest free in {wait_secs:.0f}s")
+            soonest = min(waits) if waits else 2.0
+            if not _is_pool_req and soonest > SPECIFIC_MAX_WAIT:
+                exit_reason = "specific"
+                attempt_errors.append(f"specific model: remaining keys cooling down for {soonest:.0f}s -> not waiting")
                 break
-            print(f"[WAIT] All slots RPM-busy, sleeping {wait_secs:.1f}s for next available slot...")
-            _trail(f"all slots busy -> waiting {wait_secs:.1f}s")
+            wait_secs = min(soonest + 0.2, 5.0)          # re-check at least every 5 s (a lock may have been released)
+            if deadline is not None:
+                wait_secs = max(0.05, min(wait_secs, deadline - time.monotonic()))
+            _now_ts = time.monotonic()
+            if _now_ts - _wait_note_ts >= 10.0:          # one trail line per ~10 s, not hundreds
+                _trail(f"all slots busy (RPM cooldown) -> waiting, soonest free in ~{soonest:.0f}s")
+                _wait_note_ts = _now_ts
             time.sleep(wait_secs)
             continue
 
         k_idx, m_idx, key, model = slot
         actual_model = model["name"]
-        tried.add((key, actual_model))
+        if not _is_pool_req:
+            tried.add((key, actual_model))      # specific model: one attempt per key, never a second one
         data["model"] = actual_model
         _trail(f"sent to {actual_model} (key …{key[-4:]})")
 
@@ -3909,6 +4233,9 @@ def proxy_chat():
                         # re-picking it until the cooldown actually clears,
                         # after which it's fair game again on a later pass.
 
+                if resp.status_code == 403 and kind != "daily" and not any(w in err_text for w in ("quota", "exhaust", "rate", "limit")):
+                    # a real 403 (invalid / leaked / not allowed key) is not a rate limit: do not retry this combo in this request
+                    tried.add((key, actual_model))
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
                 _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit -> next slot")
                 attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit | {_short_err(err_text, 220)}")
@@ -3925,14 +4252,9 @@ def proxy_chat():
                 with state_lock:
                     n = attempt_counts.get((key, actual_model), 0) + 1
                     attempt_counts[(key, actual_model)] = n
-                    if n >= MAX_ATTEMPTS_PER_COMBO:
-                        tried.add((key, actual_model))
-                        print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
-                              f"failed {n}x (server error) -> giving up on this combo for this request")
-                    else:
-                        _apply_rpm_cooldown(key, actual_model, seconds=20)
-                        print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
-                              f"server error, attempt {n}/{MAX_ATTEMPTS_PER_COMBO} -> trying other combos first")
+                    _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
+                    print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
+                          f"server error #{n} -> cooldown {min(20 * n, 120)}s, trying other combos first")
                 attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): server overloaded/unavailable")
                 continue
 
@@ -3992,6 +4314,7 @@ def proxy_chat():
                     attempt_errors.append(f"400 {actual_model} (…{key[-4:]}): incompatible with this proxy shape "
                                            f"-> permanently disabled for this key")
                 else:
+                    tried.add((key, actual_model))
                     print(f"[{resp.status_code}] model={actual_model} bad request, trying next combo...")
                     attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): {_why(resp.status_code, err_text, actual_model)} | {_short_err(err_text, 220)}")
                     # The same 400 on two different slots means the REQUEST itself is wrong, not the key/model:
@@ -4030,10 +4353,7 @@ def proxy_chat():
             with state_lock:
                 n = attempt_counts.get((key, actual_model), 0) + 1
                 attempt_counts[(key, actual_model)] = n
-                if n >= MAX_ATTEMPTS_PER_COMBO:
-                    tried.add((key, actual_model))
-                else:
-                    _apply_rpm_cooldown(key, actual_model, seconds=20)
+                _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
             continue
 
     # Every key×model combo was tried (or the pool is genuinely exhausted / cooling down).
@@ -4062,18 +4382,28 @@ def proxy_chat():
         g.log_entry["attempts"] = attempt_errors[-20:] + [fb_info]
         g.log_entry["route"] = "Gemini key pool → all failed; WebAI fallback NOT used"
 
-    if last_resp is not None:
-        excluded = ['content-encoding','content-length','transfer-encoding','connection']
+    if not _is_pool_req and last_resp is not None:
+        # specific model, every key tried once: hand the client the real (last) Google error
+        excluded = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
         out_headers = [(n, v) for n, v in last_resp.raw.headers.items() if n.lower() not in excluded]
         return Response(last_resp.content, last_resp.status_code, out_headers)
 
-    return jsonify({
+    if exit_reason == "deadline":
+        msg = (f"No key answered within {int(REQUEST_MAX_SECS)}s (all keys were RPM-busy / cooling down). "
+               "Please retry in a minute.")
+        code, retry_after = "keys_busy_timeout", 30
+    else:
+        msg = ("All API keys are daily-limited for every model (RPD exhausted / blocked). "
+               "Daily limits reset at midnight IST.")
+        code, retry_after = "all_keys_daily_exhausted", 600
+    return Response(json.dumps({
         "error": {
-            "message": "All API keys and models are exhausted. Daily limits may have been reached. Resets at midnight IST.",
+            "message": msg,
             "type": "rate_limit_error",
+            "code": code,
             "details": attempt_errors[-6:] + [fb_info]
         }
-    }), 429
+    }), 429, {"Content-Type": "application/json", "Retry-After": str(retry_after)})
 
 # ─── Audio Transcription ──────────────────────────────────────────────────────
 @app.route('/v1/audio/transcriptions', methods=['POST', 'OPTIONS'])
