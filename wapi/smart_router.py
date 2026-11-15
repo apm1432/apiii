@@ -48,6 +48,12 @@ def _effective_rpm(rpm_limit: int) -> int:
     return max(1, int(rpm_limit) - RPM_SAFETY_MARGIN)
 
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+# Google's free-tier DAILY quota resets at midnight Pacific Time (13:30 IST in winter, 12:30 IST in summer) - NOT at midnight IST.
+try:
+    from zoneinfo import ZoneInfo
+    GOOGLE_TZ = ZoneInfo("America/Los_Angeles")
+except Exception:                       # no tzdata in the image -> fixed PST (off by one hour in summer, still far better than IST midnight)
+    GOOGLE_TZ = datetime.timezone(datetime.timedelta(hours=-8))
 
 # ─── State ────────────────────────────────────────────────────────────────────
 state_lock = threading.RLock()
@@ -1143,8 +1149,8 @@ def _maybe_reset_rpd():
     if today != _last_rpd_reset:
         print(f"[RPD RESET] Midnight IST - clearing all RPD counts (was {_last_rpd_reset})")
         rpd_count.clear()
-        # Also clear daily penalties since a new day started
-        key_daily_penalty.clear()
+        # Daily penalties are NOT cleared here any more: each one expires at the time Google said (see
+        # _apply_daily_penalty), and Google's quota does not reset at midnight IST.
         _last_rpd_reset = today
 
 # ─── Requests per day, per key and model (shown on /logs; only TODAY + YESTERDAY are kept) ───────────────────
@@ -1338,17 +1344,40 @@ def _apply_rpm_cooldown(key, model_name, seconds=62):
     rpm_cooldown[(key, model_name)] = time.monotonic() + seconds + EXTRA_WAIT
     print(f"[COOLDOWN] key=…{key[-6:]} model={model_name} blocked for {seconds}s")
 
-def _apply_daily_penalty(key, model_name):
-    """Block this (key, model) pair until midnight IST after its RPD limit
-    is hit. Only this model is blocked on this key -- every other model on
-    the same key keeps working normally."""
-    now_ist = datetime.datetime.now(IST)
-    next_midnight = (now_ist + datetime.timedelta(days=1)).replace(
-        hour=0, minute=0, second=5, microsecond=0)
-    unlock_ts = next_midnight.astimezone(datetime.timezone.utc).timestamp()
+def _next_google_reset_ts():
+    """Next midnight Pacific Time (+30 s) = when Google's free-tier daily quota really resets."""
+    now = datetime.datetime.now(GOOGLE_TZ)
+    nxt = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=30, microsecond=0)
+    return nxt.timestamp()
+
+def _apply_daily_penalty(key, model_name, retry_secs=None):
+    """Block this (key, model) pair after its daily quota is hit. Only this model is blocked on this key --
+    every other model on the same key keeps working normally.
+
+    How long: exactly as long as Google itself says (retryDelay / "Please retry in 3h42m..."), because that is
+    when the quota really comes back. It used to be 'until midnight IST', but Google resets at midnight
+    PACIFIC (13:30 IST): a key whose quota returned at 13:30 stayed locked ~10 more hours.
+    No wait time given -> until the next Google reset (midnight Pacific)."""
+    now = time.time()
+    if retry_secs and retry_secs > 300:
+        unlock_ts = now + min(retry_secs + 30, 26 * 3600)
+        why = f"Google said retry in {int(retry_secs)}s"
+    else:
+        unlock_ts = _next_google_reset_ts()
+        why = "until Google's daily reset (midnight Pacific)"
     key_daily_penalty[(key, model_name)] = unlock_ts
-    mins = round((unlock_ts - time.time()) / 60)
-    print(f"[DAILY LIMIT] key=…{key[-6:]} model={model_name} penalized until midnight IST (~{mins} mins) — other models on this key are unaffected")
+    mins = round((unlock_ts - now) / 60)
+    print(f"[DAILY LIMIT] key=…{key[-6:]} model={model_name} penalized ~{mins} mins ({why}) — other models on this key are unaffected")
+
+def _clear_penalty(key, model_name):
+    """A real 200 from Google proves this (key, model) works RIGHT NOW -> drop the daily penalty, RPM cooldown
+    and strike counter that said otherwise. Call with state_lock held."""
+    k = (key, model_name)
+    was = key_daily_penalty.pop(k, None)
+    rpm_cooldown.pop(k, None)
+    rate_strikes.pop(k, None)
+    if was and was > time.time():
+        print(f"[PENALTY CLEARED] key=…{key[-6:]} model={model_name} answered 200 -> daily penalty removed")
 
 # ─── Global Metrics ───────────────────────────────────────────────────────────
 metrics = {
@@ -1373,6 +1402,20 @@ rate_strikes: dict = {}   # (key, model) -> consecutive ambiguous 429 count
 # promoted to a midnight DAILY penalty after 5 in a row -> healthy keys were locked for a whole day. Now it is only
 # a cooldown, unless you opt in with AMBIGUOUS_429_STRIKES=<n> (0 = never, the default).
 AMBIGUOUS_429_STRIKES = int(os.environ.get("AMBIGUOUS_429_STRIKES", "0"))
+
+def _parse_retry_secs(t: str):
+    """Google's own wait time in seconds from a lower-cased 429 body, or None. Understands the JSON field
+    ("retryDelay": "13372s") AND the message text ("Please retry in 3h42m52.9s" / "retry in 21.5s")."""
+    m = re.search(r'retrydelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s', t)
+    if m:
+        return float(m.group(1))
+    m = re.search(r'retry in\s+((?:\d+(?:\.\d+)?(?:h|m(?!s)|s)\s*)+)', t)
+    if m:
+        total = sum(float(n) * {"h": 3600, "m": 60, "s": 1}[u]
+                    for n, u in re.findall(r'(\d+(?:\.\d+)?)(h|m(?!s)|s)', m.group(1)))
+        if total > 0:
+            return total
+    return None
 
 def _handle_429(key, model_name, err_text: str) -> str:
     """Classify a 429 and apply the right penalty. Call with state_lock held.
@@ -1399,8 +1442,15 @@ def _handle_429(key, model_name, err_text: str) -> str:
     t = (err_text or "").lower()
     k = (key, model_name)
 
-    m = re.search(r'retrydelay"?\s*[:=]\s*"?(\d+(?:\.\d+)?)s', t)
-    retry = float(m.group(1)) + 2 if m else None
+    _parsed = _parse_retry_secs(t)
+    retry = _parsed + 2 if _parsed is not None else None
+
+    # A per-minute window is only 60 s wide, so a wait longer than 5 minutes can ONLY be a daily quota - even when
+    # the same error also lists a per-minute metric (models with limit 0 on the free tier list both).
+    if retry is not None and retry > 300:
+        _apply_daily_penalty(key, model_name, retry)
+        rate_strikes.pop(k, None)
+        return "daily"
 
     # ── Per-minute / RPM detection ────────────────────────────────────────────
     # Explicit label -> definitely RPM, short cooldown, reset strikes.
@@ -1409,10 +1459,11 @@ def _handle_429(key, model_name, err_text: str) -> str:
         _apply_rpm_cooldown(key, model_name, seconds=int(retry or 62))
         return "rpm"
 
+    # Only an explicit per-day label counts. "free tier" / "free_tier_requests" is in EVERY free-tier quota error,
+    # per-minute ones too, so it said nothing about the day - an RPM 429 without a parsable wait time used to be
+    # locked for the whole day because of it.
     is_daily_label = (
         "perday" in t or "per day" in t or "per_day" in t or "daily" in t
-        or "freetier" in t or "free_tier" in t or "free tier" in t
-        or "generatecontentfreetier" in t
     )
 
     # A short retryDelay is trusted over the label, whatever it says: it
@@ -1423,7 +1474,7 @@ def _handle_429(key, model_name, err_text: str) -> str:
 
     # No short retryDelay to trust: a long one (>300s), or a daily-looking
     # label with no retryDelay at all, really does mean "come back tomorrow".
-    if (retry and retry > 300) or (is_daily_label and retry is None):
+    if is_daily_label and retry is None:
         _apply_daily_penalty(key, model_name)
         rate_strikes.pop(k, None)
         return "daily"
@@ -1832,6 +1883,7 @@ def _test_single_combo(key: str, model_name: str, question: str, timeout: int = 
             with state_lock:
                 _maybe_reset_rpd()
                 _record_rpd_success(key, model_name)
+                _clear_penalty(key, model_name)       # it answered -> it is NOT daily-penalized / cooling down
             return {"key": f"...{key[-4:]}", "model": model_name, "question": question,
                     "status": 200, "ok": True, "response": text, "ms": elapsed}
         else:
@@ -2814,6 +2866,7 @@ def _probe_model(name, meta):
                 if md:
                     with state_lock:
                         _record_rpd_success(key, md["name"])
+                        _clear_penalty(key, md["name"])       # it answered -> it is NOT daily-penalized / cooling down
                 return res
             err = _probe_err(r)
             last_err = err
