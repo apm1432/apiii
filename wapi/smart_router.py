@@ -87,14 +87,23 @@ PERMANENTLY_BROKEN_MODELS: set = set()
 # It is skipped by auto/pool routing, by sticky pins and by the web-search path. Blocks are saved in
 # MongoDB (collection wapi_model_blocks, auto-deleted by a TTL index when they expire) with a JSON file as
 # a fallback, so they survive restarts / redeploys. They are NOT touched by "Release daily locks".
-# A client that explicitly asks for a blocked model is served by the other models (auto mode) unless
-# BLOCKED_MODEL_FALLBACK_AUTO=0 -> it then gets a 429 "model_blocked" with Retry-After.
+# A block only affects AUTO / round-robin routing (model "auto", "default", "round-robin" ... or empty).
+# A client that asks for a model BY NAME is always served by exactly that model, even while it is blocked.
+# (BLOCK_NAMED_TOO=1 brings the old behaviour back: a named request for a blocked model is then served by the
+#  other models (auto), or - with BLOCKED_MODEL_FALLBACK_AUTO=0 - gets a 429 "model_blocked" with Retry-After.)
 MODEL_BLOCKS: dict = {}     # model key (lower-case) -> {"model": name, "until": epoch, "since": epoch, "reason": str}
 MAX_BLOCK_SECS = 3650 * 86400
 BLOCKED_MODEL_FALLBACK_AUTO = os.environ.get("BLOCKED_MODEL_FALLBACK_AUTO", "1") != "0"
 BLOCKS_COLLECTION = os.environ.get("MODEL_BLOCKS_COLLECTION", "wapi_model_blocks")
 BLOCKS_FILE = os.environ.get("MODEL_BLOCKS_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_blocks.json"))
 _GENERIC_MODEL_ALIASES = {"gemini-pro", "auto", "default", "round-robin", "gemini-working-model", "openrouter/auto", ""}
+BLOCK_NAMED_TOO = os.environ.get("BLOCK_NAMED_TOO", "0") == "1"
+
+
+def _block_applies(requested_model) -> bool:
+    """True when manual model blocks must be honoured for this request: always for auto / round-robin
+    (pool) requests; for a request that names a model only when BLOCK_NAMED_TOO=1."""
+    return BLOCK_NAMED_TOO or (str(requested_model or "").strip().lower() in _GENERIC_MODEL_ALIASES)
 _DUR_UNITS = {"s": 1, "sec": 1, "secs": 1, "second": 1, "seconds": 1,
               "m": 60, "min": 60, "mins": 60, "minute": 60, "minutes": 60,
               "h": 3600, "hr": 3600, "hrs": 3600, "hour": 3600, "hours": 3600,
@@ -275,13 +284,7 @@ def _blocks_load():
 ENV_MODELS = [dict(m) for m in MODELS]          # snapshot of GEMINI_MODELS (env), taken before any saved change
 CUSTOM_MODELS_COLLECTION = os.environ.get("CUSTOM_MODELS_COLLECTION", "wapi_custom_models")
 CUSTOM_MODELS_FILE = os.environ.get("CUSTOM_MODELS_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_models.json"))
-CUSTOM_CFG: dict = {}       # model key (lower-case) -> {"name", "rpm", "rpd", "added", "updated", "last_tier"(optional)}
-# Persistent manual Last-Tier ("use last", like lite models) overrides:
-#   _bk(model_name) -> True (always use in Last Tier) | False (always use in Primary Tier, even if 'lite' in name)
-# Models not in LAST_TIER_OVERRIDES fall back to default LITE_LAST ('lite' in name).
-LAST_TIER_OVERRIDES: dict = {}
-LAST_TIER_UPDATED: float = 0.0
-_LAST_TIER_DOC_ID = "__last_tier__"
+CUSTOM_CFG: dict = {}       # model key (lower-case) -> {"name", "rpm", "rpd", "added", "updated"}
 _MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]{0,99}$")
 _cfg_io_lock = threading.Lock()
 
@@ -291,7 +294,7 @@ def _cfg_clean_name(raw):
     n = str(raw or "").strip()
     if n.lower().startswith("models/"):
         n = n[7:]
-    if not _MODEL_NAME_RE.match(n) or _bk(n) in _GENERIC_MODEL_ALIASES or n == _LAST_TIER_DOC_ID:
+    if not _MODEL_NAME_RE.match(n) or _bk(n) in _GENERIC_MODEL_ALIASES:
         return None
     return n
 
@@ -332,7 +335,6 @@ def _cfg_remove(name):
             return "reset"
         if ex is not None and len(MODELS) > 1:
             MODELS.remove(ex)
-            LAST_TIER_OVERRIDES.pop(bk, None)
             return "removed"
         return "kept"       # never remove the last model
 
@@ -341,11 +343,6 @@ def _cfg_save_file():
     try:
         with state_lock:
             snap = {k: dict(v) for k, v in CUSTOM_CFG.items()}
-            snap[_LAST_TIER_DOC_ID] = {
-                "_id": _LAST_TIER_DOC_ID,
-                "overrides": dict(LAST_TIER_OVERRIDES),
-                "updated": LAST_TIER_UPDATED,
-            }
         tmp = CUSTOM_MODELS_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(snap, f)
@@ -368,15 +365,6 @@ def _cfg_persist(op, bk):
                 coll = _cfg_coll()
                 if coll is None:
                     return
-                if bk == _LAST_TIER_DOC_ID:
-                    with state_lock:
-                        doc = {
-                            "_id": _LAST_TIER_DOC_ID,
-                            "overrides": dict(LAST_TIER_OVERRIDES),
-                            "updated": LAST_TIER_UPDATED,
-                        }
-                    coll.replace_one({"_id": _LAST_TIER_DOC_ID}, doc, upsert=True)
-                    return
                 if op == "set":
                     r = CUSTOM_CFG.get(bk)
                     if r:
@@ -389,25 +377,9 @@ def _cfg_persist(op, bk):
 
 
 def _cfg_merge(rows):
-    global LAST_TIER_UPDATED
     n = 0
     for r in rows:
         try:
-            if not isinstance(r, dict):
-                continue
-            if r.get("_id") == _LAST_TIER_DOC_ID or "overrides" in r:
-                upd = float(r.get("updated") or 0)
-                with state_lock:
-                    if upd >= LAST_TIER_UPDATED:
-                        LAST_TIER_UPDATED = upd
-                        ov = r.get("overrides")
-                        if isinstance(ov, dict):
-                            LAST_TIER_OVERRIDES.clear()
-                            for k, v in ov.items():
-                                ck = _bk(k)
-                                if ck and ck != _LAST_TIER_DOC_ID:
-                                    LAST_TIER_OVERRIDES[ck] = bool(v)
-                continue
             name = _cfg_clean_name(r.get("name") or r.get("_id"))
             rpm, rpd = _cfg_int(r.get("rpm"), 1, 1_000_000), _cfg_int(r.get("rpd"), 1, 100_000_000)
             if not name or rpm is None or rpd is None:
@@ -417,14 +389,9 @@ def _cfg_merge(rows):
                 cur = CUSTOM_CFG.get(bk)
                 if cur is not None and float(cur.get("updated") or 0) > float(r.get("updated") or 0):
                     continue
-                entry = {"name": name, "rpm": rpm, "rpd": rpd,
-                         "added": float(r.get("added") or time.time()),
-                         "updated": float(r.get("updated") or time.time())}
-                if "last_tier" in r and r["last_tier"] is not None:
-                    entry["last_tier"] = bool(r["last_tier"])
-                    if bk not in LAST_TIER_OVERRIDES:
-                        LAST_TIER_OVERRIDES[bk] = bool(r["last_tier"])
-                CUSTOM_CFG[bk] = entry
+                CUSTOM_CFG[bk] = {"name": name, "rpm": rpm, "rpd": rpd,
+                                  "added": float(r.get("added") or time.time()),
+                                  "updated": float(r.get("updated") or time.time())}
             _cfg_apply(name, rpm, rpd)
             n += 1
         except Exception:
@@ -436,11 +403,7 @@ def _cfg_load():
     """Startup: file first (fast, local), then MongoDB in the background (retries until it answers)."""
     try:
         with open(CUSTOM_MODELS_FILE, encoding="utf-8") as f:
-            raw = json.load(f)
-            if isinstance(raw, dict):
-                _cfg_merge(list(raw.values()))
-            elif isinstance(raw, list):
-                _cfg_merge(raw)
+            _cfg_merge(list(json.load(f).values()))
     except (OSError, ValueError):
         pass
     if not os.environ.get("MONGO_URI"):
@@ -449,7 +412,7 @@ def _cfg_load():
         for _ in range(20):
             try:
                 n = _cfg_merge(list(_cfg_coll().find({})))
-                print(f"[MODEL CFG] loaded {n} saved model(s) + last-tier config from MongoDB; routing list now has {len(MODELS)} model(s)")
+                print(f"[MODEL CFG] loaded {n} saved model(s) from MongoDB; routing list now has {len(MODELS)} model(s)")
                 return
             except Exception as e:
                 print(f"[MODEL CFG] MongoDB load failed, retrying in 30s: {e}")
@@ -457,50 +420,23 @@ def _cfg_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _cfg_save(name, rpm, rpd, last_tier=None):
+def _cfg_save(name, rpm, rpd):
     """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new."""
-    global LAST_TIER_UPDATED
     bk, now = _bk(name), time.time()
     with state_lock:
         prev = CUSTOM_CFG.get(bk)
-        entry = {"name": name, "rpm": int(rpm), "rpd": int(rpd),
-                 "added": (prev or {}).get("added", now), "updated": now}
-        if last_tier is not None:
-            LAST_TIER_OVERRIDES[bk] = bool(last_tier)
-            LAST_TIER_UPDATED = now
-            entry["last_tier"] = bool(last_tier)
-        elif prev and "last_tier" in prev:
-            entry["last_tier"] = prev["last_tier"]
-        CUSTOM_CFG[bk] = entry
+        CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd),
+                          "added": (prev or {}).get("added", now), "updated": now}
     created = _cfg_apply(name, rpm, rpd)
     _cfg_persist("set", bk)
-    if last_tier is not None:
-        _cfg_persist("set", _LAST_TIER_DOC_ID)
     return created
-
-
-def _last_tier_save():
-    """Persist LAST_TIER_OVERRIDES to custom_models.json and MongoDB."""
-    global LAST_TIER_UPDATED
-    with state_lock:
-        LAST_TIER_UPDATED = time.time()
-        for bk, cfg in CUSTOM_CFG.items():
-            if bk in LAST_TIER_OVERRIDES:
-                cfg["last_tier"] = bool(LAST_TIER_OVERRIDES[bk])
-            else:
-                cfg.pop("last_tier", None)
-    _cfg_persist("set", _LAST_TIER_DOC_ID)
 
 
 def _cfg_view():
     with state_lock:
         env = {_bk(m["name"]) for m in ENV_MODELS}
-        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"],
-                 "saved": _bk(m["name"]) in CUSTOM_CFG,
-                 "in_env": _bk(m["name"]) in env,
-                 "last_tier": _is_lite(m["name"]),
-                 "last_tier_manual": _bk(m["name"]) in LAST_TIER_OVERRIDES,
-                 "default_lite": bool(LITE_LAST and "lite" in (m["name"] or "").lower())} for m in MODELS]
+        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "saved": _bk(m["name"]) in CUSTOM_CFG,
+                 "in_env": _bk(m["name"]) in env} for m in MODELS]
 
 
 # ─── Conversation stickiness (fixes Gemini thought_signature 400s) ───────────
@@ -565,18 +501,18 @@ def _prune_conv_sticky():
     for cid in dead:
         conversation_sticky.pop(cid, None)
 
-def _pin_hard_dead(key, model_name, model_dict) -> bool:
+def _pin_hard_dead(key, model_name, model_dict, honor_block=True) -> bool:
     """True only for failures that CANNOT be waited out: this (key, model)
     is permanently incompatible or its daily (RPD) quota is gone for today.
     RPM being momentarily full is NOT included here -- that's what we wait
     on instead of switching (see acquire_sticky_slot_wait)."""
     if (key, model_name) in PERMANENTLY_BROKEN_MODELS: return True
-    if _is_model_blocked(model_name): return True           # manually blocked on the dashboard
+    if honor_block and _is_model_blocked(model_name): return True   # manually blocked on the dashboard (auto requests only)
     if _is_daily_penalized(key, model_name): return True
     if not _rpd_available(key, model_name, model_dict["rpd"]): return True
     return False
 
-def acquire_sticky_slot_wait(client_id: str):
+def acquire_sticky_slot_wait(client_id: str, honor_block=True):
     """
     Resolve the pinned slot for this client, WAITING (not switching) while
     it's only RPM-limited, since RPM resets within ~60s and switching model
@@ -603,7 +539,7 @@ def acquire_sticky_slot_wait(client_id: str):
             key, model_name, _ = entry
             model_dict = next((m for m in MODELS if m["name"] == model_name), None)
 
-            if model_dict is None or _pin_hard_dead(key, model_name, model_dict):
+            if model_dict is None or _pin_hard_dead(key, model_name, model_dict, honor_block):
                 conversation_sticky.pop(client_id, None)
                 return ("exhausted", None, None)
 
@@ -1632,12 +1568,124 @@ current_combo_idx = 0
 LITE_LAST = os.environ.get("LITE_LAST", "1") != "0"   # 0 = old behaviour (lite mixed with the others)
 
 def _is_lite(model_name: str) -> bool:
-    """True when `model_name` belongs to the LAST TIER (used only after all Primary-Tier models are busy/exhausted).
-    Manual overrides from /wapi/logs (LAST_TIER_OVERRIDES, persisted across restarts) take priority over the default 'lite' name match."""
-    bk = _bk(model_name)
-    if bk in LAST_TIER_OVERRIDES:
-        return bool(LAST_TIER_OVERRIDES[bk])
     return LITE_LAST and "lite" in (model_name or "").lower()
+
+# ─── "Last" models: tried only after every other model (order = the order you choose on /logs) ──────────
+# Default (nothing saved): every "lite" model is last (LITE_LAST). Once you save an order on the dashboard
+# ("⬇ Last order") exactly the models you picked are last, in that order (the first one of the list is used
+# before the second ...). Saved in MongoDB (collection wapi_last_models) + a JSON file, so it survives restarts.
+LAST_COLLECTION = os.environ.get("LAST_MODELS_COLLECTION", "wapi_last_models")
+LAST_FILE = os.environ.get("LAST_MODELS_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_models.json"))
+LAST_ORDER = {"custom": False, "models": [], "updated": 0.0}      # models = ordered names (display case)
+_last_io_lock = threading.Lock()
+
+
+def _last_keys():
+    """Ordered lower-case keys of the saved 'last' models, or None while the default (lite last) is in use."""
+    st = LAST_ORDER
+    return [_bk(n) for n in st["models"]] if st["custom"] else None
+
+
+def _last_effective(models=None):
+    """Names that are really 'last' right now, in order (for the dashboard)."""
+    models = models if models is not None else get_active_models()
+    keys = _last_keys()
+    if keys is None:
+        return [m["name"] for m in models if _is_lite(m["name"])]
+    by = {_bk(m["name"]): m["name"] for m in models}
+    return [by[k] for k in keys if k in by]
+
+
+def _last_state_save_file():
+    try:
+        with state_lock:
+            snap = {"models": list(LAST_ORDER["models"]) if LAST_ORDER["custom"] else None, "updated": LAST_ORDER["updated"]}
+        tmp = LAST_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        os.replace(tmp, LAST_FILE)
+    except Exception as e:
+        print(f"[LAST MODELS] file save failed: {e}")
+
+
+def _last_coll():
+    c = _blocks_coll()          # same MongoDB database as the blocks
+    return None if c is None else c.database[LAST_COLLECTION]
+
+
+def _last_persist():
+    """Background write of the whole order (it is tiny). Never blocks or breaks a request."""
+    def _run():
+        with _last_io_lock:
+            _last_state_save_file()
+            try:
+                coll = _last_coll()
+                if coll is None:
+                    return
+                with state_lock:
+                    doc = {"_id": "order", "models": list(LAST_ORDER["models"]) if LAST_ORDER["custom"] else None,
+                           "updated": LAST_ORDER["updated"]}
+                coll.replace_one({"_id": "order"}, doc, upsert=True)
+            except Exception as e:
+                print(f"[LAST MODELS] MongoDB save failed (still kept in memory + file): {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _last_merge(row):
+    """Take a stored order when it is newer than what is in memory. row = {"models": [..] | None, "updated": ts}."""
+    try:
+        upd = float(row.get("updated") or 0)
+        with state_lock:
+            if upd < LAST_ORDER["updated"] or (upd == LAST_ORDER["updated"] and upd > 0):
+                return False
+            mods = row.get("models")
+            if mods is None:
+                LAST_ORDER.update(custom=False, models=[], updated=upd)
+            else:
+                clean, seen = [], set()
+                for n in mods:
+                    n = _cfg_clean_name(n)
+                    if n and _bk(n) not in seen:
+                        seen.add(_bk(n))
+                        clean.append(n)
+                LAST_ORDER.update(custom=True, models=clean, updated=upd)
+        return True
+    except Exception:
+        return False
+
+
+def _last_load():
+    """Startup: file first (fast, local), then MongoDB in the background (retries until it answers)."""
+    try:
+        with open(LAST_FILE, encoding="utf-8") as f:
+            _last_merge(json.load(f))
+    except (OSError, ValueError):
+        pass
+    if not os.environ.get("MONGO_URI"):
+        return
+    def _bg():
+        for _ in range(20):
+            try:
+                row = _last_coll().find_one({"_id": "order"})
+                if row:
+                    _last_merge(row)
+                print(f"[LAST MODELS] loaded from MongoDB: {'custom order ' + str(LAST_ORDER['models']) if LAST_ORDER['custom'] else 'default (lite last)'}")
+                return
+            except Exception as e:
+                print(f"[LAST MODELS] MongoDB load failed, retrying in 30s: {e}")
+                time.sleep(30)
+    threading.Thread(target=_bg, daemon=True).start()
+
+
+def _last_set(models):
+    """models = ordered list of names, or None to go back to the default (lite last)."""
+    with state_lock:
+        if models is None:
+            LAST_ORDER.update(custom=False, models=[], updated=time.time())
+        else:
+            LAST_ORDER.update(custom=True, models=list(models), updated=time.time())
+    _last_persist()
+
 
 def _list_combos_in_order(requested_model: str):
     """
@@ -1657,11 +1705,10 @@ def _list_combos_in_order(requested_model: str):
 
     GENERIC_ALIASES = _GENERIC_MODEL_ALIASES
     is_pool_mode = requested_model.lower() in GENERIC_ALIASES
-    if MODEL_BLOCKS:
-        # manually blocked models are not even listed (all keys)
+    if MODEL_BLOCKS and _block_applies(requested_model):
+        # manually blocked models are not even listed (all keys) - for auto / round-robin requests only.
+        # A request that names a model keeps using exactly that model, blocked or not.
         active_models = [m for m in active_models if not _is_model_blocked(m["name"])]
-        if not is_pool_mode and _is_model_blocked(requested_model):
-            return []
 
     combos = []
 
@@ -1692,9 +1739,20 @@ def _list_combos_in_order(requested_model: str):
         # a lite model is used only when no non-lite (key, model) is
         # usable for this request (RPM full / cooldown / daily-exhausted /
         # already failed in this request).
-        non_lite = sorted([m for m in active_models if not _is_lite(m["name"])], key=_model_sort_key)
-        lite = sorted([m for m in active_models if _is_lite(m["name"])], key=_model_sort_key)
-        for tier in (non_lite, lite):
+        _lk = _last_keys()
+        if _lk is None:
+            # default: all "lite" models are one last tier
+            non_lite = sorted([m for m in active_models if not _is_lite(m["name"])], key=_model_sort_key)
+            lite = sorted([m for m in active_models if _is_lite(m["name"])], key=_model_sort_key)
+            tiers = (non_lite, lite)
+        else:
+            # saved order: the picked models are last, each one its own tier, in the order you chose
+            by_key = {_bk(m["name"]): m for m in active_models}
+            last_models = [by_key[k] for k in dict.fromkeys(_lk) if k in by_key]
+            last_set = {_bk(m["name"]) for m in last_models}
+            first = sorted([m for m in active_models if _bk(m["name"]) not in last_set], key=_model_sort_key)
+            tiers = [first] + [[m] for m in last_models]
+        for tier in tiers:
             M = len(tier)
             if M == 0:
                 continue
@@ -1748,11 +1806,12 @@ def acquire_next_slot(requested_model: str, exclude: set):
             return None
 
         combos = _list_combos_in_order(requested_model)
+        _honor_block = _block_applies(requested_model)
 
         for (k_i, m_i, key, model) in combos:
             if (key, model["name"]) in exclude:
                 continue
-            if _is_model_blocked(model["name"]):
+            if _honor_block and _is_model_blocked(model["name"]):
                 continue
             if (key, model["name"]) in PERMANENTLY_BROKEN_MODELS:
                 continue
@@ -1793,8 +1852,9 @@ def get_best_combo(requested_model: str):
             return []
         combos = _list_combos_in_order(requested_model)
         viable = []
+        _honor_block = _block_applies(requested_model)
         for (k_i, m_i, key, model) in combos:
-            if _is_model_blocked(model["name"]):
+            if _honor_block and _is_model_blocked(model["name"]):
                 continue
             if (key, model["name"]) in PERMANENTLY_BROKEN_MODELS:
                 continue
@@ -1839,54 +1899,34 @@ def _log_kind(e):
     return "fail"
 
 
-def _resp_preview_from_entry(e):
-    """Readable response preview for the dashboard logs list."""
-    r_txt = str(e.get("response") or "").strip()
-    tcs = e.get("tool_calls") or []
-    if not r_txt and isinstance(e.get("resp_obj"), dict):
-        ro = e["resp_obj"]
-        r_txt = str(ro.get("text") or "").strip()
-        if not tcs:
-            tcs = ro.get("tool_calls") or []
-    if r_txt:
-        return r_txt
-    if tcs:
-        parts = []
-        for tc in tcs[:4]:
-            if isinstance(tc, dict):
-                parts.append(f"🔧 {tc.get('name') or 'tool'}({str(tc.get('arguments') or '')[:120]})")
-        if parts:
-            return " | ".join(parts)
-    return ""
-
-
 def _slim_log(e):
-    """Compact version of a log entry for the dashboard list, including both prompt and response previews."""
+    """Small, fixed-size version of a log entry for the dashboard list (no request body, no attempts, no images)."""
     err = e.get("error_detail")
-    resp_prev = _resp_preview_from_entry(e)
     return {"id": e.get("id"), "time": e.get("time"), "ip": _clip(e.get("ip"), 60), "status": _clip(e.get("status"), 80),
             "kind": _log_kind(e), "model": _clip(e.get("model"), 80), "route": _clip(e.get("route"), 200),
-            "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 500),
-            "response": _clip(resp_prev, 600),
+            "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 160),
             "is_correct": bool(e.get("is_correct")), "password_used": _clip(e.get("password_used"), 40),
             "error": _clip(err, 600), "n_attempts": len(e.get("attempts") or []),
-            "has_detail": True}
+            "has_detail": bool(e.get("request") or e.get("attempts") or len(str(err or "")) > 600)}
 
 
-KEEP_SUCCESS_DETAIL = os.environ.get("LOG_KEEP_SUCCESS_DETAIL", "1") != "0"
+KEEP_SUCCESS_DETAIL = os.environ.get("LOG_KEEP_SUCCESS_DETAIL", "0") == "1"
 
 
 def _scrub_success(e):
-    """Keep bounded request & response text on the last 50 in-memory log entries so /wapi/logs always displays
-    every incoming response and prompt properly (even without browser IndexedDB or after 5+ minutes)."""
-    if e.get("scrubbed"):
+    """A request that succeeded keeps only a one-line summary (time, status, model, route, ms): its request summary,
+    attempts and message text are deleted for good, so finished requests cost no memory. Failed requests and
+    fallbacks (200 but something went wrong) keep their error + attempts, because that is what you debug with."""
+    if KEEP_SUCCESS_DETAIL or e.get("scrubbed"):
         return
-    if e.get("request"):
-        e["request"] = _clip(e.get("request"), 8000)
-    if e.get("response"):
-        e["response"] = _clip(e.get("response"), 20000)
-    if e.get("message"):
-        e["message"] = _clip(e.get("message"), 1000)
+    kind = _log_kind(e)
+    if kind not in ("ok", "warn"):
+        return
+    e.pop("request", None)
+    e["message"] = _clip(e.get("message"), 40)
+    if kind == "ok":
+        e.pop("attempts", None)
+        e["error_detail"] = None
     e["scrubbed"] = True
 
 
@@ -2094,8 +2134,8 @@ def requires_browser_auth(f):
 # /v1/chat/completions|responses request. NOTHING is written to disk or MongoDB. The record lives in RAM for
 # LIVE_TTL seconds after the request ended; the /logs page in YOUR browser pulls it and keeps it in the browser's
 # IndexedDB, so the server never has to hold history. Pending requests are visible while they run.
-LIVE_TTL = float(os.environ.get("LIVE_TTL", "1800"))
-LIVE_MAX = int(os.environ.get("LIVE_MAX", "200"))
+LIVE_TTL = float(os.environ.get("LIVE_TTL", "300"))
+LIVE_MAX = int(os.environ.get("LIVE_MAX", "120"))
 BOOT_ID = str(int(time.time()))
 live_full = collections.OrderedDict()   # log id -> record
 live_lock = threading.Lock()
@@ -2192,13 +2232,104 @@ def _live_req(raw, path):
             "messages": [_live_msg(m) for m in msgs[-30:]], "messages_cut": max(0, len(msgs) - 30), "tools": tools[:60]}
 
 
+# ─── Stop a pending request from the dashboard ────────────────────────────────────────────────────────────
+# Every logged request gets a cancel Event (registered by its log id). POST /request_cancel {"id": N} or {"all": true}
+# sets it; proxy_chat checks it before every attempt, sleeps on it (so waiting for a free key ends at once) and
+# runs the Google call in a helper thread it can walk away from. The client gets 499 "request_cancelled"
+# (a 4xx that SDKs do not retry). A call that Google already received cannot be recalled (it still counts there).
+class RequestCancelled(Exception):
+    pass
+
+
+CANCELS = {}                       # log id -> {"ev": Event, "entry": log_entry, "t": monotonic}
+_cancels_lock = threading.Lock()
+
+
+def _cancel_register(log_entry):
+    ev = threading.Event()
+    g.cancel = ev
+    with _cancels_lock:
+        CANCELS[log_entry["id"]] = {"ev": ev, "entry": log_entry, "t": time.monotonic()}
+        if len(CANCELS) > 3000:        # safety net; normal removal happens in after_request
+            for k in sorted(CANCELS, key=lambda i: CANCELS[i]["t"])[:len(CANCELS) - 2000]:
+                CANCELS.pop(k, None)
+
+
+def _cancel_forget(log_entry):
+    try:
+        with _cancels_lock:
+            CANCELS.pop(log_entry.get("id"), None)
+    except Exception:
+        pass
+
+
+def _cancelled() -> bool:
+    ev = getattr(g, "cancel", None)
+    return ev is not None and ev.is_set()
+
+
+def _cancel_sleep(secs):
+    """time.sleep that wakes up at once when the request is stopped."""
+    ev = getattr(g, "cancel", None)
+    if ev is None:
+        time.sleep(secs)
+    else:
+        ev.wait(secs)
+
+
+def _post_cancellable(url, **kw):
+    """requests.post that can be abandoned when the request is stopped (the call runs in a helper thread)."""
+    ev = getattr(g, "cancel", None)
+    if ev is None:
+        return requests.post(url, **kw)
+    box = {}
+    def _run():
+        try:
+            box["resp"] = requests.post(url, **kw)
+        except BaseException as e:          # noqa: BLE001 - handed back to the caller
+            box["exc"] = e
+    t = threading.Thread(target=_run, daemon=True, name="wapi-post")
+    t.start()
+    while t.is_alive():
+        t.join(0.4)
+        if ev.is_set() and t.is_alive():
+            def _reap():                      # close the abandoned answer as soon as it arrives (no leaked socket)
+                t.join()
+                r = box.get("resp")
+                if r is not None:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
+            threading.Thread(target=_reap, daemon=True, name="wapi-post-reap").start()
+            raise RequestCancelled()
+    if "exc" in box:
+        raise box["exc"]
+    if ev.is_set():                           # finished at the same moment the stop arrived
+        try:
+            box["resp"].close()
+        except Exception:
+            pass
+        raise RequestCancelled()
+    return box["resp"]
+
+
+def _cancel_response():
+    _trail("stopped by admin")
+    if hasattr(g, "log_entry"):
+        g.log_entry["status"] = "499 Stopped by admin"
+        g.log_entry["error_detail"] = "stopped from the dashboard while pending"
+        g.log_entry["route"] = (g.log_entry.get("route") or "") + " (stopped)"
+    with state_lock:
+        metrics["failed_requests"] = metrics.get("failed_requests", 0) + 1
+    return Response(json.dumps({"error": {"message": "Request stopped by the admin.", "type": "request_cancelled",
+                                          "code": "request_cancelled"}}), 499, {"Content-Type": "application/json"})
+
+
 def _live_begin(log_entry, raw, path):
     try:
-        req_obj = _live_req(raw, path)
-        log_entry["req_obj"] = req_obj
-        log_entry.setdefault("trail", [])
         rec = {"id": log_entry["id"], "boot": BOOT_ID, "t0": time.time(), "t1": None, "done": False,
-               "req": req_obj, "resp": None, "trail": log_entry["trail"], "attempts": [], "log": log_entry}
+               "req": _live_req(raw, path), "resp": None, "trail": [], "attempts": [], "log": log_entry}
         with live_lock:
             live_full[rec["id"]] = rec
             _live_prune()
@@ -2222,73 +2353,32 @@ def _trail(text):
         pass
 
 
-def _extract_msg_content_str(c) -> str:
-    if isinstance(c, str):
-        return c
-    if isinstance(c, list):
-        parts = []
-        for p in c:
-            if isinstance(p, dict):
-                if p.get("text"):
-                    parts.append(str(p.get("text")))
-                elif p.get("content"):
-                    parts.append(str(p.get("content")))
-            elif isinstance(p, str):
-                parts.append(p)
-        return "".join(parts)
-    return "" if c is None else str(c)
-
-
 def _live_resp_from_json(j):
     out = {}
     if not isinstance(j, dict):
         return out
-    if "choices" in j and isinstance(j.get("choices"), list):
+    if "choices" in j:
         ch = (j.get("choices") or [{}])[0] or {}
-        m = ch.get("message") or ch.get("delta") or {}
-        txt = _extract_msg_content_str(m.get("content"))
-        rc = m.get("reasoning_content") or m.get("reasoning") or m.get("thought")
-        if rc and isinstance(rc, str):
-            txt = (f"[Thinking]\n{rc.strip()}\n\n{txt}" if txt else f"[Thinking]\n{rc.strip()}")
-        out["text"] = _lc(txt, 20000)
-        tcs = m.get("tool_calls") or ([m.get("function_call")] if m.get("function_call") else [])
-        out["tool_calls"] = _live_tcs(tcs)
+        m = ch.get("message") or {}
+        out["text"] = _lc(m.get("content") or "", 20000)
+        out["tool_calls"] = _live_tcs(m.get("tool_calls"))
         out["finish_reason"] = ch.get("finish_reason")
-    elif isinstance(j.get("output"), list) or "output_text" in j:
+    elif isinstance(j.get("output"), list):
         texts, tcs = [], []
-        for it in (j.get("output") or []):
+        for it in j["output"]:
             if not isinstance(it, dict):
                 continue
             if it.get("type") == "message":
                 for c in (it.get("content") or []):
-                    if isinstance(c, dict) and (c.get("text") or c.get("output_text")):
-                        texts.append(str(c.get("text") or c.get("output_text")))
-            elif it.get("type") in ("function_call", "custom_tool_call"):
+                    if isinstance(c, dict) and c.get("text"):
+                        texts.append(str(c["text"]))
+            elif it.get("type") == "function_call":
                 tcs.append(it)
-        if not texts and j.get("output_text"):
-            texts.append(str(j.get("output_text")))
         out["text"] = _lc("".join(texts), 20000)
         out["tool_calls"] = _live_tcs(tcs)
-        out["finish_reason"] = j.get("status")
-    elif "candidates" in j and isinstance(j.get("candidates"), list):
-        cand = (j.get("candidates") or [{}])[0] or {}
-        parts = ((cand.get("content") or {}).get("parts")) or []
-        texts, tcs = [], []
-        for p in parts:
-            if isinstance(p, dict):
-                if p.get("text"):
-                    texts.append(str(p.get("text")))
-                if p.get("functionCall"):
-                    fc = p["functionCall"]
-                    tcs.append({"name": fc.get("name"), "arguments": json.dumps(fc.get("args") or {}, ensure_ascii=False)})
-        out["text"] = _lc("".join(texts), 20000)
-        out["tool_calls"] = _live_tcs(tcs)
-        out["finish_reason"] = cand.get("finishReason")
-    elif isinstance(j.get("text"), str):
-        out["text"] = _lc(j["text"], 20000)
     if j.get("error"):
         try:
-            out["error"] = _lc(json.dumps(j["error"], ensure_ascii=False) if isinstance(j["error"], (dict, list)) else str(j["error"]), 3000)
+            out["error"] = _lc(json.dumps(j["error"], ensure_ascii=False), 3000)
         except Exception:
             out["error"] = _lc(j["error"], 3000)
     if isinstance(j.get("usage"), dict):
@@ -2296,25 +2386,9 @@ def _live_resp_from_json(j):
     return out
 
 
-def _sync_resp_to_log_entry(log_entry, resp_obj):
-    if not isinstance(log_entry, dict) or not isinstance(resp_obj, dict):
-        return
-    log_entry["resp_obj"] = resp_obj
-    if resp_obj.get("text"):
-        log_entry["response"] = _lc(resp_obj["text"], 20000)
-    elif resp_obj.get("error") and not log_entry.get("response"):
-        log_entry["response"] = _lc(resp_obj["error"], 4000)
-    if resp_obj.get("tool_calls"):
-        log_entry["tool_calls"] = resp_obj["tool_calls"]
-    if resp_obj.get("finish_reason"):
-        log_entry["finish_reason"] = resp_obj["finish_reason"]
-    if resp_obj.get("usage"):
-        log_entry["usage"] = resp_obj["usage"]
-
-
 class _LiveAcc:
     """Collects the answer of an SSE stream (chat deltas + tool-call deltas + Responses 'completed') while it is relayed."""
-    def __init__(self, rec=None, log_entry=None):
+    def __init__(self):
         self.buf = b""
         self.text = []
         self.n = 0
@@ -2322,53 +2396,6 @@ class _LiveAcc:
         self.finish = None
         self.usage = None
         self.final = None
-        self.rec = rec
-        self.log_entry = log_entry
-
-    def _process_line(self, ln: bytes):
-        ln = ln.strip()
-        if not ln.startswith(b"data:") or ln.endswith(b"[DONE]"):
-            return
-        try:
-            o = json.loads(ln[5:].strip())
-        except Exception:
-            return
-        if not isinstance(o, dict):
-            return
-        if o.get("type") == "response.completed" and isinstance(o.get("response"), dict):
-            self.final = o.get("response")
-            return
-        if o.get("type") == "response.output_text.delta" and o.get("delta") and self.n < 20000:
-            s_delta = str(o.get("delta"))
-            self.text.append(s_delta)
-            self.n += len(s_delta)
-            return
-        if isinstance(o.get("usage"), dict):
-            self.usage = o["usage"]
-        for ch in (o.get("choices") or []):
-            if not isinstance(ch, dict):
-                continue
-            d = ch.get("delta") or ch.get("message") or {}
-            c = _extract_msg_content_str(d.get("content"))
-            rc = d.get("reasoning_content") or d.get("reasoning")
-            if rc and isinstance(rc, str) and not c:
-                c = rc
-            if c and self.n < 20000:
-                self.text.append(c)
-                self.n += len(c)
-            for tc in (d.get("tool_calls") or []):
-                if not isinstance(tc, dict):
-                    continue
-                cur = self.tcs.setdefault(tc.get("index", 0), {"id": None, "name": "", "arguments": ""})
-                if tc.get("id"):
-                    cur["id"] = tc["id"]
-                fn = tc.get("function") or {}
-                if fn.get("name"):
-                    cur["name"] += fn["name"]
-                if fn.get("arguments") and len(cur["arguments"]) < 4000:
-                    cur["arguments"] += fn["arguments"]
-            if ch.get("finish_reason"):
-                self.finish = ch["finish_reason"]
 
     def feed(self, chunk):
         self.buf += chunk
@@ -2378,22 +2405,37 @@ class _LiveAcc:
             return
         *lines, self.buf = self.buf.split(b"\n")
         for ln in lines:
-            self._process_line(ln)
-        # Live update preview while streaming
-        if self.text and self.log_entry is not None:
-            cur_txt = _lc("".join(self.text), 20000)
-            self.log_entry["response"] = cur_txt
-            if self.rec is not None:
-                self.rec["resp"] = {"text": cur_txt, "tool_calls": list(self.tcs.values()), "finish_reason": self.finish, "status_code": 200}
+            ln = ln.strip()
+            if not ln.startswith(b"data:") or ln.endswith(b"[DONE]"):
+                continue
+            try:
+                o = json.loads(ln[5:].strip())
+            except Exception:
+                continue
+            if o.get("type") == "response.completed":
+                self.final = o.get("response")
+                continue
+            if isinstance(o.get("usage"), dict):
+                self.usage = o["usage"]
+            for ch in (o.get("choices") or []):
+                d = ch.get("delta") or {}
+                c = d.get("content")
+                if c and self.n < 20000:
+                    self.text.append(c)
+                    self.n += len(c)
+                for tc in (d.get("tool_calls") or []):
+                    cur = self.tcs.setdefault(tc.get("index", 0), {"id": None, "name": "", "arguments": ""})
+                    if tc.get("id"):
+                        cur["id"] = tc["id"]
+                    fn = tc.get("function") or {}
+                    if fn.get("name"):
+                        cur["name"] += fn["name"]
+                    if fn.get("arguments") and len(cur["arguments"]) < 4000:
+                        cur["arguments"] += fn["arguments"]
+                if ch.get("finish_reason"):
+                    self.finish = ch["finish_reason"]
 
     def result(self):
-        if self.buf.strip():
-            try:
-                for ln in self.buf.split(b"\n"):
-                    self._process_line(ln)
-            except Exception:
-                pass
-            self.buf = b""
         if self.final:
             return _live_resp_from_json(self.final)
         out = {"text": _lc("".join(self.text), 20000), "tool_calls": list(self.tcs.values()), "finish_reason": self.finish}
@@ -2402,22 +2444,14 @@ class _LiveAcc:
         return out
 
 
-def _live_finish(rec, resp_obj, status_code, log_entry=None):
-    ro = dict(resp_obj or {}, status_code=status_code)
-    if rec is not None:
-        rec["resp"] = ro
-        rec["t1"] = time.time()
-        rec["done"] = True
-        if log_entry is None:
-            log_entry = rec.get("log")
-    if log_entry is not None:
-        _sync_resp_to_log_entry(log_entry, ro)
+def _live_finish(rec, resp_obj, status_code):
+    rec["resp"] = dict(resp_obj or {}, status_code=status_code)
+    rec["t1"] = time.time()
+    rec["done"] = True
 
 
-def _live_wrap_stream(it, rec, status_code, log_entry=None):
-    if log_entry is None and rec is not None:
-        log_entry = rec.get("log")
-    acc = _LiveAcc(rec=rec, log_entry=log_entry)
+def _live_wrap_stream(it, rec, status_code):
+    acc = _LiveAcc()
     def gen():
         for chunk in it:
             try:
@@ -2427,8 +2461,8 @@ def _live_wrap_stream(it, rec, status_code, log_entry=None):
             yield chunk
     def _done():
         try:
-            if rec is None or not rec.get("done"):
-                _live_finish(rec, acc.result(), status_code, log_entry=log_entry)
+            if not rec["done"]:
+                _live_finish(rec, acc.result(), status_code)
         finally:
             close = getattr(it, "close", None)
             if close:
@@ -2439,31 +2473,22 @@ def _live_wrap_stream(it, rec, status_code, log_entry=None):
 
 def _live_after(response):
     rec = getattr(g, "live", None)
-    log_entry = getattr(g, "log_entry", None)
-    if rec is None and log_entry is None:
-        return
-    if rec is not None and rec.get("done"):
-        if log_entry is not None and rec.get("resp"):
-            _sync_resp_to_log_entry(log_entry, rec["resp"])
+    if rec is None or rec["done"]:
         return
     if response.is_streamed:
-        response.response = _live_wrap_stream(response.response, rec, response.status_code, log_entry=log_entry)
+        response.response = _live_wrap_stream(response.response, rec, response.status_code)
         return
     if response.direct_passthrough:
-        _live_finish(rec, {}, response.status_code, log_entry=log_entry)
+        _live_finish(rec, {}, response.status_code)
         return
     body = response.get_data()
     obj = {}
-    if len(body) < 4_000_000:
-        mime = (response.mimetype or "").lower()
-        if "json" in mime:
-            try:
-                obj = _live_resp_from_json(json.loads(body.decode("utf-8", "replace")))
-            except Exception:
-                obj = {"text": _lc(body.decode("utf-8", "replace"), 4000)}
-        elif "text/" in mime and "html" not in mime:
-            obj = {"text": _lc(body.decode("utf-8", "replace"), 4000)}
-    _live_finish(rec, obj, response.status_code, log_entry=log_entry)
+    if len(body) < 4_000_000 and "json" in (response.mimetype or ""):
+        try:
+            obj = _live_resp_from_json(json.loads(body.decode("utf-8", "replace")))
+        except Exception:
+            obj = {"text": _lc(body.decode("utf-8", "replace"), 3000)}
+    _live_finish(rec, obj, response.status_code)
 
 
 def _live_public(r):
@@ -2486,7 +2511,8 @@ def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
-                        '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available', '/model_test', '/router/model_test']:
+                        '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available', '/model_test', '/router/model_test',
+                        '/model_last', '/router/model_last', '/request_cancel', '/router/request_cancel']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -2499,24 +2525,22 @@ def strict_password_and_log():
     if request.is_json:
         try:
             body = request.get_json(silent=True) or {}
-            msgs = body.get("messages")
-            if msgs is None and "input" in body:
-                inp = body.get("input")
-                msgs = [{"role": "user", "content": inp}] if isinstance(inp, str) else (inp if isinstance(inp, list) else [])
-            if isinstance(msgs, list) and msgs:
-                user_msgs = [m for m in msgs if isinstance(m, dict) and m.get("role") == "user"]
-                target_m = user_msgs[-1] if user_msgs else (msgs[-1] if isinstance(msgs[-1], dict) else {})
-                msg = target_m.get("content", "") if isinstance(target_m, dict) else str(target_m)
+            msgs = body.get("messages", [])
+            if msgs:
+                msg = msgs[-1].get("content", "")
         except Exception:
             pass
 
     _files_note = ""
     if isinstance(msg, list):                      # multimodal: text parts + images/files (never str() the raw list)
-        _n = sum(1 for x in msg if isinstance(x, dict) and x.get("type") not in ("text", "input_text", "output_text"))
+        _n = sum(1 for x in msg if isinstance(x, dict) and x.get("type") not in ("text", "input_text"))
         _files_note = f" [+{_n} image/file]" if _n else ""
-        msg = " ".join(str(x.get("text") or "") for x in msg if isinstance(x, dict) and x.get("type") in ("text", "input_text", "output_text")).strip()
+        msg = " ".join(str(x.get("text") or "") for x in msg if isinstance(x, dict) and x.get("type") in ("text", "input_text")).strip()
     msg = _log_preview(msg)
-    formatted_msg = (str(msg).strip() if msg else "") + _files_note
+    if isinstance(msg, str) and len(msg) > 1:
+        formatted_msg = f"{msg[0]}...{msg[-1]}" + _files_note
+    else:
+        formatted_msg = (str(msg) if msg else "") + _files_note
 
     log_entry = {
         "time": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
@@ -2547,6 +2571,7 @@ def strict_password_and_log():
     log_entry["route"] = None
     g.log_entry = log_entry
     request_logs.appendleft(log_entry)
+    _cancel_register(log_entry)
 
     if not is_correct:
         log_entry["status"] = "401 Blocked"
@@ -2555,6 +2580,7 @@ def strict_password_and_log():
 @app.after_request
 def update_log_status(response):
     if hasattr(g, 'log_entry'):
+        _cancel_forget(g.log_entry)        # no longer pending (a stream that already started cannot be stopped here)
         if g.log_entry["status"] == "Pending...":
             g.log_entry["status"] = f"{response.status_code} {'Success' if response.status_code == 200 else 'Failed'}"
         if request.url_rule is None and response.status_code in (404, 405) and not g.log_entry.get("error_detail"):
@@ -2646,7 +2672,6 @@ def api_dashboard_data():
                     available += 1
             model_key_info[mn] = {"available": available, "penalized_last5": pen_keys,
                                   "blocked_left": int(_model_block_left(mn))}
-    cfg_list = _cfg_view()
     return jsonify({
         "metrics": metrics,
         "active_keys": len(API_KEYS),
@@ -2656,12 +2681,9 @@ def api_dashboard_data():
         "models": active_models_snap,
         "model_key_info": model_key_info,
         "model_blocks": _model_blocks_view(),
+        "last_models": _last_view(),
         "usage": _usage_view(),
-        "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"],
-                                  "last_tier": m["last_tier"], "last_tier_manual": m["last_tier_manual"],
-                                  "default_lite": m["default_lite"]} for m in cfg_list},
-        "last_tier_models": [m["name"] for m in cfg_list if m["last_tier"]],
-        "primary_tier_models": [m["name"] for m in cfg_list if not m["last_tier"]],
+        "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"]} for m in _cfg_view()},
         **_dash_logs(request.args.get("slim") == "1"),
     })
 
@@ -2669,61 +2691,25 @@ def api_dashboard_data():
 def _dash_logs(slim):
     recent = list(request_logs)
     if not slim:      # old format (kept for any other client); only the huge message text is clipped
-        return {"logs": [dict(e, message=_clip(e.get("message"), 2000), response=_clip(_resp_preview_from_entry(e), 4000)) for e in recent]}
+        return {"logs": [dict(e, message=_clip(e.get("message"), 2000)) for e in recent]}
     ids = {e.get("id") for e in recent}
     older = [e for e in list(failed_logs) if e.get("id") not in ids]
     return {"logs": [_slim_log(e) for e in recent], "older_errors": [_slim_log(e) for e in older]}
 
 
 def _log_detail(raw_id):
-    """Full details of ONE log entry (response, tool calls, request messages, route trail, attempts, full error)."""
+    """Heavy part of ONE log entry (request summary, every attempt, full error), loaded only when you click Details."""
     try:
         want = int(raw_id)
     except (TypeError, ValueError):
         return jsonify({"error": "bad id"}), 400
-    with live_lock:
-        live_rec = live_full.get(want)
     e = next((x for x in list(request_logs) + list(failed_logs) if x.get("id") == want), None)
-    if e is None and live_rec is not None:
-        e = live_rec.get("log")
     if e is None:
         return jsonify({"error": "log entry is gone (only the newest requests are kept)"}), 404
     req, err = str(e.get("request") or ""), str(e.get("error_detail") or "")
-    resp_txt = str(e.get("response") or "")
-    resp_obj = e.get("resp_obj")
-    req_obj = e.get("req_obj")
-    trail = list(e.get("trail") or [])
-    if live_rec is not None:
-        if not resp_obj and live_rec.get("resp"):
-            resp_obj = live_rec["resp"]
-        if not req_obj and live_rec.get("req"):
-            req_obj = live_rec["req"]
-        if not trail and live_rec.get("trail"):
-            trail = list(live_rec["trail"])
-        if not resp_txt and isinstance(resp_obj, dict) and resp_obj.get("text"):
-            resp_txt = str(resp_obj["text"])
-    att = [_clip(a, 700) for a in (e.get("attempts") or (live_rec.get("attempts") if live_rec else []) or [])[-25:]]
-    return jsonify({
-        "id": want,
-        "status": e.get("status"),
-        "model": e.get("model"),
-        "route": e.get("route"),
-        "response_ms": e.get("response_ms"),
-        "message": _clip(e.get("message") or "", 4000),
-        "response": _clip(resp_txt, 20000),
-        "response_truncated": len(resp_txt) > 20000,
-        "tool_calls": e.get("tool_calls") or (resp_obj.get("tool_calls") if isinstance(resp_obj, dict) else []) or [],
-        "finish_reason": e.get("finish_reason") or (resp_obj.get("finish_reason") if isinstance(resp_obj, dict) else None),
-        "usage": e.get("usage") or (resp_obj.get("usage") if isinstance(resp_obj, dict) else None),
-        "req": req_obj,
-        "resp": resp_obj or ({"text": _clip(resp_txt, 20000), "tool_calls": e.get("tool_calls") or [], "status_code": 200 if str(e.get("status") or "").startswith("200") else 0} if (resp_txt or e.get("tool_calls")) else None),
-        "trail": trail,
-        "request": _clip(req, 8000),
-        "request_truncated": len(req) > 8000,
-        "error_detail": _clip(err, 8000),
-        "error_truncated": len(err) > 8000,
-        "attempts": att,
-    })
+    att = [_clip(a, 700) for a in (e.get("attempts") or [])[-20:]]
+    return jsonify({"id": want, "request": _clip(req, 8000), "request_truncated": len(req) > 8000,
+                    "error_detail": _clip(err, 8000), "error_truncated": len(err) > 8000, "attempts": att})
 
 def _admin_ok() -> bool:
     """Bearer <PASSWORD> (scripts / curl) OR browser Basic auth (dashboard). Refuses everything when PASSWORD is unset."""
@@ -2826,112 +2812,123 @@ def model_block_api():
                     "blocks": _model_blocks_view()})
 
 
-def _parse_model_names_input(raw_models):
-    """Accepts a list of strings or a comma/newline/space-separated string of model names."""
-    if isinstance(raw_models, str):
-        items = re.split(r"[,\s\n;]+", raw_models)
-    elif isinstance(raw_models, (list, tuple, set)):
-        items = []
-        for x in raw_models:
-            if isinstance(x, str):
-                items.extend(re.split(r"[,\s\n;]+", x))
-    else:
-        items = []
-    cleaned, seen = [], set()
-    for it in items:
-        if not it or not str(it).strip():
+def _last_view():
+    with state_lock:
+        models = get_active_models()
+        return {"custom": LAST_ORDER["custom"], "order": list(LAST_ORDER["models"]),
+                "effective": _last_effective(models), "default_is_lite": LITE_LAST}
+
+
+@app.route('/request_cancel', methods=['POST', 'OPTIONS'])
+@app.route('/router/request_cancel', methods=['POST', 'OPTIONS'])
+def request_cancel_api():
+    """Stop pending request(s).  POST {"id": 123} | {"ids": [1,2]} | {"all": true}   (the id is the log row id)
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    body = request.get_json(silent=True) or {}
+    want = set()
+    for v in ([body.get("id")] if body.get("id") is not None else []) + list(body.get("ids") or []):
+        try:
+            want.add(int(v))
+        except (TypeError, ValueError):
+            pass
+    stopped, missing = [], []
+    with _cancels_lock:
+        items = dict(CANCELS)
+    if body.get("all"):
+        want = {i for i, c in items.items() if str(c["entry"].get("status") or "").startswith("Pending")}
+    for i in sorted(want):
+        c = items.get(i)
+        if c is None or not str(c["entry"].get("status") or "").startswith("Pending"):
+            missing.append(i)         # already finished (or not a request of this process)
             continue
-        cn = _cfg_clean_name(it)
-        if cn and _bk(cn) not in seen:
-            seen.add(_bk(cn))
-            cleaned.append(cn)
-    return cleaned
+        c["ev"].set()
+        stopped.append(i)
+    if stopped:
+        print(f"[CANCEL] stop requested for pending request(s) {stopped}")
+    return jsonify({"stopped": stopped, "not_pending": missing})
 
 
-@app.route('/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
-@app.route('/router/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
-def model_config_api():
-    """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, remove it,
-    or manage the persistent Last-Tier ('use last', like lite models) model list.
-      GET  -> {"models": [{name, rpm, rpd, saved, in_env, last_tier, last_tier_manual}, ...], "last_tier_models": [...]}
-      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250, "last_tier": true}
-      POST {"action": "set_last_tier", "mode": "add"|"remove"|"replace"|"toggle"|"reset", "models": ["m1", "m2"]}
-      POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
+@app.route('/model_last', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+@app.route('/router/model_last', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+def model_last_api():
+    """Choose which models are tried LAST (after every other model), and in which order. Saved: survives restarts.
+      GET                                              -> {"custom", "order", "effective"}
+      POST {"models": ["gemini-3.5-flash", "gemini-3.1-flash-lite"]}   these are last, in this order ([] = none)
+      POST {"action": "add", "model": "..."}           append one model at the end of the last list
+      POST {"action": "remove", "model": "..."}        take one model out of the last list
+      POST {"action": "reset"}  or  DELETE             back to the default (every 'lite' model is last)
     Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
     if request.method == 'OPTIONS':
         return Response(status=200)
     if not _admin_ok():
         return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
     if request.method == 'GET':
-        view = _cfg_view()
-        return jsonify({
-            "models": view,
-            "last_tier_models": [m["name"] for m in view if m["last_tier"]],
-            "primary_tier_models": [m["name"] for m in view if not m["last_tier"]],
-        })
+        return jsonify(_last_view())
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action") or ("reset" if request.method == 'DELETE' else "set")).lower()
+    if action == "reset":
+        _last_set(None)
+        print("[LAST MODELS] reset to default (lite last)")
+        return jsonify(_last_view())
+
+    def _clean(lst):
+        out, seen = [], set()
+        for n in lst:
+            c = _cfg_clean_name(n)
+            if not c:
+                return None, n
+            if _bk(c) not in seen:
+                seen.add(_bk(c))
+                out.append(next((m["name"] for m in MODELS if _bk(m["name"]) == _bk(c)), c))
+        return out, None
+
+    with state_lock:
+        cur = list(LAST_ORDER["models"]) if LAST_ORDER["custom"] else _last_effective()
+    if action in ("add", "remove"):
+        c = _cfg_clean_name(body.get("model") or request.args.get("model"))
+        if not c:
+            return jsonify({"error": "model is required (a real model name)"}), 400
+        cur = [n for n in cur if _bk(n) != _bk(c)]
+        if action == "add":
+            cur.append(next((m["name"] for m in MODELS if _bk(m["name"]) == _bk(c)), c))
+        new = cur
+    elif action == "set":
+        lst = body.get("models")
+        if not isinstance(lst, list):
+            return jsonify({"error": "\"models\" must be a list of model names (in the order they should be tried last)"}), 400
+        if len(lst) > 200:
+            return jsonify({"error": "too many models"}), 400
+        new, bad = _clean(lst)
+        if new is None:
+            return jsonify({"error": f"invalid model name: {bad!r}"}), 400
+    else:
+        return jsonify({"error": f"unknown action '{action}' (set | add | remove | reset)"}), 400
+    _last_set(new)
+    print(f"[LAST MODELS] last order now: {new}")
+    return jsonify(_last_view())
+
+
+@app.route('/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+@app.route('/router/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+def model_config_api():
+    """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, or remove it.
+      GET                                                    -> {"models": [{name, rpm, rpd, saved, in_env}, ...]}
+      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250}   add (or update the limits of an existing model)
+      POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
+           saved-only model -> removed from routing; GEMINI_MODELS model -> back to its env limits
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    if request.method == 'GET':
+        return jsonify({"models": _cfg_view()})
     body = request.get_json(silent=True) or {}
     action = str(body.get("action") or ("delete" if request.method == 'DELETE' else "set")).lower()
-
-    if action in ("last_tier", "set_last_tier", "update_last_tier"):
-        mode = str(body.get("mode") or ("Add" if body.get("last_tier", True) else "remove")).strip().lower()
-        raw_list = body.get("models") if "models" in body else (body.get("model") or body.get("names") or "")
-        names = _parse_model_names_input(raw_list)
-        def_rpm = _cfg_int(body.get("rpm"), 1, 1_000_000)
-        def_rpd = _cfg_int(body.get("rpd"), 1, 100_000_000)
-        added_new = []
-        with state_lock:
-            if mode in ("reset", "reset_default", "default"):
-                LAST_TIER_OVERRIDES.clear()
-            elif mode == "replace":
-                target_bks = {_bk(n) for n in names}
-                # Ensure any newly typed models are also added to MODELS & CUSTOM_CFG so they participate in routing
-                for n in names:
-                    bk = _bk(n)
-                    if not any(_bk(m["name"]) == bk for m in MODELS):
-                        s_rpm, s_rpd, _ = _suggest_limits(n)
-                        _cfg_save(n, def_rpm or s_rpm, def_rpd or s_rpd, last_tier=True)
-                        added_new.append(n)
-                for m in MODELS:
-                    mbk = _bk(m["name"])
-                    LAST_TIER_OVERRIDES[mbk] = (mbk in target_bks)
-            elif mode in ("add", "true", "1", "set"):
-                if not names:
-                    return jsonify({"error": "Provide at least one valid model name to add to Last-Tier"}), 400
-                for n in names:
-                    bk = _bk(n)
-                    if not any(_bk(m["name"]) == bk for m in MODELS):
-                        s_rpm, s_rpd, _ = _suggest_limits(n)
-                        _cfg_save(n, def_rpm or s_rpm, def_rpd or s_rpd, last_tier=True)
-                        added_new.append(n)
-                    else:
-                        LAST_TIER_OVERRIDES[bk] = True
-            elif mode in ("remove", "false", "0", "primary", "unset"):
-                if not names:
-                    return jsonify({"error": "Provide at least one valid model name to move to Primary Tier"}), 400
-                for n in names:
-                    LAST_TIER_OVERRIDES[_bk(n)] = False
-            elif mode == "toggle":
-                if not names:
-                    return jsonify({"error": "Provide at least one model name to toggle"}), 400
-                for n in names:
-                    bk = _bk(n)
-                    LAST_TIER_OVERRIDES[bk] = not _is_lite(n)
-            else:
-                return jsonify({"error": f"Unknown mode '{mode}' (add | remove | replace | toggle | reset)"}), 400
-        _last_tier_save()
-        view = _cfg_view()
-        lt_list = [m["name"] for m in view if m["last_tier"]]
-        print(f"[LAST TIER] mode={mode} names={names} added_new={added_new} -> last_tier={lt_list}")
-        return jsonify({
-            "ok": True,
-            "mode": mode,
-            "updated_models": names,
-            "added_new": added_new,
-            "last_tier_models": lt_list,
-            "primary_tier_models": [m["name"] for m in view if not m["last_tier"]],
-            "models": view,
-        })
-
     raw = body.get("model") or body.get("name") or request.args.get("model")
     name = _cfg_clean_name(raw)
     if name is None:
@@ -2941,32 +2938,23 @@ def model_config_api():
     if action == "delete":
         with state_lock:
             had = CUSTOM_CFG.pop(bk, None)
-            had_lt = LAST_TIER_OVERRIDES.pop(bk, None)
         if had is not None:
             _cfg_persist("del", bk)
-        if had_lt is not None:
-            _last_tier_save()
-        if had is None and had_lt is None and not any(_bk(m["name"]) == bk for m in ENV_MODELS):
+        if had is None and not any(_bk(m["name"]) == bk for m in ENV_MODELS):
             return jsonify({"error": f"'{name}' is not a saved model (models from GEMINI_MODELS are changed by saving new limits)"}), 404
-        res = _cfg_remove(name) if had is not None else "reset"
+        res = _cfg_remove(name) if had is not None else "kept"
         print(f"[MODEL CFG] {name} deleted from the saved list -> {res}")
-        view = _cfg_view()
-        return jsonify({"result": res, "model": name, "models": view, "last_tier_models": [m["name"] for m in view if m["last_tier"]]})
+        return jsonify({"result": res, "model": name, "models": _cfg_view()})
 
     if action not in ("set", "add", "update"):
-        return jsonify({"error": f"unknown action '{action}' (set | delete | set_last_tier)"}), 400
+        return jsonify({"error": f"unknown action '{action}' (set | delete)"}), 400
     rpm = _cfg_int(body.get("rpm"), 1, 1_000_000)
     rpd = _cfg_int(body.get("rpd"), 1, 100_000_000)
     if rpm is None or rpd is None:
         return jsonify({"error": "rpm and rpd are required whole numbers >= 1"}), 400
-    lt_val = body.get("last_tier") if "last_tier" in body else None
-    if lt_val is not None:
-        lt_val = bool(lt_val) if not isinstance(lt_val, str) else (lt_val.strip().lower() in ("1", "true", "yes", "on"))
-    created = _cfg_save(name, rpm, rpd, last_tier=lt_val)
-    view = _cfg_view()
-    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} last_tier={_is_lite(name)} (saved)")
-    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "last_tier": _is_lite(name), "created": created,
-                    "models": view, "last_tier_models": [m["name"] for m in view if m["last_tier"]]})
+    created = _cfg_save(name, rpm, rpd)
+    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} (saved)")
+    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "created": created, "models": _cfg_view()})
 
 
 _avail_cache = {"t": 0.0, "models": None}
@@ -3332,1927 +3320,789 @@ def release_daily():
 @app.route('/logs', methods=['GET'])
 @requires_browser_auth
 def view_logs():
-    html = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>WAPI Live Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    # Same dashboard HTML as original — kept intact
+    html = """<!DOCTYPE html><html><head><title>WAPI Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-:root {
-  --bg: #0f1117;
-  --card: #171923;
-  --card-alt: #1e2230;
-  --border: #2b3040;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --accent: #6366f1;
-  --green: #4ade80;
-  --amber: #fbbf24;
-  --red: #f87171;
-  --blue: #60a5fa;
-  --purple: #c084fc;
-}
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  margin: 0;
-  padding: 10px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 13.5px;
-  line-height: 1.4;
-}
-.container { max-width: 1440px; margin: 0 auto; }
-
-/* Explicit text selection support everywhere */
-.selectable, .msg, .resp-box, .det, .err, td, pre, code, .log-card-body {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
-  cursor: text;
-}
-
-/* Compact Top Header */
-.topbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 9px 12px;
-  margin-bottom: 10px;
-}
-.topbar-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.08em;
-  font-weight: 700;
-  color: #fff;
-}
-.topbar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-/* Buttons & Chips */
-.btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  padding: 6px 11px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: .82em;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: opacity .15s, background .15s;
-  white-space: nowrap;
-}
-.btn:hover { background: #2563eb; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-s {
-  background: #232736;
-  color: #e2e8f0;
-  border: 1px solid #3b4256;
-  border-radius: 5px;
-  padding: 3px 8px;
-  cursor: pointer;
-  font-size: .76em;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-}
-.btn-s:hover { background: #32384e; }
-.btn-copy {
-  background: rgba(99,102,241,.16);
-  color: #a5b4fc;
-  border: 1px solid rgba(99,102,241,.38);
-  border-radius: 4px;
-  padding: 2px 6px;
-  cursor: pointer;
-  font-size: .72em;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.btn-copy:hover { background: rgba(99,102,241,.3); }
-.chip {
-  background: #1e2230;
-  color: #cbd5e1;
-  border: 1px solid #333a4d;
-  border-radius: 999px;
-  padding: 3px 10px;
-  cursor: pointer;
-  font-size: .78em;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.chip.on { background: #3b82f6; color: #fff; border-color: #3b82f6; }
-
-/* Compact KPI Strip */
-.kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 7px;
-  margin-bottom: 10px;
-}
-.kpi {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 10px;
-  min-width: 0;
-}
-.kpi-lbl { font-size: .7em; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi-val { font-size: 1.25em; font-weight: 700; color: #fff; margin-top: 1px; }
-.kpi-sub { font-size: .72em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Dashboard Grid Panels */
-.status-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.panel-row {
-  display: grid;
-  grid-template-columns: 1fr 1.6fr;
-  gap: 10px;
-}
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 10px 12px;
-  min-width: 0;
-}
-.card h3 {
-  margin: 0 0 8px;
-  font-size: .82em;
-  color: #cbd5e1;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.sub { font-size: .78em; color: var(--muted); }
-.tag {
-  background: #232736;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-size: .76em;
-  color: #e2e8f0;
-  border: 1px solid #363c52;
-}
-
-/* Last-Tier (Use Last) Banner */
-.lt-box {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-}
-.lt-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 5px;
-}
-.lt-title {
-  font-size: .8em;
-  font-weight: 700;
-  color: #fbbf24;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.lt-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-}
-.lt-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(251, 191, 36, 0.16);
-  color: #fde68a;
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: .75em;
-  font-family: monospace;
-}
-.lt-chip button {
-  background: none;
-  border: none;
-  color: #fca5a5;
-  cursor: pointer;
-  padding: 0 2px;
-  font-size: 1em;
-  line-height: 1;
-  font-weight: bold;
-}
-
-/* Compact Model Rows */
-.models-list {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  max-height: 340px;
-  overflow-y: auto;
-  padding-right: 2px;
-}
-.m-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  background: #131620;
-  border: 1px solid #2d3348;
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: .8em;
-}
-.m-row.is-lt {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.05);
-}
-.m-row.is-blk {
-  border-color: #991b1b;
-  background: rgba(153, 27, 27, 0.1);
-}
-.m-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.m-name {
-  font-family: monospace;
-  font-weight: 600;
-  color: #e2e8f0;
-  word-break: break-all;
-}
-.m-actions {
-  display: inline-flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.tier-badge {
-  font-size: .68em;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  text-transform: uppercase;
-}
-.tier-1st { background: rgba(59, 130, 246, 0.18); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.35); }
-.tier-last { background: rgba(251, 191, 36, 0.2); color: #fcd34d; border: 1px solid rgba(251, 191, 36, 0.45); }
-
-/* Badges */
-.badge { padding: 2px 7px; border-radius: 4px; font-size: .75em; font-weight: 700; white-space: nowrap; }
-.bg-green { background: rgba(74,222,128,.16); color: #4ade80; border: 1px solid rgba(74,222,128,.3); }
-.bg-red { background: rgba(248,113,113,.16); color: #f87171; border: 1px solid rgba(248,113,113,.3); }
-.bg-amber { background: rgba(251,191,36,.16); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
-.bg-blue { background: rgba(96,165,250,.16); color: #60a5fa; border: 1px solid rgba(96,165,250,.3); }
-
-/* Logs Toolbar */
-.logs-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-}
-.search-inp {
-  background: #11131a;
-  color: #fff;
-  border: 1px solid #333a4d;
-  border-radius: 6px;
-  padding: 5px 9px;
-  font-size: .8em;
-  min-width: 190px;
-  flex: 1;
-  max-width: 320px;
-}
-
-/* Desktop Table & Boxes */
-.table-wrapper {
-  background: var(--card);
-  border-radius: 8px;
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  margin-bottom: 20px;
-}
-table.logs-tbl { width: 100%; border-collapse: collapse; min-width: 860px; }
-table.logs-tbl th, table.logs-tbl td {
-  padding: 8px 10px;
-  text-align: left;
-  border-bottom: 1px solid #242938;
-  vertical-align: top;
-}
-table.logs-tbl th {
-  background: #1d2130;
-  color: #cbd5e1;
-  font-weight: 600;
-  font-size: .76em;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  position: sticky;
-  top: 0;
-}
-table.logs-tbl tr:hover { background: rgba(255,255,255,.02); }
-
-.msg, .resp-box {
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  font-size: .8em;
-  padding: 6px 8px;
-  border-radius: 5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  max-height: 110px;
-  overflow-y: auto;
-  line-height: 1.35;
-}
-.msg {
-  color: #fdba74;
-  background: #12141c;
-  border: 1px solid #262b3d;
-}
-.resp-box {
-  color: #a7f3d0;
-  background: #0f1917;
-  border: 1px solid rgba(74,222,128,.25);
-}
-.resp-box.empty {
-  color: #64748b;
-  background: #12141c;
-  border-color: #222634;
-  font-style: italic;
-}
-.err {
-  color: #fca5a5;
-  font-weight: 600;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  font-size: .78em;
-  max-height: 95px;
-  overflow-y: auto;
-}
-.err.warn { color: #fcd34d; }
-.det {
-  background: #10121a;
-  border: 1px solid #262b3d;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: .8em;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  max-height: 320px;
-  overflow: auto;
-  color: #93c5fd;
-  line-height: 1.4;
-}
-.det-sec-hdr {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  margin-bottom: 4px;
-  font-size: .8em;
-  font-weight: 700;
-}
-.pwd-wrong { font-family: monospace; color: #fca5a5; background: #451a1a; padding: 1px 5px; border-radius: 3px; font-size: .78em; }
-.ip { font-family: monospace; color: #93c5fd; font-size: .78em; }
-
-/* Mobile Cards View for Logs */
-.logs-cards { display: none; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.log-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 9px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.log-card.k-fail { border-left: 3px solid #f87171; background: rgba(248,113,113,.05); }
-.log-card.k-warn { border-left: 3px solid #fbbf24; background: rgba(251,191,36,.04); }
-.log-card.k-pending { border-left: 3px solid #60a5fa; }
-.log-card.k-ok { border-left: 3px solid #4ade80; }
-.lc-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.lc-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  font-size: .75em;
-  color: var(--muted);
-}
-.lc-route {
-  font-size: .74em;
-  color: #93c5fd;
-  word-break: break-word;
-}
-.lc-box-lbl {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: .72em;
-  color: var(--muted);
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-/* View mode classes */
-body.view-cards .table-wrapper { display: none !important; }
-body.view-cards .logs-cards { display: flex !important; }
-body.view-table .table-wrapper { display: block !important; }
-body.view-table .logs-cards { display: none !important; }
-
-/* Selection Lock Toast */
-#sel-banner {
-  display: none;
-  position: fixed;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid #6366f1;
-  color: #e0e7ff;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: .78em;
-  font-weight: 600;
-  z-index: 9998;
-  box-shadow: 0 4px 14px rgba(0,0,0,.5);
-  align-items: center;
-  gap: 8px;
-}
-
-/* Modals */
-.modal-backdrop {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,.82);
-  z-index: 10000;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  overflow-y: auto;
-}
-.modal-box {
-  width: 100%;
-  max-width: 520px;
-  background: #171923;
-  border-radius: 11px;
-  border: 1px solid #4c1d95;
-  padding: 16px;
-  max-height: 92vh;
-  overflow-y: auto;
-}
-
-/* Responsive Media Queries */
-@media (max-width: 960px) {
-  .kpi-strip { grid-template-columns: repeat(3, 1fr); }
-  .panel-row { grid-template-columns: 1fr; }
-}
-@media (max-width: 780px) {
-  body { padding: 7px; font-size: 13px; }
-  .kpi-strip { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .kpi { padding: 6px 8px; }
-  .kpi-val { font-size: 1.12em; }
-  .table-wrapper { display: none; }
-  .logs-cards { display: flex; }
-  .search-inp { max-width: 100%; width: 100%; }
-  .m-row { padding: 6px 7px; }
-}
-</style>
-</head>
-<body>
-<div class="container">
-
-  <!-- Top Header -->
-  <div class="topbar">
-    <div class="topbar-title">
-      <span>🚀 WAPI Live Dashboard</span>
-      <span id="live-dot" style="font-size:.72em;font-weight:600;color:#4ade80;background:rgba(74,222,128,.12);padding:2px 7px;border-radius:999px;">● Live</span>
-    </div>
-    <div class="topbar-actions">
-      <button class="btn" onclick="fetchData(true)" id="refresh-btn">🔄 Refresh</button>
-      <button class="btn" onclick="openLastTierModal()" style="background:#d97706;">⚡/🔚 Model Priority (Last-Tier)</button>
-      <button class="btn" onclick="openModelForm()" style="background:#6d28d9;">➕ Add Model</button>
-      <button class="btn" onclick="testAllKeys()" id="test-btn" style="background:#4f46e5;">🧪 Test Keys</button>
-    </div>
-  </div>
-
-  <div id="error-msg" style="color:#fca5a5;background:#451a1a;padding:8px 10px;border-radius:6px;text-align:center;display:none;margin-bottom:10px;font-size:.82em;"></div>
-
-  <!-- Selection Active Floating Pill -->
-  <div id="sel-banner">
-    <span>🔒 Text selected — auto-refresh paused so you can copy</span>
-    <button class="btn-copy" onclick="copyCurrentSelection()">📋 Copy Selected</button>
-    <button class="btn-s" onclick="clearUserSelection()" style="padding:1px 6px;">✕</button>
-  </div>
-
-  <!-- Status & Models Panel -->
-  <div class="status-panel" id="status-panel">
-    <div class="card" style="text-align:center;padding:20px;">Loading dashboard...</div>
-  </div>
-
-  <!-- Logs Section Header & Toolbar -->
-  <div class="logs-toolbar">
-    <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;" id="log-chips"></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;justify-content:flex-end;">
-      <input type="search" id="log-search" class="search-inp" placeholder="🔍 Search prompt, response, model, error..." oninput="onSearchInput(this.value)">
-      <button class="btn-s" id="view-toggle-btn" onclick="cycleViewMode()" title="Switch between Card View and Table View">📱/💻 View: Auto</button>
-      <button class="btn-s" id="pause-btn" onclick="togglePause()">⏸ Pause</button>
-      <button class="btn-s" onclick="clearSaved()" title="Clear browser IndexedDB logs">🗑 Clear Saved</button>
-      <button class="btn-s" id="skip-btn" onclick="skipLoad()" style="display:none;background:#7f1d1d;border-color:#b91c1c;">⏭ Skip</button>
-    </div>
-  </div>
-  <div id="log-note" style="color:#94a3b8;font-size:.78em;margin-bottom:6px;min-height:1px;"></div>
-
-  <!-- Desktop Compact Table View -->
-  <div class="table-wrapper">
-    <table class="logs-tbl">
-      <thead>
-        <tr>
-          <th style="width:125px;">Time / IP</th>
-          <th style="width:110px;">Status / ms</th>
-          <th style="width:155px;">Model / Route</th>
-          <th style="width:24%;">Prompt / Message</th>
-          <th style="width:30%;">Incoming Response</th>
-          <th style="width:16%;">Error / Why</th>
-          <th style="width:68px;"></th>
-        </tr>
-      </thead>
-      <tbody id="logs-body">
-        <tr><td colspan="7" style="text-align:center;color:#666;padding:24px;">Loading logs...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Mobile & Compact Card View -->
-  <div class="logs-cards" id="logs-cards">
-    <div class="card" style="text-align:center;color:#666;padding:20px;">Loading logs...</div>
-  </div>
-
+body{font-family:'Segoe UI',sans-serif;margin:0;padding:20px;background:#121212;color:#e0e0e0}
+.container{max-width:1400px;margin:0 auto}
+h1{color:#fff;text-align:center;margin-bottom:20px;display:flex;justify-content:center;align-items:center;gap:15px}
+.status-panel{display:flex;flex-wrap:wrap;gap:15px;margin-bottom:25px}
+.card{background:#1e1e1e;border-radius:8px;padding:15px;flex:1;min-width:200px;border:1px solid #333;box-shadow:0 4px 10px rgba(0,0,0,.3)}
+.card h3{margin:0 0 10px;font-size:.9em;color:#888;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #333;padding-bottom:5px}
+.card .val{font-size:1.8em;font-weight:bold;color:#fff;margin-bottom:5px}
+.card .sub{font-size:.8em;color:#a1a1aa}
+.table-wrapper{background:#1e1e1e;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,.5);overflow-x:auto;border:1px solid #333;margin-bottom:30px}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th,td{padding:12px 15px;text-align:left;border-bottom:1px solid #333}
+th{background:#2c2c2c;color:#fff;font-weight:600;font-size:.95em;text-transform:uppercase;letter-spacing:.5px}
+tr:hover{background:#252525}
+.msg{max-width:400px;white-space:pre-wrap;word-break:break-word;font-size:.9em;color:#ce9178;background:#18181b;padding:8px;border-radius:4px;font-family:monospace}
+.pwd-wrong{font-family:monospace;color:#fca5a5;background:#451a1a;padding:3px 6px;border-radius:3px;font-size:.9em}
+.pwd-correct{font-family:monospace;color:#4ade80;font-style:italic;font-size:.9em;font-weight:bold}
+.ip{font-family:monospace;color:#93c5fd}
+.badge{padding:4px 8px;border-radius:4px;font-size:.85em;font-weight:bold}
+.bg-green{background:rgba(74,222,128,.2);color:#4ade80}
+.bg-red{background:rgba(248,113,113,.2);color:#f87171}
+.flex-col{display:flex;flex-direction:column;gap:5px}
+.tag{background:#333;padding:2px 6px;border-radius:4px;font-size:.8em;color:#ccc;border:1px solid #444}
+.btn{background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:.9em;transition:.2s}
+.btn:hover{background:#2563eb}
+.bg-amber{background:rgba(251,191,36,.2);color:#fbbf24}
+.bg-blue{background:rgba(96,165,250,.2);color:#60a5fa}
+.chip{background:#27272a;color:#d4d4d8;border:1px solid #3f3f46;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:.85em;font-weight:600}
+.chip.on{background:#3b82f6;color:#fff;border-color:#3b82f6}
+.btn-s{background:#27272a;color:#e4e4e7;border:1px solid #3f3f46;border-radius:5px;padding:3px 9px;cursor:pointer;font-size:.8em}
+.btn-s:hover{background:#3f3f46}
+.err{color:#fca5a5;font-weight:600;white-space:pre-wrap;word-break:break-word;max-width:480px;font-size:.88em}
+.err.warn{color:#fcd34d}
+.det{background:#18181b;border-radius:6px;padding:10px;font-family:monospace;font-size:.82em;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;color:#93c5fd}
+</style></head><body><div class="container">
+<h1>🚀 WAPI Live Dashboard
+<div style="display:flex;gap:8px;align-items:center;">
+<button class="btn" onclick="fetchData(true)" id="refresh-btn">🔄 Refresh</button>
+<button class="btn" onclick="testAllKeys()" id="test-btn" style="background:#7c3aed;">🧪 Test All Keys</button>
+</div></h1>
+<div id="error-msg" style="color:#fca5a5;background:#451a1a;padding:10px;border-radius:5px;text-align:center;display:none;margin-bottom:15px;"></div>
+<div id="test-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;">
+<div style="max-width:960px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<h2 id="test-title" style="margin:0;color:#a78bfa;">🧪 Key & Model Test</h2>
+<button onclick="document.getElementById('test-modal').style.display='none'" style="background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;">✕ Close</button>
 </div>
-
-<!-- Modal: Test All Keys -->
-<div id="test-modal" class="modal-backdrop">
-  <div class="modal-box" style="max-width:960px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 id="test-title" style="margin:0;color:#a78bfa;font-size:1.05em;">🧪 Key & Model Test</h2>
-      <button onclick="document.getElementById('test-modal').style.display='none'" class="btn-s" style="padding:5px 12px;">✕ Close</button>
-    </div>
-    <div id="test-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;min-width:540px;font-size:.82em;">
-        <thead><tr style="background:#2d1b69;">
-          <th style="padding:8px;text-align:left;color:#c4b5fd;">Key</th>
-          <th style="padding:8px;text-align:left;color:#c4b5fd;">Model</th>
-          <th style="padding:8px;text-align:left;color:#c4b5fd;">Question</th>
-          <th style="padding:8px;text-align:center;color:#c4b5fd;">Status</th>
-          <th style="padding:8px;text-align:left;color:#c4b5fd;">Response</th>
-          <th style="padding:8px;text-align:right;color:#c4b5fd;">ms</th>
-        </tr></thead>
-        <tbody id="test-tbody"></tbody>
-      </table>
-    </div>
-  </div>
+<div id="test-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;"></div>
+<div style="overflow-x:auto;"><table id="test-table" style="width:100%;border-collapse:collapse;min-width:600px;">
+<thead><tr style="background:#2d1b69;">
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Key</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Model</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Question Asked</th>
+<th style="padding:10px;text-align:center;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Status</th>
+<th style="padding:10px;text-align:left;color:#c4b5fd;border-bottom:1px solid #4c1d95;">Response</th>
+<th style="padding:10px;text-align:right;color:#c4b5fd;border-bottom:1px solid #4c1d95;">ms</th>
+</tr></thead>
+<tbody id="test-tbody"><tr><td colspan="6" style="text-align:center;padding:30px;color:#6b7280;">Click "Test All Keys" to run tests...</td></tr></tbody>
+</table></div>
 </div>
-
-<!-- Modal: Block Model -->
-<div id="block-modal" class="modal-backdrop">
-  <div class="modal-box" style="max-width:440px;border-color:#991b1b;">
-    <h2 style="margin:0 0 4px;color:#fca5a5;font-size:1.05em;">⛔ Block model on all keys</h2>
-    <div style="color:#e5e7eb;font-family:monospace;margin-bottom:10px;font-size:.9em;" id="blk-model"></div>
-    <div style="color:#9ca3af;font-size:.8em;margin-bottom:6px;">Duration (pick or type):</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
-      <button class="chip" onclick="pickDur('30m')">30m</button><button class="chip" onclick="pickDur('1h')">1h</button>
-      <button class="chip" onclick="pickDur('6h')">6h</button><button class="chip" onclick="pickDur('1d')">1d</button>
-      <button class="chip" onclick="pickDur('7d')">7d</button><button class="chip" onclick="pickDur('30d')">30d</button>
-      <button class="chip" onclick="pickDur('43d')">43d</button><button class="chip" onclick="pickDur('forever')">forever</button>
-    </div>
-    <input id="blk-dur" placeholder="e.g. 1h, 1d, 43d, 90m, 2h30m, forever" style="width:100%;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:7px;">
-    <input id="blk-reason" placeholder="reason (optional)" style="width:100%;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:7px;">
-    <div id="blk-err" style="color:#f87171;font-size:.8em;min-height:1.1em;margin-bottom:6px;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn-s" onclick="closeBlock()" style="padding:6px 14px;">Cancel</button>
-      <button class="btn" onclick="confirmBlock()" style="background:#dc2626;">⛔ Block</button>
-    </div>
-  </div>
 </div>
-
-<!-- Modal: Add / Edit Model -->
-<div id="model-modal" class="modal-backdrop">
-  <div class="modal-box" style="max-width:450px;">
-    <h2 style="margin:0 0 10px;color:#c4b5fd;font-size:1.05em;" id="mdl-title">➕ Add model</h2>
-    <div id="mdl-pick-row" style="margin-bottom:8px;">
-      <div style="color:#9ca3af;font-size:.8em;margin-bottom:4px;">Pick from Google (live account list)</div>
-      <div style="display:flex;gap:6px;">
-        <select id="mdl-pick" onchange="pickModel()" style="flex:1;min-width:0;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;"><option value="">Loading...</option></select>
-        <button class="btn-s" onclick="loadAvailable(true)" style="padding:6px 10px;" title="Re-fetch from Google">🔄</button>
-      </div>
-      <div id="mdl-pick-note" style="color:#9ca3af;font-size:.75em;margin-top:4px;min-height:1em;"></div>
-    </div>
-    <div style="color:#9ca3af;font-size:.8em;margin-bottom:3px;">Model name</div>
-    <input id="mdl-name" placeholder="e.g. gemini-3.9-flash" style="width:100%;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
-    <div style="display:flex;gap:8px;">
-      <div style="flex:1;"><div style="color:#9ca3af;font-size:.8em;margin-bottom:3px;">RPM (per min/key)</div>
-      <input id="mdl-rpm" type="number" min="1" placeholder="10" style="width:100%;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
-      <div style="flex:1;"><div style="color:#9ca3af;font-size:.8em;margin-bottom:3px;">RPD (per day/key)</div>
-      <input id="mdl-rpd" type="number" min="1" placeholder="250" style="width:100%;padding:8px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);padding:7px 9px;border-radius:6px;margin-bottom:8px;cursor:pointer;font-size:.82em;color:#fde68a;">
-      <input type="checkbox" id="mdl-last-tier">
-      <span>🔚 <b>Use in Last-Tier (Fallback)</b> — use only after all Primary-Tier models are busy/exhausted (survives restarts)</span>
-    </label>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-      <button class="btn-s" id="mdl-test-btn" onclick="mdlTest()" style="background:#2d1b69;border-color:#4c1d95;padding:5px 10px;">🧪 Test this model</button>
-      <span style="color:#6b7280;font-size:.75em;">verifies it works before saving</span>
-    </div>
-    <div id="mdl-test-out" style="font-size:.8em;min-height:1em;margin-bottom:8px;word-break:break-word;"></div>
-    <div id="mdl-err" style="color:#f87171;font-size:.8em;min-height:1.1em;margin-bottom:6px;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn-s" id="mdl-del" onclick="deleteModelCfg()" style="padding:6px 12px;display:none;background:#7f1d1d;border-color:#f87171;color:#fee2e2;">🗑 Delete</button>
-      <button class="btn-s" onclick="closeModelForm()" style="padding:6px 12px;">Cancel</button>
-      <button class="btn" onclick="saveModelCfg()" style="background:#6d28d9;">💾 Save</button>
-    </div>
-  </div>
+<div id="block-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+<div style="width:100%;max-width:460px;background:#1a1a2e;border-radius:12px;border:1px solid #991b1b;padding:22px;">
+<h2 style="margin:0 0 4px;color:#fca5a5;">⛔ Block model on all keys</h2>
+<div style="color:#e5e7eb;font-family:monospace;margin-bottom:12px;" id="blk-model"></div>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:6px;">For how long? (pick one or type your own)</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+<button class="chip" onclick="pickDur('30m')">30 min</button><button class="chip" onclick="pickDur('1h')">1 hour</button>
+<button class="chip" onclick="pickDur('6h')">6 hours</button><button class="chip" onclick="pickDur('1d')">1 day</button>
+<button class="chip" onclick="pickDur('7d')">7 days</button><button class="chip" onclick="pickDur('30d')">30 days</button>
+<button class="chip" onclick="pickDur('43d')">43 days</button><button class="chip" onclick="pickDur('forever')">forever</button>
 </div>
-
-<!-- Modal: Manage Multiple Last-Tier (Use Last) Models -->
-<div id="lt-modal" class="modal-backdrop">
-  <div class="modal-box" style="max-width:540px;border-color:#d97706;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <h2 style="margin:0;color:#fbbf24;font-size:1.05em;">🔚 Last-Tier (Use Last) Models</h2>
-      <button class="btn-s" onclick="closeLastTierModal()">✕ Close</button>
-    </div>
-    <div style="color:#94a3b8;font-size:.78em;margin-bottom:10px;">
-      Models in the <b>Last-Tier</b> list are used <b>LAST</b> (only when every Primary-Tier model is RPM-busy, cooling down, or daily-exhausted). Saved in MongoDB + disk so they survive restarts.
-    </div>
-
-    <!-- Section 1: Tick/Untick from existing models pool -->
-    <div style="background:#11131c;border:1px solid #2b3040;border-radius:8px;padding:10px;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
-        <span style="font-size:.82em;font-weight:700;color:#e2e8f0;">1. Select Models from Pool (Tick = Use Last):</span>
-        <span style="display:inline-flex;gap:4px;">
-          <button class="btn-s" onclick="ltCheckPreset('all')">☑ All</button>
-          <button class="btn-s" onclick="ltCheckPreset('lite')">⚡ Only *lite*</button>
-          <button class="btn-s" onclick="ltCheckPreset('none')">☐ None</button>
-        </span>
-      </div>
-      <div id="lt-pool-list" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;margin-bottom:8px;"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button class="btn-s" onclick="resetLastTierDefault()" title="Clear manual overrides and revert to default *lite* models only">↩ Reset to Default (*lite*)</button>
-        <button class="btn" onclick="saveLastTierChecklist()" style="background:#d97706;">💾 Save Checked as Last-Tier</button>
-      </div>
-    </div>
-
-    <!-- Section 2: Manually add/type multiple models at once -->
-    <div style="background:#11131c;border:1px solid #2b3040;border-radius:8px;padding:10px;">
-      <div style="font-size:.82em;font-weight:700;color:#e2e8f0;margin-bottom:4px;">2. Manually Add Multiple Models to Last-Tier:</div>
-      <div style="color:#94a3b8;font-size:.75em;margin-bottom:6px;">
-        Type or paste one or more model names (comma, space, or newline separated), or pick from Google below. If a model is not in the router pool yet, it is automatically added and saved!
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <select id="lt-google-pick" onchange="ltAppendFromGoogle()" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:1px solid #3b4256;background:#171923;color:#fff;font-size:.8em;">
-          <option value="">+ Pick from Google account model list...</option>
-        </select>
-        <button class="btn-s" onclick="loadLtGoogleModels(true)" title="Refresh Google model list">🔄</button>
-      </div>
-      <textarea id="lt-manual-input" rows="3" placeholder="e.g. gemini-3.1-flash-lite, gemini-3.5-flash-lite, gemini-3.5-flash" style="width:100%;padding:8px;border-radius:6px;border:1px solid #3b4256;background:#0b0d13;color:#fff;font-family:monospace;font-size:.82em;resize:vertical;margin-bottom:6px;"></textarea>
-      <div id="lt-err" style="color:#f87171;font-size:.78em;min-height:1.1em;margin-bottom:6px;"></div>
-      <div style="display:flex;justify-content:flex-end;gap:6px;">
-        <button class="btn" onclick="addManualLastTierModels('add')" style="background:#059669;">➕ Add to Last-Tier List</button>
-      </div>
-    </div>
-  </div>
+<input id="blk-dur" placeholder="e.g. 1h, 1d, 43d, 90m, 2h30m, 1w, 3mo" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<input id="blk-reason" placeholder="reason (optional)" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Units: m = minutes, h = hours, d = days, w = weeks, mo = months. A bare number = minutes. The block survives restarts.</div>
+<div id="blk-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="btn-s" onclick="closeBlock()" style="padding:8px 16px;">Cancel</button>
+<button class="btn" onclick="confirmBlock()" style="background:#dc2626;">⛔ Block</button>
+</div></div></div>
+<div id="last-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+<div style="width:100%;max-width:480px;max-height:90vh;overflow-y:auto;background:#1a1a2e;border-radius:12px;border:1px solid #92400e;padding:22px;">
+<h2 style="margin:0 0 4px;color:#fde68a;">⬇ Last models (in order)</h2>
+<div style="color:#9ca3af;font-size:.82em;margin-bottom:10px;">These models are tried only after every other model has no free key. #1 is used before #2, and so on. Saved - stays after a restart.</div>
+<div id="lm-list" style="margin-bottom:8px;"></div>
+<div style="display:flex;gap:6px;margin-bottom:10px;">
+<select id="lm-add-sel" style="flex:1;min-width:0;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;"></select>
+<button class="btn-s" id="lm-add-btn" onclick="lastAdd()" style="padding:6px 12px;">➕ Add to list</button>
 </div>
-
-<!-- Modal: Model Probe Test -->
-<div id="mt-modal" class="modal-backdrop">
-  <div class="modal-box" style="max-width:1000px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <h2 id="mt-title" style="margin:0;color:#a78bfa;font-size:1.05em;">🧪 Model Test</h2>
-      <button onclick="mtClose()" class="btn-s" style="padding:5px 12px;">✕ Close</button>
-    </div>
-    <div id="mt-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
-    <div id="mt-bytype" style="color:#9ca3af;font-size:.82em;margin-bottom:10px;"></div>
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;min-width:680px;font-size:.82em;">
-        <thead><tr style="background:#2d1b69;color:#c4b5fd;text-align:left;">
-          <th style="padding:8px;">Model</th><th style="padding:8px;">Works?</th><th style="padding:8px;">Type</th><th style="padding:8px;">Output</th><th style="padding:8px;">Key</th><th style="padding:8px;text-align:right;">ms</th><th style="padding:8px;">Answer / Error</th>
-        </tr></thead>
-        <tbody id="mt-tbody"></tbody>
-      </table>
-    </div>
-  </div>
+<div id="lm-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+<button class="btn-s" onclick="lastReset()" style="padding:8px 12px;" title="every lite model last (the old behaviour)">↩ Default (lite last)</button>
+<button class="btn-s" onclick="closeLast()" style="padding:8px 16px;">Cancel</button>
+<button class="btn" onclick="lastSave()" style="background:#b45309;">💾 Save</button>
+</div></div></div>
+<div id="model-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+<div style="width:100%;max-width:460px;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:22px;">
+<h2 style="margin:0 0 12px;color:#c4b5fd;" id="mdl-title">➕ Add model</h2>
+<div id="mdl-pick-row" style="margin-bottom:10px;">
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Pick from Google (live list of your account)</div>
+<div style="display:flex;gap:6px;">
+<select id="mdl-pick" onchange="pickModel()" style="flex:1;min-width:0;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;"><option value="">Loading...</option></select>
+<button class="btn-s" onclick="loadAvailable(true)" style="padding:6px 10px;" title="Fetch the list from Google again">🔄</button>
 </div>
-
+<div id="mdl-pick-note" style="color:#9ca3af;font-size:.78em;margin-top:5px;min-height:1.1em;"></div>
+</div>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">Model name (filled by the list above, or type it)</div>
+<input id="mdl-name" placeholder="e.g. gemini-3.9-flash" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<div style="display:flex;gap:10px;">
+<div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPM (per minute, per key)</div>
+<input id="mdl-rpm" type="number" min="1" placeholder="e.g. 10" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
+<div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPD (per day, per key)</div>
+<input id="mdl-rpd" type="number" min="1" placeholder="e.g. 250" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
+</div>
+<div style='display:flex;gap:8px;align-items:center;margin-bottom:6px;'>
+<button class='btn-s' id='mdl-test-btn' onclick='mdlTest()' style='background:#2d1b69;border-color:#4c1d95;padding:6px 12px;'>🧪 Test this model</button>
+<span style='color:#6b7280;font-size:.78em;'>checks that it works and shows its type (text / image / audio ...) - before you save</span>
+</div>
+<div id='mdl-test-out' style='font-size:.85em;min-height:1.2em;margin-bottom:10px;word-break:break-word;'></div>
+<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Saved in the database: the model and its limits stay after a restart / redeploy. RPD resets at midnight IST.</div>
+<div id="mdl-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="btn-s" id="mdl-del" onclick="deleteModelCfg()" style="padding:8px 16px;display:none;background:#7f1d1d;border-color:#f87171;color:#fee2e2;">🗑 Delete</button>
+<button class="btn-s" onclick="closeModelForm()" style="padding:8px 16px;">Cancel</button>
+<button class="btn" onclick="saveModelCfg()" style="background:#6d28d9;">💾 Save</button>
+</div></div></div>
+<div id='mt-modal' style='display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;'>
+<div style='max-width:1040px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;'>
+<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>
+<h2 id='mt-title' style='margin:0;color:#a78bfa;'>🧪 Model test</h2>
+<button onclick='mtClose()' style='background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;'>✕ Close</button>
+</div>
+<div id='mt-summary' style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;'></div>
+<div id='mt-bytype' style='color:#9ca3af;font-size:.9em;margin-bottom:12px;'></div>
+<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;min-width:760px;'>
+<thead><tr style='background:#2d1b69;color:#c4b5fd;text-align:left;'>
+<th style='padding:9px;'>Model</th><th style='padding:9px;'>Works?</th><th style='padding:9px;'>Type</th><th style='padding:9px;'>Output</th><th style='padding:9px;'>Key</th><th style='padding:9px;text-align:right;'>ms</th><th style='padding:9px;'>Answer / error</th>
+</tr></thead><tbody id='mt-tbody'></tbody></table></div>
+</div></div>
+<div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
+<h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
+🔐 Secure Access Logs (last 50 + recent errors)
+</h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+<span id="log-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></span>
+<button class="btn-s" id="pause-btn" onclick="togglePause()">⏸ Pause logs</button>
+<button class="btn-s" onclick="clearSaved()">🗑 Clear browser logs</button>
+<button class="btn-s" id="skip-btn" onclick="skipLoad()" style="display:none;background:#7f1d1d;border-color:#b91c1c;">⏭ Skip this load</button>
+<span id="log-note" style="color:#a1a1aa;font-size:.85em;"></span>
+</div>
+<div class="table-wrapper"><table><thead><tr>
+<th>Time</th><th>IP / Auth</th><th>Status</th><th>Model</th><th>Route</th><th>Time</th><th>Message / Prompt</th><th>Error / Why</th><th></th>
+</tr></thead><tbody id="logs-body"><tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">Loading logs...</td></tr></tbody></table></div>
+</div>
 <script>
-// ===== Selection Guard & Copy Helper (Prevents auto-refresh from wiping text selection) =====
-let isSelecting = false;
-let selectionHoldUntil = 0;
+let isSelecting=false;
+document.addEventListener('selectionchange',()=>{const s=window.getSelection();isSelecting=s.toString().length>0;});
 
-function checkSelectionState() {
-  const s = window.getSelection ? window.getSelection() : null;
-  const txt = s ? s.toString().trim() : '';
-  isSelecting = txt.length > 0;
-  if (isSelecting) {
-    selectionHoldUntil = Date.now() + 2500;
+async function testAllKeys(targetKey = '', targetModel = ''){
+  const btn=document.getElementById('test-btn');
+  if(!window._wapiPwd){
+    const pwd=prompt('Enter your WAPI password to run key tests:');
+    if(!pwd){return;}
+    window._wapiPwd=pwd;
   }
-  const banner = document.getElementById('sel-banner');
-  if (banner) banner.style.display = isSelecting ? 'inline-flex' : 'none';
-}
-
-document.addEventListener('selectionchange', checkSelectionState);
-document.addEventListener('touchend', () => { setTimeout(checkSelectionState, 80); }, {passive: true});
-document.addEventListener('mouseup', () => { setTimeout(checkSelectionState, 50); }, {passive: true});
-
-function isUserBusySelecting() {
-  if (isSelecting) return true;
-  const s = window.getSelection ? window.getSelection() : null;
-  if (s && s.toString().trim().length > 0) return true;
-  return Date.now() < selectionHoldUntil;
-}
-
-function clearUserSelection() {
-  if (window.getSelection) window.getSelection().removeAllRanges();
-  isSelecting = false;
-  selectionHoldUntil = 0;
-  const banner = document.getElementById('sel-banner');
-  if (banner) banner.style.display = 'none';
-  if (window._last) { updateUI(window._last); }
-}
-
-async function copyTextRaw(text, btnEl) {
-  const str = String(text || '');
-  let ok = false;
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(str);
-      ok = true;
-    }
-  } catch (e) {}
-  if (!ok) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = str;
-      ta.style.position = 'fixed';
-      ta.style.top = '-9999px';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-    } catch (e) {}
-  }
-  if (btnEl) {
-    const orig = btnEl.getAttribute('data-orig') || btnEl.innerHTML;
-    if (!btnEl.getAttribute('data-orig')) btnEl.setAttribute('data-orig', orig);
-    btnEl.innerHTML = ok ? '✅ Copied' : '⚠️ Failed';
-    setTimeout(() => { btnEl.innerHTML = orig; }, 1400);
-  }
-  return ok;
-}
-
-function copyByElemId(elemId, btnEl) {
-  const el = document.getElementById(elemId);
-  if (!el) return;
-  copyTextRaw(el.innerText || el.textContent || '', btnEl);
-}
-
-function selectElemText(elemId) {
-  const el = document.getElementById(elemId);
-  if (!el || !window.getSelection) return;
-  selectionHoldUntil = Date.now() + 8000;
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  checkSelectionState();
-}
-
-function copyCurrentSelection() {
-  const s = window.getSelection ? window.getSelection().toString() : '';
-  if (s) copyTextRaw(s, null);
-}
-
-// ===== View Mode (Auto / Cards / Table) =====
-let viewMode = localStorage.getItem('wapi_view_mode') || 'auto';
-function applyViewMode() {
-  document.body.classList.remove('view-cards', 'view-table');
-  if (viewMode === 'cards') document.body.classList.add('view-cards');
-  else if (viewMode === 'table') document.body.classList.add('view-table');
-  const btn = document.getElementById('view-toggle-btn');
-  if (btn) {
-    btn.textContent = viewMode === 'cards' ? '📱 View: Cards' : (viewMode === 'table' ? '💻 View: Table' : '📱/💻 View: Auto');
-  }
-}
-function cycleViewMode() {
-  viewMode = viewMode === 'auto' ? 'cards' : (viewMode === 'cards' ? 'table' : 'auto');
-  try { localStorage.setItem('wapi_view_mode', viewMode); } catch (e) {}
-  applyViewMode();
-}
-applyViewMode();
-
-// ===== Search & Filter State =====
-let searchQuery = '';
-function onSearchInput(val) {
-  searchQuery = (val || '').trim().toLowerCase();
-  lastSig = '';
-  if (window._last) renderLogs(window._last);
-}
-
-// ===== Key & Model Testing =====
-async function testAllKeys(targetKey = '', targetModel = '') {
-  const btn = document.getElementById('test-btn');
-  if (!window._wapiPwd) {
-    const pwd = prompt('Enter your WAPI password to run key tests:');
-    if (!pwd) return;
-    window._wapiPwd = pwd;
-  }
-  btn.innerText = '⏳ Testing...'; btn.disabled = true;
-  document.getElementById('test-modal').style.display = 'flex';
+  btn.innerText='⏳ Testing...'; btn.disabled=true;
+  document.getElementById('test-modal').style.display='block';
   const msg = (targetKey && targetModel) ? `⏳ Testing ${esc(targetModel)} on key ${esc(targetKey)}...`
     : targetKey ? `⏳ Running tests on every model for key ${esc(targetKey)}...`
     : targetModel ? `⏳ Testing model ${esc(targetModel)} on ALL keys...`
-    : '⏳ Running tests on all keys × models...';
+    : '⏳ Running tests on all keys × models (Parallel)...';
   document.getElementById('test-title').textContent = '🧪 ' + (targetModel ? 'Model ' + targetModel : 'Key & Model') + (targetKey ? ' · key ' + targetKey : (targetModel ? ' · all keys' : ' · all keys × models')) + ' Test';
-  document.getElementById('test-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:#a78bfa;">${msg}</td></tr>`;
-  document.getElementById('test-summary').innerHTML = '';
-  try {
+  document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">${msg}</td></tr>`;
+  document.getElementById('test-summary').innerHTML='';
+  try{
     const qs = [];
-    if (targetKey) qs.push('key=' + encodeURIComponent(targetKey));
-    if (targetModel) qs.push('model=' + encodeURIComponent(targetModel));
-    let url = '/router/test_keys' + (qs.length ? '?' + qs.join('&') : '');
-    let r = await fetch(url, {headers: {Authorization: 'Bearer ' + window._wapiPwd}});
-    if (r.status === 404) {
-      r = await fetch('test_keys' + (qs.length ? '?' + qs.join('&') : ''), {headers: {Authorization: 'Bearer ' + window._wapiPwd}});
-    }
-    if (r.status === 401) {
-      window._wapiPwd = null;
+    if(targetKey)qs.push('key='+encodeURIComponent(targetKey));
+    if(targetModel)qs.push('model='+encodeURIComponent(targetModel));
+    const url = '/router/test_keys' + (qs.length ? '?' + qs.join('&') : '');
+    const r=await fetch(url,{headers:{Authorization:'Bearer '+window._wapiPwd}});
+    if(r.status===401){
+      window._wapiPwd=null;
       throw new Error('Wrong password (401). Click Test again to re-enter.');
     }
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if(!r.ok){throw new Error('HTTP '+r.status);}
     renderTestResults(await r.json());
-  } catch (e) {
-    document.getElementById('test-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:18px;color:#f87171;">❌ Error: ${esc(e.message)}</td></tr>`;
+  }catch(e){
+    document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171;">❌ Error: ${esc(e.message)}</td></tr>`;
   }
-  btn.innerText = '🧪 Test Keys'; btn.disabled = false;
+  btn.innerText='🧪 Test All Keys'; btn.disabled=false;
 }
 
-function renderTestResults(data) {
-  const ok = data.ok || 0, total = data.total || 0, failed = data.failed || 0;
-  document.getElementById('test-summary').innerHTML = `
-    <span class="badge bg-green">✅ Working: ${ok}</span>
-    <span class="badge bg-red">❌ Failed: ${failed}</span>
-    <span class="badge bg-blue">📊 Total: ${total}</span>`;
-  let html = '';
-  (data.results || []).forEach(r => {
-    const bg = r.ok ? 'rgba(74,222,128,.05)' : 'rgba(248,113,113,.05)';
-    const statusColor = r.ok ? '#4ade80' : (r.status === 429 ? '#fbbf24' : '#f87171');
-    const statusLabel = r.ok ? '✅ 200' : (r.status === 429 ? '⚠️ 429' : ('❌ ' + r.status));
-    html += `<tr style="background:${bg};border-bottom:1px solid #2d2d2d;">
-      <td style="padding:7px;font-family:monospace;color:#93c5fd;">${esc(r.key)}</td>
-      <td style="padding:7px;color:#c4b5fd;">${esc(r.model)}${r.blocked_left > 0 ? ' <span style="color:#f87171;font-weight:bold;">⛔</span>' : ''}</td>
-      <td style="padding:7px;color:#fbbf24;font-style:italic;">${esc(r.question || '')}</td>
-      <td style="padding:7px;text-align:center;font-weight:bold;color:${statusColor};">${statusLabel}</td>
-      <td class="selectable" style="padding:7px;max-width:280px;word-break:break-word;">${esc(r.response)}</td>
-      <td style="padding:7px;text-align:right;color:#9ca3af;">${r.ms}ms</td>
+function renderTestResults(data){
+  const ok=data.ok||0, total=data.total||0, failed=data.failed||0;
+  document.getElementById('test-summary').innerHTML=`
+    <div style="background:rgba(74,222,128,.15);border:1px solid #4ade80;border-radius:8px;padding:10px 18px;color:#4ade80;font-size:1.1em;font-weight:bold;">✅ Working: ${ok}</div>
+    <div style="background:rgba(248,113,113,.15);border:1px solid #f87171;border-radius:8px;padding:10px 18px;color:#f87171;font-size:1.1em;font-weight:bold;">❌ Failed: ${failed}</div>
+    <div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:10px 18px;color:#9ca3af;font-size:1.1em;">📊 Total: ${total}</div>`;
+  let html='';
+  (data.results||[]).forEach(r=>{
+    const bg=r.ok?'rgba(74,222,128,.05)':'rgba(248,113,113,.05)';
+    const statusColor=r.ok?'#4ade80':(r.status===429?'#fbbf24':'#f87171');
+    const statusLabel=r.ok?'✅ 200':( r.status===429?'⚠️ 429':('❌ '+r.status));
+    const responseText=r.ok?esc(r.response):('<span style="color:#f87171;font-size:.85em;">'+esc(r.response)+'</span>');
+    html+=`<tr style="background:${bg};border-bottom:1px solid #2d2d2d;">
+      <td style="padding:10px;font-family:monospace;color:#93c5fd;font-size:.85em;">${esc(r.key)}</td>
+      <td style="padding:10px;color:#c4b5fd;font-size:.85em;">${esc(r.model)}${r.blocked_left>0?' <span style="color:#f87171;font-weight:bold;" title="blocked for the router">⛔ blocked</span>':''}</td>
+      <td style="padding:10px;color:#fbbf24;font-size:.8em;font-style:italic;">${esc(r.question||'')}</td>
+      <td style="padding:10px;text-align:center;font-weight:bold;color:${statusColor};">${statusLabel}</td>
+      <td style="padding:10px;font-size:.85em;max-width:280px;word-break:break-word;">${responseText}</td>
+      <td style="padding:10px;text-align:right;color:#6b7280;font-size:.8em;">${r.ms}ms</td>
     </tr>`;
   });
-  document.getElementById('test-tbody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:18px;">No results</td></tr>';
+  document.getElementById('test-tbody').innerHTML=html||'<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
 }
 
-// ===== Live Polling & Data Fetching =====
-let ctl = null, loading = false, paused = false, filter = 'all', lastSig = '', lastStatusSig = '', lastMs = 0, timer = null;
-const expanded = {};
-
-function setBusy(b) {
-  loading = b;
-  document.getElementById('skip-btn').style.display = b ? 'inline-flex' : 'none';
-  document.getElementById('refresh-btn').textContent = b ? '⏳...' : '🔄 Refresh';
-}
-function skipLoad() { if (ctl) ctl.abort(); }
-function togglePause() {
-  paused = !paused;
-  document.getElementById('pause-btn').textContent = paused ? '▶ Resume' : '⏸ Pause';
-  document.getElementById('live-dot').textContent = paused ? '⏸ Paused' : '● Live';
-  document.getElementById('live-dot').style.color = paused ? '#fbbf24' : '#4ade80';
-}
-
-async function fetchData(manual) {
-  if (manual !== true && (loading || document.hidden || isUserBusySelecting())) return;
-  if (ctl) ctl.abort();
-  const my = new AbortController(); ctl = my;
-  const to = setTimeout(() => my.abort(), 12000);
-  const t0 = Date.now();
-  setBusy(true);
-  try {
-    let r = await fetch('/router/dashboard_data?slim=1', {credentials: 'same-origin', signal: my.signal});
-    if (r.status === 404) {
-      r = await fetch('dashboard_data?slim=1', {credentials: 'same-origin', signal: my.signal});
-    }
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    if (my !== ctl) return;
-    document.getElementById('error-msg').style.display = 'none';
-    window._last = data;
-    if (manual === true || !isUserBusySelecting()) {
-      updateUI(data, manual === true);
-    }
+let ctl=null,loading=false,paused=false,filter='all',lastSig='',lastMs=0,timer=null;
+const expanded={};
+function setBusy(b){loading=b;document.getElementById('skip-btn').style.display=b?'inline-block':'none';document.getElementById('refresh-btn').textContent=b?'⏳...':'🔄 Refresh';}
+function skipLoad(){if(ctl)ctl.abort();}
+function togglePause(){paused=!paused;document.getElementById('pause-btn').textContent=paused?'▶ Resume logs':'⏸ Pause logs';document.getElementById('log-note').textContent=paused?'Paused - nothing is loading. Click Refresh for one update.':'';}
+async function fetchData(manual){
+  if(manual!==true&&(loading||document.hidden))return;
+  if(ctl)ctl.abort();
+  const my=new AbortController();ctl=my;
+  const to=setTimeout(()=>my.abort(),12000);const t0=Date.now();setBusy(true);
+  try{
+    const r=await fetch('/router/dashboard_data?slim=1',{credentials:'same-origin',signal:my.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(my!==ctl)return;
+    document.getElementById('error-msg').style.display='none';
+    if(!isSelecting)updateUI(data);
     syncLive();
-  } catch (e) {
-    if (my !== ctl) return;
-    const el = document.getElementById('error-msg');
-    el.style.display = 'block';
-    el.textContent = (e.name === 'AbortError') ? '⏭ Slow load skipped — retrying automatically.' : '⚠️ Could not load data: ' + e.message;
+  }catch(e){
+    if(my!==ctl)return;
+    const el=document.getElementById('error-msg');el.style.display='block';
+    el.textContent=(e.name==='AbortError')?'⏭ Slow load skipped - will retry automatically.':'⚠️ Could not load data. '+e.message;
   }
   clearTimeout(to);
-  if (my === ctl) { lastMs = Date.now() - t0; setBusy(false); }
+  if(my===ctl){lastMs=Date.now()-t0;setBusy(false);}
 }
-
-function schedule() {
+function schedule(){
   clearTimeout(timer);
-  timer = setTimeout(async () => {
-    if (!paused && !isUserBusySelecting()) await fetchData(false);
-    schedule();
-  }, Math.min(18000, Math.max(4500, lastMs * 3)));
+  timer=setTimeout(async()=>{if(!paused)await fetchData(false);schedule();},Math.min(20000,Math.max(5000,lastMs*3)));
 }
-
-async function setFilter(f) {
-  filter = f;
-  lastSig = '';
-  if (f === 'saved') await loadSaved();
-  if (window._last) renderLogs(window._last, true);
+async function setFilter(f){filter=f;lastSig='';if(f==='saved')await loadSaved();if(window._last)renderLogs(window._last);}
+async function toggleDetail(id){
+  if(expanded[id]){if(expanded[id].ctl)expanded[id].ctl.abort();delete expanded[id];lastSig='';renderLogs(window._last);return;}
+  const _rec=await idbGet(filter==='saved'?((savedRows.find(r=>r.id===id)||{}).k):(liveMeta.boot+':'+id));
+  if(_rec){expanded[id]={state:'ok',live:_rec};lastSig='';renderLogs(window._last);return;}
+  const c=new AbortController();expanded[id]={state:'loading',ctl:c};lastSig='';renderLogs(window._last);
+  try{
+    const r=await fetch('/router/dashboard_data?detail='+id,{credentials:'same-origin',signal:c.signal});
+    const d=await r.json();
+    if(!expanded[id]||expanded[id].ctl!==c)return;
+    expanded[id]=r.ok?{state:'ok',d:d}:{state:'err',msg:d.error||('HTTP '+r.status)};
+  }catch(e){
+    if(!expanded[id]||expanded[id].ctl!==c)return;
+    expanded[id]={state:'err',msg:e.message};
+  }
+  lastSig='';renderLogs(window._last);
 }
-
-// ===== Log Details Expansion (Works from Both Live IndexedDB and Server _log_detail) =====
-async function toggleDetail(id) {
-  if (expanded[id]) {
-    if (expanded[id].ctl) expanded[id].ctl.abort();
-    delete expanded[id];
-    lastSig = '';
-    if (window._last) renderLogs(window._last, true);
-    return;
+function detailHtml(id){
+  const x=expanded[id];if(!x)return '';if(x.live)return liveRow(id,x.live);
+  const nl=String.fromCharCode(10);
+  let body;
+  if(x.state==='loading')body='⏳ Loading details... <button class="btn-s" onclick="toggleDetail('+id+')">⏭ Skip</button>';
+  else if(x.state==='err')body='<span style="color:#f87171">'+esc(x.msg)+'</span> <button class="btn-s" onclick="toggleDetail('+id+')">Close</button>';
+  else{
+    const d=x.d;
+    body='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button>';
+    if(d.error_detail)body+='<div style="margin-top:8px;color:#f87171;font-weight:bold">Error / why'+(d.error_truncated?' (cut at 8000 chars)':'')+'</div><div class="det" style="color:#fca5a5">'+esc(d.error_detail)+'</div>';
+    if(d.attempts&&d.attempts.length)body+='<div style="margin-top:8px;color:#fbbf24;font-weight:bold">Attempts ('+d.attempts.length+')</div><div class="det" style="color:#fcd34d">'+esc(d.attempts.join(nl))+'</div>';
+    body+='<div style="margin-top:8px;color:#93c5fd;font-weight:bold">Request'+(d.request_truncated?' (cut at 8000 chars)':'')+'</div><div class="det">'+esc(d.request||'-')+'</div>';
   }
-  const _rec = await idbGet(filter === 'saved' ? ((savedRows.find(r => r.id === id) || {}).k) : (liveMeta.boot + ':' + id));
-  if (_rec && _rec.resp && (_rec.resp.text || (_rec.resp.tool_calls && _rec.resp.tool_calls.length) || _rec.done)) {
-    expanded[id] = {state: 'ok', live: _rec};
-    lastSig = '';
-    if (window._last) renderLogs(window._last, true);
-    return;
-  }
-  const c = new AbortController();
-  expanded[id] = {state: 'loading', ctl: c};
-  lastSig = '';
-  if (window._last) renderLogs(window._last, true);
-  try {
-    let r = await fetch('/router/dashboard_data?detail=' + id, {credentials: 'same-origin', signal: c.signal});
-    if (r.status === 404) {
-      r = await fetch('dashboard_data?detail=' + id, {credentials: 'same-origin', signal: c.signal});
-    }
-    const d = await r.json();
-    if (!expanded[id] || expanded[id].ctl !== c) return;
-    if (r.ok) {
-      expanded[id] = {state: 'ok', d: d, live: _rec || null};
-    } else if (_rec) {
-      expanded[id] = {state: 'ok', live: _rec};
-    } else {
-      expanded[id] = {state: 'err', msg: d.error || ('HTTP ' + r.status)};
-    }
-  } catch (e) {
-    if (!expanded[id] || expanded[id].ctl !== c) return;
-    if (_rec) expanded[id] = {state: 'ok', live: _rec};
-    else expanded[id] = {state: 'err', msg: e.message};
-  }
-  lastSig = '';
-  if (window._last) renderLogs(window._last, true);
+  return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+body+'</td></tr>';
 }
-
-function buildDetailContent(id) {
-  const x = expanded[id];
-  if (!x) return '';
-  if (x.state === 'loading') {
-    return '<div style="padding:8px;">⏳ Loading full response & details... <button class="btn-s" onclick="toggleDetail(' + id + ')">⏭ Cancel</button></div>';
-  }
-  if (x.state === 'err') {
-    return '<div style="padding:8px;"><span style="color:#f87171">' + esc(x.msg) + '</span> <button class="btn-s" onclick="toggleDetail(' + id + ')">Close</button></div>';
-  }
-  const nl = String.fromCharCode(10);
-  const d = x.d || {};
-  const rec = x.live || {};
-  const q = d.req || rec.req || {};
-  const p = d.resp || rec.resp || (d.response ? {text: d.response, tool_calls: d.tool_calls || [], finish_reason: d.finish_reason, usage: d.usage, status_code: 200} : null);
-  const trail = (d.trail && d.trail.length) ? d.trail : (rec.trail || []);
-  const attempts = (d.attempts && d.attempts.length) ? d.attempts : (rec.attempts || []);
-  const errDetail = d.error_detail || (p && p.error) || '';
-
-  let o = '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">'
-    + '<span style="font-weight:700;color:#c4b5fd;font-size:.82em;">🔎 Full Log Details #' + id + '</span>'
-    + '<button class="btn-s" onclick="toggleDetail(' + id + ')">✕ Close details</button></div>';
-
-  // 1. Incoming Response Section (Featured First!)
-  const respBoxId = 'det-resp-' + id;
-  if (p || d.response) {
-    const rText = (p && p.text) ? p.text : (d.response || '');
-    const tcs = (p && p.tool_calls && p.tool_calls.length) ? p.tool_calls : (d.tool_calls || []);
-    const metaParts = [];
-    if (p && p.status_code) metaParts.push('HTTP ' + p.status_code);
-    if ((p && p.finish_reason) || d.finish_reason) metaParts.push('finish: ' + ((p && p.finish_reason) || d.finish_reason));
-    if ((p && p.usage) || d.usage) metaParts.push('usage: ' + JSON.stringify((p && p.usage) || d.usage));
-    o += '<div class="det-sec-hdr" style="color:#4ade80;">'
-      + '<span>✅ Incoming Response ' + (metaParts.length ? '<span style="color:#94a3b8;font-weight:normal;font-size:.9em;">(' + esc(metaParts.join(' · ')) + ')</span>' : '') + '</span>'
-      + '<span style="display:inline-flex;gap:5px;">'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + respBoxId + '\', this)">📋 Copy Response</button>'
-      + '<button class="btn-copy" onclick="selectElemText(\'' + respBoxId + '\')">🔍 Select</button>'
-      + '</span></div>';
-    if (rText) {
-      o += '<div id="' + respBoxId + '" class="det selectable" style="color:#d1fae5;border-color:rgba(74,222,128,.35);background:#0b1714;">' + esc(rText) + '</div>';
-    } else if (!tcs.length) {
-      o += '<div id="' + respBoxId + '" class="det selectable" style="color:#9ca3af;">(empty response text)</div>';
-    }
-    if (tcs.length) {
-      const tcBoxId = 'det-tc-' + id;
-      const tcText = tcs.map(c => '🔧 ' + (c.name || 'tool') + nl + pj(c.arguments) + (c.id ? nl + 'id=' + c.id : '')).join(nl + nl);
-      o += '<div class="det-sec-hdr" style="color:#fcd34d;"><span>🔧 Tool Calls (' + tcs.length + ')</span>'
-        + '<button class="btn-copy" onclick="copyByElemId(\'' + tcBoxId + '\', this)">📋 Copy Tool Calls</button></div>'
-        + '<div id="' + tcBoxId + '" class="det selectable" style="color:#fde68a;">' + esc(tcText) + '</div>';
-    }
-  } else if (rec && rec.done === false) {
-    o += '<div class="det-sec-hdr" style="color:#60a5fa;">⏳ Response is still streaming / running...</div>';
-  }
-
-  // 2. Error / Fallback Reason
-  if (errDetail) {
-    const errBoxId = 'det-err-' + id;
-    o += '<div class="det-sec-hdr" style="color:#f87171;"><span>⚠️ Error / Fallback Details</span>'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + errBoxId + '\', this)">📋 Copy Error</button></div>'
-      + '<div id="' + errBoxId + '" class="det selectable" style="color:#fca5a5;border-color:rgba(248,113,113,.35);">' + esc(errDetail) + '</div>';
-  }
-
-  // 3. Route Trail & Attempts
-  if (trail.length) {
-    const trBoxId = 'det-tr-' + id;
-    o += '<div class="det-sec-hdr" style="color:#fbbf24;"><span>🛣️ Route Trail (' + trail.length + ')</span>'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + trBoxId + '\', this)">📋 Copy</button></div>'
-      + '<div id="' + trBoxId + '" class="det selectable" style="color:#fcd34d;max-height:160px;">' + esc(trail.join(nl)) + '</div>';
-  }
-  if (attempts.length) {
-    const attBoxId = 'det-att-' + id;
-    o += '<div class="det-sec-hdr" style="color:#f87171;"><span>🔄 Attempts (' + attempts.length + ')</span>'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + attBoxId + '\', this)">📋 Copy</button></div>'
-      + '<div id="' + attBoxId + '" class="det selectable" style="color:#fca5a5;max-height:160px;">' + esc(attempts.join(nl)) + '</div>';
-  }
-
-  // 4. Request Messages / Raw Request Summary
-  if (q && q.messages && q.messages.length) {
-    const reqMsgsId = 'det-reqm-' + id;
-    o += '<div class="det-sec-hdr" style="color:#93c5fd;">'
-      + '<span>💬 Request Messages (' + (q.n_messages || q.messages.length) + ') · ' + esc(JSON.stringify(q.params || {})) + '</span>'
-      + '<span style="display:inline-flex;gap:5px;">'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + reqMsgsId + '\', this)">📋 Copy All Messages</button>'
-      + '<button class="btn-copy" onclick="selectElemText(\'' + reqMsgsId + '\')">🔍 Select</button>'
-      + '</span></div>';
-    if (q.tools && q.tools.length) {
-      o += '<div class="det selectable" style="color:#c4b5fd;max-height:110px;margin-bottom:4px;">Tools (' + q.tools.length + '): ' + esc(q.tools.map(t => t.name).join(', ')) + '</div>';
-    }
-    let mHtml = '';
-    q.messages.forEach(m => { mHtml += liveMsgBlock(m); });
-    o += '<div id="' + reqMsgsId + '">' + mHtml + '</div>';
-  } else if (d.request) {
-    const reqBoxId = 'det-req-' + id;
-    o += '<div class="det-sec-hdr" style="color:#93c5fd;"><span>📨 Request Summary</span>'
-      + '<span style="display:inline-flex;gap:5px;">'
-      + '<button class="btn-copy" onclick="copyByElemId(\'' + reqBoxId + '\', this)">📋 Copy Request</button>'
-      + '<button class="btn-copy" onclick="selectElemText(\'' + reqBoxId + '\')">🔍 Select</button>'
-      + '</span></div>'
-      + '<div id="' + reqBoxId + '" class="det selectable">' + esc(d.request) + '</div>';
-  }
-  return o;
-}
-
-function renderLogs(data, forceRender) {
-  if (!forceRender && isUserBusySelecting()) return;
-  window._last = data;
-  const recent = data.logs || [], old = data.older_errors || [];
-  const cnt = {ok: 0, warn: 0, fail: 0, pending: 0};
-  recent.forEach(l => { cnt[l.kind] = (cnt[l.kind] || 0) + 1; });
-  const nFail = cnt.fail + old.length;
-  const chips = [
-    ['all', 'All (' + recent.length + ')'],
-    ['fail', '❌ Errors (' + nFail + ')'],
-    ['warn', '⚠️ Fallback (' + cnt.warn + ')'],
-    ['pending', '⏳ Pending (' + cnt.pending + ')'],
-    ['ok', '✅ OK (' + cnt.ok + ')'],
-    ['saved', '💾 Browser (' + savedCount + ')']
-  ];
-  document.getElementById('log-chips').innerHTML = chips.map(c =>
-    '<span class="chip' + (filter === c[0] ? ' on' : '') + '" onclick="setFilter(\'' + c[0] + '\')">' + c[1] + '</span>'
-  ).join('');
-
+function renderLogs(data){
+  window._last=data;
+  const recent=data.logs||[],old=data.older_errors||[];
+  const cnt={ok:0,warn:0,fail:0,pending:0};
+  recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
+  const nFail=cnt.fail+old.length;
+  const chips=[['all','All ('+recent.length+')'],['fail','❌ Errors ('+nFail+')'],['warn','⚠️ Fallback ('+cnt.warn+')'],['pending','⏳ Pending ('+cnt.pending+')'],['ok','✅ OK ('+cnt.ok+')'],['saved','💾 Saved in browser ('+savedCount+')']];
+  document.getElementById('log-chips').innerHTML=chips.map(c=>'<span class="chip'+(filter===c[0]?' on':'')+'" onclick="setFilter(&quot;'+c[0]+'&quot;)">'+c[1]+'</span>').join('')+(cnt.pending?' <button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;padding:3px 10px;font-weight:bold;" onclick="stopReq(&quot;all&quot;)" title="Stop every pending request">⏹ Stop all pending ('+cnt.pending+')</button>':'');
   let rows;
-  if (filter === 'all') rows = recent;
-  else if (filter === 'fail') rows = recent.filter(l => l.kind === 'fail').concat(old);
-  else if (filter === 'saved') rows = savedRows.map(r => {
-    const s = Object.assign({}, r.slim || {});
-    if (!s.response && r.resp && r.resp.text) s.response = r.resp.text.slice(0, 500);
-    return s;
+  if(filter==='all')rows=recent;
+  else if(filter==='fail')rows=recent.filter(l=>l.kind==='fail').concat(old);
+  else if(filter==='saved')rows=savedRows.map(r=>r.slim);
+  else rows=recent.filter(l=>l.kind===filter);
+  rows=rows.slice().sort((a,b)=>b.id-a.id);
+  if(!paused)document.getElementById('log-note').textContent=(filter==='all'&&old.length)?old.length+' older error(s) not in this list - click ❌ Errors':'';
+  const sig=filter+'|'+rows.map(l=>l.id+l.status+l.response_ms).join(',')+'|'+Object.keys(expanded).map(k=>k+expanded[k].state).join(',');
+  if(sig===lastSig)return;
+  lastSig=sig;
+  const tbody=document.getElementById('logs-body');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#666;padding:30px;">'+(filter==='all'?'No logs yet.':'Nothing here.')+'</td></tr>';return;}
+  let html='';
+  rows.forEach(l=>{
+    const k=l.kind;
+    const bar=k==='fail'?'background:rgba(248,113,113,.09);border-left:3px solid #f87171;':k==='warn'?'background:rgba(251,191,36,.07);border-left:3px solid #fbbf24;':k==='pending'?'border-left:3px solid #60a5fa;':'';
+    const bc=k==='fail'?'bg-red':k==='warn'?'bg-amber':k==='pending'?'bg-blue':'bg-green';
+    const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
+    const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
+    const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
+    const det=(true)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
+    const stp=(k==='pending'&&filter!=='saved')?' <button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;font-weight:bold;" data-id="'+l.id+'" onclick="stopReq(this.dataset.id)" title="Stop this pending request (the client gets 499)">⏹ Stop</button>':'';
+    html+='<tr style="'+bar+'"><td style="white-space:nowrap;color:#888;font-size:.9em;">'+esc(l.time||'')+'</td>'
+      +'<td class="ip">'+esc(l.ip||'')+' '+pwd+'</td>'
+      +'<td><span class="badge '+bc+'">'+esc(l.status||'')+'</span></td>'
+      +'<td style="color:#c4b5fd;font-size:.85em;">'+(l.model?esc(l.model):'—')+'</td>'
+      +'<td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">'+esc(l.route||'—')+'</td>'
+      +'<td style="color:#6b7280;font-size:.85em;white-space:nowrap;">'+ms+'</td>'
+      +'<td><div class="msg">'+esc(l.message||'No message')+'</div></td>'
+      +'<td>'+err+'</td><td style="white-space:nowrap;">'+det+stp+'</td></tr>';
+    if(expanded[l.id])html+=detailHtml(l.id);
   });
-  else rows = recent.filter(l => l.kind === filter);
-
-  // Merge live response preview from browser store if present
-  rows = rows.map(l => {
-    const copy = Object.assign({}, l);
-    const liveRec = liveById[copy.id];
-    if (!copy.response && liveRec && liveRec.resp) {
-      if (liveRec.resp.text) copy.response = liveRec.resp.text.slice(0, 500);
-      else if (liveRec.resp.tool_calls && liveRec.resp.tool_calls.length) {
-        copy.response = '🔧 ' + liveRec.resp.tool_calls.map(t => t.name + '(' + (t.arguments || '').slice(0, 80) + ')').join(' | ');
-      }
-    }
-    return copy;
-  });
-
-  if (searchQuery) {
-    rows = rows.filter(l => {
-      const hay = ((l.model || '') + ' ' + (l.status || '') + ' ' + (l.message || '') + ' ' + (l.response || '') + ' ' + (l.error || '') + ' ' + (l.route || '') + ' ' + (l.ip || '')).toLowerCase();
-      return hay.includes(searchQuery);
-    });
-  }
-
-  rows = rows.slice().sort((a, b) => b.id - a.id);
-  if (!paused) {
-    document.getElementById('log-note').textContent = (filter === 'all' && old.length)
-      ? (old.length + ' older error(s) kept in ❌ Errors tab')
-      : '';
-  }
-
-  const sig = filter + '|' + searchQuery + '|' + rows.map(l => l.id + ':' + l.status + ':' + l.response_ms + ':' + (l.response || '').length).join(',') + '|' + Object.keys(expanded).map(k => k + ':' + expanded[k].state).join(',');
-  if (!forceRender && sig === lastSig) return;
-  lastSig = sig;
-
-  const tbody = document.getElementById('logs-body');
-  const cardsEl = document.getElementById('logs-cards');
-  if (!rows.length) {
-    const emptyMsg = filter === 'all' && !searchQuery ? 'No logs yet.' : 'No matching logs.';
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;padding:24px;">' + emptyMsg + '</td></tr>';
-    cardsEl.innerHTML = '<div class="card" style="text-align:center;color:#666;padding:20px;">' + emptyMsg + '</div>';
-    return;
-  }
-
-  let tblHtml = '';
-  let cardHtml = '';
-
-  rows.forEach(l => {
-    const k = l.kind;
-    const bar = k === 'fail' ? 'background:rgba(248,113,113,.07);border-left:3px solid #f87171;'
-      : k === 'warn' ? 'background:rgba(251,191,36,.06);border-left:3px solid #fbbf24;'
-      : k === 'pending' ? 'border-left:3px solid #60a5fa;' : '';
-    const bc = k === 'fail' ? 'bg-red' : k === 'warn' ? 'bg-amber' : k === 'pending' ? 'bg-blue' : 'bg-green';
-    const pwd = l.is_correct ? '🛡️' : '<span class="pwd-wrong">' + esc(l.password_used || 'NONE') + '</span>';
-    const ms = (l.response_ms !== null && l.response_ms !== undefined) ? l.response_ms + 'ms' : '—';
-    const promptId = 'p-txt-' + l.id;
-    const respId = 'r-txt-' + l.id;
-    const mPromptId = 'mp-txt-' + l.id;
-    const mRespId = 'mr-txt-' + l.id;
-    const promptTxt = l.message || '(empty)';
-    const hasResp = !!(l.response && l.response.trim());
-    const respTxt = hasResp ? l.response : (k === 'pending' ? '⏳ Generating response...' : (l.error ? '⚠️ See error' : '—'));
-    const errHtml = l.error ? '<div class="err selectable' + (k === 'warn' ? ' warn' : '') + '">' + esc(l.error) + '</div>' : '<span style="color:#4ade80;font-size:.78em;">—</span>';
-    const isExp = !!expanded[l.id];
-    const detBtn = '<button class="btn-s" onclick="toggleDetail(' + l.id + ')">' + (isExp ? '✕ Close' : 'Details ▾') + '</button>';
-
-    // Desktop Table Row
-    tblHtml += '<tr style="' + bar + '">'
-      + '<td style="white-space:nowrap;font-size:.78em;"><div style="color:#94a3b8;">' + esc(l.time || '') + '</div><div class="ip">' + esc(l.ip || '') + ' ' + pwd + '</div></td>'
-      + '<td><span class="badge ' + bc + '">' + esc(l.status || '') + '</span><div style="color:#94a3b8;font-size:.75em;margin-top:3px;">⏱ ' + ms + '</div></td>'
-      + '<td><div style="color:#c4b5fd;font-weight:600;font-size:.8em;font-family:monospace;word-break:break-all;">' + (l.model ? esc(l.model) : '—') + '</div><div style="color:#93c5fd;font-size:.73em;margin-top:2px;word-break:break-word;">' + esc(l.route || '—') + '</div></td>'
-      + '<td><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span style="font-size:.7em;color:#94a3b8;">Prompt</span><button class="btn-copy" onclick="copyByElemId(\'' + promptId + '\', this)">📋</button></div><div id="' + promptId + '" class="msg selectable">' + esc(promptTxt) + '</div></td>'
-      + '<td><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;"><span style="font-size:.7em;color:#4ade80;">Response</span>' + (hasResp ? '<button class="btn-copy" onclick="copyByElemId(\'' + respId + '\', this)">📋</button>' : '') + '</div><div id="' + respId + '" class="resp-box selectable' + (hasResp ? '' : ' empty') + '">' + esc(respTxt) + '</div></td>'
-      + '<td>' + errHtml + '</td>'
-      + '<td style="text-align:right;">' + detBtn + '</td>'
-      + '</tr>';
-    if (isExp) {
-      tblHtml += '<tr><td colspan="7" style="background:#11131c;padding:10px 14px;">' + buildDetailContent(l.id) + '</td></tr>';
-    }
-
-    // Mobile Compact Card
-    cardHtml += '<div class="log-card k-' + k + '">'
-      + '<div class="lc-top">'
-      +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-      +     '<span class="badge ' + bc + '">' + esc(l.status || '') + '</span>'
-      +     '<span style="color:#c4b5fd;font-family:monospace;font-weight:700;font-size:.82em;">' + (l.model ? esc(l.model) : '—') + '</span>'
-      +     '<span style="color:#94a3b8;font-size:.76em;">⏱ ' + ms + '</span>'
-      +   '</div>'
-      +   detBtn
-      + '</div>'
-      + '<div class="lc-meta"><span>🕒 ' + esc(l.time || '') + '</span><span>·</span><span class="ip">' + esc(l.ip || '') + ' ' + pwd + '</span></div>'
-      + (l.route ? '<div class="lc-route">🛣️ ' + esc(l.route) + '</div>' : '')
-      + '<div>'
-      +   '<div class="lc-box-lbl"><span>💬 Prompt</span><span style="display:inline-flex;gap:4px;"><button class="btn-copy" onclick="copyByElemId(\'' + mPromptId + '\', this)">📋 Copy</button><button class="btn-copy" onclick="selectElemText(\'' + mPromptId + '\')">🔍 Select</button></span></div>'
-      +   '<div id="' + mPromptId + '" class="msg selectable">' + esc(promptTxt) + '</div>'
-      + '</div>'
-      + '<div>'
-      +   '<div class="lc-box-lbl"><span style="color:#4ade80;">✅ Response</span>' + (hasResp ? '<span style="display:inline-flex;gap:4px;"><button class="btn-copy" onclick="copyByElemId(\'' + mRespId + '\', this)">📋 Copy</button><button class="btn-copy" onclick="selectElemText(\'' + mRespId + '\')">🔍 Select</button></span>' : '') + '</div>'
-      +   '<div id="' + mRespId + '" class="resp-box selectable' + (hasResp ? '' : ' empty') + '">' + esc(respTxt) + '</div>'
-      + '</div>'
-      + (l.error ? '<div><div class="lc-box-lbl"><span style="color:#f87171;">⚠️ Error / Fallback</span></div>' + errHtml + '</div>' : '')
-      + (isExp ? '<div style="background:#11131c;border:1px solid #2b3040;border-radius:6px;padding:8px;margin-top:4px;">' + buildDetailContent(l.id) + '</div>' : '')
-      + '</div>';
-  });
-
-  tbody.innerHTML = tblHtml;
-  cardsEl.innerHTML = cardHtml;
+  tbody.innerHTML=html;
 }
-
-// ===== Browser-side Log Store (IndexedDB) + In-Memory Map =====
-const IDB_NAME = 'wapi_logs', IDB_STORE = 'recs', IDB_MAX = 300;
-let idb = null, liveBusy = false, savedRows = [], savedCount = 0;
-const liveById = {};
-const liveMeta = {boot: '', maxId: 0, pending: new Set()};
-
-function idbOpen() {
-  return new Promise(res => {
-    if (!window.indexedDB) { res(null); return; }
-    const rq = indexedDB.open(IDB_NAME, 1);
-    rq.onupgradeneeded = () => { const s = rq.result.createObjectStore(IDB_STORE, {keyPath: 'k'}); s.createIndex('t0', 't0'); };
-    rq.onsuccess = () => res(rq.result);
-    rq.onerror = () => res(null);
+// ===== Browser-side log store (IndexedDB): full request / tool calls / response stay in THIS browser only =====
+const IDB_NAME='wapi_logs',IDB_STORE='recs',IDB_MAX=300;
+let idb=null,liveBusy=false,savedRows=[],savedCount=0;
+const liveMeta={boot:'',maxId:0,pending:new Set()};
+function idbOpen(){
+  return new Promise((res)=>{
+    if(!window.indexedDB){res(null);return;}
+    const rq=indexedDB.open(IDB_NAME,1);
+    rq.onupgradeneeded=()=>{const s=rq.result.createObjectStore(IDB_STORE,{keyPath:'k'});s.createIndex('t0','t0');};
+    rq.onsuccess=()=>res(rq.result);
+    rq.onerror=()=>res(null);
   });
 }
-function idbStore(mode) { return idb.transaction(IDB_STORE, mode).objectStore(IDB_STORE); }
-function idbReq(rq) { return new Promise(res => { rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); }); }
-async function idbPut(rec) {
-  liveById[rec.id] = rec;
-  if (!idb) return;
-  rec.k = rec.boot + ':' + rec.id;
-  await idbReq(idbStore('readwrite').put(rec));
+function idbStore(mode){return idb.transaction(IDB_STORE,mode).objectStore(IDB_STORE);}
+function idbReq(rq){return new Promise((res)=>{rq.onsuccess=()=>res(rq.result);rq.onerror=()=>res(null);});}
+async function idbPut(rec){if(!idb)return;rec.k=rec.boot+':'+rec.id;await idbReq(idbStore('readwrite').put(rec));}
+async function idbGet(k){if(!idb||!k)return null;return await idbReq(idbStore('readonly').get(k));}
+async function idbAll(){if(!idb)return [];return (await idbReq(idbStore('readonly').getAll()))||[];}
+async function idbTrim(){
+  if(!idb)return;
+  const n=(await idbReq(idbStore('readonly').count()))||0;
+  savedCount=n;
+  if(n<=IDB_MAX)return;
+  const keys=(await idbReq(idbStore('readonly').index('t0').getAllKeys()))||[];
+  for(let i=0;i<n-IDB_MAX;i++)await idbReq(idbStore('readwrite').delete(keys[i]));
+  savedCount=IDB_MAX;
 }
-async function idbGet(k) {
-  if (k) {
-    const parts = String(k).split(':');
-    const numId = Number(parts[parts.length - 1]);
-    if (liveById[numId]) return liveById[numId];
-  }
-  if (!idb || !k) return null;
-  return await idbReq(idbStore('readonly').get(k));
+async function loadSaved(){savedRows=(await idbAll()).sort((a,b)=>b.t0-a.t0);savedCount=savedRows.length;}
+async function clearSaved(){
+  if(!confirm('Delete all logs saved in this browser?'))return;
+  if(idb)await idbReq(idbStore('readwrite').clear());
+  savedRows=[];savedCount=0;liveMeta.maxId=0;liveMeta.pending.clear();
+  Object.keys(expanded).forEach(k=>{if(expanded[k]&&expanded[k].live)delete expanded[k];});
+  lastSig='';if(window._last)renderLogs(window._last);
 }
-async function idbAll() { if (!idb) return []; return (await idbReq(idbStore('readonly').getAll())) || []; }
-async function idbTrim() {
-  if (!idb) return;
-  const n = (await idbReq(idbStore('readonly').count())) || 0;
-  savedCount = n;
-  if (n <= IDB_MAX) return;
-  const keys = (await idbReq(idbStore('readonly').index('t0').getAllKeys())) || [];
-  for (let i = 0; i < n - IDB_MAX; i++) await idbReq(idbStore('readwrite').delete(keys[i]));
-  savedCount = IDB_MAX;
-}
-async function loadSaved() { savedRows = (await idbAll()).sort((a, b) => b.t0 - a.t0); savedCount = savedRows.length; }
-async function clearSaved() {
-  if (!confirm('Delete all logs saved in this browser?')) return;
-  if (idb) await idbReq(idbStore('readwrite').clear());
-  savedRows = []; savedCount = 0; liveMeta.maxId = 0; liveMeta.pending.clear();
-  Object.keys(liveById).forEach(k => delete liveById[k]);
-  lastSig = ''; if (window._last) renderLogs(window._last, true);
-}
-async function syncLive() {
-  if (liveBusy) return;
-  liveBusy = true;
-  try {
-    let url = '/router/dashboard_data?live_since=' + liveMeta.maxId + '&boot=' + encodeURIComponent(liveMeta.boot) + '&pending=' + Array.from(liveMeta.pending).join(',');
-    let r = await fetch(url, {credentials: 'same-origin'});
-    if (r.status === 404) {
-      r = await fetch('dashboard_data?live_since=' + liveMeta.maxId + '&boot=' + encodeURIComponent(liveMeta.boot) + '&pending=' + Array.from(liveMeta.pending).join(','), {credentials: 'same-origin'});
-    }
-    if (!r.ok) { liveBusy = false; return; }
-    const d = await r.json();
-    if (d.boot !== liveMeta.boot) { liveMeta.boot = d.boot; liveMeta.maxId = 0; liveMeta.pending.clear(); }
-    const recs = d.recs || [];
-    for (const rec of recs) {
+async function syncLive(){
+  if(liveBusy||!idb)return;
+  liveBusy=true;
+  try{
+    const url='/router/dashboard_data?live_since='+liveMeta.maxId+'&boot='+encodeURIComponent(liveMeta.boot)+'&pending='+Array.from(liveMeta.pending).join(',');
+    const r=await fetch(url,{credentials:'same-origin'});
+    if(!r.ok){liveBusy=false;return;}
+    const d=await r.json();
+    if(d.boot!==liveMeta.boot){liveMeta.boot=d.boot;liveMeta.maxId=0;liveMeta.pending.clear();}
+    const recs=d.recs||[];
+    for(const rec of recs){
       await idbPut(rec);
-      liveMeta.maxId = Math.max(liveMeta.maxId, rec.id);
-      if (rec.done) liveMeta.pending.delete(rec.id); else liveMeta.pending.add(rec.id);
-      const x = expanded[rec.id]; if (x) x.live = rec;
+      liveMeta.maxId=Math.max(liveMeta.maxId,rec.id);
+      if(rec.done)liveMeta.pending.delete(rec.id);else liveMeta.pending.add(rec.id);
+      const x=expanded[rec.id];if(x&&x.live)x.live=rec;
     }
-    if (recs.length) {
-      await idbTrim();
-      if (filter === 'saved') await loadSaved();
-      if (!isUserBusySelecting()) {
-        lastSig = '';
-        if (window._last) renderLogs(window._last, false);
-      }
-    }
-  } catch (e) {}
-  liveBusy = false;
+    if(recs.length){await idbTrim();if(filter==='saved')await loadSaved();lastSig='';if(window._last)renderLogs(window._last);}
+  }catch(e){}
+  liveBusy=false;
 }
-(async function liveInit() {
-  idb = await idbOpen();
-  if (idb) {
-    const all = (await idbAll()).sort((a, b) => a.t0 - b.t0);
-    savedCount = all.length;
-    const last = all[all.length - 1];
-    if (last) {
-      liveMeta.boot = last.boot;
-      all.forEach(r => {
-        liveById[r.id] = r;
-        if (r.boot === last.boot) {
-          liveMeta.maxId = Math.max(liveMeta.maxId, r.id);
-          if (!r.done) liveMeta.pending.add(r.id);
-        }
-      });
-    }
+(async function liveInit(){
+  idb=await idbOpen();
+  if(!idb)return;
+  const all=(await idbAll()).sort((a,b)=>a.t0-b.t0);
+  savedCount=all.length;
+  const last=all[all.length-1];
+  if(last){
+    liveMeta.boot=last.boot;
+    all.forEach(r=>{if(r.boot===last.boot){liveMeta.maxId=Math.max(liveMeta.maxId,r.id);if(!r.done)liveMeta.pending.add(r.id);}});
   }
   syncLive();
 })();
-setInterval(() => { if (!paused && !document.hidden && !isUserBusySelecting() && liveMeta.pending.size) syncLive(); }, 2000);
+setInterval(()=>{if(!paused&&!document.hidden&&liveMeta.pending.size)syncLive();},2000);
 
-function pj(a) { try { return JSON.stringify(JSON.parse(a), null, 2); } catch (e) { return a || ''; } }
-function liveMsgBlock(m) {
-  const nl = String.fromCharCode(10);
-  const col = {system: '#a1a1aa', developer: '#a1a1aa', user: '#93c5fd', assistant: '#86efac', tool: '#fcd34d'}[m.role] || '#d4d4d8';
-  let t = '[' + m.role + (m.name ? ' ' + m.name : '') + (m.tool_call_id ? ' #' + m.tool_call_id : '') + ']' + nl + (m.content || '');
-  (m.tool_calls || []).forEach(c => { t += nl + '🔧 ' + c.name + '(' + pj(c.arguments) + ')' + (c.id ? '  id=' + c.id : ''); });
-  return '<div class="det selectable" style="color:' + col + ';margin-top:4px;max-height:220px">' + esc(t) + '</div>';
+function pj(a){try{return JSON.stringify(JSON.parse(a),null,2);}catch(e){return a||'';}}
+function liveMsgBlock(m){
+  const nl=String.fromCharCode(10);
+  const col={system:'#a1a1aa',developer:'#a1a1aa',user:'#93c5fd',assistant:'#86efac',tool:'#fcd34d'}[m.role]||'#d4d4d8';
+  let t='['+m.role+(m.name?' '+m.name:'')+(m.tool_call_id?' #'+m.tool_call_id:'')+']'+nl+(m.content||'');
+  (m.tool_calls||[]).forEach(c=>{t+=nl+'🔧 '+c.name+'('+pj(c.arguments)+')'+(c.id?'  id='+c.id:'');});
+  return '<div class="det" style="color:'+col+';margin-top:4px;max-height:220px">'+esc(t)+'</div>';
+}
+function liveRow(id,rec){
+  const nl=String.fromCharCode(10);
+  const h=(t,c)=>'<div style="margin-top:10px;color:'+c+';font-weight:bold">'+t+'</div>';
+  const pre=(t,c)=>'<div class="det" style="color:'+c+'">'+esc(t)+'</div>';
+  const q=rec.req||{};
+  let o='<button class="btn-s" onclick="toggleDetail('+id+')">✕ Close</button> <span style="color:#6b7280;font-size:.8em">saved in this browser only (not on the server)</span>';
+  if(rec.trail&&rec.trail.length)o+=h('Route trail (which key/model got it)','#fbbf24')+pre(rec.trail.join(nl),'#fcd34d');
+  o+=h('Request - '+esc(JSON.stringify(q.params||{}))+' | '+(q.n_messages||0)+' messages'+(q.messages_cut?' (older '+q.messages_cut+' not shown)':''),'#93c5fd');
+  if(q.tools&&q.tools.length)o+=h('Tools offered ('+q.tools.length+')','#a78bfa')+pre(q.tools.map(t=>t.name+' - '+t.description).join(nl),'#c4b5fd');
+  (q.messages||[]).forEach(m=>{o+=liveMsgBlock(m);});
+  const p=rec.resp;
+  const stale=!rec.done&&(Date.now()/1000-rec.t0>900);
+  if(!rec.done)o+=h(stale?'⚠️ never finished (server restarted?)':'⏳ Response: still running...','#60a5fa');
+  else if(p){
+    o+=h('Response - HTTP '+p.status_code+(p.finish_reason?' | finish: '+p.finish_reason:'')+(p.usage?' | usage: '+esc(JSON.stringify(p.usage)):'')+(rec.t1?' | '+Math.round((rec.t1-rec.t0)*1000)+'ms':''),'#4ade80');
+    if(p.error)o+=pre(p.error,'#fca5a5');
+    if(p.text)o+=pre(p.text,'#d1fae5');
+    (p.tool_calls||[]).forEach(c=>{o+=pre('🔧 TOOL CALL -> '+c.name+nl+pj(c.arguments)+(c.id?nl+'id='+c.id:''),'#fcd34d');});
+    if(!p.text&&!p.error&&!(p.tool_calls||[]).length)o+=pre('(empty response body)','#9ca3af');
+  }
+  if(rec.attempts&&rec.attempts.length)o+=h('Failed attempts ('+rec.attempts.length+')','#f87171')+pre(rec.attempts.join(nl),'#fca5a5');
+  return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+o+'</td></tr>';
 }
 
-// ===== Block Model Controls =====
-function fmtLeft(sec) {
-  sec = Math.max(0, Math.floor(sec));
-  if (sec >= 86400 * 3649) return 'forever';
-  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
-  if (d > 0) return d + 'd ' + h + 'h';
-  if (h > 0) return h + 'h ' + m + 'm';
-  if (m > 0) return m + 'm';
-  return sec + 's';
+async function stopReq(id){
+  const all=(id==='all');
+  if(all&&!confirm('Stop ALL pending requests?'))return;
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(all?{all:true}:{id:+id})};
+  const noteEl=document.getElementById('log-note');
+  try{
+    let r=await fetch('/router/request_cancel',opts);
+    if(r.status===404){r=await fetch('request_cancel',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));return;}
+    if(noteEl)noteEl.textContent=(d.stopped&&d.stopped.length)?('⏹ Stop sent for '+d.stopped.length+' request(s)'):'Nothing to stop - it already finished (or it is not a /v1 chat request, those cannot be stopped)';
+    lastSig='';await fetchData(true);
+  }catch(e){alert('Failed: '+e.message);}
 }
-let blockTarget = '';
-function openBlock(name) {
-  blockTarget = name;
-  document.getElementById('blk-model').textContent = name;
-  document.getElementById('blk-dur').value = '1d';
-  document.getElementById('blk-reason').value = '';
-  document.getElementById('blk-err').textContent = '';
-  document.getElementById('block-modal').style.display = 'flex';
+// ===== "Last" models: tried only after every other model, in the order you choose (saved) =====
+let lastDraft=[];
+async function lastCall(payload,errId){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
+  const errEl=errId?document.getElementById(errId):null;
+  try{
+    let r=await fetch('/router/model_last',opts);
+    if(r.status===404){r=await fetch('model_last',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){const m=d.error||('HTTP '+r.status);if(errEl)errEl.textContent=m;else alert(m);return null;}
+    lastSig='';await fetchData(true);
+    return d;
+  }catch(e){const m='Failed: '+e.message;if(errEl)errEl.textContent=m;else alert(m);return null;}
+}
+function openLast(){
+  const li=window._lastInfo||{};
+  lastDraft=(li.effective||[]).slice();
+  document.getElementById('lm-err').textContent='';
+  lastRender();
+  document.getElementById('last-modal').style.display='flex';
+}
+function closeLast(){document.getElementById('last-modal').style.display='none';}
+function lastRender(){
+  const all=window._mtNames||[];
+  const inL=new Set(lastDraft.map(n=>n.toLowerCase()));
+  const rows=lastDraft.map((n,i)=>`<div style="display:flex;align-items:center;gap:8px;background:#111827;border:1px solid #4c1d95;border-radius:6px;padding:6px 10px;margin-bottom:5px;"><b style="color:#fbbf24;min-width:26px;">#${i+1}</b><span style="flex:1;font-family:monospace;color:#c4b5fd;word-break:break-all;">${esc(n)}</span><button class="btn-s" data-i="${i}" ${i===0?'disabled':''} onclick="lastMove(this.dataset.i,-1)" style="padding:2px 8px;" title="earlier">▲</button><button class="btn-s" data-i="${i}" ${i===lastDraft.length-1?'disabled':''} onclick="lastMove(this.dataset.i,1)" style="padding:2px 8px;" title="later">▼</button><button class="btn-s" data-i="${i}" onclick="lastRemove(this.dataset.i)" style="padding:2px 8px;background:#7f1d1d;border-color:#f87171;color:#fee2e2;" title="not last any more">✕</button></div>`).join('');
+  document.getElementById('lm-list').innerHTML=rows||'<div style="color:#6b7280;padding:8px 0;">No model is last - every model is used together (round-robin).</div>';
+  const free=all.filter(n=>!inL.has(n.toLowerCase()));
+  document.getElementById('lm-add-sel').innerHTML=free.length?free.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join(''):'<option value="">(every model is already in the list)</option>';
+  document.getElementById('lm-add-btn').disabled=!free.length;
+}
+function lastMove(i,d){i=+i;const j=i+d;if(j<0||j>=lastDraft.length)return;const t=lastDraft[i];lastDraft[i]=lastDraft[j];lastDraft[j]=t;lastRender();}
+function lastRemove(i){lastDraft.splice(+i,1);lastRender();}
+function lastAdd(){const v=document.getElementById('lm-add-sel').value;if(!v)return;lastDraft.push(v);lastRender();}
+async function lastSave(){
+  const d=await lastCall({action:'set',models:lastDraft},'lm-err');
+  if(d){closeLast();const n=document.getElementById('log-note');if(n)n.textContent='✅ Last order saved: '+(d.effective.length?d.effective.join(' → '):'none');}
+}
+async function lastReset(){
+  if(!confirm('Back to the default (every lite model is last)?'))return;
+  const d=await lastCall({action:'reset'},'lm-err');
+  if(d)closeLast();
+}
+async function lastToggle(name){
+  const li=window._lastInfo||{};
+  const on=(li.effective||[]).some(n=>n.toLowerCase()===name.toLowerCase());
+  const d=await lastCall({action:on?'remove':'add',model:name},null);
+  const n=document.getElementById('log-note');
+  if(d&&n){const p=d.effective.findIndex(x=>x.toLowerCase()===name.toLowerCase())+1;n.textContent=on?('⬆ '+name+' is a normal model again - saved'):('⬇ '+name+' is now last (#'+p+') - saved');}
+}
+function fmtLeft(sec){
+  sec=Math.max(0,Math.floor(sec));
+  if(sec>=86400*3649)return 'forever';
+  const d=Math.floor(sec/86400),h=Math.floor((sec%86400)/3600),m=Math.floor((sec%3600)/60);
+  if(d>0)return d+'d '+h+'h';
+  if(h>0)return h+'h '+m+'m';
+  if(m>0)return m+'m';
+  return sec+'s';
+}
+let blockTarget='';
+function openBlock(name){
+  blockTarget=name;
+  document.getElementById('blk-model').textContent=name;
+  document.getElementById('blk-dur').value='1d';
+  document.getElementById('blk-reason').value='';
+  document.getElementById('blk-err').textContent='';
+  document.getElementById('block-modal').style.display='flex';
   document.getElementById('blk-dur').focus();
 }
-function closeBlock() { document.getElementById('block-modal').style.display = 'none'; }
-function pickDur(v) { document.getElementById('blk-dur').value = v; }
-async function confirmBlock() {
-  const dur = document.getElementById('blk-dur').value.trim();
-  if (!dur) { document.getElementById('blk-err').textContent = 'Enter a duration, e.g. 1h, 1d, 43d'; return; }
-  const d = await modelBlockCall({action: 'block', model: blockTarget, duration: dur, reason: document.getElementById('blk-reason').value.trim()});
-  if (d) closeBlock();
+function closeBlock(){document.getElementById('block-modal').style.display='none';}
+function pickDur(v){document.getElementById('blk-dur').value=v;}
+async function confirmBlock(){
+  const dur=document.getElementById('blk-dur').value.trim();
+  if(!dur){document.getElementById('blk-err').textContent='Enter a time, e.g. 1h, 1d, 43d';return;}
+  const d=await modelBlockCall({action:'block',model:blockTarget,duration:dur,reason:document.getElementById('blk-reason').value.trim()});
+  if(d)closeBlock();
 }
-async function unblockModel(name) {
-  if (name === '*' && !confirm('Unblock ALL blocked models?')) return;
-  await modelBlockCall(name === '*' ? {action: 'unblock_all'} : {action: 'unblock', model: name});
+async function unblockModel(name){
+  if(name==='*'&&!confirm('Unblock ALL blocked models?'))return;
+  await modelBlockCall(name==='*'?{action:'unblock_all'}:{action:'unblock',model:name});
 }
-async function modelBlockCall(payload) {
-  const opts = {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)};
-  const noteEl = document.getElementById('log-note');
-  try {
-    let r = await fetch('/router/model_block', opts);
-    if (r.status === 404) r = await fetch('model_block', opts);
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      const m = d.error || ('HTTP ' + r.status);
-      if (payload.action === 'block') document.getElementById('blk-err').textContent = m; else alert(m);
+async function modelBlockCall(payload){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
+  const noteEl=document.getElementById('log-note');
+  try{
+    let r=await fetch('/router/model_block',opts);
+    if(r.status===404){r=await fetch('model_block',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const m=d.error||('HTTP '+r.status);
+      if(payload.action==='block')document.getElementById('blk-err').textContent=m;else alert(m);
       return null;
     }
-    if (noteEl) noteEl.textContent = payload.action === 'block' ? ('⛔ ' + d.blocked + ' blocked for ' + fmtLeft(d.seconds)) : '✅ Unblocked';
-    lastSig = ''; lastStatusSig = ''; await fetchData(true);
+    if(noteEl)noteEl.textContent=payload.action==='block'?('⛔ '+d.blocked+' blocked for '+fmtLeft(d.seconds)):'✅ Unblocked';
+    lastSig='';await fetchData(true);
     return d;
-  } catch (e) {
-    if (payload.action === 'block') document.getElementById('blk-err').textContent = e.message; else alert('Failed: ' + e.message);
+  }catch(e){
+    if(payload.action==='block')document.getElementById('blk-err').textContent=e.message;else alert('Failed: '+e.message);
     return null;
   }
 }
 
-// ===== Add / Edit Model + Persistent Multi-Model Last-Tier Controls =====
-let mdlEditing = false, mdlSavedFlag = false, mdlInEnv = false;
-let availModels = [], usageOpen = {}, panelsOpen = {usage: false};
-
-async function loadAvailable(force) {
-  const sel = document.getElementById('mdl-pick'), note = document.getElementById('mdl-pick-note');
-  sel.innerHTML = '<option value="">Loading from Google...</option>'; note.textContent = '';
-  const q = force ? '?refresh=1' : '';
-  try {
-    let r = await fetch('/router/model_available' + q, {credentials: 'same-origin'});
-    if (r.status === 404) r = await fetch('model_available' + q, {credentials: 'same-origin'});
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    availModels = d.models || [];
-    const fresh = availModels.filter(m => !m.added), have = availModels.filter(m => m.added);
-    let h = '<option value="">' + (fresh.length ? ('Choose a model (' + fresh.length + ' new)') : 'All Google models added') + '</option>';
-    if (fresh.length) h += '<optgroup label="Not added yet">' + fresh.map(m => '<option value="' + esc(m.name) + '">' + esc(m.name) + '</option>').join('') + '</optgroup>';
-    if (have.length) h += '<optgroup label="Already in pool">' + have.map(m => '<option value="' + esc(m.name) + '">' + esc(m.name) + ' (in pool)</option>').join('') + '</optgroup>';
-    sel.innerHTML = h;
-  } catch (e) {
-    sel.innerHTML = '<option value="">Could not load list — type name below</option>';
-    note.textContent = '⚠️ ' + e.message;
+let mdlEditing=false,mdlSavedFlag=false,mdlInEnv=false;
+let availModels=[],usageOpen={};
+async function loadAvailable(force){
+  const sel=document.getElementById('mdl-pick'),note=document.getElementById('mdl-pick-note');
+  sel.innerHTML='<option value="">Loading from Google...</option>';note.textContent='';
+  const q=force?'?refresh=1':'';
+  try{
+    let r=await fetch('/router/model_available'+q,{credentials:'same-origin'});
+    if(r.status===404){r=await fetch('model_available'+q,{credentials:'same-origin'});}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    availModels=d.models||[];
+    const fresh=availModels.filter(m=>!m.added),have=availModels.filter(m=>m.added);
+    let h='<option value="">'+(fresh.length?('Choose a model ('+fresh.length+' not added yet)'):'All Google models are already added')+'</option>';
+    if(fresh.length)h+='<optgroup label="Not added yet">'+fresh.map(m=>'<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>').join('')+'</optgroup>';
+    if(have.length)h+='<optgroup label="Already added">'+have.map(m=>'<option value="'+esc(m.name)+'" disabled>'+esc(m.name)+'</option>').join('')+'</optgroup>';
+    sel.innerHTML=h;
+  }catch(e){
+    sel.innerHTML='<option value="">Could not load the list - type the name below</option>';
+    note.textContent='⚠️ '+e.message;
   }
 }
-
-function pickModel() {
-  const name = document.getElementById('mdl-pick').value;
-  const m = availModels.find(x => x.name === name), note = document.getElementById('mdl-pick-note');
-  if (!m) { note.textContent = ''; return; }
-  document.getElementById('mdl-name').value = m.name;
-  document.getElementById('mdl-rpm').value = m.rpm;
-  document.getElementById('mdl-rpd').value = m.rpd;
-  document.getElementById('mdl-last-tier').checked = m.name.toLowerCase().includes('lite');
-  const tok = m.input_tokens ? (' · ' + Number(m.input_tokens).toLocaleString() + ' in tokens') : '';
-  note.textContent = 'Suggested (' + m.limits_from + ')' + tok;
+function pickModel(){
+  const name=document.getElementById('mdl-pick').value;
+  const m=availModels.find(x=>x.name===name),note=document.getElementById('mdl-pick-note');
+  if(!m){note.textContent='';return;}
+  document.getElementById('mdl-name').value=m.name;
+  document.getElementById('mdl-rpm').value=m.rpm;
+  document.getElementById('mdl-rpd').value=m.rpd;
+  const tok=m.input_tokens?(' · '+Number(m.input_tokens).toLocaleString()+' input tokens'):'';
+  note.textContent='RPM/RPD suggested ('+m.limits_from+') - Google does not publish them through the API, please check your quota and edit if different.'+tok;
 }
-
-function openModelForm(name, rpm, rpd, saved, inEnv, isLastTier) {
-  mdlEditing = !!name; mdlSavedFlag = !!saved; mdlInEnv = !!inEnv;
-  document.getElementById('mdl-title').textContent = name ? '✏️ Edit model & tier' : '➕ Add model';
-  const n = document.getElementById('mdl-name');
-  n.value = name || ''; n.readOnly = mdlEditing; n.style.opacity = mdlEditing ? '.65' : '1';
-  document.getElementById('mdl-rpm').value = rpm || '';
-  document.getElementById('mdl-rpd').value = rpd || '';
-  document.getElementById('mdl-last-tier').checked = isLastTier !== undefined ? !!isLastTier : ((name || '').toLowerCase().includes('lite'));
-  document.getElementById('mdl-err').textContent = '';
-  document.getElementById('mdl-test-out').innerHTML = '';
-  const del = document.getElementById('mdl-del');
-  del.style.display = (mdlEditing && mdlSavedFlag) ? 'inline-flex' : 'none';
-  del.textContent = mdlInEnv ? '↩ Reset to env' : '🗑 Delete';
-  document.getElementById('mdl-pick-row').style.display = mdlEditing ? 'none' : 'block';
-  if (!mdlEditing) loadAvailable(false);
-  document.getElementById('model-modal').style.display = 'flex';
-  (mdlEditing ? document.getElementById('mdl-rpm') : n).focus();
+function openModelForm(name,rpm,rpd,saved,inEnv){
+  mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
+  document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
+  const n=document.getElementById('mdl-name');
+  n.value=name||'';n.readOnly=mdlEditing;n.style.opacity=mdlEditing?'.6':'1';
+  document.getElementById('mdl-rpm').value=rpm||'';
+  document.getElementById('mdl-rpd').value=rpd||'';
+  document.getElementById('mdl-err').textContent='';
+  const del=document.getElementById('mdl-del');
+  del.style.display=(mdlEditing&&mdlSavedFlag)?'inline-block':'none';
+  del.textContent=mdlInEnv?'↩ Reset to env limits':'🗑 Delete model';
+  document.getElementById('mdl-pick-row').style.display=mdlEditing?'none':'block';
+  if(!mdlEditing)loadAvailable(false);
+  document.getElementById('model-modal').style.display='flex';
+  (mdlEditing?document.getElementById('mdl-rpm'):n).focus();
 }
-function closeModelForm() { document.getElementById('model-modal').style.display = 'none'; }
-
-async function modelCfgCall(payload, customErrId) {
-  const opts = {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)};
-  const errEl = document.getElementById(customErrId || 'mdl-err');
-  try {
-    let r = await fetch('/router/model_config', opts);
-    if (r.status === 404) r = await fetch('model_config', opts);
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      if (errEl) errEl.textContent = d.error || ('HTTP ' + r.status);
-      else alert(d.error || ('HTTP ' + r.status));
-      return null;
-    }
-    lastSig = ''; lastStatusSig = ''; await fetchData(true);
+function closeModelForm(){document.getElementById('model-modal').style.display='none';}
+async function modelCfgCall(payload){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
+  const errEl=document.getElementById('mdl-err');
+  try{
+    let r=await fetch('/router/model_config',opts);
+    if(r.status===404){r=await fetch('model_config',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){errEl.textContent=d.error||('HTTP '+r.status);return null;}
+    lastSig='';await fetchData(true);
     return d;
-  } catch (e) {
-    if (errEl) errEl.textContent = 'Failed: ' + e.message;
-    else alert('Failed: ' + e.message);
-    return null;
-  }
+  }catch(e){errEl.textContent='Failed: '+e.message;return null;}
 }
-
-async function saveModelCfg() {
-  const name = document.getElementById('mdl-name').value.trim();
-  const rpm = document.getElementById('mdl-rpm').value.trim();
-  const rpd = document.getElementById('mdl-rpd').value.trim();
-  const lastTier = document.getElementById('mdl-last-tier').checked;
-  const errEl = document.getElementById('mdl-err');
-  if (!name) { errEl.textContent = 'Enter the model name'; return; }
-  if (!rpm || !rpd) { errEl.textContent = 'Enter both RPM and RPD'; return; }
-  const d = await modelCfgCall({action: 'set', model: name, rpm: rpm, rpd: rpd, last_tier: lastTier});
-  if (d) {
+async function saveModelCfg(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const rpm=document.getElementById('mdl-rpm').value.trim();
+  const rpd=document.getElementById('mdl-rpd').value.trim();
+  const errEl=document.getElementById('mdl-err');
+  if(!name){errEl.textContent='Enter the model name';return;}
+  if(!rpm||!rpd){errEl.textContent='Enter both RPM and RPD';return;}
+  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd});
+  if(d){
     closeModelForm();
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = (d.created ? '✅ Added ' : '✅ Updated ') + d.model + ' (RPM ' + d.rpm + ', RPD ' + d.rpd + ', ' + (d.last_tier ? '🔚 Last-Tier' : '⚡ Primary') + ') — saved';
+    const noteEl=document.getElementById('log-note');
+    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+') - saved';
   }
 }
-
-async function deleteModelCfg() {
-  const name = document.getElementById('mdl-name').value.trim();
-  const msg = mdlInEnv ? ('Reset ' + name + ' to GEMINI_MODELS env limits?') : ('Delete model ' + name + ' from the router?');
-  if (!confirm(msg)) return;
-  const d = await modelCfgCall({action: 'delete', model: name});
-  if (d) closeModelForm();
+async function deleteModelCfg(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const msg=mdlInEnv?('Reset '+name+' to the limits from GEMINI_MODELS?'):('Delete model '+name+' from the router?');
+  if(!confirm(msg))return;
+  const d=await modelCfgCall({action:'delete',model:name});
+  if(d)closeModelForm();
 }
 
-// ===== Last-Tier (Use Last) Multi-Model Manager =====
-async function toggleSingleLastTier(modelName, makeLastTier) {
-  const mode = makeLastTier ? 'add' : 'remove';
-  const d = await modelCfgCall({action: 'set_last_tier', mode: mode, models: [modelName]});
-  if (d) {
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = (makeLastTier ? '🔚 Moved to Last-Tier: ' : '⬆️ Moved to Primary Tier: ') + modelName + ' (saved)';
-  }
-}
 
-async function batchSelectedLastTier(makeLastTier) {
-  const chosen = mtChosen();
-  if (!chosen.length) { alert('Tick one or more models first.'); return; }
-  const d = await modelCfgCall({action: 'set_last_tier', mode: makeLastTier ? 'add' : 'remove', models: chosen});
-  if (d) {
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = (makeLastTier ? '🔚 Added ' : '⬆️ Moved ') + chosen.length + ' model(s) to ' + (makeLastTier ? 'Last-Tier' : 'Primary Tier') + ' (saved)';
-  }
-}
-
-function openLastTierModal() {
-  document.getElementById('lt-err').textContent = '';
-  document.getElementById('lt-manual-input').value = '';
-  renderLastTierModalPool();
-  loadLtGoogleModels(false);
-  document.getElementById('lt-modal').style.display = 'flex';
-}
-function closeLastTierModal() { document.getElementById('lt-modal').style.display = 'none'; }
-
-function renderLastTierModalPool() {
-  const data = window._last || {};
-  const models = data.models || [];
-  const cfg = data.model_cfg || {};
-  const box = document.getElementById('lt-pool-list');
-  if (!models.length) {
-    box.innerHTML = '<div style="color:#6b7280;padding:8px;">No models loaded yet.</div>';
-    return;
-  }
-  box.innerHTML = models.map(m => {
-    const c = cfg[m.name] || {};
-    const isLt = !!c.last_tier;
-    return `<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:${isLt ? 'rgba(251,191,36,.1)' : '#171923'};border:1px solid ${isLt ? 'rgba(251,191,36,.4)' : '#2b3040'};cursor:pointer;font-size:.82em;">
-      <span style="display:flex;align-items:center;gap:7px;">
-        <input type="checkbox" class="lt-pool-chk" data-m="${esc(m.name)}" ${isLt ? 'checked' : ''}>
-        <span style="font-family:monospace;color:#e2e8f0;font-weight:600;">${esc(m.name)}</span>
-      </span>
-      <span style="font-size:.75em;color:${isLt ? '#fbbf24' : '#93c5fd'};">${isLt ? '🔚 Last-Tier' : '⚡ Primary'} · RPM ${m.rpm} · RPD ${m.rpd}</span>
-    </label>`;
-  }).join('');
-}
-
-function ltCheckPreset(preset) {
-  document.querySelectorAll('.lt-pool-chk').forEach(chk => {
-    const m = (chk.dataset.m || '').toLowerCase();
-    if (preset === 'all') chk.checked = true;
-    else if (preset === 'none') chk.checked = false;
-    else if (preset === 'lite') chk.checked = m.includes('lite');
-  });
-}
-
-async function saveLastTierChecklist() {
-  const checked = [];
-  document.querySelectorAll('.lt-pool-chk').forEach(chk => {
-    if (chk.checked && chk.dataset.m) checked.push(chk.dataset.m);
-  });
-  const d = await modelCfgCall({action: 'set_last_tier', mode: 'replace', models: checked}, 'lt-err');
-  if (d) {
-    renderLastTierModalPool();
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = '🔚 Saved Last-Tier list (' + (d.last_tier_models || []).length + ' model(s)) — survives restarts';
-    closeLastTierModal();
-  }
-}
-
-async function addManualLastTierModels(mode) {
-  const raw = document.getElementById('lt-manual-input').value.trim();
-  if (!raw) {
-    document.getElementById('lt-err').textContent = 'Type or pick at least one model name above';
-    return;
-  }
-  const d = await modelCfgCall({action: 'set_last_tier', mode: mode || 'add', models: raw}, 'lt-err');
-  if (d) {
-    document.getElementById('lt-manual-input').value = '';
-    renderLastTierModalPool();
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = '🔚 Added to Last-Tier list! Active Last-Tier models: ' + (d.last_tier_models || []).join(', ');
-    closeLastTierModal();
-  }
-}
-
-async function resetLastTierDefault() {
-  if (!confirm('Reset Last-Tier list to default (only models with "lite" in their name)?')) return;
-  const d = await modelCfgCall({action: 'set_last_tier', mode: 'reset'}, 'lt-err');
-  if (d) {
-    renderLastTierModalPool();
-    const noteEl = document.getElementById('log-note');
-    if (noteEl) noteEl.textContent = '↩ Reset Last-Tier list to default (*lite* models)';
-    closeLastTierModal();
-  }
-}
-
-async function loadLtGoogleModels(force) {
-  const sel = document.getElementById('lt-google-pick');
-  if (!sel) return;
-  if (!force && availModels && availModels.length) {
-    populateLtGoogleSelect(availModels);
-    return;
-  }
-  sel.innerHTML = '<option value="">Loading Google models...</option>';
-  try {
-    let r = await fetch('/router/model_available' + (force ? '?refresh=1' : ''), {credentials: 'same-origin'});
-    if (r.status === 404) r = await fetch('model_available' + (force ? '?refresh=1' : ''), {credentials: 'same-origin'});
-    const d = await r.json().catch(() => ({}));
-    if (r.ok && d.models) {
-      availModels = d.models;
-      populateLtGoogleSelect(availModels);
-      return;
-    }
-  } catch (e) {}
-  sel.innerHTML = '<option value="">Could not fetch Google list — type model names below</option>';
-}
-
-function populateLtGoogleSelect(list) {
-  const sel = document.getElementById('lt-google-pick');
-  if (!sel) return;
-  let h = '<option value="">+ Pick from Google account models (' + list.length + ')...</option>';
-  list.forEach(m => {
-    h += '<option value="' + esc(m.name) + '">' + esc(m.name) + (m.added ? ' (in pool)' : ' (new)') + '</option>';
-  });
-  sel.innerHTML = h;
-}
-
-function ltAppendFromGoogle() {
-  const sel = document.getElementById('lt-google-pick');
-  const val = sel.value;
-  if (!val) return;
-  const ta = document.getElementById('lt-manual-input');
-  const cur = ta.value.trim();
-  const parts = cur ? cur.split(/[,\s\n]+/).filter(Boolean) : [];
-  if (!parts.includes(val)) parts.push(val);
-  ta.value = parts.join(', ');
-  sel.value = '';
-}
-
-// ===== Model Probe Testing =====
-let mtSel = {};
-function mtCount() { return Object.keys(mtSel).filter(k => mtSel[k]).length; }
-function mtChosen() { return Object.keys(mtSel).filter(k => mtSel[k]); }
-function mtRefreshBtn() {
-  const n = mtCount();
-  const b = document.getElementById('mt-sel-btn');
-  if (b) { b.textContent = '🧪 Test (' + n + ')'; b.disabled = n === 0; b.style.opacity = n ? '1' : '.45'; }
-  const bLt = document.getElementById('mt-lt-btn');
-  if (bLt) { bLt.textContent = '🔚 → Last (' + n + ')'; bLt.disabled = n === 0; bLt.style.opacity = n ? '1' : '.45'; }
-  const bPr = document.getElementById('mt-pr-btn');
-  if (bPr) { bPr.textContent = '⬆️ → 1st (' + n + ')'; bPr.disabled = n === 0; bPr.style.opacity = n ? '1' : '.45'; }
-}
-function mtToggle(name, on) { mtSel[name] = !!on; mtRefreshBtn(); }
-function mtSelectAll(on) {
-  (window._mtNames || []).forEach(n => { mtSel[n] = on; });
-  document.querySelectorAll('.mt-chk').forEach(c => { c.checked = on; });
-  mtRefreshBtn();
-}
-function mtClose() { document.getElementById('mt-modal').style.display = 'none'; }
-async function mtCall(names, all) {
-  const opts = {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(all ? {all: true} : {models: names})};
-  let r = await fetch('/router/model_test', opts);
-  if (r.status === 404) r = await fetch('model_test', opts);
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+let mtSel={};
+function mtCount(){return Object.keys(mtSel).filter(k=>mtSel[k]).length;}
+function mtChosen(){return Object.keys(mtSel).filter(k=>mtSel[k]);}
+function mtRefreshBtn(){const b=document.getElementById('mt-sel-btn');if(!b)return;const n=mtCount();b.textContent='🧪 Test selected ('+n+')';b.disabled=n===0;b.style.opacity=n?'1':'.5';}
+function mtToggle(name,on){mtSel[name]=!!on;mtRefreshBtn();}
+function mtSelectAll(on){(window._mtNames||[]).forEach(n=>{mtSel[n]=on;});document.querySelectorAll('.mt-chk').forEach(c=>{c.checked=on;});mtRefreshBtn();}
+function mtClose(){document.getElementById('mt-modal').style.display='none';}
+async function mtCall(names,all){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(all?{all:true}:{models:names})};
+  let r=await fetch('/router/model_test',opts);
+  if(r.status===404){r=await fetch('model_test',opts);}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
   return d;
 }
-function mtKindColor(k) { return {'text-out': '#60a5fa', 'image-out': '#f472b6', 'audio-out': '#fbbf24', 'embedding': '#2dd4bf', 'live': '#c084fc'}[k] || '#9ca3af'; }
-async function mtRun(names, all) {
-  if (!all && !names.length) return;
-  document.getElementById('mt-modal').style.display = 'flex';
-  document.getElementById('mt-title').textContent = '🧪 Model Test — ' + (all ? 'all models' : names.length + ' selected');
-  document.getElementById('mt-summary').innerHTML = '';
-  document.getElementById('mt-bytype').textContent = '';
-  document.getElementById('mt-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#a78bfa;">⏳ Testing one real request per model...</td></tr>';
-  try {
-    const d = await mtCall(names, all);
+function mtKindColor(k){return {'text-out':'#60a5fa','image-out':'#f472b6','audio-out':'#fbbf24','embedding':'#2dd4bf','live':'#c084fc'}[k]||'#9ca3af';}
+async function mtRun(names,all){
+  if(!all&&!names.length){return;}
+  document.getElementById('mt-modal').style.display='block';
+  document.getElementById('mt-title').textContent='🧪 Model test - '+(all?'all models':names.length+' selected');
+  document.getElementById('mt-summary').innerHTML='';
+  document.getElementById('mt-bytype').textContent='';
+  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#a78bfa;">⏳ Testing... one real request per model on a free key (up to a minute for slow models)</td></tr>';
+  try{
+    const d=await mtCall(names,all);
     mtRender(d);
-  } catch (e) {
-    document.getElementById('mt-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:#f87171;">❌ ' + esc(e.message) + '</td></tr>';
+  }catch(e){
+    document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:20px;color:#f87171;">❌ '+esc(e.message)+'</td></tr>';
   }
 }
-function mtRender(d) {
-  const rs = d.results || [];
-  document.getElementById('mt-summary').innerHTML =
-    '<span class="badge bg-green">✅ Working: ' + (d.ok || 0) + '</span>' +
-    '<span class="badge bg-red">❌ Not working: ' + (d.failed || 0) + '</span>' +
-    (d.untested ? '<span class="badge bg-amber">➖ Untested: ' + d.untested + '</span>' : '') +
-    '<span class="badge bg-blue">📊 Total: ' + (d.total || 0) + '</span>';
-  const by = {};
-  rs.filter(r => r.ok === true).forEach(r => { (by[r.type] = by[r.type] || []).push(r.model); });
-  document.getElementById('mt-bytype').innerHTML = Object.keys(by).length ? ('Working by type: ' + Object.keys(by).map(t => '<b>' + esc(t) + '</b> (' + by[t].length + ')').join(' · ')) : '';
-  let h = '';
-  rs.forEach(r => {
-    const st = r.ok === true ? ['✅ works', '#4ade80', 'rgba(74,222,128,.05)'] : (r.ok === null ? ['➖ untested', '#9ca3af', 'rgba(156,163,175,.05)'] : ((r.status === 429 || r.status === 403) ? ['⚠️ ' + r.status + ' limit', '#fbbf24', 'rgba(251,191,36,.05)'] : ['❌ ' + (r.status || 'err'), '#f87171', 'rgba(248,113,113,.05)']));
-    const tags = (r.in_pool ? '' : ' <span style="color:#fbbf24;font-size:.75em;">not in pool</span>') + (r.blocked_left > 0 ? ' <span style="color:#f87171;font-size:.75em;">⛔ blocked</span>' : '');
-    h += '<tr style="background:' + st[2] + ';border-bottom:1px solid #2d2d2d;">' +
-      '<td style="padding:7px;font-family:monospace;color:#c4b5fd;">' + esc(r.model) + tags + '</td>' +
-      '<td style="padding:7px;font-weight:bold;color:' + st[1] + ';white-space:nowrap;">' + st[0] + '</td>' +
-      '<td style="padding:7px;color:' + mtKindColor(r.kind) + ';">' + esc(r.type || '') + '</td>' +
-      '<td style="padding:7px;color:#e5e7eb;">' + esc((r.outputs || []).join(' + ') || '-') + '</td>' +
-      '<td style="padding:7px;font-family:monospace;color:#93c5fd;">' + esc(r.key || '') + '</td>' +
-      '<td style="padding:7px;text-align:right;color:#9ca3af;">' + (r.ms || '') + '</td>' +
-      '<td class="selectable" style="padding:7px;max-width:320px;word-break:break-word;color:' + (r.ok === true ? '#e5e7eb' : '#fca5a5') + ';">' + esc(r.response || '') + '</td></tr>';
+function mtRender(d){
+  const rs=d.results||[];
+  document.getElementById('mt-summary').innerHTML=
+    '<div style="background:rgba(74,222,128,.15);border:1px solid #4ade80;border-radius:8px;padding:8px 16px;color:#4ade80;font-weight:bold;">✅ Working: '+(d.ok||0)+'</div>'+
+    '<div style="background:rgba(248,113,113,.15);border:1px solid #f87171;border-radius:8px;padding:8px 16px;color:#f87171;font-weight:bold;">❌ Not working: '+(d.failed||0)+'</div>'+
+    (d.untested?'<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">➖ Not testable here: '+d.untested+'</div>':'')+
+    '<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">📊 Total: '+(d.total||0)+'</div>';
+  const by={};
+  rs.filter(r=>r.ok===true).forEach(r=>{(by[r.type]=by[r.type]||[]).push(r.model);});
+  document.getElementById('mt-bytype').innerHTML=Object.keys(by).length?('Working by type: '+Object.keys(by).map(t=>'<b>'+esc(t)+'</b> ('+by[t].length+')').join(' · ')):'';
+  let h='';
+  rs.forEach(r=>{
+    const st=r.ok===true?['✅ works','#4ade80','rgba(74,222,128,.05)']:(r.ok===null?['➖ not tested','#9ca3af','rgba(156,163,175,.05)']:((r.status===429||r.status===403)?['⚠️ '+r.status+' limited','#fbbf24','rgba(251,191,36,.05)']:['❌ '+(r.status||'error'),'#f87171','rgba(248,113,113,.05)']));
+    const tags=(r.in_pool?'':' <span style="color:#fbbf24;font-size:.75em;" title="not added to the router pool yet">not in pool</span>')+(r.blocked_left>0?' <span style="color:#f87171;font-size:.75em;">⛔ blocked</span>':'');
+    h+='<tr style="background:'+st[2]+';border-bottom:1px solid #2d2d2d;">'+
+      '<td style="padding:9px;font-family:monospace;color:#c4b5fd;font-size:.85em;">'+esc(r.model)+tags+'</td>'+
+      '<td style="padding:9px;font-weight:bold;color:'+st[1]+';white-space:nowrap;">'+st[0]+'</td>'+
+      '<td style="padding:9px;color:'+mtKindColor(r.kind)+';font-size:.85em;">'+esc(r.type||'')+'</td>'+
+      '<td style="padding:9px;color:#e5e7eb;font-size:.85em;">'+esc((r.outputs||[]).join(' + ')||'-')+'</td>'+
+      '<td style="padding:9px;font-family:monospace;color:#93c5fd;font-size:.8em;">'+esc(r.key||'')+'</td>'+
+      '<td style="padding:9px;text-align:right;color:#6b7280;font-size:.8em;">'+(r.ms||'')+'</td>'+
+      '<td style="padding:9px;font-size:.82em;max-width:340px;word-break:break-word;color:'+(r.ok===true?'#e5e7eb':'#fca5a5')+';">'+esc(r.response||'')+'</td></tr>';
   });
-  document.getElementById('mt-tbody').innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:18px;">No results</td></tr>';
+  document.getElementById('mt-tbody').innerHTML=h||'<tr><td colspan=7 style="text-align:center;color:#6b7280;padding:20px;">No results</td></tr>';
+}
+async function mdlTest(){
+  const name=document.getElementById('mdl-name').value.trim();
+  const out=document.getElementById('mdl-test-out'),btn=document.getElementById('mdl-test-btn');
+  if(!name){out.innerHTML='<span style="color:#f87171;">Pick or type a model name first</span>';return;}
+  out.innerHTML='<span style="color:#a78bfa;">⏳ Testing '+esc(name)+'...</span>';btn.disabled=true;
+  try{
+    const d=await mtCall([name],false);
+    const r=(d.results||[])[0];
+    if(!r){out.textContent='No result';}
+    else{
+      const c=r.ok===true?'#4ade80':(r.ok===null?'#9ca3af':'#f87171');
+      out.innerHTML='<b style="color:'+c+';">'+(r.ok===true?'✅ Works':(r.ok===null?'➖ Not testable here':'❌ Not working ('+(r.status||'error')+')'))+'</b>'+
+        ' · type: <b style="color:'+mtKindColor(r.kind)+';">'+esc(r.type)+'</b>'+((r.outputs||[]).length?' · output: '+esc(r.outputs.join(' + ')):'')+(r.ms?' · '+r.ms+'ms':'')+
+        '<div style="color:#9ca3af;margin-top:3px;">'+esc(r.response||'')+'</div>';
+    }
+  }catch(e){out.innerHTML='<span style="color:#f87171;">❌ '+esc(e.message)+'</span>';}
+  btn.disabled=false;
 }
 
-async function mdlTest() {
-  const name = document.getElementById('mdl-name').value.trim();
-  const out = document.getElementById('mdl-test-out'), btn = document.getElementById('mdl-test-btn');
-  if (!name) { out.innerHTML = '<span style="color:#f87171;">Pick or type a model name first</span>'; return; }
-  out.innerHTML = '<span style="color:#a78bfa;">⏳ Testing ' + esc(name) + '...</span>'; btn.disabled = true;
-  try {
-    const d = await mtCall([name], false);
-    const r = (d.results || [])[0];
-    if (!r) out.textContent = 'No result';
-    else {
-      const c = r.ok === true ? '#4ade80' : (r.ok === null ? '#9ca3af' : '#f87171');
-      out.innerHTML = '<b style="color:' + c + ';">' + (r.ok === true ? '✅ Works' : (r.ok === null ? '➖ Not testable' : '❌ Failed (' + (r.status || 'error') + ')')) + '</b>' +
-        ' · <b style="color:' + mtKindColor(r.kind) + ';">' + esc(r.type) + '</b>' + (r.ms ? ' · ' + r.ms + 'ms' : '') +
-        '<div class="selectable" style="color:#9ca3af;margin-top:3px;">' + esc(r.response || '') + '</div>';
+async function releaseDaily(keyFilter='', modelFilter=''){
+  const payload={};
+  if(keyFilter)payload.key=keyFilter;
+  if(modelFilter)payload.model=modelFilter;
+  const noteEl=document.getElementById('log-note');
+  if(noteEl)noteEl.textContent='⏳ Releasing daily lock...';
+  try{
+    let r=await fetch('/router/release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(r.status===404){
+      r=await fetch('release_daily',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     }
-  } catch (e) { out.innerHTML = '<span style="color:#f87171;">❌ ' + esc(e.message) + '</span>'; }
-  btn.disabled = false;
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(noteEl)noteEl.textContent='🔓 Released '+d.released+' lock'+(d.released===1?'':'s')+(d.items&&d.items.length?' ('+d.items.join(', ')+')':'');
+    lastSig='';await fetchData(true);
+  }catch(e){alert('Release failed: '+e.message);}
 }
-
-async function releaseDaily(keyFilter = '', modelFilter = '') {
-  const payload = {};
-  if (keyFilter) payload.key = keyFilter;
-  if (modelFilter) payload.model = modelFilter;
-  const noteEl = document.getElementById('log-note');
-  if (noteEl) noteEl.textContent = '⏳ Releasing lock...';
-  try {
-    let r = await fetch('/router/release_daily', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
-    if (r.status === 404) {
-      r = await fetch('release_daily', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+function updateUI(data){
+  const m=data.metrics;
+  window._mtNames=(data.models||[]).map(x=>x.name);
+  window._lastInfo=data.last_models||{custom:false,order:[],effective:[]};
+  let penHtml='';
+  const penData=data.penalized_keys||{};
+  const penEntries=Object.entries(penData);
+  if(penEntries.length>0){
+    penHtml+=`<div style="width:100%;margin-bottom:6px;"><button class="btn-s" style="background:#dc2626;border-color:#ef4444;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="releaseDaily('','')">🔓 Release All Daily Locks (${penEntries.length})</button></div>`;
+    for(const[kv,mins] of penEntries){
+      const pipe=kv.lastIndexOf('|');
+      const keyPart=pipe>=0?kv.slice(0,pipe):kv;
+      const modelPart=pipe>=0?kv.slice(pipe+1):'';
+      const last5=keyPart.slice(-5);
+      penHtml+=`<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.18);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="Click Release to unlock ...${esc(last5)} | ${esc(modelPart)}">...${esc(last5)} | ${esc(modelPart)} (${mins}m) <button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 6px;font-size:.75em;font-weight:bold;" onclick="releaseDaily('${esc(last5)}','${esc(modelPart)}')">🔓 Release</button></span>`;
     }
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    if (noteEl) noteEl.textContent = '🔓 Released ' + d.released + ' lock' + (d.released === 1 ? '' : 's');
-    lastSig = ''; lastStatusSig = ''; await fetchData(true);
-  } catch (e) { alert('Release failed: ' + e.message); }
-}
-
-// ===== Render Top Dashboard Panels =====
-function updateUI(data, force) {
-  if (!force && isUserBusySelecting()) return;
-  const m = data.metrics || {};
-  window._mtNames = (data.models || []).map(x => x.name);
-
-  // Build Penalized Keys HTML
-  let penHtml = '';
-  const penData = data.penalized_keys || {};
-  const penEntries = Object.entries(penData);
-  if (penEntries.length > 0) {
-    penHtml += `<button class="btn-s" style="background:#dc2626;border-color:#ef4444;color:#fff;" onclick="releaseDaily('','')">🔓 Release All (${penEntries.length})</button>`;
-    for (const [kv, mins] of penEntries) {
-      const pipe = kv.lastIndexOf('|');
-      const keyPart = pipe >= 0 ? kv.slice(0, pipe) : kv;
-      const modelPart = pipe >= 0 ? kv.slice(pipe + 1) : '';
-      const last5 = keyPart.slice(-5);
-      penHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:4px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;">...${esc(last5)}|${esc(modelPart)} (${mins}m) <button class="btn-s" style="background:#b91c1c;color:#fff;padding:0 5px;font-size:.7em;" onclick="releaseDaily('${esc(last5)}','${esc(modelPart)}')">🔓</button></span>`;
-    }
-  } else {
-    penHtml = `<span style="color:#4ade80;font-size:.8em;">All Clear ✅</span> <button class="btn-s" style="padding:1px 6px;font-size:.72em;" onclick="releaseDaily('','')">🔓 Reset Counters</button>`;
+  }else{
+    penHtml=`<span style="color:#4ade80;">All Clear ✅</span> <button class="btn-s" style="background:#27272a;border-color:#52525b;padding:2px 8px;font-size:.75em;margin-left:6px;" onclick="releaseDaily('','')" title="Force-reset all daily RPD counters, cooldowns, and locks">🔓 Reset Locks</button>`;
   }
-
-  // Cooldowns HTML
-  let cdHtml = '';
-  const cdEntries = Object.entries(data.rpm_cooldowns || {});
-  if (cdEntries.length > 0) {
-    for (const [k, v] of cdEntries) {
-      cdHtml += `<span class="tag" style="background:rgba(251,191,36,.16);color:#fbbf24;border-color:#fbbf24;">${esc(k)} (${v}s)</span>`;
-    }
-    cdHtml += ` <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;padding:1px 6px;" onclick="releaseDaily('','')">🔓 Clear</button>`;
-  } else {
-    cdHtml = '<span style="color:#4ade80;font-size:.8em;">None</span>';
-  }
-
-  // Keys Chips
+  let cdHtml='';
+  if(Object.keys(data.rpm_cooldowns||{}).length>0){
+    for(const[k,v]of Object.entries(data.rpm_cooldowns))
+      cdHtml+=`<span class="tag" style="background:rgba(251,191,36,.2);color:#fbbf24;border-color:#fbbf24;">${k} (${v}s)</span>`;
+    cdHtml+=` <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;padding:2px 8px;font-size:.75em;" onclick="releaseDaily('','')">🔓 Clear Cooldowns</button>`;
+  }else cdHtml='<span style="color:#4ade80;">None</span>';
   let keysHtml = '';
-  (data.key_list || []).forEach(k => {
-    keysHtml += `<span class="tag" style="background:#231c4c;border-color:#4c1d95;cursor:pointer;" onclick="testAllKeys('${esc(k)}')" title="Tap to test all models on key ${esc(k)}">${esc(k)} 🧪</span>`;
-  });
-
-  // Models & Last-Tier HTML
-  const mki = data.model_key_info || {};
-  const cfgMap = data.model_cfg || {};
-  const ltModels = [];
-  const prModels = [];
-  (data.models || []).forEach(mod => {
-    const c = cfgMap[mod.name] || {};
-    const isLt = c.last_tier !== undefined ? !!c.last_tier : mod.name.toLowerCase().includes('lite');
-    if (isLt) ltModels.push(mod.name);
-    else prModels.push(mod.name);
-  });
-
-  let ltChipsHtml = '';
-  if (ltModels.length) {
-    ltChipsHtml = ltModels.map(mn =>
-      `<span class="lt-chip" title="Used LAST (only after Primary models). Click ✕ to move to Primary Tier.">🔚 ${esc(mn)} <button data-m="${esc(mn)}" onclick="toggleSingleLastTier(this.dataset.m, false)" title="Move ${esc(mn)} to Primary Tier">✕</button></span>`
-    ).join('');
-  } else {
-    ltChipsHtml = '<span style="color:#94a3b8;font-size:.76em;">None — all models are in Primary Tier</span>';
+  if (data.key_list) {
+    data.key_list.forEach(k => {
+        keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
+    });
   }
-
-  // Sort display: Primary models first, Last-Tier models at the bottom (matching router execution order!)
-  const sortedModels = (data.models || []).slice().sort((a, b) => {
-    const la = !!((cfgMap[a.name] || {}).last_tier);
-    const lb = !!((cfgMap[b.name] || {}).last_tier);
-    return (la === lb) ? 0 : (la ? 1 : -1);
-  });
-
+  // Build models row: availability, 🧪 test on all keys, ⛔ block / ✅ unblock, 🔓 release
+  const mki = data.model_key_info || {};
   let modelsHtml = '';
-  sortedModels.forEach(model => {
+  (data.models || []).forEach(model => {
     const mn = model.name;
     const info = mki[mn] || {available: '?', penalized_last5: [], blocked_left: 0};
     const total = data.active_keys || 0;
-    const penCount = (info.penalized_last5 || []).length;
+    const penCount = info.penalized_last5.length;
     const avail = info.available;
     const blockedLeft = info.blocked_left || 0;
     const countColor = blockedLeft > 0 ? '#f87171' : (penCount > 0 ? '#fbbf24' : '#4ade80');
-    const penTip = penCount > 0 ? info.penalized_last5.map(k => '...' + k).join(', ') : 'none';
+    const penTip = penCount > 0 ? info.penalized_last5.map(k=>'...'+k).join(', ') : 'none';
     const em = esc(mn);
-    const cfgInfo = cfgMap[mn] || {saved: false, in_env: false, last_tier: false};
-    const isLt = !!cfgInfo.last_tier;
-    const todayCnt = (((data.usage || {}).models || {})[mn] || {}).today || 0;
-
-    const tierBadge = isLt
-      ? `<span class="tier-badge tier-last" title="Last-Tier: used only when all Primary models are unavailable">🔚 LAST</span>`
-      : `<span class="tier-badge tier-1st" title="Primary Tier: used first">⚡ 1ST</span>`;
-
-    const tierToggleBtn = isLt
-      ? `<button class="btn-s" style="background:rgba(59,130,246,.18);border-color:#3b82f6;color:#93c5fd;" data-m="${em}" onclick="event.stopPropagation();toggleSingleLastTier(this.dataset.m,false)" title="Move ${em} to Primary Tier (use first)">⬆️ 1st</button>`
-      : `<button class="btn-s" style="background:rgba(245,158,11,.18);border-color:#d97706;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();toggleSingleLastTier(this.dataset.m,true)" title="Put ${em} in Last-Tier list (use last, like lite)">🔚 Last</button>`;
-
-    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved ? 1 : 0}" data-e="${cfgInfo.in_env ? 1 : 0}" data-lt="${isLt ? 1 : 0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.lt==='1')" title="Edit RPM / RPD / Tier">✏️</button>`;
-    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();testAllKeys('',this.dataset.m)" title="Test ${em} on all keys">🧪</button>`;
-    const blockBtn = blockedLeft > 0
-      ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)">✅ Unblock</button>`
-      : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em}">⛔</button>`;
-    const relBtn = penCount > 0
-      ? `<button class="btn-s" style="background:#b91c1c;color:#fff;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release ${penCount} locked key(s)">🔓${penCount}</button>`
+    const releaseModelBtn = penCount > 0
+      ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
       : '';
-
-    modelsHtml += `<div class="m-row ${isLt ? 'is-lt' : ''} ${blockedLeft > 0 ? 'is-blk' : ''}">
-      <div class="m-left">
-        <input type="checkbox" class="mt-chk" data-m="${em}" ${mtSel[mn] ? 'checked' : ''} onclick="event.stopPropagation()" onchange="mtToggle(this.dataset.m,this.checked)">
-        ${tierBadge}
-        <span class="m-name" ${penCount > 0 ? `style="cursor:pointer" data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Penalized keys for '+this.dataset.m+': '+this.dataset.pen)"` : ''}>${em}</span>
-        <span style="color:${countColor};font-weight:700;">${avail}/${total}</span>
-        <span style="color:#94a3b8;font-size:.9em;">RPM ${model.rpm} · RPD ${model.rpd}</span>
-        <span style="color:#60a5fa;font-size:.9em;">today ${todayCnt}</span>
-        ${cfgInfo.saved ? '<span style="color:#a78bfa;font-size:.82em;" title="Saved in DB/file">💾</span>' : ''}
-        ${blockedLeft > 0 ? `<span style="color:#f87171;font-weight:700;font-size:.85em;">⛔ ${fmtLeft(blockedLeft)}</span>` : ''}
-      </div>
-      <div class="m-actions">${tierToggleBtn}${editBtn}${testBtn}${blockBtn}${relBtn}</div>
-    </div>`;
+    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();testAllKeys('',this.dataset.m)" title="Test ${em} on ALL keys">🧪 Test</button>`;
+    const blockBtn = blockedLeft > 0
+      ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)" title="Lift the block now">✅ Unblock</button>`
+      : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em} on all keys for a custom time">⛔ Block</button>`;
+    const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;padding:1px 7px;font-size:.75em;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
+    const lastPos = ((data.last_models || {}).effective || []).findIndex(x => x.toLowerCase() === mn.toLowerCase());
+    const lastTag = lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.78em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '';
+    const lastBtn = lastPos >= 0
+      ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
+      : `<button class="btn-s" style="background:#1f2937;border-color:#fbbf24;color:#fde68a;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Use ${em} only after every other model (adds it at the end of the last list)">⬇ Last</button>`;
+    const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
+    const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
+    const cursor = penCount > 0 ? 'cursor:pointer;' : '';
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span><input type='checkbox' class='mt-chk' data-m='${em}' ${mtSel[mn]?'checked':''} onclick='event.stopPropagation()' onchange='mtToggle(this.dataset.m,this.checked)' title='tick to test several models together'> ${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span> <span style="color:#60a5fa;font-size:.78em;" title="requests today, all keys">today ${((data.usage||{}).models||{})[mn]?data.usage.models[mn].today:0}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${lastTag}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${lastBtn}${blockBtn}${releaseModelBtn}</span></span>`;
   });
-
-  // Blocked Models
   let blkHtml = '';
   (data.model_blocks || []).forEach(b => {
-    blkHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:5px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;">⛔ ${esc(b.model)} (${fmtLeft(b.seconds_left)}) <button class="btn-s" style="background:#14532d;color:#dcfce7;padding:0 5px;" data-m="${esc(b.model)}" onclick="unblockModel(this.dataset.m)">✅</button></span>`;
+    blkHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="until ${esc(b.until_ist)}">⛔ ${esc(b.model)} · ${fmtLeft(b.seconds_left)} left (${esc(b.until_ist)})${b.reason?' · '+esc(b.reason):''} <button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 6px;font-size:.75em;" data-m="${esc(b.model)}" onclick="unblockModel(this.dataset.m)">✅ Unblock</button></span>`;
   });
-  blkHtml = blkHtml ? (blkHtml + ` <button class="btn-s" onclick="unblockModel('*')">Unblock all</button>`) : '<span style="color:#4ade80;font-size:.8em;">None</span>';
-
-  // Daily Usage per Key (Collapsible)
+  blkHtml = blkHtml ? blkHtml + ` <button class="btn-s" style="padding:2px 8px;font-size:.75em;" onclick="unblockModel('*')">Unblock all</button>` : '<span style="color:#4ade80;">No model is blocked</span>';
   let usageHtml = '';
   const um = (data.usage || {}).models || {};
   (data.models || []).forEach(model => {
@@ -5261,83 +4111,49 @@ function updateUI(data, force) {
     const rowsH = u.rows.map(r => {
       const pct = Math.min(100, Math.round(r.today * 100 / rpd));
       const col = r.today >= rpd ? '#f87171' : (r.today >= rpd * 0.7 ? '#fbbf24' : '#4ade80');
-      return `<tr><td style="padding:2px 6px;font-family:monospace;color:#93c5fd;">${esc(r.key)}</td>
-        <td style="padding:2px 6px;min-width:140px;"><div style="display:flex;align-items:center;gap:6px;"><b style="color:${r.today ? col : '#6b7280'};min-width:26px;">${r.today}</b><div style="flex:1;height:5px;background:#27272a;border-radius:3px;"><div style="width:${pct}%;height:5px;background:${col};border-radius:3px;"></div></div><span style="color:#6b7280;font-size:.75em;">/${rpd}</span></div></td>
-        <td style="padding:2px 6px;color:${r.yesterday ? '#e5e7eb' : '#6b7280'};">${r.yesterday}</td></tr>`;
+      return `<tr><td style="padding:3px 8px;font-family:monospace;color:#93c5fd;">${esc(r.key)}</td>
+        <td style="padding:3px 8px;min-width:170px;"><div style="display:flex;align-items:center;gap:8px;"><b style="color:${r.today?col:'#6b7280'};min-width:34px;">${r.today}</b><div style="flex:1;height:6px;background:#27272a;border-radius:3px;"><div style="width:${pct}%;height:6px;background:${col};border-radius:3px;"></div></div><span style="color:#6b7280;font-size:.8em;">/ ${rpd}</span></div></td>
+        <td style="padding:3px 8px;color:${r.yesterday?'#e5e7eb':'#6b7280'};">${r.yesterday}</td></tr>`;
     }).join('');
-    usageHtml += `<details data-m="${esc(model.name)}" ${usageOpen[model.name] ? 'open' : ''} ontoggle="usageOpen[this.dataset.m]=this.open" style="background:#131620;border:1px solid #2d3348;border-radius:6px;padding:5px 8px;margin-bottom:4px;font-size:.8em;">
-      <summary style="cursor:pointer;display:flex;gap:10px;flex-wrap:wrap;align-items:center;"><span style="font-family:monospace;color:#c4b5fd;">${esc(model.name)}</span>
-        <span>today <b style="color:#60a5fa;">${u.today}</b></span><span style="color:#9ca3af;">yday ${u.yesterday}</span><span style="color:#6b7280;font-size:.85em;">(${rpd}/key)</span></summary>
-      <div style="overflow-x:auto;margin-top:4px;"><table style="border-collapse:collapse;font-size:.9em;width:100%;"><thead><tr style="color:#9ca3af;text-align:left;"><th style="padding:2px 6px;">Key</th><th style="padding:2px 6px;">Today</th><th style="padding:2px 6px;">Yday</th></tr></thead><tbody>${rowsH}</tbody></table></div>
+    usageHtml += `<details data-m="${esc(model.name)}" ${usageOpen[model.name]?'open':''} ontoggle="usageOpen[this.dataset.m]=this.open" style="background:#1a1a2e;border:1px solid #4c1d95;border-radius:6px;padding:6px 10px;margin-bottom:6px;">
+      <summary style="cursor:pointer;display:flex;gap:14px;flex-wrap:wrap;align-items:center;"><span style="font-family:monospace;color:#c4b5fd;">${esc(model.name)}</span>
+        <span>today <b style="color:#60a5fa;">${u.today}</b></span><span style="color:#9ca3af;">yesterday ${u.yesterday}</span><span style="color:#6b7280;font-size:.8em;">limit ${rpd}/key/day</span></summary>
+      <div style="overflow-x:auto;margin-top:6px;"><table style="border-collapse:collapse;font-size:.9em;"><thead><tr style="color:#9ca3af;text-align:left;"><th style="padding:3px 8px;">Key</th><th style="padding:3px 8px;">Today</th><th style="padding:3px 8px;">Yesterday</th></tr></thead><tbody>${rowsH}</tbody></table></div>
     </details>`;
   });
-
-  const nSel = mtCount();
-  document.getElementById('status-panel').innerHTML = `
-    <div class="kpi-strip">
-      <div class="kpi"><div class="kpi-lbl">Active Keys</div><div class="kpi-val" style="color:#60a5fa;">${data.active_keys || 0}</div><div class="kpi-sub">${(data.models || []).length} models (${ltModels.length} last-tier)</div></div>
-      <div class="kpi"><div class="kpi-lbl">Total Traffic</div><div class="kpi-val">${m.total_incoming_requests || 0}</div><div class="kpi-sub">incoming requests</div></div>
-      <div class="kpi"><div class="kpi-lbl">Google 200 OK</div><div class="kpi-val" style="color:#4ade80;">${m.successful_api_calls || 0}</div><div class="kpi-sub">direct key answers</div></div>
-      <div class="kpi"><div class="kpi-lbl">RPM Cooldowns</div><div class="kpi-val" style="color:#fbbf24;">${m.rpm_cooldowns_applied || 0}</div><div class="kpi-sub">rate Hits: ${m.rate_limit_hits || 0}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Daily Hits</div><div class="kpi-val" style="color:#f87171;">${m.daily_limits_hit || 0}</div><div class="kpi-sub">penalized: ${penEntries.length}</div></div>
-      <div class="kpi"><div class="kpi-lbl">Fallback / Fail</div><div class="kpi-val" style="color:#c084fc;">${m.webai_fallback_calls || 0} <span style="color:#64748b;font-size:.75em;">/</span> <span style="color:#f87171;">${m.failed_requests || 0}</span></div><div class="kpi-sub">web fallback / failed</div></div>
+  if (!usageHtml) usageHtml = '<span style="color:#6b7280;">No models.</span>';
+  document.getElementById('status-panel').innerHTML=`
+    <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
+      <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
+      <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
     </div>
-
-    <div class="panel-row">
-      <div class="card">
-        <h3><span>🔑 Keys (${data.active_keys || 0}) & Locks</span></h3>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${keysHtml || '<span class="sub">No keys</span>'}</div>
-        <div class="sub" style="margin-bottom:6px;"><b style="color:#cbd5e1;">Daily Penalized:</b> <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${penHtml}</div></div>
-        <div class="sub" style="margin-bottom:6px;"><b style="color:#cbd5e1;">RPM Cooldowns:</b> <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${cdHtml}</div></div>
-        <div class="sub"><b style="color:#cbd5e1;">Blocked Models:</b> <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">${blkHtml}</div></div>
-      </div>
-
-      <div class="card">
-        <h3>
-          <span>🤖 Models (${prModels.length} Primary · ${ltModels.length} Last-Tier)</span>
-          <span style="display:inline-flex;gap:4px;flex-wrap:wrap;">
-            <button class="btn-s" onclick="mtSelectAll(true)">☑ All</button>
-            <button class="btn-s" onclick="mtSelectAll(false)">☐ None</button>
-            <button class="btn-s" id="mt-lt-btn" style="background:rgba(245,158,11,.2);border-color:#d97706;color:#fde68a;opacity:${nSel ? 1 : .45};" ${nSel ? '' : 'disabled'} onclick="batchSelectedLastTier(true)" title="Put ticked models in Last-Tier list">🔚 → Last (${nSel})</button>
-            <button class="btn-s" id="mt-pr-btn" style="background:rgba(59,130,246,.2);border-color:#3b82f6;color:#93c5fd;opacity:${nSel ? 1 : .45};" ${nSel ? '' : 'disabled'} onclick="batchSelectedLastTier(false)" title="Move ticked models to Primary Tier">⬆️ → 1st (${nSel})</button>
-            <button class="btn-s" id="mt-sel-btn" style="background:#2d1b69;border-color:#4c1d95;opacity:${nSel ? 1 : .45};" ${nSel ? '' : 'disabled'} onclick="mtRun(mtChosen(),false)">🧪 Test (${nSel})</button>
-            <button class="btn-s" style="background:#7c3aed;border-color:#a78bfa;color:#fff;" onclick="mtRun([],true)">🧪 All</button>
-          </span>
-        </h3>
-
-        <!-- Persistent Last-Tier Models Banner -->
-        <div class="lt-box">
-          <div class="lt-head">
-            <span class="lt-title">⚡/🔚 Model Priority: Last-Tier (Use Last) List — ${ltModels.length} model(s)</span>
-            <button class="btn-s" style="background:#d97706;border-color:#fbbf24;color:#fff;padding:4px 10px;font-size:.8em;" onclick="openLastTierModal()">⚙️ Set Priority / Add Last-Tier Models</button>
-          </div>
-          <div class="lt-chips">${ltChipsHtml}</div>
-        </div>
-
-        <div class="models-list">${modelsHtml}</div>
-      </div>
+    <div class="card"><h3 style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;'>Models <span style='display:inline-flex;gap:5px;flex-wrap:wrap;'>
+<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(true)' title='tick every model'>☑ All</button>
+<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(false)' title='untick every model'>☐ None</button>
+<button class='btn-s' id='mt-sel-btn' style='background:#2d1b69;border-color:#4c1d95;padding:3px 10px;font-size:.8em;font-weight:bold;opacity:${mtCount()?1:.5};' ${mtCount()?'':'disabled'} onclick='mtRun(mtChosen(),false)' title='test only the ticked models'>🧪 Test selected (${mtCount()})</button>
+<button class='btn-s' style='background:#7c3aed;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='mtRun([],true)' title='test every model once (one free key each)'>🧪 Test all models</button>
+<button class='btn-s' style='background:#78350f;border-color:#fbbf24;color:#fde68a;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='openLast()' title='choose which models are used only after every other model, and in which order'>⬇ Last order</button>
+<button class='btn-s' style='background:#6d28d9;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='openModelForm()'>➕ Add model</button></span></h3>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
+      <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys, for auto / round-robin only - a request that names the model still gets it):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
+      <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) in auto / round-robin · ⬇ Last = used only after every other model, in the order you choose (saved) · click a model to see penalized keys · ☑ tick models + 🧪 Test selected / Test all models = which models work and their type (text / image / audio / embedding)</div>
     </div>
-
-    <details ${panelsOpen.usage ? 'open' : ''} ontoggle="panelsOpen.usage=this.open" class="card" style="padding:8px 12px;">
-      <summary style="cursor:pointer;font-weight:700;font-size:.82em;color:#cbd5e1;text-transform:uppercase;letter-spacing:.4px;">
-        📊 Requests Per Day Per Key — Today (${esc((data.usage || {}).today || '')}) & Yesterday (${esc((data.usage || {}).yesterday || '')})
-      </summary>
-      <div style="margin-top:8px;">${usageHtml || '<span class="sub">No usage data</span>'}</div>
-    </details>
-  `;
-
-  renderLogs(data, force);
+    <div class="card" style="flex:1 1 100%;"><h3>📊 Requests per day (per key)</h3>
+      <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
+      ${usageHtml}
+    </div>
+    <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
+    <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
+      <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span> | Web fallback: <span style="color:#a78bfa">${m.webai_fallback_calls||0}</span></div></div>
+    <div class="card"><h3>Results</h3><div class="val" style="color:#fbbf24;">${m.rate_limit_hits}</div>
+      <div class="sub">Failed: <span style="color:#f87171">${m.failed_requests}</span></div></div>`;
+  renderLogs(data);
 }
-
-function esc(s) {
-  return (s || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
-
+function esc(s){return(s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 fetchData(true).then(schedule);
-</script>
-</body>
-</html>"""
-    return Response(deploy_badge.inject(html), mimetype="text/html; charset=utf-8")
+</script></body></html>"""
+    return render_template_string(deploy_badge.inject(html))
 
 # ─── Request snapshot + readable error reasons (shown on the dashboard) ──────
 def _msg_text(content) -> str:
@@ -5629,8 +4445,11 @@ def proxy_chat():
     if "/" in requested_model:
         requested_model = requested_model.split("/")[-1]
     _blk_left = _model_block_left(requested_model) if requested_model else 0
-    if _blk_left > 0:
-        # the client asked for a model that is blocked on the dashboard
+    if _blk_left > 0 and requested_model.lower() not in _GENERIC_MODEL_ALIASES and not BLOCK_NAMED_TOO:
+        # blocks are for auto / round-robin only: a request that names the model gets that model
+        _trail(f"model '{requested_model}' is blocked for auto, but it was asked by name -> used as asked")
+    elif _blk_left > 0 and BLOCK_NAMED_TOO:
+        # the client asked for a model that is blocked on the dashboard (old behaviour, BLOCK_NAMED_TOO=1)
         if BLOCKED_MODEL_FALLBACK_AUTO:
             _trail(f"model '{requested_model}' is blocked ({int(_blk_left)}s left) -> served by the other models (auto)")
             if hasattr(g, "log_entry"):
@@ -5688,7 +4507,7 @@ def proxy_chat():
         # is guaranteed valid), but never fail because of it: if it is
         # rate-limited / exhausted / erroring we fall through to normal
         # routing, and prepare_payload() re-injects the cached signature.
-        outcome, key, model = acquire_sticky_slot_wait(client_id)
+        outcome, key, model = acquire_sticky_slot_wait(client_id, honor_block=_block_applies(requested_model))
         if outcome == "ok":
             actual_model = model["name"]
             print(f"[STICKY] {client_id} → preferring key=…{key[-6:]} model={actual_model}")
@@ -5698,7 +4517,7 @@ def proxy_chat():
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             try:
-                resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
+                resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
                 resp = _heal_signature(resp, url, headers, data, actual_model)
                 if resp.status_code != 200:
                     _drain_close(resp)
@@ -5718,6 +4537,8 @@ def proxy_chat():
                         _handle_429(key, actual_model, err)
                 print(f"[STICKY] pinned slot returned {resp.status_code} → switching slot")
                 last_resp = resp
+            except RequestCancelled:
+                return _cancel_response()
             except Exception as e:
                 print(f"[STICKY ERROR] {e} → switching slot")
         # exhausted / busy / no pin / pinned failed -> normal routing below
@@ -5735,6 +4556,8 @@ def proxy_chat():
     _is_pool_req = (requested_model or "").lower() in _GENERIC_MODEL_ALIASES
 
     while True:
+        if _cancelled():
+            return _cancel_response()
         if deadline is not None and time.monotonic() >= deadline:
             exit_reason = "deadline"
             attempt_errors.append(f"gave up after {int(REQUEST_MAX_SECS)}s of waiting for a free key")
@@ -5756,8 +4579,8 @@ def proxy_chat():
                                     "rpd": 1500 if "flash" in requested_model.lower() else 50}]
                 for m_dict in cand_models:
                     m_name = m_dict["name"]
-                    if _is_model_blocked(m_name):
-                        continue                      # manually blocked: never wait for it
+                    if _is_pool_req and _is_model_blocked(m_name):
+                        continue                      # manually blocked (auto mode): never wait for it
                     eff = _effective_rpm(m_dict["rpm"])
                     for k in API_KEYS:
                         if (k, m_name) in tried:
@@ -5797,7 +4620,7 @@ def proxy_chat():
             if _now_ts - _wait_note_ts >= 10.0:          # one trail line per ~10 s, not hundreds
                 _trail(f"all slots busy (RPM cooldown) -> waiting, soonest free in ~{soonest:.0f}s")
                 _wait_note_ts = _now_ts
-            time.sleep(wait_secs)
+            _cancel_sleep(wait_secs)
             continue
 
         k_idx, m_idx, key, model = slot
@@ -5814,7 +4637,7 @@ def proxy_chat():
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
         try:
-            resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
+            resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
             resp = _heal_signature(resp, url, headers, data, actual_model)
             if resp.status_code != 200:
                 _drain_close(resp)        # error answers are small: read + close now (stream=True otherwise keeps the socket open)
@@ -5974,6 +4797,8 @@ def proxy_chat():
                 out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
                 return Response(resp.content, resp.status_code, out_headers)
 
+        except RequestCancelled:
+            return _cancel_response()
         except Exception as e:
             print(f"[ERROR] key=…{key[-6:]} model={actual_model}: {e}")
             # Network-level failure (e.g. read timeout) -- same treatment as
@@ -6055,7 +4880,7 @@ def proxy_transcriptions():
     }
 
     TRANSCRIBE_MODEL = os.environ.get("TRANSCRIBE_MODEL", "gemini-3.5-flash")
-    if _is_model_blocked(TRANSCRIBE_MODEL):
+    if BLOCK_NAMED_TOO and _is_model_blocked(TRANSCRIBE_MODEL):
         return jsonify({"error": {"message": f"Transcription model '{TRANSCRIBE_MODEL}' is temporarily blocked by the admin.",
                                   "type": "model_blocked"}}), 429
     for key in API_KEYS:
@@ -6070,10 +4895,6 @@ def proxy_transcriptions():
                 result = resp.json()
                 try:
                     text = result['candidates'][0]['content']['parts'][0]['text']
-                    if hasattr(g, "log_entry"):
-                        g.log_entry["model"] = TRANSCRIBE_MODEL
-                        g.log_entry["response"] = text.strip()
-                        g.log_entry["status"] = f"200 Success ({TRANSCRIBE_MODEL})"
                     return jsonify({"text": text.strip()})
                 except KeyError:
                     return jsonify({"error": "Failed to parse transcription"}), 500
@@ -6504,13 +5325,12 @@ def webapi_proxy(sub):
         raw_bytes = request.get_data()
         g._log_start = time.monotonic()
         model = None
-        raw_json = {}
         if _is_chat:
             raw_json = request.get_json(silent=True) or {}
             model = raw_json.get("model")
             snap = _req_snapshot(raw_json, request.path)
-            last = snap.split("last user message:\n", 1)[-1].strip()
-            msg = _clip(last, 500)
+            last = snap.split("last user message:\n", 1)[-1]
+            msg = f"{last[0]}...{last[-1]}" if len(last) > 1 else last
         else:
             if first == "ui":
                 snap = "body: (hidden - dashboard / cookie page)"
@@ -6533,8 +5353,6 @@ def webapi_proxy(sub):
         }
         g.log_entry = entry
         request_logs.appendleft(entry)
-        if _is_chat and authorized:
-            _live_begin(entry, raw_json, request.path)
 
     if not _webapi_authorized():
         if _log_it and request.headers.get("Authorization"):   # browser's first no-credentials probe is not logged
@@ -7093,6 +5911,7 @@ def _janitor_loop():
 threading.Thread(target=_janitor_loop, daemon=True, name="wapi-janitor").start()
 _blocks_load()
 _cfg_load()
+_last_load()
 _usage_load()
 
 

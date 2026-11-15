@@ -1,14 +1,6 @@
 #!/bin/bash
 # Starts Node (3000), wapi/gunicorn (8085) and nginx (8000) in one container.
 
-# Safeguard for mobile GitHub uploads (if smart_router.py was uploaded to root or renamed by Android)
-for _cand in "/usr/src/app/smart_router.py" "/usr/src/app/smart_router (1).py" "/usr/src/app/wapi/smart_router (1).py"; do
-  if [ -f "$_cand" ]; then
-    echo "==> Copying uploaded $_cand to /usr/src/app/wapi/smart_router.py"
-    cp -f "$_cand" /usr/src/app/wapi/smart_router.py
-  fi
-done
-
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
 echo "==> Patching nginx.conf & wapi/smart_router.py to eliminate Koyeb 100s 504 timeouts..."
