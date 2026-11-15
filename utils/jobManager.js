@@ -18,6 +18,22 @@ setInterval(() => {
     }
 }, 15000);
 
+// MEMORY: finished jobs (each holds its whole question list + SSE client set) used to stay in `jobs` / `ctl` for
+// the life of the process. A finished / stopped job nobody is watching is forgotten after JOB_KEEP_MS.
+const JOB_KEEP_MS = (parseInt(process.env.JOB_KEEP_MIN, 10) || 30) * 60 * 1000;
+setInterval(() => {
+    const now = Date.now();
+    for (const jobId of Object.keys(jobs)) {
+        const j = jobs[jobId];
+        if (!j || j.status === 'running' || j.status === 'pending') continue;
+        if (!j.finishedAt) { j.finishedAt = now; continue; }
+        if (now - j.finishedAt > JOB_KEEP_MS && (!j.clients || j.clients.size === 0)) {
+            delete jobs[jobId];
+            delete ctl[jobId];
+        }
+    }
+}, 5 * 60 * 1000).unref();
+
 function armStop(jobId) {
     const c = {};
     c.stopPromise = new Promise(res => { c.stopResolve = res; });
@@ -46,7 +62,7 @@ function addClientToJob(jobId, res) {
     res.write(`data: ${JSON.stringify({ type: 'init', state })}\n\n`);
 
     res.on('close', () => {
-        jobs[jobId].clients.delete(res);
+        if (jobs[jobId]) jobs[jobId].clients.delete(res);   // the job may already have been cleaned up
     });
     return true;
 }
@@ -65,6 +81,7 @@ async function processJob(jobId) {
     const job = jobs[jobId];
     if (!job) return;
     job.status = 'running';
+    job.finishedAt = null;
     broadcast(jobId, { type: 'status_update', status: job.status });
 
     while (true) {

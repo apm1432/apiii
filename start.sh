@@ -3,11 +3,6 @@
 
 export DEPLOYED_AT=$(date +%s)  # shown as the 'Deployed ... ago' badge on /logs and /api/web/v1/ui/*
 
-# WebAI-to-API (/api/web/v1) is OFF by default: each Gemini account runs its own heavy Python process (RAM -> OOM on small instances).
-# Set env WEBAI_ENABLED=1 in Koyeb to turn it back on. While off, the smart_router WebAI fallback is disabled too.
-WEBAI_ENABLED="${WEBAI_ENABLED:-0}"
-if [ "$WEBAI_ENABLED" != "1" ]; then export WEBAI_FALLBACK=0; fi
-
 echo "==> Patching nginx.conf & wapi/smart_router.py to eliminate Koyeb 100s 504 timeouts..."
 python3 - << 'PYEOF'
 from pathlib import Path
@@ -178,9 +173,7 @@ PY_PID=$!
 # wapi/webai_supervisor.py starts/stops the instances, saves auto-refreshed cookies back to the DB and restarts
 # a crashed one. Own restart loop and NOT part of `wait -n` below, so if it crashes it never takes the rest of
 # the container down.
-if [ "$WEBAI_ENABLED" != "1" ]; then
-  echo "==> WebAI pool DISABLED (WEBAI_ENABLED!=1) - /api/web/v1 off, WebAI fallback off, no extra RAM used"
-elif [ -x /opt/webai-venv/bin/python ]; then
+if [ -x /opt/webai-venv/bin/python ]; then
   echo "==> Starting WebAI pool supervisor (one WebAI-to-API per Gemini account)..."
   rm -f /tmp/webai-pool/stopping
   (cd /usr/src/app/wapi && while true; do
@@ -193,20 +186,11 @@ else
 fi
 
 echo "==> Waiting for apps to start..."
-# Port check in pure bash (/dev/tcp): node:20-slim has no `nc`, so the old `nc -z` loop never succeeded,
-# nginx (8000) never started and Koyeb's TCP health check failed. Gives up after 120 s and starts nginx anyway,
-# so port 8000 is always opened (a dead backend then returns 502 instead of failing the health check).
-wait_port() {  # $1 = port, $2 = name
-  local i=0
-  while ! (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null; do
-    i=$((i+1))
-    if [ "$i" -ge 600 ]; then echo "    WARNING: $2 not up on $1 after 120s - starting nginx anyway"; return 1; fi
-    sleep 0.2
-  done
-  echo "    $2 is up on $1"
-}
-wait_port 3000 "Node.js"
-wait_port 8085 "wapi"
+while ! nc -z 127.0.0.1 3000 2>/dev/null; do sleep 0.2; done
+echo "    Node.js is up on 3000"
+
+while ! nc -z 127.0.0.1 8085 2>/dev/null; do sleep 0.2; done
+echo "    wapi is up on 8085"
 
 echo "==> Starting nginx on port 8000..."
 exec nginx -g "daemon off;"

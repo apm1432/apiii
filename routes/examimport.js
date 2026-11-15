@@ -252,6 +252,10 @@ router.patch('/:id/question/:qnum', async (req, res) => {
 // Re-scan = the website's Fix AI (several AI calls + live web facts + an independent blind check), so it can take a few minutes.
 // It runs in the background; the screen asks /rescan-status until it is done.
 const rescans = new Map();   // "draftId:qnum" -> { state: 'running'|'done'|'error', message, at }
+setInterval(() => {      // MEMORY: finished results nobody polled for are dropped after 1 hour
+    const now = Date.now();
+    for (const [k, v] of rescans) if (v.state !== 'running' && now - v.at > 60 * 60 * 1000) rescans.delete(k);
+}, 30 * 60 * 1000).unref();
 router.post('/:id/question/:qnum/rescan', async (req, res) => {
     try {
         const d = await load(req, res); if (!d) return;

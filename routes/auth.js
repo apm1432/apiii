@@ -294,6 +294,10 @@ const recoverEmailLimiter = rateLimit({
     message: { success: false, message: 'खूप प्रयत्न झाले. कृपया नंतर प्रयत्न करा.' }
 });
 const recentRecoverMail = new Map(); // email -> last sent time (10 min cool-down)
+setInterval(() => {      // MEMORY: entries were never removed (anyone can submit new e-mails) -> drop the expired cool-downs
+    const now = Date.now();
+    for (const [k, t] of recentRecoverMail) if (now - t > 10 * 60 * 1000) recentRecoverMail.delete(k);
+}, 10 * 60 * 1000).unref();
 
 router.post('/recover/email', recoverEmailLimiter, async (req, res) => {
     try {

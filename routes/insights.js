@@ -96,6 +96,10 @@ async function loadStats(userId, scope) {
 // Every answer the student ever gave (AttemptLog). Answers saved BEFORE the log existed (they carry a date inside Progress)
 // are copied into it once, so the history is complete; answers that never had a date cannot be placed on a day.
 const backfillTried = new Map();
+setInterval(() => {      // MEMORY: one entry per student, never removed before -> drop the ones older than the 10 min window
+    const now = Date.now();
+    for (const [k, t] of backfillTried) if (now - t > 10 * 60000) backfillTried.delete(k);
+}, 10 * 60000).unref();
 async function loadActivity(userId, scope, answers, qmeta) {
     let rows = [];
     try { rows = await AttemptLog.find({ userId }).select('qid exam subject topic isCorrect src at').sort({ at: 1 }).limit(150000).lean(); } catch (e) { console.error('attempt log read:', e.message); }

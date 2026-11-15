@@ -76,6 +76,191 @@ key_daily_penalty: dict = {}
 # retried forever. Cleared on process restart.
 PERMANENTLY_BROKEN_MODELS: set = set()
 
+# ─── Manual model blocks (dashboard button / POST /model_block) ───────────────
+# A model can be switched OFF for every key for a custom time (1h, 1d, 43d, 2h30m ... or forever).
+# It is skipped by auto/pool routing, by sticky pins and by the web-search path. Blocks are saved in
+# MongoDB (collection wapi_model_blocks, auto-deleted by a TTL index when they expire) with a JSON file as
+# a fallback, so they survive restarts / redeploys. They are NOT touched by "Release daily locks".
+# A client that explicitly asks for a blocked model is served by the other models (auto mode) unless
+# BLOCKED_MODEL_FALLBACK_AUTO=0 -> it then gets a 429 "model_blocked" with Retry-After.
+MODEL_BLOCKS: dict = {}     # model key (lower-case) -> {"model": name, "until": epoch, "since": epoch, "reason": str}
+MAX_BLOCK_SECS = 3650 * 86400
+BLOCKED_MODEL_FALLBACK_AUTO = os.environ.get("BLOCKED_MODEL_FALLBACK_AUTO", "1") != "0"
+BLOCKS_COLLECTION = os.environ.get("MODEL_BLOCKS_COLLECTION", "wapi_model_blocks")
+BLOCKS_FILE = os.environ.get("MODEL_BLOCKS_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_blocks.json"))
+_GENERIC_MODEL_ALIASES = {"gemini-pro", "auto", "default", "round-robin", "gemini-working-model", "openrouter/auto", ""}
+_DUR_UNITS = {"s": 1, "sec": 1, "secs": 1, "second": 1, "seconds": 1,
+              "m": 60, "min": 60, "mins": 60, "minute": 60, "minutes": 60,
+              "h": 3600, "hr": 3600, "hrs": 3600, "hour": 3600, "hours": 3600,
+              "d": 86400, "day": 86400, "days": 86400,
+              "w": 7 * 86400, "wk": 7 * 86400, "week": 7 * 86400, "weeks": 7 * 86400,
+              "mo": 30 * 86400, "month": 30 * 86400, "months": 30 * 86400,
+              "y": 365 * 86400, "yr": 365 * 86400, "year": 365 * 86400, "years": 365 * 86400}
+_DUR_RE = re.compile(r"(\d+(?:\.\d+)?)\s*([a-z]+)")
+
+
+def parse_duration(text):
+    """'1h' '1d' '43d' '90m' '2h30m' '1.5d' '1 week' '3 months' -> seconds (capped at 10 years).
+    A bare number means minutes. 'forever' / 'permanent' -> the cap. Returns None when it cannot be read."""
+    s = str(text or "").strip().lower().replace(",", " ")
+    if not s:
+        return None
+    if s in ("forever", "permanent", "permanently", "always", "inf", "infinite"):
+        return MAX_BLOCK_SECS
+    if re.fullmatch(r"\d+(?:\.\d+)?", s):
+        total = float(s) * 60
+    else:
+        if _DUR_RE.sub("", s).strip():
+            return None
+        total = 0.0
+        for num, unit in _DUR_RE.findall(s):
+            mult = _DUR_UNITS.get(unit)
+            if mult is None:
+                return None
+            total += float(num) * mult
+    if total <= 0:
+        return None
+    return int(min(total, MAX_BLOCK_SECS))
+
+
+def _bk(model_name) -> str:
+    """Block-table key of a model name: 'models/Gemini-3.5-Flash' and 'gemini-3.5-flash' are the same model."""
+    return str(model_name or "").strip().split("/")[-1].lower()
+
+
+def _model_block_left(model_name) -> float:
+    """Seconds left of a manual block on this model (0 = not blocked). Cheap, lock-free read (hot path)."""
+    b = MODEL_BLOCKS.get(_bk(model_name))
+    if not b:
+        return 0.0
+    left = b["until"] - time.time()
+    if left <= 0:
+        MODEL_BLOCKS.pop(_bk(model_name), None)      # expired -> unblocked (the Mongo TTL index removes the stored copy)
+        return 0.0
+    return left
+
+
+def _is_model_blocked(model_name) -> bool:
+    return _model_block_left(model_name) > 0
+
+
+def _model_blocks_view():
+    """List for the dashboard / API, soonest-ending first."""
+    now = time.time()
+    out = []
+    for b in list(MODEL_BLOCKS.values()):
+        left = b["until"] - now
+        if left > 0:
+            out.append({"model": b["model"], "seconds_left": int(left), "until": b["until"], "since": b.get("since"),
+                        "until_ist": datetime.datetime.fromtimestamp(b["until"], IST).strftime("%Y-%m-%d %H:%M IST")
+                                     if b["until"] < 4_000_000_000 else "forever",
+                        "reason": b.get("reason", ""), "forever": left > MAX_BLOCK_SECS - 86400})
+    out.sort(key=lambda x: x["seconds_left"])
+    return out
+
+
+_blk_coll_cache = None
+_blk_coll_lock = threading.Lock()
+_blk_io_lock = threading.Lock()
+
+
+def _blocks_coll():
+    """MongoDB collection for blocks (same database as Node, MONGO_URI). None when MONGO_URI is not set."""
+    global _blk_coll_cache
+    with _blk_coll_lock:
+        if _blk_coll_cache is None:
+            uri = os.environ.get("MONGO_URI", "")
+            if not uri:
+                return None
+            from pymongo import MongoClient
+            client = MongoClient(uri, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000)
+            coll = client.get_database(client.get_default_database(default="test").name)[BLOCKS_COLLECTION]
+            try:
+                coll.create_index("expireAt", expireAfterSeconds=0)     # Mongo deletes a block by itself when it ends
+            except Exception as e:
+                print(f"[MODEL BLOCK] TTL index failed: {e}")
+            _blk_coll_cache = coll
+        return _blk_coll_cache
+
+
+def _blocks_save_file():
+    try:
+        with state_lock:
+            snap = {k: dict(v) for k, v in MODEL_BLOCKS.items() if v["until"] > time.time()}
+        tmp = BLOCKS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        os.replace(tmp, BLOCKS_FILE)
+    except Exception as e:
+        print(f"[MODEL BLOCK] file save failed: {e}")
+
+
+def _blocks_persist(op, bk=None):
+    """Background write of one change ('set' bk / 'del' bk / 'clear'). Never blocks or breaks a request."""
+    def _run():
+        with _blk_io_lock:
+            _blocks_save_file()
+            try:
+                coll = _blocks_coll()
+                if coll is None:
+                    return
+                if op == "set":
+                    b = MODEL_BLOCKS.get(bk)
+                    if b:
+                        coll.replace_one({"_id": bk}, {"_id": bk, "model": b["model"], "until": b["until"], "since": b["since"],
+                                                       "reason": b.get("reason", ""),
+                                                       "expireAt": datetime.datetime.fromtimestamp(min(b["until"], 4_000_000_000), datetime.timezone.utc)},
+                                         upsert=True)
+                elif op == "del":
+                    coll.delete_one({"_id": bk})
+                elif op == "clear":
+                    coll.delete_many({})
+            except Exception as e:
+                print(f"[MODEL BLOCK] MongoDB save failed (still kept in memory + file): {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _blocks_merge(rows):
+    now = time.time()
+    n = 0
+    with state_lock:
+        for r in rows:
+            try:
+                bk = _bk(r.get("model") or r.get("_id"))
+                until = float(r["until"])
+                if not bk or until <= now:
+                    continue
+                cur = MODEL_BLOCKS.get(bk)
+                if cur is None or float(r.get("since") or 0) >= float(cur.get("since") or 0):
+                    MODEL_BLOCKS[bk] = {"model": str(r.get("model") or bk), "until": until,
+                                        "since": float(r.get("since") or now), "reason": str(r.get("reason") or "")}
+                    n += 1
+            except Exception:
+                continue
+    return n
+
+
+def _blocks_load():
+    """Startup: file first (fast, local), then MongoDB in the background (retries until it answers)."""
+    try:
+        with open(BLOCKS_FILE, encoding="utf-8") as f:
+            _blocks_merge(list(json.load(f).values()))
+    except (OSError, ValueError):
+        pass
+    if not os.environ.get("MONGO_URI"):
+        return
+    def _bg():
+        for _ in range(20):
+            try:
+                coll = _blocks_coll()
+                n = _blocks_merge(list(coll.find({"until": {"$gt": time.time()}})))
+                print(f"[MODEL BLOCK] loaded {n} block(s) from MongoDB")
+                return
+            except Exception as e:
+                print(f"[MODEL BLOCK] MongoDB load failed, retrying in 30s: {e}")
+                time.sleep(30)
+    threading.Thread(target=_bg, daemon=True).start()
+
 # ─── Conversation stickiness (fixes Gemini thought_signature 400s) ───────────
 # Gemini 2.5/3 "thinking" models attach an encrypted thought_signature to
 # function-call parts. That signature is only valid when it is echoed back
@@ -144,6 +329,7 @@ def _pin_hard_dead(key, model_name, model_dict) -> bool:
     RPM being momentarily full is NOT included here -- that's what we wait
     on instead of switching (see acquire_sticky_slot_wait)."""
     if (key, model_name) in PERMANENTLY_BROKEN_MODELS: return True
+    if _is_model_blocked(model_name): return True           # manually blocked on the dashboard
     if _is_daily_penalized(key, model_name): return True
     if not _rpd_available(key, model_name, model_dict["rpd"]): return True
     return False
@@ -194,10 +380,19 @@ def acquire_sticky_slot_wait(client_id: str):
             return ("busy", None, None)
         time.sleep(1.0)
 
+CONV_STICKY_MAX = int(os.environ.get("CONV_STICKY_MAX", "2000"))
+
 def remember_sticky_slot(client_id: str, key: str, model_name: str):
     with state_lock:
         rate_strikes.pop((key, model_name), None)
         conversation_sticky[client_id] = (key, model_name, time.monotonic())
+        # MEMORY: this dict used to be pruned only when a tool-continuation arrived, so every plain chat request
+        # (a new ip+first-message fingerprint each time) added an entry that was never removed.
+        if len(conversation_sticky) > CONV_STICKY_MAX:
+            _prune_conv_sticky()
+            if len(conversation_sticky) > CONV_STICKY_MAX:      # still too many -> drop the oldest ones
+                for cid, _ in sorted(conversation_sticky.items(), key=lambda kv: kv[1][2])[:len(conversation_sticky) - CONV_STICKY_MAX]:
+                    conversation_sticky.pop(cid, None)
 
 
 # ─── thought_signature cache + injection (enables key/model switching) ───────
@@ -209,6 +404,7 @@ SIG_CACHE_TTL = int(os.environ.get("SIG_CACHE_TTL", str(6 * 3600)))
 # Dummy signature Google documents for history that has none (Gemini 3 only).
 # Set env SIG_FALLBACK="" to disable.
 SIG_FALLBACK = os.environ.get("SIG_FALLBACK", "skip_thought_signature_validator")
+SIG_CACHE_MAX = int(os.environ.get("SIG_CACHE_MAX", "1500"))
 sig_cache: dict = {}            # key -> (signature, monotonic_ts)
 sig_lock = threading.Lock()
 
@@ -227,10 +423,13 @@ def _store_sig(tc: dict):
     if not sig: return
     now = time.monotonic()
     with sig_lock:
-        if len(sig_cache) > 5000:
+        if len(sig_cache) > SIG_CACHE_MAX:
             cutoff = now - SIG_CACHE_TTL
             for k in [k for k, (_, ts) in sig_cache.items() if ts < cutoff]:
                 sig_cache.pop(k, None)
+            if len(sig_cache) > SIG_CACHE_MAX:             # all still fresh: evict the oldest (a signature is several KB)
+                for k, _ in sorted(sig_cache.items(), key=lambda kv: kv[1][1])[:len(sig_cache) - SIG_CACHE_MAX + SIG_CACHE_MAX // 4]:
+                    sig_cache.pop(k, None)
         if tc.get("id"): sig_cache[tc["id"]] = (sig, now)
         fn = tc.get("function") or {}
         if fn.get("name") and fn.get("arguments") is not None:
@@ -618,6 +817,54 @@ def responses_sse_stream(resp_json: dict):
     yield f"event: response.completed\ndata: {json.dumps({'type': 'response.completed', 'response': resp_json})}\n\n"
     yield "data: [DONE]\n\n"
 
+class _GuardedIter:
+    """Wraps a generator so `on_close` ALWAYS runs when the response is closed.
+    MEMORY/SOCKET LEAK FIX: closing a generator that was never started does NOT run its `finally:` block, so when a
+    client disconnected before the first chunk the upstream connection (and the WebAI account's in-flight slot)
+    stayed open forever. Werkzeug calls .close() on the response iterable -> this object cleans up in every case."""
+    def __init__(self, gen, on_close):
+        self._gen, self._on_close, self._done = gen, on_close, False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            return next(self._gen)
+        except BaseException:
+            self._finish()
+            raise
+
+    def close(self):
+        try:
+            close = getattr(self._gen, "close", None)
+            if close:
+                close()
+        finally:
+            self._finish()
+
+    def _finish(self):
+        if not self._done:
+            self._done = True
+            try:
+                self._on_close()
+            except Exception:
+                pass
+
+
+def _drain_close(resp):
+    """A failed upstream answer (429/5xx/400...) is read completely and its connection returned/closed right away.
+    Responses opened with stream=True that were only `continue`d past used to stay open until garbage collection."""
+    try:
+        resp.content          # read the (small) error body so .text / .content still work afterwards
+    except Exception:
+        pass
+    try:
+        resp.close()
+    except Exception:
+        pass
+
+
 def _stream_gemini_sse(resp, log_entry=None, log_start=None):
     """Streams Gemini SSE chunks immediately to the client without buffering resp.content,
     while capturing tool_call thought_signatures on the fly as lines arrive."""
@@ -658,7 +905,7 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
             out_headers.append(('X-Accel-Buffering', 'no'))
             log_entry = getattr(g, "log_entry", None)
             log_start = getattr(g, "_log_start", None)
-            return Response(_stream_gemini_sse(resp, log_entry, log_start), resp.status_code, out_headers)
+            return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start), resp.close), resp.status_code, out_headers)
         body = resp.content
         capture_signatures(body)
         return Response(body, resp.status_code, out_headers)
@@ -713,6 +960,7 @@ def _heal_signature(resp, url, headers, data, model_name):
     try:
         if resp.status_code == 400 and "thought_signature" in resp.text.lower():
             print(f"[SIG HEAL] {model_name}: signature 400 -> retrying with dummy signature")
+            _drain_close(resp)
             return requests.post(url, json=prepare_payload(data, model_name, force_dummy=True),
                                  headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
     except Exception as e:
@@ -989,9 +1237,13 @@ def _list_combos_in_order(requested_model: str):
     """
     active_models = get_active_models()
 
-    GENERIC_ALIASES = {"gemini-pro", "auto", "default", "round-robin",
-                        "gemini-working-model", "openrouter/auto", ""}
+    GENERIC_ALIASES = _GENERIC_MODEL_ALIASES
     is_pool_mode = requested_model.lower() in GENERIC_ALIASES
+    if MODEL_BLOCKS:
+        # manually blocked models are not even listed (all keys)
+        active_models = [m for m in active_models if not _is_model_blocked(m["name"])]
+        if not is_pool_mode and _is_model_blocked(requested_model):
+            return []
 
     combos = []
 
@@ -1082,6 +1334,8 @@ def acquire_next_slot(requested_model: str, exclude: set):
         for (k_i, m_i, key, model) in combos:
             if (key, model["name"]) in exclude:
                 continue
+            if _is_model_blocked(model["name"]):
+                continue
             if (key, model["name"]) in PERMANENTLY_BROKEN_MODELS:
                 continue
             if _is_daily_penalized(key, model["name"]):
@@ -1122,6 +1376,8 @@ def get_best_combo(requested_model: str):
         combos = _list_combos_in_order(requested_model)
         viable = []
         for (k_i, m_i, key, model) in combos:
+            if _is_model_blocked(model["name"]):
+                continue
             if (key, model["name"]) in PERMANENTLY_BROKEN_MODELS:
                 continue
             if _is_daily_penalized(key, model["name"]):
@@ -1332,8 +1588,12 @@ def test_all_keys():
     # without any code change here.
     results = []
 
-    # Read optional target_key from query params
+    # Optional filters (combine freely):
+    #   ?key=<last chars of a key>  -> that ONE key on every model
+    #   ?model=<model name>         -> that ONE model on every key
+    #   ?key=..&model=..            -> a single (key, model) pair
     target_key_preview = request.args.get("key")
+    target_model = (request.args.get("model") or "").strip().split("/")[-1]
 
     # Concurrency: firing all 72 combos at once (32 workers, near-simultaneous
     # TLS connections to the SAME Google host from this ONE server IP) reads
@@ -1351,13 +1611,18 @@ def test_all_keys():
                 clean_preview = target_key_preview.replace("...", "").strip()
                 if not key.endswith(clean_preview):
                     continue
-            for m_idx, model in enumerate(MODELS):
-                model_name = model["name"]
+            model_list = [(i, m["name"]) for i, m in enumerate(MODELS)
+                          if not target_model or m["name"].lower() == target_model.lower()]
+            if target_model and not model_list:       # a model that is not in GEMINI_MODELS: test it as typed
+                model_list = [(0, target_model)]
+            for m_idx, model_name in model_list:
                 question   = _question_for_model_idx(m_idx)
                 tasks.append(executor.submit(_test_single_combo, key, model_name, question))
                 time.sleep(0.12)  # stagger submissions so connections open gradually
 
     results = [t.result() for t in tasks]
+    for r in results:                       # tests run even for blocked models (diagnostic) - just tell the page
+        r["blocked_left"] = int(_model_block_left(r["model"]))
 
     total = len(results)
     ok_count = sum(1 for r in results if r["ok"])
@@ -1391,7 +1656,7 @@ def requires_browser_auth(f):
 # LIVE_TTL seconds after the request ended; the /logs page in YOUR browser pulls it and keeps it in the browser's
 # IndexedDB, so the server never has to hold history. Pending requests are visible while they run.
 LIVE_TTL = float(os.environ.get("LIVE_TTL", "300"))
-LIVE_MAX = int(os.environ.get("LIVE_MAX", "300"))
+LIVE_MAX = int(os.environ.get("LIVE_MAX", "120"))
 BOOT_ID = str(int(time.time()))
 live_full = collections.OrderedDict()   # log id -> record
 live_lock = threading.Lock()
@@ -1562,6 +1827,8 @@ class _LiveAcc:
     def feed(self, chunk):
         self.buf += chunk
         if b"\n" not in self.buf:
+            if len(self.buf) > 262144:      # one giant line / binary download: never keep it all in RAM
+                self.buf = b""
             return
         *lines, self.buf = self.buf.split(b"\n")
         for ln in lines:
@@ -1613,22 +1880,22 @@ def _live_finish(rec, resp_obj, status_code):
 def _live_wrap_stream(it, rec, status_code):
     acc = _LiveAcc()
     def gen():
-        try:
-            for chunk in it:
-                try:
-                    acc.feed(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace"))
-                except Exception:
-                    pass
-                yield chunk
-        finally:
+        for chunk in it:
             try:
+                acc.feed(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8", "replace"))
+            except Exception:
+                pass
+            yield chunk
+    def _done():
+        try:
+            if not rec["done"]:
                 _live_finish(rec, acc.result(), status_code)
-            finally:
-                close = getattr(it, "close", None)
-                if close:
-                    try: close()
-                    except Exception: pass
-    return gen()
+        finally:
+            close = getattr(it, "close", None)
+            if close:
+                try: close()
+                except Exception: pass
+    return _GuardedIter(gen(), _done)
 
 
 def _live_after(response):
@@ -1670,7 +1937,8 @@ def _live_view(since, boot, pending):
 def strict_password_and_log():
     if request.method == 'OPTIONS':
         return
-    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily']:
+    if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
+                        '/model_block', '/router/model_block']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -1826,7 +2094,8 @@ def api_dashboard_data():
                     pen_keys.append(k[-5:])
                 else:
                     available += 1
-            model_key_info[mn] = {"available": available, "penalized_last5": pen_keys}
+            model_key_info[mn] = {"available": available, "penalized_last5": pen_keys,
+                                  "blocked_left": int(_model_block_left(mn))}
     return jsonify({
         "metrics": metrics,
         "active_keys": len(API_KEYS),
@@ -1835,6 +2104,7 @@ def api_dashboard_data():
         "rpm_cooldowns": cooldowns,
         "models": active_models_snap,
         "model_key_info": model_key_info,
+        "model_blocks": _model_blocks_view(),
         **_dash_logs(request.args.get("slim") == "1"),
     })
 
@@ -1861,6 +2131,107 @@ def _log_detail(raw_id):
     att = [_clip(a, 700) for a in (e.get("attempts") or [])[-20:]]
     return jsonify({"id": want, "request": _clip(req, 8000), "request_truncated": len(req) > 8000,
                     "error_detail": _clip(err, 8000), "error_truncated": len(err) > 8000, "attempts": att})
+
+def _admin_ok() -> bool:
+    """Bearer <PASSWORD> (scripts / curl) OR browser Basic auth (dashboard). Refuses everything when PASSWORD is unset."""
+    import hmac
+    expected = os.environ.get("PASSWORD", "")
+    if not expected:
+        return False
+    h = request.headers.get("Authorization", "")
+    if h.startswith("Bearer ") and hmac.compare_digest(h[7:], expected):
+        return True
+    a = request.authorization
+    return bool(a and a.password is not None and hmac.compare_digest(str(a.password), expected))
+
+
+@app.route('/model_block', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+@app.route('/router/model_block', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+def model_block_api():
+    """Block a model on ALL keys for a custom time, list the blocks, or lift them.
+      GET                                    -> {"blocks": [...]}
+      POST {"model": "gemini-3.5-flash", "duration": "43d"}            (1h, 6h, 1d, 43d, 90m, 2h30m, 1w, 3mo, forever)
+      POST {"model": "...", "seconds"|"minutes"|"hours"|"days": N}     numeric alternatives
+      POST {"model": "...", "until": "2026-12-31T23:59" | <epoch>}     absolute end (IST when no zone is given)
+           optional "reason": "why"
+      POST {"action": "unblock", "model": "..."}  or  DELETE ?model=...  -> lift one block
+      POST {"action": "unblock_all"}              or  DELETE            -> lift every block
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    body = request.get_json(silent=True) or {}
+    if request.method == 'GET':
+        return jsonify({"blocks": _model_blocks_view()})
+
+    action = str(body.get("action") or ("unblock" if request.method == 'DELETE' else "block")).lower()
+    model = str(body.get("model") or request.args.get("model") or "").strip()
+
+    if action in ("unblock_all", "clear") or (action == "unblock" and model in ("*", "all")) \
+            or (request.method == 'DELETE' and not model):
+        with state_lock:
+            n = len(MODEL_BLOCKS)
+            MODEL_BLOCKS.clear()
+        _blocks_persist("clear")
+        print(f"[MODEL BLOCK] all blocks lifted ({n})")
+        return jsonify({"unblocked": n, "blocks": []})
+
+    if not model or _bk(model) in _GENERIC_MODEL_ALIASES:
+        return jsonify({"error": "model is required (a real model name, not auto/default)"}), 400
+    bk = _bk(model)
+
+    if action == "unblock":
+        with state_lock:
+            was = MODEL_BLOCKS.pop(bk, None)
+        _blocks_persist("del", bk)
+        print(f"[MODEL BLOCK] {model} unblocked")
+        return jsonify({"unblocked": 1 if was else 0, "model": model, "blocks": _model_blocks_view()})
+
+    if action != "block":
+        return jsonify({"error": f"unknown action '{action}' (block | unblock | unblock_all)"}), 400
+
+    now = time.time()
+    secs = None
+    if body.get("duration") not in (None, ""):
+        secs = parse_duration(body.get("duration"))
+        if secs is None:
+            return jsonify({"error": f"cannot read duration '{body.get('duration')}' - use e.g. 1h, 1d, 43d, 90m, 2h30m, 1w, forever"}), 400
+    else:
+        for field, mult in (("seconds", 1), ("minutes", 60), ("hours", 3600), ("days", 86400)):
+            if body.get(field) not in (None, ""):
+                try:
+                    secs = float(body[field]) * mult
+                except (TypeError, ValueError):
+                    return jsonify({"error": f"'{field}' must be a number"}), 400
+                break
+        if secs is None and body.get("until") not in (None, ""):
+            u = body["until"]
+            try:
+                if isinstance(u, (int, float)) or re.fullmatch(r"\d+(\.\d+)?", str(u).strip()):
+                    end = float(u)
+                else:
+                    dt = datetime.datetime.fromisoformat(str(u).strip().replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=IST)
+                    end = dt.timestamp()
+            except ValueError:
+                return jsonify({"error": f"cannot read until '{u}' - use e.g. 2026-12-31T23:59 (IST) or an epoch"}), 400
+            secs = end - now
+    if secs is None:
+        return jsonify({"error": "give a duration (e.g. \"duration\": \"43d\") or seconds/minutes/hours/days or until"}), 400
+    if secs <= 0:
+        return jsonify({"error": "the block time must be in the future"}), 400
+    secs = min(secs, MAX_BLOCK_SECS)
+    display = next((m["name"] for m in MODELS if _bk(m["name"]) == bk), model.split("/")[-1])
+    with state_lock:
+        MODEL_BLOCKS[bk] = {"model": display, "until": now + secs, "since": now,
+                            "reason": str(body.get("reason") or "")[:200]}
+    _blocks_persist("set", bk)
+    print(f"[MODEL BLOCK] {display} blocked on all keys for {int(secs)}s")
+    return jsonify({"blocked": display, "seconds": int(secs), "known_model": any(_bk(m["name"]) == bk for m in MODELS),
+                    "blocks": _model_blocks_view()})
+
 
 @app.route('/release_daily', methods=['POST'])
 @app.route('/router/release_daily', methods=['POST'])
@@ -1965,7 +2336,7 @@ tr:hover{background:#252525}
 <div id="test-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;">
 <div style="max-width:960px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-<h2 style="margin:0;color:#a78bfa;">🧪 Key & Model Test — "What is your name?"</h2>
+<h2 id="test-title" style="margin:0;color:#a78bfa;">🧪 Key & Model Test</h2>
 <button onclick="document.getElementById('test-modal').style.display='none'" style="background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;">✕ Close</button>
 </div>
 <div id="test-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;"></div>
@@ -1982,6 +2353,25 @@ tr:hover{background:#252525}
 </table></div>
 </div>
 </div>
+<div id="block-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+<div style="width:100%;max-width:460px;background:#1a1a2e;border-radius:12px;border:1px solid #991b1b;padding:22px;">
+<h2 style="margin:0 0 4px;color:#fca5a5;">⛔ Block model on all keys</h2>
+<div style="color:#e5e7eb;font-family:monospace;margin-bottom:12px;" id="blk-model"></div>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:6px;">For how long? (pick one or type your own)</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+<button class="chip" onclick="pickDur('30m')">30 min</button><button class="chip" onclick="pickDur('1h')">1 hour</button>
+<button class="chip" onclick="pickDur('6h')">6 hours</button><button class="chip" onclick="pickDur('1d')">1 day</button>
+<button class="chip" onclick="pickDur('7d')">7 days</button><button class="chip" onclick="pickDur('30d')">30 days</button>
+<button class="chip" onclick="pickDur('43d')">43 days</button><button class="chip" onclick="pickDur('forever')">forever</button>
+</div>
+<input id="blk-dur" placeholder="e.g. 1h, 1d, 43d, 90m, 2h30m, 1w, 3mo" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<input id="blk-reason" placeholder="reason (optional)" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Units: m = minutes, h = hours, d = days, w = weeks, mo = months. A bare number = minutes. The block survives restarts.</div>
+<div id="blk-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;">
+<button class="btn-s" onclick="closeBlock()" style="padding:8px 16px;">Cancel</button>
+<button class="btn" onclick="confirmBlock()" style="background:#dc2626;">⛔ Block</button>
+</div></div></div>
 <div class="status-panel" id="status-panel"><div class="card" style="text-align:center;padding:30px;">Loading...</div></div>
 <h2 style="display:flex;justify-content:space-between;align-items:center;font-size:1.2em;color:#ccc;border-bottom:1px solid #333;padding-bottom:10px;">
 🔐 Secure Access Logs (last 50 + recent errors)
@@ -2001,7 +2391,7 @@ tr:hover{background:#252525}
 let isSelecting=false;
 document.addEventListener('selectionchange',()=>{const s=window.getSelection();isSelecting=s.toString().length>0;});
 
-async function testAllKeys(targetKey = ''){
+async function testAllKeys(targetKey = '', targetModel = ''){
   const btn=document.getElementById('test-btn');
   if(!window._wapiPwd){
     const pwd=prompt('Enter your WAPI password to run key tests:');
@@ -2010,11 +2400,18 @@ async function testAllKeys(targetKey = ''){
   }
   btn.innerText='⏳ Testing...'; btn.disabled=true;
   document.getElementById('test-modal').style.display='block';
-  const msg = targetKey ? `⏳ Running tests on models for key ${targetKey}...` : '⏳ Running tests on all keys × models (Parallel)...';
+  const msg = (targetKey && targetModel) ? `⏳ Testing ${esc(targetModel)} on key ${esc(targetKey)}...`
+    : targetKey ? `⏳ Running tests on every model for key ${esc(targetKey)}...`
+    : targetModel ? `⏳ Testing model ${esc(targetModel)} on ALL keys...`
+    : '⏳ Running tests on all keys × models (Parallel)...';
+  document.getElementById('test-title').textContent = '🧪 ' + (targetModel ? 'Model ' + targetModel : 'Key & Model') + (targetKey ? ' · key ' + targetKey : (targetModel ? ' · all keys' : ' · all keys × models')) + ' Test';
   document.getElementById('test-tbody').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:30px;color:#a78bfa;">${msg}</td></tr>`;
   document.getElementById('test-summary').innerHTML='';
   try{
-    const url = targetKey ? '/router/test_keys?key='+encodeURIComponent(targetKey) : '/router/test_keys';
+    const qs = [];
+    if(targetKey)qs.push('key='+encodeURIComponent(targetKey));
+    if(targetModel)qs.push('model='+encodeURIComponent(targetModel));
+    const url = '/router/test_keys' + (qs.length ? '?' + qs.join('&') : '');
     const r=await fetch(url,{headers:{Authorization:'Bearer '+window._wapiPwd}});
     if(r.status===401){
       window._wapiPwd=null;
@@ -2042,7 +2439,7 @@ function renderTestResults(data){
     const responseText=r.ok?esc(r.response):('<span style="color:#f87171;font-size:.85em;">'+esc(r.response)+'</span>');
     html+=`<tr style="background:${bg};border-bottom:1px solid #2d2d2d;">
       <td style="padding:10px;font-family:monospace;color:#93c5fd;font-size:.85em;">${esc(r.key)}</td>
-      <td style="padding:10px;color:#c4b5fd;font-size:.85em;">${esc(r.model)}</td>
+      <td style="padding:10px;color:#c4b5fd;font-size:.85em;">${esc(r.model)}${r.blocked_left>0?' <span style="color:#f87171;font-weight:bold;" title="blocked for the router">⛔ blocked</span>':''}</td>
       <td style="padding:10px;color:#fbbf24;font-size:.8em;font-style:italic;">${esc(r.question||'')}</td>
       <td style="padding:10px;text-align:center;font-weight:bold;color:${statusColor};">${statusLabel}</td>
       <td style="padding:10px;font-size:.85em;max-width:280px;word-break:break-word;">${responseText}</td>
@@ -2297,6 +2694,58 @@ function liveRow(id,rec){
   return '<tr><td colspan="9" style="background:#141416;padding:10px 15px">'+o+'</td></tr>';
 }
 
+function fmtLeft(sec){
+  sec=Math.max(0,Math.floor(sec));
+  if(sec>=86400*3649)return 'forever';
+  const d=Math.floor(sec/86400),h=Math.floor((sec%86400)/3600),m=Math.floor((sec%3600)/60);
+  if(d>0)return d+'d '+h+'h';
+  if(h>0)return h+'h '+m+'m';
+  if(m>0)return m+'m';
+  return sec+'s';
+}
+let blockTarget='';
+function openBlock(name){
+  blockTarget=name;
+  document.getElementById('blk-model').textContent=name;
+  document.getElementById('blk-dur').value='1d';
+  document.getElementById('blk-reason').value='';
+  document.getElementById('blk-err').textContent='';
+  document.getElementById('block-modal').style.display='flex';
+  document.getElementById('blk-dur').focus();
+}
+function closeBlock(){document.getElementById('block-modal').style.display='none';}
+function pickDur(v){document.getElementById('blk-dur').value=v;}
+async function confirmBlock(){
+  const dur=document.getElementById('blk-dur').value.trim();
+  if(!dur){document.getElementById('blk-err').textContent='Enter a time, e.g. 1h, 1d, 43d';return;}
+  const d=await modelBlockCall({action:'block',model:blockTarget,duration:dur,reason:document.getElementById('blk-reason').value.trim()});
+  if(d)closeBlock();
+}
+async function unblockModel(name){
+  if(name==='*'&&!confirm('Unblock ALL blocked models?'))return;
+  await modelBlockCall(name==='*'?{action:'unblock_all'}:{action:'unblock',model:name});
+}
+async function modelBlockCall(payload){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)};
+  const noteEl=document.getElementById('log-note');
+  try{
+    let r=await fetch('/router/model_block',opts);
+    if(r.status===404){r=await fetch('model_block',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){
+      const m=d.error||('HTTP '+r.status);
+      if(payload.action==='block')document.getElementById('blk-err').textContent=m;else alert(m);
+      return null;
+    }
+    if(noteEl)noteEl.textContent=payload.action==='block'?('⛔ '+d.blocked+' blocked for '+fmtLeft(d.seconds)):'✅ Unblocked';
+    lastSig='';await fetchData(true);
+    return d;
+  }catch(e){
+    if(payload.action==='block')document.getElementById('blk-err').textContent=e.message;else alert('Failed: '+e.message);
+    return null;
+  }
+}
+
 async function releaseDaily(keyFilter='', modelFilter=''){
   const payload={};
   if(keyFilter)payload.key=keyFilter;
@@ -2343,28 +2792,36 @@ function updateUI(data){
         keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
     });
   }
-  // Build models row: each model shows available key count + direct Release button if any keys are penalized
+  // Build models row: availability, 🧪 test on all keys, ⛔ block / ✅ unblock, 🔓 release
   const mki = data.model_key_info || {};
   let modelsHtml = '';
   (data.models || []).forEach(model => {
     const mn = model.name;
-    const info = mki[mn] || {available: '?', penalized_last5: []};
+    const info = mki[mn] || {available: '?', penalized_last5: [], blocked_left: 0};
     const total = data.active_keys || 0;
     const penCount = info.penalized_last5.length;
     const avail = info.available;
-    const countColor = penCount > 0 ? '#fbbf24' : '#4ade80';
-    const penTip = penCount > 0
-      ? info.penalized_last5.map(k=>'...'+k).join(', ')
-      : 'none';
+    const blockedLeft = info.blocked_left || 0;
+    const countColor = blockedLeft > 0 ? '#f87171' : (penCount > 0 ? '#fbbf24' : '#4ade80');
+    const penTip = penCount > 0 ? info.penalized_last5.map(k=>'...'+k).join(', ') : 'none';
+    const em = esc(mn);
     const releaseModelBtn = penCount > 0
-      ? ` <button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 7px;font-size:.75em;font-weight:bold;margin-left:6px;" onclick="event.stopPropagation();releaseDaily('','${esc(mn)}')" title="Release all ${penCount} locked key(s) for ${esc(mn)}">🔓 Release (${penCount})</button>`
+      ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
       : '';
-    const clickHandler = penCount > 0
-      ? `onclick="alert('Model: ${mn}\\nPenalized keys (${penCount}):\\n${info.penalized_last5.map(k=>'...'+k).join('\\n')}')"`
-      : '';
+    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();testAllKeys('',this.dataset.m)" title="Test ${em} on ALL keys">🧪 Test</button>`;
+    const blockBtn = blockedLeft > 0
+      ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)" title="Lift the block now">✅ Unblock</button>`
+      : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em} on all keys for a custom time">⛔ Block</button>`;
+    const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
+    const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
     const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;background:#1a1a2e;border:1px solid #4c1d95;${cursor}" title="${mn} — ${avail}/${total} keys available${penCount>0?' | penalized: '+penTip:''}" ${clickHandler}><span>${mn} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span></span>${releaseModelBtn}</span>`;
+    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span>${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span>${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${testBtn}${blockBtn}${releaseModelBtn}</span></span>`;
   });
+  let blkHtml = '';
+  (data.model_blocks || []).forEach(b => {
+    blkHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="until ${esc(b.until_ist)}">⛔ ${esc(b.model)} · ${fmtLeft(b.seconds_left)} left (${esc(b.until_ist)})${b.reason?' · '+esc(b.reason):''} <button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 6px;font-size:.75em;" data-m="${esc(b.model)}" onclick="unblockModel(this.dataset.m)">✅ Unblock</button></span>`;
+  });
+  blkHtml = blkHtml ? blkHtml + ` <button class="btn-s" style="padding:2px 8px;font-size:.75em;" onclick="unblockModel('*')">Unblock all</button>` : '<span style="color:#4ade80;">No model is blocked</span>';
   document.getElementById('status-panel').innerHTML=`
     <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
@@ -2373,7 +2830,8 @@ function updateUI(data){
     </div>
     <div class="card"><h3>Models</h3>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
-      <div class="sub" style="margin-top:8px;color:#6b7280;">Click model to see penalized keys</div>
+      <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
+      <div class="sub" style="margin-top:8px;color:#6b7280;">🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) · click a model to see penalized keys</div>
     </div>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
@@ -2658,6 +3116,21 @@ def proxy_chat():
     requested_model = data.get("model", "")
     if "/" in requested_model:
         requested_model = requested_model.split("/")[-1]
+    _blk_left = _model_block_left(requested_model) if requested_model else 0
+    if _blk_left > 0:
+        # the client asked for a model that is blocked on the dashboard
+        if BLOCKED_MODEL_FALLBACK_AUTO:
+            _trail(f"model '{requested_model}' is blocked ({int(_blk_left)}s left) -> served by the other models (auto)")
+            if hasattr(g, "log_entry"):
+                g.log_entry["error_detail"] = f"requested model '{requested_model}' is blocked for {int(_blk_left)}s more -> answered by the other models"
+            requested_model = "auto"
+        else:
+            if hasattr(g, "log_entry"):
+                g.log_entry["error_detail"] = f"model '{requested_model}' is blocked for {int(_blk_left)}s more (BLOCKED_MODEL_FALLBACK_AUTO=0)"
+                g.log_entry["route"] = "Blocked model (not forwarded anywhere)"
+            return Response(json.dumps({"error": {"message": f"Model '{requested_model}' is temporarily blocked by the admin ({int(_blk_left)}s left).",
+                                                   "type": "model_blocked", "code": "model_blocked"}}),
+                            429, {"Content-Type": "application/json", "Retry-After": str(int(_blk_left) + 1)})
     messages = data.get("messages", []) or []
     remote_addr = request.headers.get("X-Real-IP") or \
                   (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()) or \
@@ -2715,6 +3188,8 @@ def proxy_chat():
             try:
                 resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
                 resp = _heal_signature(resp, url, headers, data, actual_model)
+                if resp.status_code != 200:
+                    _drain_close(resp)
                 if resp.status_code == 200:
                     remember_sticky_slot(client_id, key, actual_model)
                     if hasattr(g, "log_entry"):
@@ -2775,6 +3250,8 @@ def proxy_chat():
                 any_waitable = False
                 for m_dict in get_active_models():
                     m_name = m_dict["name"]
+                    if _is_model_blocked(m_name):
+                        continue                      # manually blocked: not "coming back soon", never wait for it
                     for k in API_KEYS:
                         if (k, m_name) in tried:
                             continue
@@ -2833,6 +3310,8 @@ def proxy_chat():
         try:
             resp = requests.post(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
             resp = _heal_signature(resp, url, headers, data, actual_model)
+            if resp.status_code != 200:
+                _drain_close(resp)        # error answers are small: read + close now (stream=True otherwise keeps the socket open)
             last_resp = resp
 
             if resp.status_code == 200:
@@ -3064,6 +3543,9 @@ def proxy_transcriptions():
     }
 
     TRANSCRIBE_MODEL = os.environ.get("TRANSCRIBE_MODEL", "gemini-3.5-flash")
+    if _is_model_blocked(TRANSCRIBE_MODEL):
+        return jsonify({"error": {"message": f"Transcription model '{TRANSCRIBE_MODEL}' is temporarily blocked by the admin.",
+                                  "type": "model_blocked"}}), 429
     for key in API_KEYS:
         if _is_daily_penalized(key, TRANSCRIBE_MODEL):
             continue
@@ -3233,6 +3715,7 @@ def get_status():
         "daily_penalized_keys_minutes_left": penalized,
         "rpm_cooldowns_seconds_left": cooldowns,
         "permanently_broken_key_model_pairs": broken,
+        "model_blocks": _model_blocks_view(),
         "models": get_active_models()
     })
 
@@ -3723,7 +4206,7 @@ def webapi_proxy(sub):
             finally:
                 up.close()
                 _release()
-        return Response(_sse(), status, out_headers)
+        return Response(_GuardedIter(_sse(), lambda: (up.close(), _release())), status, out_headers)
     if any(t in ctype for t in ("text/html", "text/css", "javascript")):
         body = _webapi_rewrite_text(up.content.decode(up.encoding or "utf-8", errors="replace"))
         if first == "ui" and "text/html" in ctype:
@@ -3740,7 +4223,7 @@ def webapi_proxy(sub):
         finally:
             up.close()
             _release()
-    return Response(_gen(), status, out_headers)
+    return Response(_GuardedIter(_gen(), lambda: (up.close(), _release())), status, out_headers)
 
 # --- ANTI_504_HEARTBEAT_PATCH ---
 import io as _hb_io
@@ -3798,6 +4281,7 @@ class _Anti504HeartbeatMiddleware:
 
     def _handle_streaming(self, environ, start_response):
         q = _hb_queue.Queue()
+        stop = _hb_threading.Event()      # set when the client is gone -> the worker stops reading upstream and fills no more RAM
         captured = {"status": "200 OK", "headers": [], "got_headers": False}
 
         def _capture_start_response(status, headers, exc_info=None):
@@ -3812,13 +4296,16 @@ class _Anti504HeartbeatMiddleware:
                 app_iter = self.wsgi_app(environ, _capture_start_response)
                 try:
                     for chunk in app_iter:
+                        if stop.is_set():
+                            break
                         if chunk:
                             q.put(("chunk", chunk))
                 finally:
                     if hasattr(app_iter, "close"):
                         app_iter.close()
             except Exception as e:
-                q.put(("exc", e))
+                if not stop.is_set():
+                    q.put(("exc", e))
             finally:
                 q.put(("eof", None))
 
@@ -3870,6 +4357,18 @@ class _Anti504HeartbeatMiddleware:
         start_response("200 OK", sse_headers)
 
         def _sse_gen():
+            try:
+                yield from _sse_gen_inner()
+            finally:
+                stop.set()
+                buffered.clear()
+                try:
+                    while True:               # drop whatever is still queued
+                        q.get_nowait()
+                except _hb_queue.Empty:
+                    pass
+
+        def _sse_gen_inner():
             if not first_chunk_seen:
                 # Immediate 2KB SSE comment padding so Nginx / Koyeb Edge / Cloudflare flush 200 OK headers right away
                 yield b": keep-alive " + (b"." * 2048) + b"\n\n"
@@ -3927,7 +4426,7 @@ class _Anti504HeartbeatMiddleware:
                             yield out_c
                     return
 
-        return _sse_gen()
+        return _GuardedIter(_sse_gen(), stop.set)
 
     def _convert_json_buf_to_sse(self, raw_bytes, status_str):
         try:
@@ -4007,6 +4506,76 @@ class _Anti504HeartbeatMiddleware:
         return _heartbeat_stream()
 
 app.wsgi_app = _Anti504HeartbeatMiddleware(app.wsgi_app)
+
+# ─── Memory janitor ───────────────────────────────────────────────────────────
+# Everything above that grows with traffic is bounded where it is written, but several of those tables were only
+# ever cleaned while NEW requests of the same kind arrived (a quiet period kept every old entry in RAM, and an
+# unusual one - random model names, one-off conversations - kept adding). This thread sweeps them regularly.
+JANITOR_SECS = float(os.environ.get("JANITOR_SECS", "60"))
+JANITOR_MAX_PAIRS = int(os.environ.get("JANITOR_MAX_PAIRS", "2000"))
+
+
+def _janitor_once(trim: bool = False):
+    now_mono, now = time.monotonic(), time.time()
+    known = {m["name"] for m in MODELS}
+    with state_lock:
+        for k in list(rpm_window):                              # sliding windows: drop old stamps, then empty deques
+            dq = rpm_window[k]
+            cutoff = now_mono - RPM_WINDOW_SECS
+            while dq and dq[0] < cutoff:
+                dq.popleft()
+            if not dq:
+                rpm_window.pop(k, None)
+        for k in [k for k, ts in rpm_cooldown.items() if ts <= now_mono]:
+            rpm_cooldown.pop(k, None)
+        for k in [k for k, ts in key_daily_penalty.items() if ts <= now]:
+            key_daily_penalty.pop(k, None)
+        for k in [k for k, v in rpd_count.items() if not v]:
+            rpd_count.pop(k, None)
+        # pairs for model names that are NOT in GEMINI_MODELS (a client may send any name) must not pile up forever
+        for table in (rpd_count, rate_strikes, rpm_cooldown, key_daily_penalty, rpm_window):
+            if len(table) > JANITOR_MAX_PAIRS:
+                for k in [k for k in table if k[1] not in known]:
+                    table.pop(k, None)
+        if len(PERMANENTLY_BROKEN_MODELS) > JANITOR_MAX_PAIRS:
+            for k in [k for k in PERMANENTLY_BROKEN_MODELS if k[1] not in known]:
+                PERMANENTLY_BROKEN_MODELS.discard(k)
+        _prune_conv_sticky()
+        for bk in [bk for bk, b in MODEL_BLOCKS.items() if b["until"] <= now]:
+            MODEL_BLOCKS.pop(bk, None)
+    with sig_lock:
+        cutoff = now_mono - SIG_CACHE_TTL
+        for k in [k for k, (_, ts) in sig_cache.items() if ts < cutoff]:
+            sig_cache.pop(k, None)
+    with live_lock:
+        _live_prune()
+    try:
+        webai_pool.get_pool().trim()
+    except Exception:
+        pass
+    if trim:
+        try:
+            gc.collect()
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)           # give freed memory back to the OS (glibc keeps it otherwise)
+        except Exception:
+            pass
+
+
+def _janitor_loop():
+    n = 0
+    while True:
+        time.sleep(JANITOR_SECS)
+        n += 1
+        try:
+            _janitor_once(trim=(n % 5 == 0))
+        except Exception as e:
+            print(f"[JANITOR] {e}")
+
+
+threading.Thread(target=_janitor_loop, daemon=True, name="wapi-janitor").start()
+_blocks_load()
+
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8085, threaded=True)

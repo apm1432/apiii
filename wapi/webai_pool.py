@@ -185,6 +185,16 @@ class WebAIPool:
             while len(self._conv) > 5000:
                 self._conv.popitem(last=False)
 
+    def trim(self):
+        """Memory janitor: forget per-account state of accounts that no longer exist (deleted in the cookie page)."""
+        live = {i.get("id") for i in self.instances()}
+        with self._cv:
+            for iid in [i for i, st in self._st.items() if i not in live and not st["in_flight"]]:
+                self._st.pop(iid, None)
+            if len(self._conv) > 5000:
+                while len(self._conv) > 5000:
+                    self._conv.popitem(last=False)
+
     # ── for the cookie page ──────────────────────────────────────────────────
     def snapshot(self):
         now = time.monotonic()

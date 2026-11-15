@@ -20,9 +20,13 @@ const JWT_SECRET = _secret;
 // newest sessionId is valid, so an older login is rejected on its next request.
 // Cache = userId -> active sessionId (this app runs as ONE node process).
 const sessionCache = new Map();
+const SESSION_CACHE_MAX = 20000;      // MEMORY: one entry per user that ever logged in -> keep only the most recent ones (the DB is the source of truth)
 
 function setActiveSession(userId, sid) {
-    sessionCache.set(String(userId), sid);
+    const k = String(userId);
+    sessionCache.delete(k);           // re-insert = most recently used
+    sessionCache.set(k, sid);
+    if (sessionCache.size > SESSION_CACHE_MAX) sessionCache.delete(sessionCache.keys().next().value);
 }
 
 async function isSessionActive(decoded) {
@@ -33,7 +37,7 @@ async function isSessionActive(decoded) {
         const u = await User.findById(uid).select('sessionId').lean();
         if (!u) return false;
         active = u.sessionId || null;
-        if (active) sessionCache.set(uid, active);
+        if (active) setActiveSession(uid, active);
     }
     return active === decoded.sid;
 }
