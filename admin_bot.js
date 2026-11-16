@@ -17,6 +17,35 @@ let bot = null;
 let botUsername = (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '').trim() || null;
 let tokens = [];
 let pollingLock = null;
+let botInfo = null;                 // getMe() of the MAIN bot (= first token in TELEGRAM_BOT_TOKENS)
+let restartNoticeSent = false;      // the "server restarted" message goes out once per process start
+
+// "Name (@username)" of the main bot, for logs and for the restart message
+function botLabel() {
+    if (!botInfo) return botUsername ? `@${botUsername}` : 'main bot';
+    return `${botInfo.first_name || 'Bot'} (@${botInfo.username || botUsername || '?'})`;
+}
+
+// Tells the admin (ADMIN_TG_ID) on Telegram that this instance started and the bot is online.
+// BOT_RESTART_NOTICE=0 switches it off. Never throws.
+async function sendRestartNotice() {
+    if (restartNoticeSent) return;
+    restartNoticeSent = true;
+    if (/^(0|false|off|no)$/i.test(String(process.env.BOT_RESTART_NOTICE || '').trim())) return;
+    const adminId = String(process.env.ADMIN_TG_ID || '').replace(/['"]/g, '').trim();
+    if (!adminId) { console.log('[telegram] ADMIN_TG_ID is not set - restart message not sent'); return; }
+    const when = new Date().toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+    });
+    const text = `♻️ Server restarted\n\n🤖 Bot: ${botLabel()}\n🕒 ${when} IST\n🖥 Instance: ${require('os').hostname()}\n\n✅ Admin bot is online. Send /menu to open the dashboard.`;
+    try {
+        await bot.sendMessage(adminId, text);
+        console.log(`📨 Restart message sent to admin ${adminId} via ${botLabel()}`);
+    } catch (e) {
+        console.error(`[telegram] restart message failed: ${e.message} (admin must have pressed /start on ${botLabel()} once)`);
+    }
+}
 
 // Track state for dynamic input
 // e.g. { '123456': { action: 'awaiting_months', userId: 'user_mongo_id' } }
@@ -49,7 +78,9 @@ async function startAdminBot() {
     try {
         const me = await bot.getMe();
         if (me && me.username) botUsername = me.username;
-    } catch (e) { console.error('[telegram] getMe failed:', e.message); }
+        botInfo = me || null;
+        console.log(`🤖 Main bot: ${botLabel()} · id ${me && me.id} · ${tokens.length} bot token(s) configured (#1 = main bot)`);
+    } catch (e) { console.error('[telegram] getMe failed - main bot name unknown (check the first TELEGRAM_BOT_TOKENS value):', e.message); }
 
     // Quiet, self-healing polling errors
     let lastPollLog = 0;
@@ -264,7 +295,11 @@ async function startAdminBot() {
     // Start long polling only when no other instance (old deploy) holds the lease
     pollingLock = createPollingLock({
         getCollection: () => mongoose.connection.db.collection('bot_locks'),
-        onAcquire: () => bot.startPolling(),
+        onAcquire: async () => {
+            await bot.startPolling();
+            console.log(`✅ Main bot ${botLabel()} is online (polling started)`);
+            sendRestartNotice();
+        },
         onLose: () => bot.stopPolling(),
     });
     pollingLock.start();

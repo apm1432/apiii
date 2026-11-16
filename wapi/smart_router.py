@@ -3053,6 +3053,7 @@ def model_available_api():
 PROBE_TIMEOUT = float(os.environ.get("PROBE_TIMEOUT", "60"))
 PROBE_MAX_KEYS = int(os.environ.get("PROBE_MAX_KEYS", "3"))
 PROBE_MAX_MODELS = 40
+PROBE_MAX_COMBOS = int(os.environ.get("PROBE_MAX_COMBOS", "400"))   # max (model x key) calls of ONE "all keys / selected keys" test
 _probe_rr = 0
 _KIND_LABEL = {
     "text-out": "text out", "image-out": "image out (+text)", "audio-out": "audio out (TTS)",
@@ -3171,7 +3172,8 @@ def _probe_err(r):
         return (r.text or "")[:260]
 
 
-def _probe_model(name, meta):
+def _probe_base(name, meta):
+    """Empty result row for `name` (+ its kind). Shared by the one-key and the per-key tests."""
     methods = (meta or {}).get("supportedGenerationMethods", []) or []
     kind = _model_kind(name, methods)
     in_pool = any(_bk(m["name"]) == _bk(name) for m in MODELS)
@@ -3180,6 +3182,11 @@ def _probe_model(name, meta):
            "blocked_left": int(_model_block_left(name)), "display": (meta or {}).get("displayName", ""),
            "input_tokens": (meta or {}).get("inputTokenLimit"), "output_tokens": (meta or {}).get("outputTokenLimit"),
            "methods": methods, "exists": bool(meta) if meta is not None else None}
+    return res, kind
+
+
+def _probe_model(name, meta):
+    res, kind = _probe_base(name, meta)
     if kind in ("image-video-out", "live", "aqa"):
         res.update(tested=False, ok=None, response="Not tested here: this model type does not use the normal chat / generateContent call. "
                                                    "It exists in your Google account, so it can be used by the right client.")
@@ -3221,11 +3228,49 @@ def _probe_model(name, meta):
     return res
 
 
+def _probe_model_on_key(name, meta, key):
+    """Test ONE model on ONE chosen key (dashboard: 'Test with all keys' / 'Select keys to test').
+    Unlike _probe_model it does not pick a free key and does not skip busy keys: the person asked for exactly this
+    key, so a 429 / 403 / 404 is reported as it is. Normal accounting: RPM slot reserved, on 200 one RPD counted."""
+    res, kind = _probe_base(name, meta)
+    res["key"] = "…" + key[-4:]
+    md = next((m for m in MODELS if _bk(m["name"]) == _bk(name)), None)
+    pname = md["name"] if md else name
+    t0 = time.time()
+    try:
+        if md:
+            with state_lock:
+                _record_request(key, pname)
+        r = _probe_call(key, name, kind)
+        res.update(ms=round((time.time() - t0) * 1000), status=r.status_code)
+        if r.status_code == 200:
+            outs, txt = _probe_parse(kind, r.json())
+            res.update(ok=True, outputs=outs, response=txt[:400])
+            if md:
+                with state_lock:
+                    _record_rpd_success(key, pname)
+                    _clear_penalty(key, pname)
+            return res
+        err = _probe_err(r)
+        res["response"] = err
+        if r.status_code in (429, 403) and md:
+            with state_lock:
+                _handle_429(key, pname, (r.text or "").lower())
+        if r.status_code == 429:
+            res["response"] = "Rate-limited on this key (" + err[:160] + ") - the model exists, try again later."
+    except Exception as e:
+        res.update(ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + str(e)[:200])
+    return res
+
+
 @app.route('/model_test', methods=['GET', 'POST', 'OPTIONS'])
 @app.route('/router/model_test', methods=['GET', 'POST', 'OPTIONS'])
 def model_test_api():
     """Dashboard: test one / several / all models and report whether each works + its type.
       POST {"models": ["a","b"]} | {"all": true}      or      GET ?models=a,b | ?all=1
+    Default: ONE real call per model on ONE free key. Add keys to test the model(s) on SEVERAL keys, one call per (model, key):
+      "all_keys": true                      every key           (GET ?all_keys=1)
+      "keys": ["...ab12", "cd34"]           only these keys, matched by their last characters   (GET ?keys=ab12,cd34)
     Auth: Bearer <PASSWORD> or the dashboard's browser login."""
     if request.method == 'OPTIONS':
         return Response(status=200)
@@ -3235,7 +3280,9 @@ def model_test_api():
         body = request.get_json(silent=True) or {}
     else:
         body = {"models": [x for x in (request.args.get("models") or "").split(",") if x.strip()],
-                "all": request.args.get("all") == "1"}
+                "all": request.args.get("all") == "1",
+                "all_keys": request.args.get("all_keys") == "1",
+                "keys": [x for x in (request.args.get("keys") or "").split(",") if x.strip()]}
     raw = [m["name"] for m in MODELS] if body.get("all") else (body.get("models") or [])
     names, seen = [], set()
     for x in raw:
@@ -3246,23 +3293,51 @@ def model_test_api():
     if not names:
         return jsonify({"error": "no valid model name given"}), 400
     names = names[:PROBE_MAX_MODELS]
+
+    # which keys? None = the old behaviour (one free key per model)
+    keys_to_use = None
+    if body.get("all_keys"):
+        keys_to_use = list(API_KEYS)
+    elif body.get("keys"):
+        raw_k = body.get("keys")
+        raw_k = raw_k if isinstance(raw_k, list) else str(raw_k).split(",")
+        sfx = [str(x).replace("...", "").replace("…", "").strip() for x in raw_k]
+        sfx = [x for x in sfx if x]
+        keys_to_use = [k for k in API_KEYS if any(k.endswith(x) for x in sfx)]
+    if keys_to_use is not None:
+        if not keys_to_use:
+            return jsonify({"error": "no key matched - nothing to test"}), 400
+        if len(names) * len(keys_to_use) > PROBE_MAX_COMBOS:
+            return jsonify({"error": f"too many calls ({len(names)} models x {len(keys_to_use)} keys > {PROBE_MAX_COMBOS}). "
+                                     "Test fewer models or fewer keys at once."}), 400
+
     try:
         meta_map = {str(m.get("name", "")).replace("models/", "").lower(): m for m in _google_models()}
     except Exception:
         meta_map = None                      # Google list unavailable: probe by name only
     jobs = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8 if keys_to_use is not None else 4) as ex:
         for n in names:
             meta = (meta_map.get(_bk(n)) or {}) if meta_map is not None else None
-            jobs.append(ex.submit(_probe_model, n, meta))
-            time.sleep(0.15)
+            if keys_to_use is None:
+                jobs.append(ex.submit(_probe_model, n, meta))
+                time.sleep(0.15)
+                continue
+            kind = _model_kind(n, (meta or {}).get("supportedGenerationMethods", []) or [])
+            if kind in ("image-video-out", "live", "aqa"):
+                jobs.append(ex.submit(_probe_model, n, meta))      # not testable here: ONE "not tested" row, not one per key
+                continue
+            for k in keys_to_use:
+                jobs.append(ex.submit(_probe_model_on_key, n, meta, k))
+                time.sleep(0.12)             # stagger: many near-simultaneous TLS connections look like a flood to Google
     results = [j.result() for j in jobs]
     for r in results:
         if r.get("exists") is False:
             r["response"] = "This model name is not in your Google account's model list. " + (r["response"] or "")
     ok = sum(1 for r in results if r["ok"] is True)
     return jsonify({"total": len(results), "ok": ok, "failed": sum(1 for r in results if r["ok"] is False),
-                    "untested": sum(1 for r in results if r["ok"] is None), "results": results})
+                    "untested": sum(1 for r in results if r["ok"] is None), "results": results,
+                    "multi": keys_to_use is not None, "keys_tested": len(keys_to_use) if keys_to_use is not None else 1})
 
 
 @app.route('/release_daily', methods=['POST'])
@@ -3358,6 +3433,22 @@ tr:hover{background:#252525}
 .err{color:#fca5a5;font-weight:600;white-space:pre-wrap;word-break:break-word;max-width:480px;font-size:.88em}
 .err.warn{color:#fcd34d}
 .det{background:#18181b;border-radius:6px;padding:10px;font-family:monospace;font-size:.82em;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;color:#93c5fd}
+details.cardx{background:#1e1e1e;border-radius:8px;border:1px solid #333;box-shadow:0 4px 10px rgba(0,0,0,.3);flex:1 1 100%;min-width:200px}
+details.cardx>summary{list-style:none;cursor:pointer;padding:12px 15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#a1a1aa;text-transform:uppercase;letter-spacing:1px;font-size:.9em;font-weight:600;user-select:none}
+details.cardx>summary::-webkit-details-marker{display:none}
+details.cardx>summary:hover{background:#232326;border-radius:8px}
+details.cardx .chev{display:inline-block;transition:transform .15s;font-size:.8em;color:#71717a}
+details.cardx[open]>summary .chev{transform:rotate(90deg)}
+details.cardx[open]>summary{border-bottom:1px solid #333;border-radius:8px 8px 0 0}
+details.cardx .cbody{padding:12px 15px}
+.sum-info{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500;color:#a1a1aa;font-size:.88em}
+.mtbl{width:100%;min-width:780px;border-collapse:collapse}
+.mtbl th{background:#26262b;color:#a1a1aa;font-size:.72em;padding:7px 10px;text-align:left;white-space:nowrap}
+.mtbl td{padding:6px 10px;border-bottom:1px solid #2a2a2e;vertical-align:middle;font-size:.9em}
+.mtbl .mn{color:#fbbf24;font-weight:bold;width:34px;text-align:right}
+.mtbl .macts{display:flex;gap:4px;flex-wrap:nowrap;justify-content:flex-end}
+.mtbl .macts .btn-s{padding:2px 8px;font-size:.76em;white-space:nowrap}
+.mt-keylbl{display:inline-flex;align-items:center;gap:5px;background:#111827;border:1px solid #4c1d95;border-radius:6px;padding:3px 9px;margin:0 6px 6px 0;font-family:monospace;color:#93c5fd;font-size:.85em;cursor:pointer}
 </style></head><body><div class="container">
 <h1>🚀 WAPI Live Dashboard
 <div style="display:flex;gap:8px;align-items:center;">
@@ -3455,6 +3546,20 @@ tr:hover{background:#252525}
 <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>
 <h2 id='mt-title' style='margin:0;color:#a78bfa;'>🧪 Model test</h2>
 <button onclick='mtClose()' style='background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:1em;'>✕ Close</button>
+</div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
+<span style='color:#9ca3af;font-size:.85em;'>Test on:</span>
+<button class='btn-s' id='mt-one-btn' onclick='mtRerun("one")' title='one real call per model on ONE free key (quick)'>&#9889; One free key</button>
+<button class='btn-s' id='mt-all-btn' onclick='mtRerun("all")' title='one real call per model on EVERY key'>&#128273; Test with all keys</button>
+<button class='btn-s' id='mt-pick-btn' onclick='mtTogglePick()' title='choose the keys yourself'>&#127919; Select keys to test</button>
+</div>
+<div id='mt-keypick' style='display:none;margin-bottom:12px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
+<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;'>
+<span style='color:#9ca3af;font-size:.85em;'>Tick the keys:</span>
+<button class='btn-s' onclick='mtKeyAll(true)'>&#9745; All</button><button class='btn-s' onclick='mtKeyAll(false)'>&#9744; None</button>
+<button class='btn-s' id='mt-keyrun' onclick='mtRerun("pick")' style='background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;opacity:.5;' disabled>&#9654; Test on selected keys (0)</button>
+</div>
+<div id='mt-keylist'></div>
 </div>
 <div id='mt-summary' style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;'></div>
 <div id='mt-bytype' style='color:#9ca3af;font-size:.9em;margin-bottom:12px;'></div>
@@ -3940,6 +4045,9 @@ async function modelBlockCall(payload){
 
 let mdlEditing=false,mdlSavedFlag=false,mdlInEnv=false;
 let availModels=[],usageOpen={};
+// the three big cards: Active Keys + Requests per day start collapsed, Models open. Kept while the page refreshes itself.
+let cardOpen={keys:false,models:true,usage:false};
+function cardToggle(k,open){cardOpen[k]=!!open;}
 async function loadAvailable(force){
   const sel=document.getElementById('mdl-pick'),note=document.getElementById('mdl-pick-note');
   sel.innerHTML='<option value="">Loading from Google...</option>';note.textContent='';
@@ -4029,8 +4137,11 @@ function mtRefreshBtn(){const b=document.getElementById('mt-sel-btn');if(!b)retu
 function mtToggle(name,on){mtSel[name]=!!on;mtRefreshBtn();}
 function mtSelectAll(on){(window._mtNames||[]).forEach(n=>{mtSel[n]=on;});document.querySelectorAll('.mt-chk').forEach(c=>{c.checked=on;});mtRefreshBtn();}
 function mtClose(){document.getElementById('mt-modal').style.display='none';}
-async function mtCall(names,all){
-  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(all?{all:true}:{models:names})};
+let mtCtx={names:[],all:false},mtKeySel={},mtMode='one',mtBusy=false;
+async function mtCall(names,all,keys,allKeys){
+  const body=all?{all:true}:{models:names};
+  if(allKeys)body.all_keys=true;else if(keys&&keys.length)body.keys=keys;
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   let r=await fetch('/router/model_test',opts);
   if(r.status===404){r=await fetch('model_test',opts);}
   const d=await r.json().catch(()=>({}));
@@ -4038,19 +4149,59 @@ async function mtCall(names,all){
   return d;
 }
 function mtKindColor(k){return {'text-out':'#60a5fa','image-out':'#f472b6','audio-out':'#fbbf24','embedding':'#2dd4bf','live':'#c084fc'}[k]||'#9ca3af';}
-async function mtRun(names,all){
+function mtKeys(){return window._keyList||[];}
+function mtKeyChosen(){return mtKeys().filter(k=>mtKeySel[k]);}
+function mtKeyCount(){const b=document.getElementById('mt-keyrun');if(!b)return;const n=mtKeyChosen().length;b.textContent='▶ Test on selected keys ('+n+')';b.disabled=(n===0||mtBusy);b.style.opacity=(n&&!mtBusy)?'1':'.5';}
+function mtKeyToggle(k,on){mtKeySel[k]=!!on;mtKeyCount();}
+function mtKeyAll(on){mtKeys().forEach(k=>{mtKeySel[k]=on;});mtKeyRender();}
+function mtKeyRender(){
+  const box=document.getElementById('mt-keylist');if(!box)return;
+  const ks=mtKeys();
+  box.innerHTML=ks.length?ks.map(k=>'<label class="mt-keylbl"><input type="checkbox" data-k="'+esc(k)+'" '+(mtKeySel[k]?'checked':'')+' onchange="mtKeyToggle(this.dataset.k,this.checked)"> '+esc(k)+'</label>').join(''):'<span style="color:#6b7280;">No keys loaded yet - close this and press Refresh</span>';
+  mtKeyCount();
+}
+function mtTogglePick(){const p=document.getElementById('mt-keypick');const show=p.style.display==='none';p.style.display=show?'block':'none';if(show)mtKeyRender();}
+function mtMarkMode(){
+  const on='background:#3b82f6;border-color:#3b82f6;color:#fff;';
+  [['mt-one-btn','one'],['mt-all-btn','all'],['mt-pick-btn','pick']].forEach(x=>{
+    const b=document.getElementById(x[0]);if(!b)return;
+    b.style.cssText=(mtMode===x[1]?on:'')+'padding:5px 12px;';
+    b.disabled=mtBusy;
+  });
+  mtKeyCount();
+}
+function mtModelCount(){return mtCtx.all?(window._mtNames||[]).length:mtCtx.names.length;}
+function mtRerun(mode){
+  if(mtBusy)return;
+  let keys=null,allKeys=false;
+  if(mode==='all')allKeys=true;
+  else if(mode==='pick'){keys=mtKeyChosen();if(!keys.length)return;}
+  const nk=allKeys?mtKeys().length:(keys?keys.length:1);
+  const combos=mtModelCount()*nk;
+  if(combos>40&&!confirm('About '+combos+' real requests to Google ('+mtModelCount()+' models x '+nk+' keys). It can take a few minutes. Continue?'))return;
+  mtRun(mtCtx.names,mtCtx.all,keys,allKeys);
+}
+async function mtRun(names,all,keys,allKeys){
   if(!all&&!names.length){return;}
+  mtCtx={names:names.slice(),all:!!all};
+  const multi=!!(allKeys||(keys&&keys.length));
+  mtMode=allKeys?'all':(multi?'pick':'one');
+  mtBusy=true;mtMarkMode();
+  if(mtMode!=='pick')document.getElementById('mt-keypick').style.display='none';
   document.getElementById('mt-modal').style.display='block';
-  document.getElementById('mt-title').textContent='🧪 Model test - '+(all?'all models':names.length+' selected');
+  const what=all?'all models':(names.length===1?names[0]:names.length+' selected models');
+  const where=allKeys?' on ALL keys':(multi?' on '+keys.length+' selected key(s)':' on one free key');
+  document.getElementById('mt-title').textContent='🧪 Model test - '+what+where;
   document.getElementById('mt-summary').innerHTML='';
   document.getElementById('mt-bytype').textContent='';
-  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#a78bfa;">⏳ Testing... one real request per model on a free key (up to a minute for slow models)</td></tr>';
+  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#a78bfa;">⏳ Testing... '+(multi?'one real request per model and key (can take a few minutes)':'one real request per model on a free key (up to a minute for slow models)')+'</td></tr>';
   try{
-    const d=await mtCall(names,all);
+    const d=await mtCall(names,all,keys,allKeys);
     mtRender(d);
   }catch(e){
     document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:20px;color:#f87171;">❌ '+esc(e.message)+'</td></tr>';
   }
+  mtBusy=false;mtMarkMode();
 }
 function mtRender(d){
   const rs=d.results||[];
@@ -4059,9 +4210,15 @@ function mtRender(d){
     '<div style="background:rgba(248,113,113,.15);border:1px solid #f87171;border-radius:8px;padding:8px 16px;color:#f87171;font-weight:bold;">❌ Not working: '+(d.failed||0)+'</div>'+
     (d.untested?'<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">➖ Not testable here: '+d.untested+'</div>':'')+
     '<div style="background:rgba(156,163,175,.1);border:1px solid #4b5563;border-radius:8px;padding:8px 16px;color:#9ca3af;">📊 Total: '+(d.total||0)+'</div>';
-  const by={};
-  rs.filter(r=>r.ok===true).forEach(r=>{(by[r.type]=by[r.type]||[]).push(r.model);});
-  document.getElementById('mt-bytype').innerHTML=Object.keys(by).length?('Working by type: '+Object.keys(by).map(t=>'<b>'+esc(t)+'</b> ('+by[t].length+')').join(' · ')):'';
+  if(d.multi){
+    const per={},order=[];
+    rs.forEach(r=>{if(r.ok===null)return;if(!per[r.model]){per[r.model]={ok:0,n:0};order.push(r.model);}per[r.model].n++;if(r.ok===true)per[r.model].ok++;});
+    document.getElementById('mt-bytype').innerHTML=order.length?('Per model: '+order.map(m=>{const p=per[m];const c=p.ok===p.n?'#4ade80':(p.ok===0?'#f87171':'#fbbf24');return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 9px;border:1px solid '+c+';border-radius:999px;color:'+c+';font-size:.9em;"><span style="font-family:monospace;">'+esc(m)+'</span> '+p.ok+'/'+p.n+' keys</span>';}).join('')):'';
+  }else{
+    const by={};
+    rs.filter(r=>r.ok===true).forEach(r=>{(by[r.type]=by[r.type]||[]).push(r.model);});
+    document.getElementById('mt-bytype').innerHTML=Object.keys(by).length?('Working by type: '+Object.keys(by).map(t=>'<b>'+esc(t)+'</b> ('+by[t].length+')').join(' · ')):'';
+  }
   let h='';
   rs.forEach(r=>{
     const st=r.ok===true?['✅ works','#4ade80','rgba(74,222,128,.05)']:(r.ok===null?['➖ not tested','#9ca3af','rgba(156,163,175,.05)']:((r.status===429||r.status===403)?['⚠️ '+r.status+' limited','#fbbf24','rgba(251,191,36,.05)']:['❌ '+(r.status||'error'),'#f87171','rgba(248,113,113,.05)']));
@@ -4144,11 +4301,16 @@ function updateUI(data){
         keysHtml += `<span class="tag" style="background:#2d1b69;border:1px solid #4c1d95;cursor:pointer;" onclick="testAllKeys('${k}')" title="Test all models on this key">${k} 🧪</span>`;
     });
   }
-  // Build models row: availability, 🧪 test on all keys, ⛔ block / ✅ unblock, 🔓 release
+  // Models table: numbered, fixed column order, the same buttons in the same place on every row
   const mki = data.model_key_info || {};
+  const lastEff = ((data.last_models || {}).effective || []);
+  const lastIdxOf = n => lastEff.findIndex(x => x.toLowerCase() === n.toLowerCase());
+  const ordered = (data.models || []).map((m, i) => ({m: m, i: i, lp: lastIdxOf(m.name)}));
+  ordered.sort((a, b) => { const al = a.lp >= 0, bl = b.lp >= 0; if (al !== bl) return al ? 1 : -1; if (al && bl) return a.lp - b.lp; return a.i - b.i; });
+  const umToday = ((data.usage || {}).models) || {};
   let modelsHtml = '';
-  (data.models || []).forEach(model => {
-    const mn = model.name;
+  ordered.forEach((o, pos) => {
+    const model = o.m, mn = model.name;
     const info = mki[mn] || {available: '?', penalized_last5: [], blocked_left: 0};
     const total = data.active_keys || 0;
     const penCount = info.penalized_last5.length;
@@ -4157,25 +4319,34 @@ function updateUI(data){
     const countColor = blockedLeft > 0 ? '#f87171' : (penCount > 0 ? '#fbbf24' : '#4ade80');
     const penTip = penCount > 0 ? info.penalized_last5.map(k=>'...'+k).join(', ') : 'none';
     const em = esc(mn);
-    const releaseModelBtn = penCount > 0
-      ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
-      : '';
-    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();testAllKeys('',this.dataset.m)" title="Test ${em} on ALL keys">🧪 Test</button>`;
-    const blockBtn = blockedLeft > 0
-      ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)" title="Lift the block now">✅ Unblock</button>`
-      : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;padding:1px 7px;font-size:.75em;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em} on all keys for a custom time">⛔ Block</button>`;
     const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
-    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;padding:1px 7px;font-size:.75em;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
-    const lastPos = ((data.last_models || {}).effective || []).findIndex(x => x.toLowerCase() === mn.toLowerCase());
-    const lastTag = lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.78em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '';
+    const lastPos = o.lp;
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
+    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtRun([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
     const lastBtn = lastPos >= 0
-      ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
-      : `<button class="btn-s" style="background:#1f2937;border-color:#fbbf24;color:#fde68a;padding:1px 7px;font-size:.75em;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Use ${em} only after every other model (adds it at the end of the last list)">⬇ Last</button>`;
-    const blockedTag = blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.8em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '';
-    const clickHandler = penCount > 0 ? `data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
-    const cursor = penCount > 0 ? 'cursor:pointer;' : '';
-    modelsHtml += `<span class="tag" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#1a1a2e;border:1px solid ${blockedLeft>0?'#991b1b':'#4c1d95'};${cursor}" title="${em} — ${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}" ${clickHandler}><span><input type='checkbox' class='mt-chk' data-m='${em}' ${mtSel[mn]?'checked':''} onclick='event.stopPropagation()' onchange='mtToggle(this.dataset.m,this.checked)' title='tick to test several models together'> ${em} <span style="color:${countColor};font-weight:bold;">${avail}/${total}</span> <span style="color:#9ca3af;font-size:.78em;">RPM ${model.rpm} · RPD ${model.rpd}</span> <span style="color:#60a5fa;font-size:.78em;" title="requests today, all keys">today ${((data.usage||{}).models||{})[mn]?data.usage.models[mn].today:0}</span>${cfgInfo.saved?' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>':''}${lastTag}${blockedTag}</span><span style="display:inline-flex;gap:4px;flex-wrap:wrap;">${editBtn}${testBtn}${lastBtn}${blockBtn}${releaseModelBtn}</span></span>`;
+      ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
+      : `<button class="btn-s" style="background:#1f2937;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Use ${em} only after every other model">⬇ Last</button>`;
+    const blockBtn = blockedLeft > 0
+      ? `<button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();unblockModel(this.dataset.m)" title="Lift the block now">✅ Unblock</button>`
+      : `<button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();openBlock(this.dataset.m)" title="Block ${em} on all keys for a custom time">⛔ Block</button>`;
+    const releaseModelBtn = penCount > 0
+      ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
+      : '';
+    const tags = (cfgInfo.saved ? ' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>' : '')
+      + (lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '')
+      + (blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.75em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '');
+    const keysAttr = penCount > 0 ? `style="cursor:pointer;" data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
+    const todayN = umToday[mn] ? umToday[mn].today : 0;
+    modelsHtml += `<tr style="${blockedLeft>0?'background:rgba(248,113,113,.06);':''}">
+      <td class="mn">${pos+1}</td>
+      <td><input type="checkbox" class="mt-chk" data-m="${em}" ${mtSel[mn]?'checked':''} onclick="event.stopPropagation()" onchange="mtToggle(this.dataset.m,this.checked)" title="tick to test several models together"></td>
+      <td><span style="font-family:monospace;color:#c4b5fd;word-break:break-all;">${em}</span>${tags}</td>
+      <td ${keysAttr} title="${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}"><b style="color:${countColor};">${avail}/${total}</b></td>
+      <td style="color:#9ca3af;">${model.rpm}</td><td style="color:#9ca3af;">${model.rpd}</td>
+      <td style="color:#60a5fa;font-weight:bold;" title="requests today, all keys">${todayN}</td>
+      <td><div class="macts">${editBtn}${testBtn}${lastBtn}${blockBtn}${releaseModelBtn}</div></td></tr>`;
   });
+  window._keyList = data.key_list || [];
   let blkHtml = '';
   (data.model_blocks || []).forEach(b => {
     blkHtml += `<span class="tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,113,113,.15);color:#fca5a5;border-color:#f87171;padding:3px 8px;" title="until ${esc(b.until_ist)}">⛔ ${esc(b.model)} · ${fmtLeft(b.seconds_left)} left (${esc(b.until_ist)})${b.reason?' · '+esc(b.reason):''} <button class="btn-s" style="background:#14532d;border-color:#4ade80;color:#dcfce7;padding:1px 6px;font-size:.75em;" data-m="${esc(b.model)}" onclick="unblockModel(this.dataset.m)">✅ Unblock</button></span>`;
@@ -4200,27 +4371,50 @@ function updateUI(data){
     </details>`;
   });
   if (!usageHtml) usageHtml = '<span style="color:#6b7280;">No models.</span>';
+  const nPen = penEntries.length, nCd = Object.keys(data.rpm_cooldowns || {}).length;
+  const nBlk = (data.model_blocks || []).length, nLast = lastEff.length;
+  const usTodayAll = Object.values(um).reduce((t, u) => t + (u.today || 0), 0);
+  const usYdayAll = Object.values(um).reduce((t, u) => t + (u.yesterday || 0), 0);
+  const chev = '<span class="chev">▶</span>';
   document.getElementById('status-panel').innerHTML=`
-    <div class="card"><h3>Active Keys</h3><div class="val" style="color:#60a5fa;">${data.active_keys}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${keysHtml}</div>
-      <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
-      <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
-    </div>
-    <div class="card"><h3 style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;'>Models <span style='display:inline-flex;gap:5px;flex-wrap:wrap;'>
-<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(true)' title='tick every model'>☑ All</button>
-<button class='btn-s' style='padding:3px 8px;font-size:.78em;' onclick='mtSelectAll(false)' title='untick every model'>☐ None</button>
-<button class='btn-s' id='mt-sel-btn' style='background:#2d1b69;border-color:#4c1d95;padding:3px 10px;font-size:.8em;font-weight:bold;opacity:${mtCount()?1:.5};' ${mtCount()?'':'disabled'} onclick='mtRun(mtChosen(),false)' title='test only the ticked models'>🧪 Test selected (${mtCount()})</button>
-<button class='btn-s' style='background:#7c3aed;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='mtRun([],true)' title='test every model once (one free key each)'>🧪 Test all models</button>
-<button class='btn-s' style='background:#78350f;border-color:#fbbf24;color:#fde68a;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='openLast()' title='choose which models are used only after every other model, and in which order'>⬇ Last order</button>
-<button class='btn-s' style='background:#6d28d9;border-color:#a78bfa;color:#fff;padding:3px 10px;font-size:.8em;font-weight:bold;' onclick='openModelForm()'>➕ Add model</button></span></h3>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">${modelsHtml}</div>
-      <div class="sub flex-col" style="margin-top:8px;">Blocked models (all keys, for auto / round-robin only - a request that names the model still gets it):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
-      <div class="sub" style="margin-top:8px;color:#6b7280;">➕ adds a model with its RPM/RPD (saved, survives restarts) · ✏️ changes its limits · 🧪 tests a model on every key · ⛔ blocks it for a custom time (1h, 1d, 43d ...) in auto / round-robin · ⬇ Last = used only after every other model, in the order you choose (saved) · click a model to see penalized keys · ☑ tick models + 🧪 Test selected / Test all models = which models work and their type (text / image / audio / embedding)</div>
-    </div>
-    <div class="card" style="flex:1 1 100%;"><h3>📊 Requests per day (per key)</h3>
-      <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
-      ${usageHtml}
-    </div>
+    <details class="cardx" ${cardOpen.keys?'open':''} ontoggle="cardToggle('keys',this.open)">
+      <summary>${chev}<span>🔑 Active Keys</span><b style="color:#60a5fa;font-size:1.25em;">${data.active_keys}</b>
+        <span class="sum-info">${nPen?'🔒 '+nPen+' daily-locked':'✅ no daily locks'} · ${nCd?'⏱ '+nCd+' cooling down':'no cooldowns'}</span></summary>
+      <div class="cbody">
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${keysHtml}</div>
+        <div class="sub flex-col" style="margin-top:8px;">Daily penalized:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${penHtml}</div></div>
+        <div class="sub flex-col" style="margin-top:8px;">RPM cooldowns:<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${cdHtml}</div></div>
+      </div>
+    </details>
+    <details class="cardx" ${cardOpen.models?'open':''} ontoggle="cardToggle('models',this.open)">
+      <summary>${chev}<span>📦 Models</span><b style="color:#c4b5fd;font-size:1.25em;">${(data.models||[]).length}</b>
+        <span class="sum-info">${nBlk?'⛔ '+nBlk+' blocked · ':''}${nLast?'⬇ '+nLast+' last · ':''}ticked: ${mtCount()}</span></summary>
+      <div class="cbody">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <button class="btn-s" onclick="mtSelectAll(true)" title="tick every model">☑ All</button>
+          <button class="btn-s" onclick="mtSelectAll(false)" title="untick every model">☐ None</button>
+          <button class="btn-s" id="mt-sel-btn" style="background:#2d1b69;border-color:#4c1d95;font-weight:bold;opacity:${mtCount()?1:.5};" ${mtCount()?'':'disabled'} onclick="mtRun(mtChosen(),false)" title="test only the ticked models">🧪 Test selected (${mtCount()})</button>
+          <button class="btn-s" style="background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="mtRun([],true)" title="test every model once">🧪 Test all models</button>
+          <span style="flex:1;"></span>
+          <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;font-weight:bold;" onclick="openLast()" title="choose which models are used only after every other model, and in which order">⬇ Last order</button>
+          <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
+        </div>
+        <div style="overflow-x:auto;border:1px solid #2a2a2e;border-radius:6px;">
+          <table class="mtbl"><thead><tr><th style="text-align:right;">#</th><th></th><th>Model</th><th title="keys that are still usable / all keys">Keys ok</th><th>RPM</th><th>RPD</th><th>Today</th><th style="text-align:right;">Actions</th></tr></thead>
+          <tbody>${modelsHtml||'<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px;">No models.</td></tr>'}</tbody></table>
+        </div>
+        <div class="sub flex-col" style="margin-top:10px;">Blocked models (all keys, for auto / round-robin only - a request that names the model still gets it):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
+        <div class="sub" style="margin-top:8px;color:#6b7280;">Order: normal models first (as configured), then the ⬇ last models in their last order. 🧪 Test opens a window where you can test the model on one free key, on all keys, or on keys you select · ✏️ limits · ⬇ Last / ⬆ Normal · ⛔ Block / ✅ Unblock · 🔓 Release = free daily-locked keys.</div>
+      </div>
+    </details>
+    <details class="cardx" ${cardOpen.usage?'open':''} ontoggle="cardToggle('usage',this.open)">
+      <summary>${chev}<span>📊 Requests per day (per key)</span>
+        <span class="sum-info">today <b style="color:#60a5fa;">${usTodayAll}</b> · yesterday ${usYdayAll}</span></summary>
+      <div class="cbody">
+        <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
+        ${usageHtml}
+      </div>
+    </details>
     <div class="card"><h3>API Traffic</h3><div class="val">${m.total_incoming_requests}</div><div class="sub">Total Requests</div></div>
     <div class="card"><h3>Google API</h3><div class="val" style="color:#4ade80;">${m.successful_api_calls}</div>
       <div class="sub">RPM Hits: <span style="color:#fbbf24">${m.rpm_cooldowns_applied||0}</span> | Daily Hits: <span style="color:#f87171">${m.daily_limits_hit||0}</span> | Web fallback: <span style="color:#a78bfa">${m.webai_fallback_calls||0}</span></div></div>
