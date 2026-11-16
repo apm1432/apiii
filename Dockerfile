@@ -44,6 +44,11 @@ RUN if [ -d /opt/webai/src ]; then python3 wapi/patch_webai.py || echo "WARNING:
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
 
+# netcat: the current start.sh waits with bash /dev/tcp and does not need it. It is only a safety net: the old Start.sh used
+# `nc -z`, and node:20-slim has no `nc` -> that old script waited forever, nginx (port 8000) never started and Koyeb
+# answered "TCP health check failed on port 8000".
+RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd && rm -rf /var/lib/apt/lists/*
+
 RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
 EXPOSE 8000
