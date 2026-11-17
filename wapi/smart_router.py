@@ -1338,12 +1338,47 @@ def _record_request(key, model_name):
     _prune_rpm(key, model_name)
     rpm_window[(key, model_name)].append(time.monotonic())
 
+HD503_STRIKES = int(os.environ.get("HD503_STRIKES", "2"))          # same-model 503 "high demand" answers before it is blocked / the error is returned
+HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "900"))   # auto mode: block that model for 15 min
+HD503_WINDOW_SECS = int(os.environ.get("HD503_WINDOW_SECS", "300")) # strikes older than this are forgotten
+HIGH_DEMAND_503: dict = {}   # model key -> [timestamps of recent 503 answers]
+
+
+def _is_high_demand_503(status, text) -> bool:
+    return status == 503 and any(w in (text or "").lower() for w in ("high demand", "unavailable", "overloaded"))
+
+
+def _hd503_strike(model_name, pool_request: bool) -> bool:
+    """Record one 503 'high demand' for this model. Returns True when it just reached HD503_STRIKES in the window.
+    Pool/auto request: the model is blocked for HD503_BLOCK_SECS (the existing model block, which lifts itself),
+    and the strikes are reset. Caller must hold state_lock."""
+    bk = _bk(model_name)
+    now = time.time()
+    lst = [t for t in HIGH_DEMAND_503.get(bk, []) if now - t < HD503_WINDOW_SECS]
+    lst.append(now)
+    HIGH_DEMAND_503[bk] = lst
+    if len(lst) < HD503_STRIKES:
+        return False
+    HIGH_DEMAND_503.pop(bk, None)
+    if pool_request:
+        display = next((m["name"] for m in MODELS if _bk(m["name"]) == bk), str(model_name).split("/")[-1])
+        MODEL_BLOCKS[bk] = {"model": display, "until": now + HD503_BLOCK_SECS, "since": now,
+                            "reason": f"auto: {HD503_STRIKES}x 503 high demand -> blocked {HD503_BLOCK_SECS // 60} min"}
+        try:
+            _blocks_persist("set", bk)
+        except Exception as e:
+            print(f"[HD503] persist failed: {e}")
+        print(f"[HD503] {display}: {HD503_STRIKES}x 503 high demand -> blocked for auto for {HD503_BLOCK_SECS}s")
+    return True
+
+
 def _record_rpd_success(key, model_name):
     """Call AFTER a confirmed 200 response. This is the only place
     rpd_count should be incremented, since it's the only case where a
     request actually consumed quota on Google's side."""
     k = (key, model_name)
     rpd_count[k] = rpd_count.get(k, 0) + 1
+    HIGH_DEMAND_503.pop(_bk(model_name), None)      # model answered -> its 503 strikes are forgotten
     try:
         _usage_add(key, model_name)
     except Exception as e:      # statistics must never break a request
@@ -3549,6 +3584,7 @@ details.cardx .cbody{padding:12px 15px}
 </div>
 <div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
 <span style='color:#9ca3af;font-size:.85em;'>Test on:</span>
+<button class='btn-s' id='mt-start-btn' onclick='mtStart()' style='background:#16a34a;border-color:#4ade80;color:#fff;font-weight:bold;' title='start the test in the selected mode'>&#9654; Start test</button>
 <button class='btn-s' id='mt-one-btn' onclick='mtRerun("one")' title='one real call per model on ONE free key (quick)'>&#9889; One free key</button>
 <button class='btn-s' id='mt-all-btn' onclick='mtRerun("all")' title='one real call per model on EVERY key'>&#128273; Test with all keys</button>
 <button class='btn-s' id='mt-pick-btn' onclick='mtTogglePick()' title='choose the keys yourself'>&#127919; Select keys to test</button>
@@ -4168,6 +4204,7 @@ function mtMarkMode(){
     b.style.cssText=(mtMode===x[1]?on:'')+'padding:5px 12px;';
     b.disabled=mtBusy;
   });
+  const sb=document.getElementById('mt-start-btn');if(sb)sb.disabled=mtBusy;
   mtKeyCount();
 }
 function mtModelCount(){return mtCtx.all?(window._mtNames||[]).length:mtCtx.names.length;}
@@ -4181,6 +4218,22 @@ function mtRerun(mode){
   if(combos>40&&!confirm('About '+combos+' real requests to Google ('+mtModelCount()+' models x '+nk+' keys). It can take a few minutes. Continue?'))return;
   mtRun(mtCtx.names,mtCtx.all,keys,allKeys);
 }
+function mtOpen(names,all){
+  // Opens the model-test panel ONLY. Nothing is sent to Google until the user presses a start button inside the panel.
+  if(mtBusy)return;
+  if(!all&&!(names&&names.length))return;
+  mtCtx={names:(names||[]).slice(),all:!!all};
+  mtMode='one';
+  document.getElementById('mt-modal').style.display='block';
+  document.getElementById('mt-keypick').style.display='none';
+  const what=all?'all models':(names.length===1?names[0]:names.length+' selected models');
+  document.getElementById('mt-title').textContent='🧪 Model test - '+what;
+  document.getElementById('mt-summary').innerHTML='';
+  document.getElementById('mt-bytype').textContent='';
+  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#9ca3af;">Press <b>▶ Start test</b> (one free key), or choose <b>Test with all keys</b> / <b>Select keys to test</b>. Nothing runs until you press it.</td></tr>';
+  mtMarkMode();
+}
+function mtStart(){mtRerun(mtMode==='pick'?'pick':(mtMode==='all'?'all':'one'));}
 async function mtRun(names,all,keys,allKeys){
   if(!all&&!names.length){return;}
   mtCtx={names:names.slice(),all:!!all};
@@ -4322,7 +4375,7 @@ function updateUI(data){
     const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
     const lastPos = o.lp;
     const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
-    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtRun([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
+    const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtOpen([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
     const lastBtn = lastPos >= 0
       ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
       : `<button class="btn-s" style="background:#1f2937;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Use ${em} only after every other model">⬇ Last</button>`;
@@ -4393,8 +4446,8 @@ function updateUI(data){
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <button class="btn-s" onclick="mtSelectAll(true)" title="tick every model">☑ All</button>
           <button class="btn-s" onclick="mtSelectAll(false)" title="untick every model">☐ None</button>
-          <button class="btn-s" id="mt-sel-btn" style="background:#2d1b69;border-color:#4c1d95;font-weight:bold;opacity:${mtCount()?1:.5};" ${mtCount()?'':'disabled'} onclick="mtRun(mtChosen(),false)" title="test only the ticked models">🧪 Test selected (${mtCount()})</button>
-          <button class="btn-s" style="background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="mtRun([],true)" title="test every model once">🧪 Test all models</button>
+          <button class="btn-s" id="mt-sel-btn" style="background:#2d1b69;border-color:#4c1d95;font-weight:bold;opacity:${mtCount()?1:.5};" ${mtCount()?'':'disabled'} onclick="mtOpen(mtChosen(),false)" title="test only the ticked models">🧪 Test selected (${mtCount()})</button>
+          <button class="btn-s" style="background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="mtOpen([],true)" title="test every model once">🧪 Test all models</button>
           <span style="flex:1;"></span>
           <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;font-weight:bold;" onclick="openLast()" title="choose which models are used only after every other model, and in which order">⬇ Last order</button>
           <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
@@ -4785,6 +4838,7 @@ def proxy_chat():
                               # (never hammered 3x back-to-back), before it's finally
                               # excluded for the rest of this request.
     MAX_ATTEMPTS_PER_COMBO = 3
+    hd_req = {}              # model -> 503 'high demand' answers in THIS request (used when the client named the model)
     bad_400 = {}             # error text -> how often Google answered exactly that 400 (a bad REQUEST is not a bad key)
     img_fail_models = set()  # models that answered "cannot process input image" for THIS request
     img_skip = set()         # (key, model) pairs skipped because of that (undone if we have to strip the images)
@@ -5004,13 +5058,38 @@ def proxy_chat():
                 # next iteration) and let round-robin move on to other
                 # combos; it becomes eligible again once the breather ends,
                 # up to MAX_ATTEMPTS_PER_COMBO total tries for this request.
+                _hd_text = ""
+                try: _hd_text = resp.text
+                except: pass
+                _hd_hit = False
                 with state_lock:
                     n = attempt_counts.get((key, actual_model), 0) + 1
                     attempt_counts[(key, actual_model)] = n
                     _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
                     print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
                           f"server error #{n} -> cooldown {min(20 * n, 120)}s, trying other combos first")
+                    if _is_high_demand_503(resp.status_code, _hd_text):
+                        if _is_pool_req:
+                            # auto mode: 2x "high demand" on the same model -> that model is blocked for 15 min
+                            _hd_hit = _hd503_strike(actual_model, True)
+                        else:
+                            # the user chose this model: 2x "high demand" -> give the error back to the user
+                            hd_req[actual_model] = hd_req.get(actual_model, 0) + 1
+                            _hd_hit = hd_req[actual_model] >= HD503_STRIKES
                 attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): server overloaded/unavailable")
+                if _hd_hit and _is_pool_req:
+                    _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} -> blocked for auto for {HD503_BLOCK_SECS // 60} min")
+                    attempt_errors.append(f"{actual_model} blocked for auto {HD503_BLOCK_SECS // 60} min (2x 503 high demand)")
+                elif _hd_hit:
+                    _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} (chosen by the user) -> error returned")
+                    with state_lock:
+                        metrics["failed_requests"] += 1
+                    if hasattr(g, "log_entry"):
+                        g.log_entry["error_detail"] = (f"{actual_model}: 503 high demand {HD503_STRIKES}x -> returned to the user (model was chosen by name) | "
+                                                       + " || ".join(attempt_errors[-3:]))
+                    excluded = ['content-encoding','content-length','transfer-encoding','connection']
+                    out_headers = [(n_, v_) for n_, v_ in resp.raw.headers.items() if n_.lower() not in excluded]
+                    return Response(resp.content, 503, out_headers)
                 continue
 
             elif resp.status_code in [400, 404]:
