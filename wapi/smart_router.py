@@ -3308,22 +3308,7 @@ def _probe_model_on_key(name, meta, key):
     try:
         if md:
             with state_lock:
-                _maybe_reset_rpd()
-                why = None
-                if (key, pname) in PERMANENTLY_BROKEN_MODELS:
-                    why = "marked broken"
-                elif _is_daily_penalized(key, pname):
-                    why = "daily limit already reached on this key"
-                elif not _rpd_available(key, pname, md["rpd"]):
-                    why = "RPD (daily) already used up on this key"
-                elif _is_rpm_cooldown(key, pname) or not _rpm_available(key, pname, md["rpm"]):
-                    why = "RPM window full / cooling down"
-                if why is None:
-                    _record_request(key, pname)
-            if why:
-                # protect the keys: a call we already know is rate-limited only adds more 429 hits
-                res.update(ok=None, tested=False, status=0, ms=0, response="Skipped - nothing was sent to Google (" + why + ").")
-                return res
+                _record_request(key, pname)
         r = _probe_call(key, name, kind)
         res.update(ms=round((time.time() - t0) * 1000), status=r.status_code)
         if r.status_code == 200:
