@@ -74,6 +74,7 @@ rpm_cooldown: dict = {}
 # Google's free-tier RPD quota is actually per (project/key, model) anyway,
 # so penalizing the whole key was both wrong and wasteful.
 key_daily_penalty: dict = {}
+PENALTY_ERR: dict = {}      # (key, model) -> {"ts", "status", "text"}: the last full Google 429/403 answer (shown on the dashboard)
 
 # (key, model_name) pairs that returned a hard compatibility error (e.g.
 # "This model only supports Interactions API", missing thought_signature)
@@ -878,7 +879,7 @@ def search_via_native(data: dict, requested_model: str, is_responses_api: bool, 
         if resp.status_code in (429, 403):
             with state_lock:
                 metrics["rate_limit_hits"] += 1
-                kind = _handle_429(key, actual_model, err_text)
+                kind = _handle_429(key, actual_model, err_text, raw=resp.text, status=resp.status_code)
             print(f"[SEARCH 429] key=…{key[-6:]} model={actual_model} -> next slot ({kind})")
             continue
         if resp.status_code in (500, 503):
@@ -1419,6 +1420,7 @@ def _clear_penalty(key, model_name):
     and strike counter that said otherwise. Call with state_lock held."""
     k = (key, model_name)
     was = key_daily_penalty.pop(k, None)
+    PENALTY_ERR.pop(k, None)
     rpm_cooldown.pop(k, None)
     rate_strikes.pop(k, None)
     if was and was > time.time():
@@ -1447,6 +1449,7 @@ rate_strikes: dict = {}   # (key, model) -> consecutive ambiguous 429 count
 # promoted to a midnight DAILY penalty after 5 in a row -> healthy keys were locked for a whole day. Now it is only
 # a cooldown, unless you opt in with AMBIGUOUS_429_STRIKES=<n> (0 = never, the default).
 AMBIGUOUS_429_STRIKES = int(os.environ.get("AMBIGUOUS_429_STRIKES", "0"))
+AMBIGUOUS_MODEL_DAILY_KEYS = int(os.environ.get("AMBIGUOUS_MODEL_DAILY_KEYS", "3"))   # this many other daily-limited keys of the model -> ambiguous 429s back off 10 min
 
 def _parse_retry_secs(t: str):
     """Google's own wait time in seconds from a lower-cased 429 body, or None. Understands the JSON field
@@ -1462,7 +1465,7 @@ def _parse_retry_secs(t: str):
             return total
     return None
 
-def _handle_429(key, model_name, err_text: str) -> str:
+def _handle_429(key, model_name, err_text: str, raw=None, status=429) -> str:
     """Classify a 429 and apply the right penalty. Call with state_lock held.
     Returns "daily" or "rpm".
 
@@ -1486,6 +1489,7 @@ def _handle_429(key, model_name, err_text: str) -> str:
     """
     t = (err_text or "").lower()
     k = (key, model_name)
+    PENALTY_ERR[k] = {"ts": time.time(), "status": status, "text": str(raw if raw is not None else (err_text or ""))[:6000]}
 
     _parsed = _parse_retry_secs(t)
     retry = _parsed + 2 if _parsed is not None else None
@@ -1547,6 +1551,19 @@ def _escalate_or_stay_rpm(k, key, model_name) -> str:
         _apply_daily_penalty(key, model_name)
         rate_strikes.pop(k, None)
         return "daily"
+    # Stop re-trying a (key, model) every ~62 s when it keeps answering "resource has been exhausted":
+    #  * same combo failed this way again -> back off longer (2nd: 5 min, 3rd: 15 min, 4th+: 30 min) - never a daily lock
+    #  * several OTHER keys of this model are already daily-limited -> the model's quota is gone, wait 10 min
+    now = time.time()
+    others = sum(1 for kk in API_KEYS if kk != key and key_daily_penalty.get((kk, model_name), 0) > now)
+    wait = 0
+    if n >= 2:
+        wait = {2: 300, 3: 900}.get(n, 1800)
+    if others >= AMBIGUOUS_MODEL_DAILY_KEYS:
+        wait = max(wait, 600)
+    if wait:
+        _apply_rpm_cooldown(key, model_name, seconds=wait)
+        print(f"[429 BACKOFF] key=…{key[-6:]} model={model_name} ambiguous 429 x{n}, {others} other key(s) daily-limited -> wait {wait}s")
     return "rpm"
 
 # ─── Dynamic model list (refreshed daily from API) ────────────────────────────
@@ -2701,12 +2718,28 @@ def api_dashboard_data():
             mn = m["name"]
             pen_keys = []
             available = 0
+            pen_detail = []
             for k in API_KEYS:
                 if _is_daily_penalized(k, mn) or (k, mn) in PERMANENTLY_BROKEN_MODELS or not _rpd_available(k, mn, m["rpd"]):
                     pen_keys.append(k[-5:])
+                    e = PENALTY_ERR.get((k, mn))
+                    until = key_daily_penalty.get((k, mn), 0)
+                    if _is_daily_penalized(k, mn):
+                        reason = "Daily limit (Google 429)"
+                    elif (k, mn) in PERMANENTLY_BROKEN_MODELS:
+                        reason = "Marked broken for this key (Google refused this model on it)"
+                    else:
+                        reason = f"Router's own count: {rpd_count.get((k, mn), 0)}/{m['rpd']} requests used today (RPD {m['rpd']})"
+                    pen_detail.append({
+                        "key": "…" + k[-5:], "reason": reason,
+                        "unlock_min": round((until - now) / 60, 1) if until > now else mins_to_midnight,
+                        "status": (e or {}).get("status"),
+                        "when": datetime.datetime.fromtimestamp(e["ts"], IST).strftime("%Y-%m-%d %H:%M:%S IST") if e else "",
+                        "error": (e or {}).get("text") or "No Google error text stored (the penalty is older than the last restart, or it came from the router's own request count).",
+                    })
                 else:
                     available += 1
-            model_key_info[mn] = {"available": available, "penalized_last5": pen_keys,
+            model_key_info[mn] = {"available": available, "penalized_last5": pen_keys, "pen": pen_detail,
                                   "blocked_left": int(_model_block_left(mn))}
     return jsonify({
         "metrics": metrics,
@@ -3252,7 +3285,7 @@ def _probe_model(name, meta):
             res["response"] = err
             if r.status_code in (429, 403) and md:
                 with state_lock:
-                    _handle_429(key, md["name"], (r.text or "").lower())
+                    _handle_429(key, md["name"], (r.text or "").lower(), raw=r.text, status=r.status_code)
             if r.status_code in (400, 404):
                 break                                    # the MODEL is the problem, other keys will say the same
         except Exception as e:
@@ -3275,7 +3308,22 @@ def _probe_model_on_key(name, meta, key):
     try:
         if md:
             with state_lock:
-                _record_request(key, pname)
+                _maybe_reset_rpd()
+                why = None
+                if (key, pname) in PERMANENTLY_BROKEN_MODELS:
+                    why = "marked broken"
+                elif _is_daily_penalized(key, pname):
+                    why = "daily limit already reached on this key"
+                elif not _rpd_available(key, pname, md["rpd"]):
+                    why = "RPD (daily) already used up on this key"
+                elif _is_rpm_cooldown(key, pname) or not _rpm_available(key, pname, md["rpm"]):
+                    why = "RPM window full / cooling down"
+                if why is None:
+                    _record_request(key, pname)
+            if why:
+                # protect the keys: a call we already know is rate-limited only adds more 429 hits
+                res.update(ok=None, tested=False, status=0, ms=0, response="Skipped - nothing was sent to Google (" + why + ").")
+                return res
         r = _probe_call(key, name, kind)
         res.update(ms=round((time.time() - t0) * 1000), status=r.status_code)
         if r.status_code == 200:
@@ -3290,7 +3338,7 @@ def _probe_model_on_key(name, meta, key):
         res["response"] = err
         if r.status_code in (429, 403) and md:
             with state_lock:
-                _handle_429(key, pname, (r.text or "").lower())
+                _handle_429(key, pname, (r.text or "").lower(), raw=r.text, status=r.status_code)
         if r.status_code == 429:
             res["response"] = "Rate-limited on this key (" + err[:160] + ") - the model exists, try again later."
     except Exception as e:
@@ -3576,6 +3624,16 @@ details.cardx .cbody{padding:12px 15px}
 <button class="btn-s" onclick="closeModelForm()" style="padding:8px 16px;">Cancel</button>
 <button class="btn" onclick="saveModelCfg()" style="background:#6d28d9;">💾 Save</button>
 </div></div></div>
+<div id='pen-modal' style='display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;' onclick='if(event.target===this)penClose()'>
+<div style='max-width:900px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #b91c1c;padding:22px;'>
+<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>
+<h2 id='pen-title' style='margin:0;color:#fca5a5;font-size:1.15em;'>Daily-penalized keys</h2>
+<button onclick='penClose()' style='background:#374151;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;'>&#10005; Close</button>
+</div>
+<div style='color:#9ca3af;font-size:.85em;margin-bottom:10px;'>Tap a key to see the complete error Google returned for it.</div>
+<div id='pen-keys' style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;'></div>
+<div id='pen-detail'></div>
+</div></div>
 <div id='mt-modal' style='display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box;'>
 <div style='max-width:1040px;margin:0 auto;background:#1a1a2e;border-radius:12px;border:1px solid #4c1d95;padding:24px;'>
 <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;'>
@@ -3585,15 +3643,15 @@ details.cardx .cbody{padding:12px 15px}
 <div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
 <span style='color:#9ca3af;font-size:.85em;'>Test on:</span>
 <button class='btn-s' id='mt-start-btn' onclick='mtStart()' style='background:#16a34a;border-color:#4ade80;color:#fff;font-weight:bold;' title='start the test in the selected mode'>&#9654; Start test</button>
-<button class='btn-s' id='mt-one-btn' onclick='mtRerun("one")' title='one real call per model on ONE free key (quick)'>&#9889; One free key</button>
-<button class='btn-s' id='mt-all-btn' onclick='mtRerun("all")' title='one real call per model on EVERY key'>&#128273; Test with all keys</button>
+<button class='btn-s' id='mt-one-btn' onclick='mtSetMode("one")' title='one real call per model on ONE free key (quick). Press Start test to run.'>&#9889; One free key</button>
+<button class='btn-s' id='mt-all-btn' onclick='mtSetMode("all")' title='one real call per model on EVERY key. Press Start test to run.'>&#128273; Test with all keys</button>
 <button class='btn-s' id='mt-pick-btn' onclick='mtTogglePick()' title='choose the keys yourself'>&#127919; Select keys to test</button>
 </div>
 <div id='mt-keypick' style='display:none;margin-bottom:12px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
 <div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;'>
 <span style='color:#9ca3af;font-size:.85em;'>Tick the keys:</span>
 <button class='btn-s' onclick='mtKeyAll(true)'>&#9745; All</button><button class='btn-s' onclick='mtKeyAll(false)'>&#9744; None</button>
-<button class='btn-s' id='mt-keyrun' onclick='mtRerun("pick")' style='background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;opacity:.5;' disabled>&#9654; Test on selected keys (0)</button>
+<button class='btn-s' id='mt-keyrun' onclick='mtSetMode("pick")' style='background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;opacity:.5;' disabled>&#10003; Use selected keys (0)</button>
 </div>
 <div id='mt-keylist'></div>
 </div>
@@ -4187,7 +4245,7 @@ async function mtCall(names,all,keys,allKeys){
 function mtKindColor(k){return {'text-out':'#60a5fa','image-out':'#f472b6','audio-out':'#fbbf24','embedding':'#2dd4bf','live':'#c084fc'}[k]||'#9ca3af';}
 function mtKeys(){return window._keyList||[];}
 function mtKeyChosen(){return mtKeys().filter(k=>mtKeySel[k]);}
-function mtKeyCount(){const b=document.getElementById('mt-keyrun');if(!b)return;const n=mtKeyChosen().length;b.textContent='▶ Test on selected keys ('+n+')';b.disabled=(n===0||mtBusy);b.style.opacity=(n&&!mtBusy)?'1':'.5';}
+function mtKeyCount(){const b=document.getElementById('mt-keyrun');if(!b)return;const n=mtKeyChosen().length;b.textContent='✓ Use selected keys ('+n+')';b.disabled=(n===0||mtBusy);b.style.opacity=(n&&!mtBusy)?'1':'.5';}
 function mtKeyToggle(k,on){mtKeySel[k]=!!on;mtKeyCount();}
 function mtKeyAll(on){mtKeys().forEach(k=>{mtKeySel[k]=on;});mtKeyRender();}
 function mtKeyRender(){
@@ -4196,7 +4254,21 @@ function mtKeyRender(){
   box.innerHTML=ks.length?ks.map(k=>'<label class="mt-keylbl"><input type="checkbox" data-k="'+esc(k)+'" '+(mtKeySel[k]?'checked':'')+' onchange="mtKeyToggle(this.dataset.k,this.checked)"> '+esc(k)+'</label>').join(''):'<span style="color:#6b7280;">No keys loaded yet - close this and press Refresh</span>';
   mtKeyCount();
 }
-function mtTogglePick(){const p=document.getElementById('mt-keypick');const show=p.style.display==='none';p.style.display=show?'block':'none';if(show)mtKeyRender();}
+function mtTogglePick(){const p=document.getElementById('mt-keypick');const show=p.style.display==='none';p.style.display=show?'block':'none';if(show){mtKeyRender();mtMode='pick';mtMarkMode();mtHint();}}
+function mtSetMode(m){
+  // choosing a mode NEVER sends anything - only the green Start test button does
+  if(mtBusy)return;
+  if(m==='pick'&&!mtKeyChosen().length)return;
+  mtMode=m;
+  if(m!=='pick')document.getElementById('mt-keypick').style.display='none';
+  mtMarkMode();mtHint();
+}
+function mtHint(){
+  if(mtBusy)return;
+  const nk=mtMode==='all'?mtKeys().length:(mtMode==='pick'?mtKeyChosen().length:1);
+  const el=document.getElementById('mt-tbody');
+  if(el&&!document.getElementById('mt-summary').innerHTML)el.innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#9ca3af;">Mode: <b>'+(mtMode==='all'?'all keys':(mtMode==='pick'?'selected keys':'one free key'))+'</b> - about '+(mtModelCount()*nk)+' real request(s). Press <b>▶ Start test</b> to run. Nothing is sent before that.</td></tr>';
+}
 function mtMarkMode(){
   const on='background:#3b82f6;border-color:#3b82f6;color:#fff;';
   [['mt-one-btn','one'],['mt-all-btn','all'],['mt-pick-btn','pick']].forEach(x=>{
@@ -4215,8 +4287,26 @@ function mtRerun(mode){
   else if(mode==='pick'){keys=mtKeyChosen();if(!keys.length)return;}
   const nk=allKeys?mtKeys().length:(keys?keys.length:1);
   const combos=mtModelCount()*nk;
-  if(combos>40&&!confirm('About '+combos+' real requests to Google ('+mtModelCount()+' models x '+nk+' keys). It can take a few minutes. Continue?'))return;
+  if((combos>1&&mode!=='one'||combos>40)&&!confirm('About '+combos+' real requests to Google ('+mtModelCount()+' models x '+nk+' keys). It can take a few minutes. Continue?'))return;
   mtRun(mtCtx.names,mtCtx.all,keys,allKeys);
+}
+let penCur='',penSel=0;
+function penClose(){document.getElementById('pen-modal').style.display='none';}
+function penOpen(mn){penCur=mn;penSel=0;document.getElementById('pen-modal').style.display='block';penRender();}
+function penPick(i){penSel=i;penRender();}
+function penRender(){
+  const L=(window._penData||{})[penCur]||[];
+  document.getElementById('pen-title').textContent='🔒 '+penCur+' - '+L.length+' penalized key(s)';
+  document.getElementById('pen-keys').innerHTML=L.map((x,i)=>'<button class="btn-s" style="'+(i===penSel?'background:#b91c1c;border-color:#f87171;color:#fff;':'')+'font-family:monospace;" onclick="penPick('+i+')">'+esc(x.key)+'</button>').join('')||'<span style="color:#6b7280;">None - all keys are free now</span>';
+  const x=L[penSel];
+  document.getElementById('pen-detail').innerHTML=x?(
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:.9em;">'+
+    '<span><b style="color:#fbbf24;">Key</b> <span style="font-family:monospace;">'+esc(x.key)+'</span></span>'+
+    '<span><b style="color:#fbbf24;">Reason</b> '+esc(x.reason)+'</span>'+
+    '<span><b style="color:#fbbf24;">Unlocks in</b> '+fmtLeft(Math.round((x.unlock_min||0)*60))+'</span>'+
+    (x.status?'<span><b style="color:#fbbf24;">HTTP</b> '+esc(String(x.status))+'</span>':'')+
+    (x.when?'<span><b style="color:#fbbf24;">Seen</b> '+esc(x.when)+'</span>':'')+'</div>'+
+    '<pre style="background:#0b0b18;border:1px solid #374151;border-radius:8px;padding:12px;color:#fca5a5;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow:auto;font-size:.82em;margin:0;">'+esc(x.error)+'</pre>'):'';
 }
 function mtOpen(names,all){
   // Opens the model-test panel ONLY. Nothing is sent to Google until the user presses a start button inside the panel.
@@ -4230,10 +4320,14 @@ function mtOpen(names,all){
   document.getElementById('mt-title').textContent='🧪 Model test - '+what;
   document.getElementById('mt-summary').innerHTML='';
   document.getElementById('mt-bytype').textContent='';
-  document.getElementById('mt-tbody').innerHTML='<tr><td colspan=7 style="text-align:center;padding:30px;color:#9ca3af;">Press <b>▶ Start test</b> (one free key), or choose <b>Test with all keys</b> / <b>Select keys to test</b>. Nothing runs until you press it.</td></tr>';
-  mtMarkMode();
+  document.getElementById('mt-tbody').innerHTML='';
+  mtMarkMode();mtHint();
 }
-function mtStart(){mtRerun(mtMode==='pick'?'pick':(mtMode==='all'?'all':'one'));}
+function mtStart(){
+  if(mtBusy)return;
+  if(mtMode==='pick'&&!mtKeyChosen().length){document.getElementById('mt-keypick').style.display='block';mtKeyRender();return;}
+  mtRerun(mtMode);
+}
 async function mtRun(names,all,keys,allKeys){
   if(!all&&!names.length){return;}
   mtCtx={names:names.slice(),all:!!all};
@@ -4388,7 +4482,8 @@ function updateUI(data){
     const tags = (cfgInfo.saved ? ' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>' : '')
       + (lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '')
       + (blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.75em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '');
-    const keysAttr = penCount > 0 ? `style="cursor:pointer;" data-m="${em}" data-pen="${esc(penTip)}" onclick="alert('Model: '+this.dataset.m+' - penalized keys: '+this.dataset.pen)"` : '';
+    window._penData = window._penData || {}; window._penData[mn] = info.pen || [];
+    const keysAttr = penCount > 0 ? `style="cursor:pointer;text-decoration:underline dotted;" data-m="${em}" onclick="event.stopPropagation();penOpen(this.dataset.m)"` : '';
     const todayN = umToday[mn] ? umToday[mn].today : 0;
     modelsHtml += `<tr style="${blockedLeft>0?'background:rgba(248,113,113,.06);':''}">
       <td class="mn">${pos+1}</td>
@@ -4884,7 +4979,7 @@ def proxy_chat():
                 if resp.status_code in (429, 403):
                     err = resp.text.lower()
                     with state_lock:
-                        _handle_429(key, actual_model, err)
+                        _handle_429(key, actual_model, err, raw=resp.text, status=resp.status_code)
                 if resp.status_code == 400:
                     _e400 = resp.text.lower()
                     if (has_images and image_fix.is_image_error(_e400)) or image_fix.is_capability_error(_e400):
@@ -5028,7 +5123,7 @@ def proxy_chat():
 
                 with state_lock:
                     metrics["rate_limit_hits"] += 1
-                    kind = _handle_429(key, actual_model, err_text)
+                    kind = _handle_429(key, actual_model, err_text, raw=resp.text, status=resp.status_code)
                     if kind == "daily":
                         metrics["daily_limits_hit"] = metrics.get("daily_limits_hit", 0) + 1
                         # A confirmed daily/quota block is the ONLY reason a
