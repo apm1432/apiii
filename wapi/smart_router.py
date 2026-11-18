@@ -1148,17 +1148,19 @@ def _heal_signature(resp, url, headers, data, model_name):
     return resp
 
 # Last RPD reset date (IST)
-_last_rpd_reset = datetime.datetime.now(IST).strftime("%Y-%m-%d")
+_last_rpd_reset = datetime.datetime.now(GOOGLE_TZ).strftime("%Y-%m-%d")   # Google day (midnight Pacific = 13:30 IST)
 
 def _today_ist():
-    return datetime.datetime.now(IST).strftime("%Y-%m-%d")
+    """The current GOOGLE day (name kept for compatibility). Google's daily quota resets at midnight Pacific
+    (13:30 IST in winter, 12:30 IST in summer), so the RPD counter and the per-day usage use that day, not IST."""
+    return datetime.datetime.now(GOOGLE_TZ).strftime("%Y-%m-%d")
 
 def _maybe_reset_rpd():
-    """Reset RPD counts at midnight IST. Call inside state_lock."""
+    """Reset RPD counts when the Google day changes (midnight Pacific). Call inside state_lock."""
     global _last_rpd_reset
     today = _today_ist()
     if today != _last_rpd_reset:
-        print(f"[RPD RESET] Midnight IST - clearing all RPD counts (was {_last_rpd_reset})")
+        print(f"[RPD RESET] Google day changed (midnight Pacific) - clearing all RPD counts (was {_last_rpd_reset})")
         rpd_count.clear()
         # Daily penalties are NOT cleared here any more: each one expires at the time Google said (see
         # _apply_daily_penalty), and Google's quota does not reset at midnight IST.
@@ -1182,7 +1184,7 @@ def _kid(key) -> str:
 
 
 def _yesterday_ist():
-    return (datetime.datetime.now(IST) - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    return (datetime.datetime.now(GOOGLE_TZ) - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def _usage_add(key, model_name):
@@ -1340,7 +1342,7 @@ def _record_request(key, model_name):
     rpm_window[(key, model_name)].append(time.monotonic())
 
 HD503_STRIKES = int(os.environ.get("HD503_STRIKES", "2"))          # same-model 503 "high demand" answers before it is blocked / the error is returned
-HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "900"))   # auto mode: block that model for 15 min
+HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "120"))   # auto mode: block that model for 15 min
 HD503_WINDOW_SECS = int(os.environ.get("HD503_WINDOW_SECS", "300")) # strikes older than this are forgotten
 HIGH_DEMAND_503: dict = {}   # model key -> [timestamps of recent 503 answers]
 
@@ -2688,9 +2690,7 @@ def api_dashboard_data():
     now_mono = time.monotonic()
     with state_lock:
         _maybe_reset_rpd()
-        now_ist = datetime.datetime.now(IST)
-        next_midnight = (now_ist + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
-        mins_to_midnight = max(1.0, round((next_midnight.astimezone(datetime.timezone.utc).timestamp() - now) / 60, 1))
+        mins_to_midnight = max(1.0, round((_next_google_reset_ts() - now) / 60, 1))   # next Google reset, not IST midnight
         active_models_snap = get_active_models()
 
         penalized = {}
@@ -3602,7 +3602,7 @@ details.cardx .cbody{padding:12px 15px}
 <span style='color:#6b7280;font-size:.78em;'>checks that it works and shows its type (text / image / audio ...) - before you save</span>
 </div>
 <div id='mdl-test-out' style='font-size:.85em;min-height:1.2em;margin-bottom:10px;word-break:break-word;'></div>
-<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Saved in the database: the model and its limits stay after a restart / redeploy. RPD resets at midnight IST.</div>
+<div style="color:#9ca3af;font-size:.78em;margin-bottom:10px;">Saved in the database: the model and its limits stay after a restart / redeploy. RPD resets at Google's reset (midnight Pacific = 13:30 IST).</div>
 <div id="mdl-err" style="color:#f87171;font-size:.85em;min-height:1.2em;margin-bottom:8px;"></div>
 <div style="display:flex;gap:8px;justify-content:flex-end;">
 <button class="btn-s" id="mdl-del" onclick="deleteModelCfg()" style="padding:8px 16px;display:none;background:#7f1d1d;border-color:#f87171;color:#fee2e2;">🗑 Delete</button>
@@ -4544,7 +4544,7 @@ function updateUI(data){
       <summary>${chev}<span>📊 Requests per day (per key)</span>
         <span class="sum-info">today <b style="color:#60a5fa;">${usTodayAll}</b> · yesterday ${usYdayAll}</span></summary>
       <div class="cbody">
-        <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at midnight IST and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
+        <div class="sub" style="margin-bottom:8px;color:#9ca3af;">Today <b style="color:#e5e7eb;">${esc((data.usage||{}).today||'')}</b> and yesterday <b style="color:#e5e7eb;">${esc((data.usage||{}).yesterday||'')}</b> only - a new day starts at Google's reset (midnight Pacific = 13:30 IST) and older days are deleted. Counts confirmed successful requests (the same count used against RPD).</div>
         ${usageHtml}
       </div>
     </details>
@@ -5041,7 +5041,7 @@ def proxy_chat():
 
             if not any_waitable:
                 print("[EXHAUSTED] All key×model combos are daily-exhausted, blocked or broken.")
-                attempt_errors.append("pool: every key×model is daily-exhausted / broken for today (resets midnight IST)")
+                attempt_errors.append("pool: every key×model is daily-exhausted / broken for today (resets at Google reset, 13:30 IST)")
                 exit_reason = "all_daily"
                 break
 
@@ -5339,7 +5339,7 @@ def proxy_chat():
         code, retry_after = "keys_busy_timeout", 30
     else:
         msg = ("All API keys are daily-limited for every model (RPD exhausted / blocked). "
-               "Daily limits reset at midnight IST.")
+               "Daily limits reset at Google's reset (13:30 IST).")
         code, retry_after = "all_keys_daily_exhausted", 600
     return Response(json.dumps({
         "error": {
