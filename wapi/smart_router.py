@@ -42,7 +42,7 @@ RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "0"))
 # +1 second on EVERY wait: a cooldown of 20s ends at 21s, the 60s RPM window is 61s.
 EXTRA_WAIT = float(os.environ.get("EXTRA_WAIT", "1"))
 GEMINI_CONNECT_TIMEOUT = float(os.environ.get("GEMINI_CONNECT_TIMEOUT", "10"))
-GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "120"))
+GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "60"))   # a key that sends nothing for 60 s is overloaded -> next key (raise it only if you need very slow thinking models)
 RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
 
 def _effective_rpm(rpm_limit: int) -> int:
@@ -83,6 +83,7 @@ PENALTY_ERR: dict = {}      # (key, model) -> {"ts", "status", "text"}: the last
 # API shape -- so they're excluded from routing entirely instead of being
 # retried forever. Cleared on process restart.
 PERMANENTLY_BROKEN_MODELS: set = set()
+_404_KEYS: dict = {}          # model -> keys that answered 404 "not found" (needs 2 different keys before all keys are paused)
 
 # ─── Manual model blocks (dashboard button / POST /model_block) ───────────────
 # A model can be switched OFF for every key for a custom time (1h, 1d, 43d, 2h30m ... or forever).
@@ -877,10 +878,11 @@ def search_via_native(data: dict, requested_model: str, is_responses_api: bool, 
         try: err_text = resp.text.lower()
         except Exception: pass
         if resp.status_code in (429, 403):
+            # The Google-Search tool has its OWN quota: its 429 says nothing about this key's normal chat quota, so it
+            # sets no cooldown / daily lock at all - this slot is just skipped for this one search (see `tried`).
             with state_lock:
                 metrics["rate_limit_hits"] += 1
-                kind = _handle_429(key, actual_model, err_text, raw=resp.text, status=resp.status_code)
-            print(f"[SEARCH 429] key=…{key[-6:]} model={actual_model} -> next slot ({kind})")
+            print(f"[SEARCH {resp.status_code}] key=…{key[-6:]} model={actual_model} -> next slot (no penalty, search quota only)")
             continue
         if resp.status_code in (500, 503):
             with state_lock:
@@ -1342,7 +1344,7 @@ def _record_request(key, model_name):
     rpm_window[(key, model_name)].append(time.monotonic())
 
 HD503_STRIKES = int(os.environ.get("HD503_STRIKES", "2"))          # same-model 503 "high demand" answers before it is blocked / the error is returned
-HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "120"))   # auto mode: block that model for 15 min
+HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "600"))   # a 503 "high demand" pauses ONLY that key for that model for 10 min (other keys keep using the model)
 HD503_WINDOW_SECS = int(os.environ.get("HD503_WINDOW_SECS", "300")) # strikes older than this are forgotten
 HIGH_DEMAND_503: dict = {}   # model key -> [timestamps of recent 503 answers]
 
@@ -1556,16 +1558,9 @@ def _escalate_or_stay_rpm(k, key, model_name) -> str:
     # Stop re-trying a (key, model) every ~62 s when it keeps answering "resource has been exhausted":
     #  * same combo failed this way again -> back off longer (2nd: 5 min, 3rd: 15 min, 4th+: 30 min) - never a daily lock
     #  * several OTHER keys of this model are already daily-limited -> the model's quota is gone, wait 10 min
-    now = time.time()
-    others = sum(1 for kk in API_KEYS if kk != key and key_daily_penalty.get((kk, model_name), 0) > now)
-    wait = 0
-    if n >= 2:
-        wait = {2: 300, 3: 900}.get(n, 1800)
-    if others >= AMBIGUOUS_MODEL_DAILY_KEYS:
-        wait = max(wait, 600)
-    if wait:
-        _apply_rpm_cooldown(key, model_name, seconds=wait)
-        print(f"[429 BACKOFF] key=…{key[-6:]} model={model_name} ambiguous 429 x{n}, {others} other key(s) daily-limited -> wait {wait}s")
+    # NO escalation any more: a 429 that carries no day-long signal stays a ~62 s RPM cooldown, exactly like Google's
+    # own wait. (It used to jump to 5 / 15 / 30 min, or 10 min when other keys were daily-limited -> healthy keys were
+    # parked for far longer than Google asked.)
     return "rpm"
 
 # ─── Dynamic model list (refreshed daily from API) ────────────────────────────
@@ -4964,7 +4959,13 @@ def proxy_chat():
                 if resp.status_code in (429, 403):
                     err = resp.text.lower()
                     with state_lock:
-                        _handle_429(key, actual_model, err, raw=resp.text, status=resp.status_code)
+                        if resp.status_code == 403 and not any(w in err for w in ("quota", "exhaust", "rate", "limit")):
+                            _apply_rpm_cooldown(key, actual_model, seconds=600)
+                        else:
+                            _handle_429(key, actual_model, err, raw=resp.text, status=resp.status_code)
+                elif resp.status_code in (500, 502, 503, 504, 408):
+                    with state_lock:
+                        _apply_rpm_cooldown(key, actual_model, seconds=(HD503_BLOCK_SECS if resp.status_code == 503 else 60))
                 if resp.status_code == 400:
                     _e400 = resp.text.lower()
                     if (has_images and image_fix.is_image_error(_e400)) or image_fix.is_capability_error(_e400):
@@ -4978,6 +4979,8 @@ def proxy_chat():
                 return _cancel_response()
             except Exception as e:
                 print(f"[STICKY ERROR] {e} → switching slot")
+                with state_lock:
+                    _apply_rpm_cooldown(key, actual_model, seconds=60)
         # exhausted / busy / no pin / pinned failed -> normal routing below
 
     # ── Keep trying until EVERY (key, model) is dead for today ────────────────────────────────────────
@@ -5106,6 +5109,16 @@ def proxy_chat():
                 try: err_text = resp.text.lower()
                 except: pass
 
+                if resp.status_code == 403 and not any(w in err_text for w in ("quota", "exhaust", "rate", "limit")):
+                    # 403 without any quota wording = invalid / leaked / not-allowed key. It is NOT a rate limit: no RPM/RPD
+                    # bookkeeping, just pause this key+model 10 min and say exactly what Google answered.
+                    with state_lock:
+                        PENALTY_ERR[(key, actual_model)] = {"ts": time.time(), "status": 403, "text": str(resp.text)[:6000]}
+                        _apply_rpm_cooldown(key, actual_model, seconds=600)
+                    tried.add((key, actual_model))
+                    attempt_errors.append(f"403 {actual_model} (…{key[-4:]}): key/permission problem (not a rate limit) | {_short_err(err_text, 200)}")
+                    _trail(f"403 {actual_model} (key …{key[-4:]}) key/permission error -> this key paused 10 min")
+                    continue
                 with state_lock:
                     metrics["rate_limit_hits"] += 1
                     kind = _handle_429(key, actual_model, err_text, raw=resp.text, status=resp.status_code)
@@ -5130,7 +5143,7 @@ def proxy_chat():
                 attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit | {_short_err(err_text, 220)}")
                 continue  # instantly retry with the next best slot
 
-            elif resp.status_code in [500, 503]:
+            elif resp.status_code in (500, 502, 503, 504, 408, 401):
                 # Google's own transient overload ("model currently
                 # experiencing high demand") -- NOT a quota problem, so this
                 # must never trigger a daily block. Give this exact combo a
@@ -5142,21 +5155,27 @@ def proxy_chat():
                 try: _hd_text = resp.text
                 except: pass
                 _hd_hit = False
+                _is_hd = _is_high_demand_503(resp.status_code, _hd_text)
                 with state_lock:
                     n = attempt_counts.get((key, actual_model), 0) + 1
                     attempt_counts[(key, actual_model)] = n
-                    _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
+                    # "high demand" = Google is busy for THIS key+model right now: pause only this pair for
+                    # HD503_BLOCK_SECS (10 min). The model stays open for every other key, so keys that still work keep
+                    # serving it. Other 5xx errors keep the short 20-120 s breather.
+                    _cd_secs = HD503_BLOCK_SECS if _is_hd else (600 if resp.status_code == 401 else min(20 * n, 120))
+                    _apply_rpm_cooldown(key, actual_model, seconds=_cd_secs)
                     print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
-                          f"server error #{n} -> cooldown {min(20 * n, 120)}s, trying other combos first")
-                    if _is_high_demand_503(resp.status_code, _hd_text):
+                          f"server error #{n} -> cooldown {_cd_secs}s (this key only), trying other combos first")
+                    if _is_hd:
                         if _is_pool_req:
-                            # auto mode: 2x "high demand" on the same model -> that model is blocked for 15 min
-                            _hd_hit = _hd503_strike(actual_model, True)
+                            _hd_hit = False      # auto mode: NO model-wide block any more, only this key is paused
                         else:
                             # the user chose this model: 2x "high demand" -> give the error back to the user
                             hd_req[actual_model] = hd_req.get(actual_model, 0) + 1
                             _hd_hit = hd_req[actual_model] >= HD503_STRIKES
                 attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): server overloaded/unavailable")
+                if _is_hd and _is_pool_req:
+                    _trail(f"503 high demand on {actual_model} (key …{key[-4:]}) -> only this key is paused for this model for {HD503_BLOCK_SECS // 60} min")
                 if _hd_hit and _is_pool_req:
                     _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} -> blocked for auto for {HD503_BLOCK_SECS // 60} min")
                     attempt_errors.append(f"{actual_model} blocked for auto {HD503_BLOCK_SECS // 60} min (2x 503 high demand)")
@@ -5199,12 +5218,16 @@ def proxy_chat():
                                                 or "is not found" in err_text
                                                 or "not found for api version" in err_text):
                     with state_lock:
-                        for _k in API_KEYS:
-                            PERMANENTLY_BROKEN_MODELS.add((_k, actual_model))
-                    print(f"[404 RETIRED] {actual_model} no longer exists -> removed from pool for all keys "
-                          f"(remove it from GEMINI_MODELS env)")
-                    attempt_errors.append(f"404 {actual_model} (…{key[-4:]}): model no longer exists on Google's side "
-                                           f"-> permanently removed from the pool")
+                        # ONE 404 no longer removes the model for every key until a restart: only this key is paused
+                        # 30 min; when 2 DIFFERENT keys report it, all keys are paused 30 min (it then re-checks itself).
+                        _404_KEYS.setdefault(actual_model, set()).add(key)
+                        _apply_rpm_cooldown(key, actual_model, seconds=1800)
+                        if len(_404_KEYS[actual_model]) >= 2:
+                            for _k in API_KEYS:
+                                _apply_rpm_cooldown(_k, actual_model, seconds=1800)
+                    tried.add((key, actual_model))
+                    print(f"[404] {actual_model} reported 'not found' by key …{key[-6:]} -> this key paused 30 min")
+                    attempt_errors.append(f"404 {actual_model} (…{key[-4:]}): Google says model not found -> this key paused 30 min | {_short_err(err_text, 160)}")
                     continue
 
                 model_is_incompatible = any(sig in err_text for sig in [
