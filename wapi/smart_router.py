@@ -1955,7 +1955,10 @@ def _ctx_clean(c, base=None):
             except Exception:
                 pass
     if "model" in c:
-        out["model"] = str(c.get("model") or "").strip()[:120]
+        _mv = c.get("model") or ""
+        if isinstance(_mv, (list, tuple)):
+            _mv = ",".join(str(x) for x in _mv)
+        out["model"] = ",".join(x.strip() for x in str(_mv).split(",") if x.strip())[:600]     # summary models, comma separated
     if out.get("mode") not in ("off", "trim", "ai"):
         out["mode"] = "off"
     return out
@@ -2233,7 +2236,7 @@ def _list_combos_in_order(requested_model: str, hd_priority: bool = False, hd_af
 
 
 def acquire_next_slot(requested_model: str, exclude: set, est_tokens: int = 0,
-                      skip_models=None, hd_priority: bool = False, hd_after=None):
+                      skip_models=None, hd_priority: bool = False, hd_after=None, ignore_block: bool = False):
     """
     Atomically picks the next viable (key, model) combo AND reserves it
     (records the request timestamp) in one locked step.
@@ -2256,7 +2259,7 @@ def acquire_next_slot(requested_model: str, exclude: set, est_tokens: int = 0,
             return None
 
         combos = _list_combos_in_order(requested_model, hd_priority=hd_priority, hd_after=hd_after)
-        _honor_block = _block_applies(requested_model)
+        _honor_block = _block_applies(requested_model) and not ignore_block
 
         for (k_i, m_i, key, model) in combos:
             if (key, model["name"]) in exclude:
@@ -4788,6 +4791,7 @@ async function lastReset(){
   const d=await lastCall({action:'reset'},'lm-err');
   if(d)closeLast();
 }
+function rctxModels(){const v=[...document.querySelectorAll('.cx-m:checked')].map(c=>c.value);rctxSet({model:v.join(',')});}
 async function rctxSet(c){
   const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({compress:c})};
   try{
@@ -5255,6 +5259,7 @@ function updateUI(data){
   const cxc=(data.routing_mode||{}).compress||{};
   const cxMode=cxc.mode||'off';
   const cxTh=parseInt(cxc.threshold,10)||60000;
+  const cxSel=String(cxc.model||'').split(',').map(x=>x.trim()).filter(Boolean);
   const wsMax=parseInt((data.routing_mode||{}).wait_max,10)||40;
   const hdSecs=parseInt((data.routing_mode||{}).hd503_secs,10)||240;
   const hdMin=Math.round(hdSecs/6)/10;
@@ -5419,6 +5424,13 @@ function updateUI(data){
             <input type="number" min="5" max="900" value="${Math.round(cxTh/1000)}" style="width:52px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rctxSet({threshold:this.value*1000})">
             <span style="color:#9ca3af;font-size:.8em;margin-right:6px;">k tokens</span>
           </span>
+          <details style="position:relative;display:inline-block;" title="Models used for the AI summary (round robin). They are used even if blocked for auto. Nothing ticked = no AI summary (plain trim).">
+            <summary class="btn-s" style="cursor:pointer;list-style:none;border:1px solid ${cxSel.length?'#38bdf8':'#4b5563'};border-radius:6px;padding:3px 8px;color:#7dd3fc;">🤖 Summary models: ${cxSel.length?cxSel.length+' (round robin)':'none (trim only)'}</summary>
+            <div style="position:absolute;z-index:60;top:100%;left:0;min-width:260px;max-height:300px;overflow:auto;background:#111827;border:1px solid #38bdf8;border-radius:6px;padding:6px 8px;margin-top:2px;">
+              ${(data.models||[]).map(x=>`<label style="display:flex;gap:6px;align-items:center;padding:2px 0;color:#e5e7eb;cursor:pointer;"><input type="checkbox" class="cx-m" value="${esc(x.name)}" ${cxSel.includes(x.name)?'checked':''} onchange="rctxModels()"> ${esc(x.name)}</label>`).join('')||'<span style="color:#6b7280">No models.</span>'}
+              <div style="color:#9ca3af;font-size:.78em;margin-top:4px;">Only used in "AI summary" mode. Each summary call takes the next ticked model, also a blocked one. None ticked = no summary.</div>
+            </div>
+          </details>
           <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;font-weight:bold;" onclick="openLast()" title="choose which models are used only after every other model, and in which order">⬇ Last order</button>
           <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
         </div>
@@ -5760,13 +5772,22 @@ def _ctx_set_text(m, text):
         m["content"] = text
 
 
-def _ctx_pick_summary_model():
-    cfg_model = _ctx_cfg().get("model") or ""
-    names = [m["name"] for m in MODELS if not _is_model_blocked(m["name"])]
-    if cfg_model:
-        return cfg_model
-    lite = [n for n in names if _is_lite(n)]
-    return (lite or names or [None])[0]
+_ctx_rr = 0
+
+
+def _ctx_pick_summary_model(skip=()):
+    """Next summary model, ROUND ROBIN over the models ticked on the dashboard (compress.model = "a,b,c"). A model that is blocked
+    for auto traffic is STILL used for summaries. Nothing ticked -> None (no AI summary, plain trim)."""
+    global _ctx_rr
+    sel = [x.strip() for x in str(_ctx_cfg().get("model") or "").split(",") if x.strip()]
+    known = {m["name"] for m in MODELS}
+    pool = [n for n in sel if n in known and n not in skip]
+    if not pool:
+        return None
+    with _ctx_sum_lock:
+        i = _ctx_rr
+        _ctx_rr += 1
+    return pool[i % len(pool)]
 
 
 def _ctx_ai_summaries(items, per_max):
@@ -5774,8 +5795,7 @@ def _ctx_ai_summaries(items, per_max):
     Any failure -> that batch simply gets no summary (the caller falls back to plain trimming)."""
     global _ctx_ai_off_until
     out = {}
-    model_name = _ctx_pick_summary_model()
-    if not model_name or not items or time.monotonic() < _ctx_ai_off_until:
+    if not items or time.monotonic() < _ctx_ai_off_until:
         return out
     t_end = time.monotonic() + CTX_AI_TIMEOUT
     for b in range(0, len(items), CTX_AI_BATCH):
@@ -5793,12 +5813,17 @@ def _ctx_ai_summaries(items, per_max):
                  "Never invent anything. Reply in the same language as the block. Output format, exactly: a line '### <id>' "
                  "followed by the summary, for every block, nothing else.")
         got = None
+        bad = set()                 # summary models that failed for this batch -> the next try uses another one
         for _try in range(3):
             if time.monotonic() >= t_end:
                 break
-            slot = acquire_next_slot(model_name, exclude=set())
-            if slot is None:
+            model_name = _ctx_pick_summary_model(skip=bad)
+            if not model_name:
                 break
+            slot = acquire_next_slot(model_name, exclude=set(), ignore_block=True)
+            if slot is None:
+                bad.add(model_name)
+                continue
             _k, _m, key, model = slot
             try:
                 r = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -5814,12 +5839,13 @@ def _ctx_ai_summaries(items, per_max):
                 if r.status_code in (429, 403):
                     with state_lock:
                         _handle_429(key, model["name"], (r.text or "").lower(), raw=r.text, status=r.status_code)
-                else:
+                elif r.status_code != 503:      # a busy summary model (503) must not put the key on cooldown for real traffic
                     with state_lock:
                         _apply_rpm_cooldown(key, model["name"], seconds=60)
+                bad.add(model_name)
             except Exception as e:
-                print(f"[CTX AI] summary call failed: {e}")
-                break
+                print(f"[CTX AI] summary call failed ({model_name}): {e}")
+                bad.add(model_name)
         if not got:
             continue
         for mm in re.finditer(r"^###\s*(\w+)\s*\n(.*?)(?=^###\s*\w+\s*\n|\Z)", got, re.S | re.M):
