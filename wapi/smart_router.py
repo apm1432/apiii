@@ -42,7 +42,12 @@ RPM_SAFETY_MARGIN = int(os.environ.get("RPM_SAFETY_MARGIN", "0"))
 # +1 second on EVERY wait: a cooldown of 20s ends at 21s, the 60s RPM window is 61s.
 EXTRA_WAIT = float(os.environ.get("EXTRA_WAIT", "1"))
 GEMINI_CONNECT_TIMEOUT = float(os.environ.get("GEMINI_CONNECT_TIMEOUT", "10"))
-GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "60"))   # a key that sends nothing for 60 s is overloaded -> next key (raise it only if you need very slow thinking models)
+# Seconds Google may stay completely silent before we give up on that key and try the next one. It is NOT the total
+# answer time (a streamed answer may run for minutes). BUT for a non-streaming request Google sends nothing until the
+# whole answer is ready, so this is then the maximum generation time. 60 s was too short for long / thinking answers
+# (the request timed out, was repeated on the next key and could time out again). 120 s = the user gets the complete
+# answer; a truly hung key is still dropped after 2 minutes. The anti-504 heartbeat keeps the client connection alive.
+GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "120"))
 RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
 
 def _effective_rpm(rpm_limit: int) -> int:
@@ -586,6 +591,19 @@ SIG_CACHE_TTL = int(os.environ.get("SIG_CACHE_TTL", str(6 * 3600)))
 # Set env SIG_FALLBACK="" to disable.
 SIG_FALLBACK = os.environ.get("SIG_FALLBACK", "skip_thought_signature_validator")
 SIG_CACHE_MAX = int(os.environ.get("SIG_CACHE_MAX", "1500"))
+# A REAL signature is only valid for the model that produced it. The cache therefore remembers the model, and a real
+# signature is sent ONLY back to that same model; any other model gets the dummy (so switching models can no longer
+# cause a signature 400). SIG_ALWAYS_DUMMY=1 goes further: Gemini 3+ models ALWAYS get the dummy, never a real one
+# (zero signature errors, but the model loses its hidden "thinking" context between tool steps).
+SIG_ALWAYS_DUMMY = os.environ.get("SIG_ALWAYS_DUMMY", "0") == "1"
+
+def _gemini_major(model_name: str) -> int:
+    """3 for gemini-3.x-..., 4 for gemini-4-hydrogen ... 0 when the name has no version (gemma, ...)."""
+    m = re.match(r"gemini-(\d+)", str(model_name or "").strip().lower())
+    return int(m.group(1)) if m else 0
+
+def _sig_key(model_name, k) -> str:
+    return f"{_bk(model_name)}|{k}"
 sig_cache: dict = {}            # key -> (signature, monotonic_ts)
 sig_lock = threading.Lock()
 
@@ -599,7 +617,7 @@ def _tc_fp(tc: dict):
 def _extract_sig(tc: dict):
     return (((tc.get("extra_content") or {}).get("google") or {}).get("thought_signature"))
 
-def _store_sig(tc: dict):
+def _store_sig(tc: dict, model=None):
     sig = _extract_sig(tc)
     if not sig: return
     now = time.monotonic()
@@ -611,19 +629,21 @@ def _store_sig(tc: dict):
             if len(sig_cache) > SIG_CACHE_MAX:             # all still fresh: evict the oldest (a signature is several KB)
                 for k, _ in sorted(sig_cache.items(), key=lambda kv: kv[1][1])[:len(sig_cache) - SIG_CACHE_MAX + SIG_CACHE_MAX // 4]:
                     sig_cache.pop(k, None)
-        if tc.get("id"): sig_cache[tc["id"]] = (sig, now)
+        if tc.get("id"): sig_cache[_sig_key(model, tc["id"])] = (sig, now)
         fn = tc.get("function") or {}
         if fn.get("name") and fn.get("arguments") is not None:
-            sig_cache[_tc_fp(tc)] = (sig, now)
+            sig_cache[_sig_key(model, _tc_fp(tc))] = (sig, now)
 
-def _lookup_sig(tc: dict):
+def _lookup_sig(tc: dict, model=None):
+    """Real signature that THIS model produced for this tool call (None when another model made it)."""
     with sig_lock:
         for k in (tc.get("id"), _tc_fp(tc)):
-            if k and k in sig_cache and sig_cache[k][1] > time.monotonic() - SIG_CACHE_TTL:
-                return sig_cache[k][0]
+            ck = _sig_key(model, k) if k else None
+            if ck and ck in sig_cache and sig_cache[ck][1] > time.monotonic() - SIG_CACHE_TTL:
+                return sig_cache[ck][0]
     return None
 
-def capture_signatures(body: bytes):
+def capture_signatures(body: bytes, model=None):
     """Read a Google response (plain JSON or SSE) and cache tool-call signatures."""
     try:
         text = body.decode("utf-8", "replace")
@@ -635,12 +655,12 @@ def capture_signatures(body: bytes):
                 except Exception: continue
                 for ch in obj.get("choices", []):
                     for tc in ((ch.get("delta") or {}).get("tool_calls") or []):
-                        _store_sig(tc)
+                        _store_sig(tc, model)
         else:
             obj = json.loads(text)
             for ch in obj.get("choices", []):
                 for tc in ((ch.get("message") or {}).get("tool_calls") or []):
-                    _store_sig(tc)
+                    _store_sig(tc, model)
     except Exception as e:
         print(f"[SIG CAPTURE] {e}")
 
@@ -1047,7 +1067,7 @@ def _drain_close(resp):
         pass
 
 
-def _stream_gemini_sse(resp, log_entry=None, log_start=None):
+def _stream_gemini_sse(resp, log_entry=None, log_start=None, model=None):
     """Streams Gemini SSE chunks immediately to the client without buffering resp.content,
     while capturing tool_call thought_signatures on the fly as lines arrive."""
     sig_buf = b""
@@ -1060,10 +1080,10 @@ def _stream_gemini_sse(resp, log_entry=None, log_start=None):
                 *lines, sig_buf = sig_buf.split(b"\n")
                 for ln in lines:
                     if b"thought_signature" in ln or b"tool_calls" in ln:
-                        capture_signatures(ln)
+                        capture_signatures(ln, model)
             yield chunk
         if sig_buf and (b"thought_signature" in sig_buf or b"tool_calls" in sig_buf):
-            capture_signatures(sig_buf)
+            capture_signatures(sig_buf, model)
     finally:
         try:
             resp.close()
@@ -1087,12 +1107,12 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
             out_headers.append(('X-Accel-Buffering', 'no'))
             log_entry = getattr(g, "log_entry", None)
             log_start = getattr(g, "_log_start", None)
-            return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start), resp.close), resp.status_code, out_headers)
+            return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start, actual_model), resp.close), resp.status_code, out_headers)
         body = resp.content
-        capture_signatures(body)
+        capture_signatures(body, actual_model)
         return Response(body, resp.status_code, out_headers)
     body = resp.content
-    capture_signatures(body)
+    capture_signatures(body, actual_model)
     try:
         gemini_json = json.loads(body.decode("utf-8", "replace"))
     except Exception:
@@ -1113,7 +1133,7 @@ def prepare_payload(data: dict, model_name: str, force_dummy: bool = False) -> d
     payload = dict(data)
     msgs = copy.deepcopy(data.get("messages") or [])
     is_gemini = model_name.startswith("gemini-")
-    is_g3 = model_name.startswith("gemini-3")
+    is_g3 = _gemini_major(model_name) >= 3          # gemini-3.x AND gemini-4-... and later: the dummy is required there
 
     def put_dummy(tcs):
         for tc in tcs: tc.pop("extra_content", None)
@@ -1123,12 +1143,12 @@ def prepare_payload(data: dict, model_name: str, force_dummy: bool = False) -> d
     for m in msgs:
         tcs = m.get("tool_calls") if m.get("role") == "assistant" else None
         if not tcs: continue
-        if force_dummy or not is_gemini:
+        if force_dummy or not is_gemini or (SIG_ALWAYS_DUMMY and is_g3):
             put_dummy(tcs)
             continue
         for tc in tcs:
             if not _extract_sig(tc):
-                sig = _lookup_sig(tc)
+                sig = _lookup_sig(tc, model_name)
                 if sig:
                     tc.setdefault("extra_content", {}).setdefault("google", {})["thought_signature"] = sig
         if is_g3 and SIG_FALLBACK and not any(_extract_sig(tc) for tc in tcs):
@@ -1737,6 +1757,110 @@ def _last_set(models):
     _last_persist()
 
 
+# ─── Routing mode (dashboard toggle: "Default" / "Use first model until exhausted") ──────────────────────
+# default : keys rotate one by one on the first model; after every key was used once the NEXT model starts (all keys
+#           one by one again), ... after the last model it starts again with the first model.
+# drain   : the FIRST model is used for every request (keys rotate one by one) until EVERY key of it is unusable
+#           (daily limit / RPD used up / error cooldown / broken / blocked). Only then the next model is used, the
+#           same way. When a model is usable again (e.g. after Google's daily reset) the router goes back to it.
+# Saved in MongoDB (collection wapi_routing_mode) + a JSON file, so it survives restarts. Env ROUTING_MODE sets the
+# start value (until a choice is saved on the dashboard).
+ROUTING_MODES = ("default", "drain")
+ROUTING_COLLECTION = os.environ.get("ROUTING_MODE_COLLECTION", "wapi_routing_mode")
+ROUTING_FILE = os.environ.get("ROUTING_MODE_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "routing_mode.json"))
+_env_rmode = os.environ.get("ROUTING_MODE", "default").strip().lower()
+ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "updated": 0.0}
+_routing_io_lock = threading.Lock()
+
+
+def _routing_is_drain() -> bool:
+    return ROUTING["mode"] == "drain"
+
+
+def _routing_view():
+    return {"mode": ROUTING["mode"], "modes": list(ROUTING_MODES), "updated": ROUTING["updated"],
+            "label": "Use first model until exhausted" if _routing_is_drain() else "Default (rotate models)"}
+
+
+def _routing_save_file():
+    try:
+        with state_lock:
+            snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"]}
+        tmp = ROUTING_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        os.replace(tmp, ROUTING_FILE)
+    except Exception as e:
+        print(f"[ROUTING MODE] file save failed: {e}")
+
+
+def _routing_coll():
+    c = _blocks_coll()          # same MongoDB database as the blocks
+    return None if c is None else c.database[ROUTING_COLLECTION]
+
+
+def _routing_persist():
+    """Background write (tiny document). Never blocks or breaks a request."""
+    def _run():
+        with _routing_io_lock:
+            _routing_save_file()
+            try:
+                coll = _routing_coll()
+                if coll is None:
+                    return
+                with state_lock:
+                    doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"]}
+                coll.replace_one({"_id": "mode"}, doc, upsert=True)
+            except Exception as e:
+                print(f"[ROUTING MODE] MongoDB save failed (still kept in memory + file): {e}")
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _routing_merge(row):
+    """Take a stored mode when it is newer than what is in memory."""
+    try:
+        upd = float(row.get("updated") or 0)
+        mode = str(row.get("mode") or "").strip().lower()
+        if mode not in ROUTING_MODES:
+            return False
+        with state_lock:
+            if upd <= ROUTING["updated"]:
+                return False
+            ROUTING.update(mode=mode, updated=upd)
+        return True
+    except Exception:
+        return False
+
+
+def _routing_load():
+    """Startup: file first (fast, local), then MongoDB in the background (retries until it answers)."""
+    try:
+        with open(ROUTING_FILE, encoding="utf-8") as f:
+            _routing_merge(json.load(f))
+    except (OSError, ValueError):
+        pass
+    if not os.environ.get("MONGO_URI"):
+        return
+    def _bg():
+        for _ in range(20):
+            try:
+                row = _routing_coll().find_one({"_id": "mode"})
+                if row:
+                    _routing_merge(row)
+                print(f"[ROUTING MODE] loaded from MongoDB: {ROUTING['mode']}")
+                return
+            except Exception as e:
+                print(f"[ROUTING MODE] MongoDB load failed, retrying in 30s: {e}")
+                time.sleep(30)
+    threading.Thread(target=_bg, daemon=True).start()
+
+
+def _routing_set(mode):
+    with state_lock:
+        ROUTING.update(mode=mode, updated=time.time())
+    _routing_persist()
+
+
 def _list_combos_in_order(requested_model: str):
     """
     Builds the ordered candidate list (key, model) for a request.
@@ -1747,7 +1871,11 @@ def _list_combos_in_order(requested_model: str):
        - Uses ONLY the models configured in GEMINI_MODELS (env) — never the
          dynamically-fetched list — so auto mode always respects your RPM
          settings for gemini-3.1-flash-lite, gemini-3.5-flash, etc.
-       - Tries all key × model combos, highest-RPM model first.
+       - ROUTING MODE "default": all key × model combos, rotating: every key of a model one
+         by one, then the next model, ... (highest-RPM / most-available model first).
+       - ROUTING MODE "drain": models keep the dashboard order; the FIRST model with a usable key
+         serves every request (keys rotate one by one); the next model only starts when no key
+         of the one before is usable (daily limit / RPD / error cooldown / broken / blocked).
     2. SPECIFIC MODEL MODE (user sent a real model name):
        - Only that model is used, all keys are tried in rotation.
     """
@@ -1789,22 +1917,33 @@ def _list_combos_in_order(requested_model: str):
         # a lite model is used only when no non-lite (key, model) is
         # usable for this request (RPM full / cooldown / daily-exhausted /
         # already failed in this request).
+        _drain = _routing_is_drain()
+        # drain mode keeps the dashboard order (sorted() is stable, constant key = no re-ordering)
+        _sort_key = (lambda m: 0) if _drain else _model_sort_key
         _lk = _last_keys()
         if _lk is None:
             # default: all "lite" models are one last tier
-            non_lite = sorted([m for m in active_models if not _is_lite(m["name"])], key=_model_sort_key)
-            lite = sorted([m for m in active_models if _is_lite(m["name"])], key=_model_sort_key)
+            non_lite = sorted([m for m in active_models if not _is_lite(m["name"])], key=_sort_key)
+            lite = sorted([m for m in active_models if _is_lite(m["name"])], key=_sort_key)
             tiers = (non_lite, lite)
         else:
             # saved order: the picked models are last, each one its own tier, in the order you chose
             by_key = {_bk(m["name"]): m for m in active_models}
             last_models = [by_key[k] for k in dict.fromkeys(_lk) if k in by_key]
             last_set = {_bk(m["name"]) for m in last_models}
-            first = sorted([m for m in active_models if _bk(m["name"]) not in last_set], key=_model_sort_key)
+            first = sorted([m for m in active_models if _bk(m["name"]) not in last_set], key=_sort_key)
             tiers = [first] + [[m] for m in last_models]
         for tier in tiers:
             M = len(tier)
             if M == 0:
+                continue
+            if _drain:
+                # model 1: all keys (rotating start), then model 2: all keys, ... acquire_next_slot() takes the
+                # first usable one, so model 2 is reached only when no key of model 1 is usable.
+                for m_i in range(M):
+                    for i in range(K):
+                        k_i = (current_combo_idx + i) % K
+                        combos.append((k_i, m_i, API_KEYS[k_i], tier[m_i]))
                 continue
             total = K * M
             for i in range(total):
@@ -2562,7 +2701,7 @@ def strict_password_and_log():
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
                         '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available', '/model_test', '/router/model_test',
-                        '/model_last', '/router/model_last', '/request_cancel', '/router/request_cancel']:
+                        '/model_last', '/router/model_last', '/routing_mode', '/router/routing_mode', '/request_cancel', '/router/request_cancel']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -2746,6 +2885,7 @@ def api_dashboard_data():
         "model_key_info": model_key_info,
         "model_blocks": _model_blocks_view(),
         "last_models": _last_view(),
+        "routing_mode": _routing_view(),
         "usage": _usage_view(),
         "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"]} for m in _cfg_view()},
         **_dash_logs(request.args.get("slim") == "1"),
@@ -2974,6 +3114,31 @@ def model_last_api():
     _last_set(new)
     print(f"[LAST MODELS] last order now: {new}")
     return jsonify(_last_view())
+
+
+@app.route('/routing_mode', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+@app.route('/router/routing_mode', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+def routing_mode_api():
+    """How auto / round-robin requests walk through the models. Saved: survives restarts.
+      GET                          -> {"mode", "modes", "label"}
+      POST {"mode": "default"}     rotate: every key of a model one by one, then the next model, ... then the first again
+      POST {"mode": "drain"}       use the first model (keys one by one) until all its keys hit a daily limit / error,
+                                   then the next model the same way
+      DELETE                       back to "default"
+    Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    if request.method == 'GET':
+        return jsonify(_routing_view())
+    body = request.get_json(silent=True) or {}
+    mode = str(body.get("mode") or request.args.get("mode") or ("default" if request.method == 'DELETE' else "")).strip().lower()
+    if mode not in ROUTING_MODES:
+        return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
+    _routing_set(mode)
+    print(f"[ROUTING MODE] now: {mode}")
+    return jsonify(_routing_view())
 
 
 @app.route('/model_config', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
@@ -4058,6 +4223,17 @@ async function lastReset(){
   const d=await lastCall({action:'reset'},'lm-err');
   if(d)closeLast();
 }
+async function rmodeSet(mode){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));return;}
+    lastSig='';await fetchData(true);
+    const n=document.getElementById('log-note');if(n)n.textContent='Routing mode saved: '+d.label;
+  }catch(e){alert('Failed: '+e.message);}
+}
 async function lastToggle(name){
   const li=window._lastInfo||{};
   const on=(li.effective||[]).some(n=>n.toLowerCase()===name.toLowerCase());
@@ -4401,6 +4577,7 @@ function updateUI(data){
   const m=data.metrics;
   window._mtNames=(data.models||[]).map(x=>x.name);
   window._lastInfo=data.last_models||{custom:false,order:[],effective:[]};
+  const rmMode=(data.routing_mode||{}).mode||'default';
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -4524,6 +4701,10 @@ function updateUI(data){
           <button class="btn-s" id="mt-sel-btn" style="background:#2d1b69;border-color:#4c1d95;font-weight:bold;opacity:${mtCount()?1:.5};" ${mtCount()?'':'disabled'} onclick="mtOpen(mtChosen(),false)" title="test only the ticked models">🧪 Test selected (${mtCount()})</button>
           <button class="btn-s" style="background:#7c3aed;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="mtOpen([],true)" title="test every model once">🧪 Test all models</button>
           <span style="flex:1;"></span>
+          <span style="display:inline-flex;border:1px solid #4b5563;border-radius:6px;overflow:hidden;">
+            <button class="btn-s" style="border:0;border-radius:0;font-weight:bold;color:#fff;background:${rmMode==='default'?'#166534':'#111827'};" onclick="rmodeSet('default')" title="Default: every key of a model one by one, then the next model, ... after the last model start again with the first">${rmMode==='default'?'✅ ':''}🔄 Default</button>
+            <button class="btn-s" style="border:0;border-radius:0;border-left:1px solid #4b5563;font-weight:bold;color:#fff;background:${rmMode==='drain'?'#166534':'#111827'};" onclick="rmodeSet('drain')" title="Use the first model (all keys one by one) until every key hits its daily limit / error, then the next model the same way">${rmMode==='drain'?'✅ ':''}⛽ First model until exhausted</button>
+          </span>
           <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;font-weight:bold;" onclick="openLast()" title="choose which models are used only after every other model, and in which order">⬇ Last order</button>
           <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
         </div>
@@ -6426,6 +6607,7 @@ threading.Thread(target=_janitor_loop, daemon=True, name="wapi-janitor").start()
 _blocks_load()
 _cfg_load()
 _last_load()
+_routing_load()
 _usage_load()
 
 
