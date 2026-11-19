@@ -19,6 +19,10 @@ RAW_MODELS = os.environ.get("GEMINI_MODELS", "gemini-3.1-flash-lite:15:500,gemin
 
 API_KEYS = list(dict.fromkeys([k.strip() for k in RAW_KEYS if k.strip()]))
 
+# TPM = tokens per minute, per key, per model (Google free tier: 250,000 input tokens / minute / model / project).
+# Every model has its own TPM limit (dashboard -> model -> Limits, or GEMINI_MODELS "name:rpm:rpd:tpm"); this is the default.
+TPM_DEFAULT = int(os.environ.get("TPM_DEFAULT", "250000"))
+
 MODELS = []
 for m in RAW_MODELS:
     if not m.strip(): continue
@@ -27,10 +31,14 @@ for m in RAW_MODELS:
     rpm  = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 15
     # RPD is optional (your format is just "name:rpm") -> safe default when absent
     rpd  = int(parts[2].strip()) if len(parts) > 2 and parts[2].strip() else (1500 if "flash" in name else 50)
-    MODELS.append({"name": name, "rpm": rpm, "rpd": rpd})
+    try:
+        tpm = int(parts[3].strip()) if len(parts) > 3 and parts[3].strip() else TPM_DEFAULT
+    except ValueError:
+        tpm = TPM_DEFAULT
+    MODELS.append({"name": name, "rpm": rpm, "rpd": rpd, "tpm": max(1, tpm)})
 
 if not MODELS:
-    MODELS = [{"name": "gemini-3.1-flash-lite", "rpm": 15, "rpd": 500}]
+    MODELS = [{"name": "gemini-3.1-flash-lite", "rpm": 15, "rpd": 500, "tpm": TPM_DEFAULT}]
 
 # Concurrency safety margin: reserve this many RPM slots as a buffer so that
 # several requests admitted in the same instant (before their timestamps are
@@ -317,16 +325,27 @@ def _cfg_int(v, lo, hi):
     return int(f)
 
 
-def _cfg_apply(name, rpm, rpd):
-    """Put the model in the routing list (or update its limits). Returns True when a new entry was created."""
+def _cfg_apply(name, rpm, rpd, tpm=None):
+    """Put the model in the routing list (or update its limits). Returns True when a new entry was created.
+    tpm=None keeps the model's current TPM limit (new model: TPM_DEFAULT)."""
     bk = _bk(name)
     with state_lock:
         ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
         if ex is not None:
             ex["rpm"], ex["rpd"] = int(rpm), int(rpd)
+            if tpm is not None:
+                ex["tpm"] = int(tpm)
             return False
-        MODELS.append({"name": name, "rpm": int(rpm), "rpd": int(rpd)})
+        MODELS.append({"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": int(tpm) if tpm is not None else TPM_DEFAULT})
         return True
+
+
+def _m_tpm(m) -> int:
+    """TPM limit (tokens per minute, per key) of a model dict."""
+    try:
+        return max(1, int((m or {}).get("tpm") or TPM_DEFAULT))
+    except (TypeError, ValueError):
+        return TPM_DEFAULT
 
 
 def _cfg_remove(name):
@@ -337,7 +356,7 @@ def _cfg_remove(name):
         ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
         if env is not None:
             if ex is not None:
-                ex["rpm"], ex["rpd"] = env["rpm"], env["rpd"]
+                ex["rpm"], ex["rpd"], ex["tpm"] = env["rpm"], env["rpd"], _m_tpm(env)
             else:
                 MODELS.append(dict(env))
             return "reset"
@@ -390,6 +409,7 @@ def _cfg_merge(rows):
         try:
             name = _cfg_clean_name(r.get("name") or r.get("_id"))
             rpm, rpd = _cfg_int(r.get("rpm"), 1, 1_000_000), _cfg_int(r.get("rpd"), 1, 100_000_000)
+            tpm = _cfg_int(r.get("tpm"), 1, 1_000_000_000)      # older saved rows have none -> the model keeps its current TPM
             if not name or rpm is None or rpd is None:
                 continue
             bk = _bk(name)
@@ -400,7 +420,9 @@ def _cfg_merge(rows):
                 CUSTOM_CFG[bk] = {"name": name, "rpm": rpm, "rpd": rpd,
                                   "added": float(r.get("added") or time.time()),
                                   "updated": float(r.get("updated") or time.time())}
-            _cfg_apply(name, rpm, rpd)
+                if tpm is not None:
+                    CUSTOM_CFG[bk]["tpm"] = tpm
+            _cfg_apply(name, rpm, rpd, tpm)
             n += 1
         except Exception:
             continue
@@ -428,14 +450,16 @@ def _cfg_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _cfg_save(name, rpm, rpd):
+def _cfg_save(name, rpm, rpd, tpm=None):
     """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new."""
     bk, now = _bk(name), time.time()
     with state_lock:
         prev = CUSTOM_CFG.get(bk)
-        CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd),
+        ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
+        eff_tpm = int(tpm) if tpm is not None else int((prev or {}).get("tpm") or (_m_tpm(ex) if ex else TPM_DEFAULT))
+        CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": eff_tpm,
                           "added": (prev or {}).get("added", now), "updated": now}
-    created = _cfg_apply(name, rpm, rpd)
+    created = _cfg_apply(name, rpm, rpd, eff_tpm)
     _cfg_persist("set", bk)
     return created
 
@@ -443,7 +467,7 @@ def _cfg_save(name, rpm, rpd):
 def _cfg_view():
     with state_lock:
         env = {_bk(m["name"]) for m in ENV_MODELS}
-        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "saved": _bk(m["name"]) in CUSTOM_CFG,
+        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "tpm": _m_tpm(m), "saved": _bk(m["name"]) in CUSTOM_CFG,
                  "in_env": _bk(m["name"]) in env} for m in MODELS]
 
 
@@ -524,7 +548,7 @@ def _pin_hard_dead(key, model_name, model_dict, honor_block=True) -> bool:
     if not _rpd_available(key, model_name, model_dict["rpd"]): return True
     return False
 
-def acquire_sticky_slot_wait(client_id: str, honor_block=True):
+def acquire_sticky_slot_wait(client_id: str, honor_block=True, est_tokens: int = 0):
     """
     Resolve the pinned slot for this client, WAITING (not switching) while
     it's only RPM-limited, since RPM resets within ~60s and switching model
@@ -558,7 +582,8 @@ def acquire_sticky_slot_wait(client_id: str, honor_block=True):
                 conversation_sticky.pop(client_id, None)
                 return ("exhausted", None, None)
 
-            if _is_rpm_cooldown(key, model_name) or not _rpm_available(key, model_name, model_dict["rpm"]):
+            if _is_rpm_cooldown(key, model_name) or not _rpm_available(key, model_name, model_dict["rpm"]) \
+                    or not _tpm_ok(key, model_name, _m_tpm(model_dict), est_tokens):
                 rpm_blocked = True
                 # how long until this pinned slot is usable again (cooldown AND RPM window)
                 _now_m = time.monotonic()
@@ -567,6 +592,7 @@ def acquire_sticky_slot_wait(client_id: str, honor_block=True):
                 _eff = _effective_rpm(model_dict["rpm"])
                 if len(_win) >= _eff:
                     _free_in = max(_free_in, _win[len(_win) - _eff] + RPM_WINDOW_SECS - _now_m)
+                _free_in = max(_free_in, _tpm_free_in(key, model_name, _m_tpm(model_dict), est_tokens))
                 if _free_in > max(0.0, deadline - _now_m):
                     # a long block (10 min 503 / 30 min 404 ...) cannot be waited out -> switch now, do not sit idle
                     return ("busy", None, None)
@@ -575,6 +601,7 @@ def acquire_sticky_slot_wait(client_id: str, honor_block=True):
 
             if not rpm_blocked:
                 _record_request(key, model_name)
+                _tpm_record(key, model_name, est_tokens)
                 conversation_sticky[client_id] = (key, model_name, time.monotonic())
                 return ("ok", key, model_dict)
 
@@ -1351,6 +1378,64 @@ def _rpm_available(key, model_name, rpm_limit):
     # needlessly serialising bursts across unrelated (key, model) pairs.
     return len(window) < _effective_rpm(rpm_limit)
 
+# TPM window: (key, model_name) -> deque of (monotonic ts, tokens). Filled when a request is sent to that slot (estimated input
+# tokens of the request), the entry is removed again when Google did not take the request (429 / 5xx / network error).
+tpm_window: dict = {}
+tpm_total: dict = {}      # (key, model_name) -> tokens successfully sent since the process started (statistics)
+
+def _tpm_prune(key, model_name):
+    window = _get_key(key, model_name, tpm_window, deque)
+    cutoff = time.monotonic() - RPM_WINDOW_SECS
+    while window and window[0][0] < cutoff:
+        window.popleft()
+    return window
+
+def _tpm_used(key, model_name) -> int:
+    return sum(t for _, t in _tpm_prune(key, model_name))
+
+def _tpm_ok(key, model_name, tpm_limit, est) -> bool:
+    """Does a request of `est` tokens fit into this slot's per-minute token budget right now?
+    An EMPTY window always says yes: a single request bigger than the whole limit is left to Google (it answers with its own
+    429, which is handled), because our token count is only an estimate and must never make a request impossible."""
+    if not est:
+        return True
+    used = _tpm_used(key, model_name)
+    return used == 0 or used + est <= tpm_limit
+
+def _tpm_free_in(key, model_name, tpm_limit, est) -> float:
+    """Seconds until `est` tokens fit into this slot's budget (0 = now)."""
+    if not est:
+        return 0.0
+    window = _tpm_prune(key, model_name)
+    used = sum(t for _, t in window)
+    need = used + est - tpm_limit
+    if used == 0 or need <= 0:
+        return 0.0
+    freed, last_ts = 0, None
+    for ts, tok in window:                      # oldest first: tokens leave the minute in this order
+        freed += tok
+        last_ts = ts
+        if freed >= need:
+            break
+    return max(0.0, last_ts + RPM_WINDOW_SECS - time.monotonic())
+
+def _tpm_record(key, model_name, tokens):
+    if tokens:
+        _tpm_prune(key, model_name)
+        tpm_window[(key, model_name)].append((time.monotonic(), int(tokens)))
+
+def _tpm_refund(key, model_name, tokens):
+    """The request was not taken by Google (429 / 5xx / error): give its tokens back."""
+    if not tokens:
+        return
+    w = tpm_window.get((key, model_name))
+    if not w:
+        return
+    for i in range(len(w) - 1, -1, -1):
+        if w[i][1] == int(tokens):
+            del w[i]
+            return
+
 def _rpd_available(key, model_name, rpd_limit):
     used = _get_key(key, model_name, rpd_count, lambda: 0)
     if isinstance(used, deque):  # safety
@@ -2093,7 +2178,7 @@ def _list_combos_in_order(requested_model: str):
     return combos
 
 
-def acquire_next_slot(requested_model: str, exclude: set):
+def acquire_next_slot(requested_model: str, exclude: set, est_tokens: int = 0):
     """
     Atomically picks the next viable (key, model) combo AND reserves it
     (records the request timestamp) in one locked step.
@@ -2133,10 +2218,13 @@ def acquire_next_slot(requested_model: str, exclude: set):
                 continue
             if not _rpm_available(key, model["name"], model["rpm"]):
                 continue
+            if est_tokens and not _tpm_ok(key, model["name"], _m_tpm(model), est_tokens):
+                continue          # the model's tokens-per-minute budget on this key is used up: another key / model first
 
             # Reserve immediately, still inside the lock, before returning —
             # this is what closes the race window.
             _record_request(key, model["name"])
+            _tpm_record(key, model["name"], est_tokens)
             
             global current_combo_idx
             # Advance by 1 across the total pool of K*M combinations
@@ -3071,6 +3159,13 @@ def api_dashboard_data():
             for (k, m), ts in rpm_cooldown.items() if ts > now_mono
         }
         key_list = [f"...{k[-4:]}" for k in API_KEYS]
+        tpm_usage = {}
+        for m in active_models_snap:
+            lim = _m_tpm(m)
+            rows = {f"...{k[-4:]}": _tpm_used(k, m["name"]) for k in API_KEYS}
+            tpm_usage[m["name"]] = {"limit": lim, "used": sum(rows.values()), "keys": rows,
+                                    "total_sent": sum(tpm_total.get((k, m["name"]), 0) for k in API_KEYS),
+                                    "free_keys": sum(1 for k in API_KEYS if rows[f"...{k[-4:]}"] < lim)}
         # Per-model: count of available keys and list of penalized key last-5 digits
         model_key_info = {}
         for m in active_models_snap:
@@ -3112,6 +3207,7 @@ def api_dashboard_data():
         "last_models": _last_view(),
         "routing_mode": _routing_view(),
         "usage": _usage_view(),
+        "tpm_usage": tpm_usage,
         "model_cfg": {m["name"]: {"saved": m["saved"], "in_env": m["in_env"]} for m in _cfg_view()},
         **_dash_logs(request.args.get("slim") == "1"),
     })
@@ -3403,7 +3499,7 @@ def routing_mode_api():
 def model_config_api():
     """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, or remove it.
       GET                                                    -> {"models": [{name, rpm, rpd, saved, in_env}, ...]}
-      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250}   add (or update the limits of an existing model)
+      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250, "tpm": 250000}   add (or update the limits of an existing model; tpm optional)
       POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
            saved-only model -> removed from routing; GEMINI_MODELS model -> back to its env limits
     Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
@@ -3438,9 +3534,15 @@ def model_config_api():
     rpd = _cfg_int(body.get("rpd"), 1, 100_000_000)
     if rpm is None or rpd is None:
         return jsonify({"error": "rpm and rpd are required whole numbers >= 1"}), 400
-    created = _cfg_save(name, rpm, rpd)
-    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} (saved)")
-    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "created": created, "models": _cfg_view()})
+    tpm = None                                   # optional: tokens per minute per key (omitted = keep / default 250000)
+    if body.get("tpm") not in (None, ""):
+        tpm = _cfg_int(body.get("tpm"), 1, 1_000_000_000)
+        if tpm is None:
+            return jsonify({"error": "tpm must be a whole number >= 1 (tokens per minute per key, default %d)" % TPM_DEFAULT}), 400
+    created = _cfg_save(name, rpm, rpd, tpm)
+    _tpm_eff = next((_m_tpm(m) for m in MODELS if _bk(m["name"]) == bk), TPM_DEFAULT)
+    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} tpm={_tpm_eff} (saved)")
+    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "tpm": _tpm_eff, "created": created, "models": _cfg_view()})
 
 
 _avail_cache = {"t": 0.0, "models": None}
@@ -4128,6 +4230,8 @@ details.cardx .cbody{padding:12px 15px}
 <input id="mdl-rpm" type="number" min="1" placeholder="e.g. 10" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
 <div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;">RPD (per day, per key)</div>
 <input id="mdl-rpd" type="number" min="1" placeholder="e.g. 250" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
+<div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;" title="tokens per minute, per key">TPM (tokens / min / key)</div>
+<input id="mdl-tpm" type="number" min="1" placeholder="250000" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
 </div>
 <div style='display:flex;gap:8px;align-items:center;margin-bottom:6px;'>
 <button class='btn-s' id='mdl-test-btn' onclick='mdlTest()' style='background:#2d1b69;border-color:#4c1d95;padding:6px 12px;'>🧪 Test this model</button>
@@ -4744,16 +4848,19 @@ function pickModel(){
   document.getElementById('mdl-name').value=m.name;
   document.getElementById('mdl-rpm').value=m.rpm;
   document.getElementById('mdl-rpd').value=m.rpd;
+  document.getElementById('mdl-tpm').value=250000;
   const tok=m.input_tokens?(' · '+Number(m.input_tokens).toLocaleString()+' input tokens'):'';
   note.textContent='RPM/RPD suggested ('+m.limits_from+') - Google does not publish them through the API, please check your quota and edit if different.'+tok;
 }
-function openModelForm(name,rpm,rpd,saved,inEnv){
+function fmtTok(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+'M':(n>=1e3?Math.round(n/1e3)+'k':String(n));}
+function openModelForm(name,rpm,rpd,saved,inEnv,tpm){
   mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
   document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
   const n=document.getElementById('mdl-name');
   n.value=name||'';n.readOnly=mdlEditing;n.style.opacity=mdlEditing?'.6':'1';
   document.getElementById('mdl-rpm').value=rpm||'';
   document.getElementById('mdl-rpd').value=rpd||'';
+  document.getElementById('mdl-tpm').value=tpm||250000;
   document.getElementById('mdl-err').textContent='';
   const del=document.getElementById('mdl-del');
   del.style.display=(mdlEditing&&mdlSavedFlag)?'inline-block':'none';
@@ -4780,14 +4887,15 @@ async function saveModelCfg(){
   const name=document.getElementById('mdl-name').value.trim();
   const rpm=document.getElementById('mdl-rpm').value.trim();
   const rpd=document.getElementById('mdl-rpd').value.trim();
+  const tpm=document.getElementById('mdl-tpm').value.trim();
   const errEl=document.getElementById('mdl-err');
   if(!name){errEl.textContent='Enter the model name';return;}
   if(!rpm||!rpd){errEl.textContent='Enter both RPM and RPD';return;}
-  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd});
+  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd,tpm:tpm||250000});
   if(d){
     closeModelForm();
     const noteEl=document.getElementById('log-note');
-    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+') - saved';
+    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+', TPM '+fmtTok(d.tpm)+') - saved';
   }
 }
 async function deleteModelCfg(){
@@ -5114,7 +5222,7 @@ function updateUI(data){
     const em = esc(mn);
     const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
     const lastPos = o.lp;
-    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1')" title="Change RPM / RPD of ${em}">✏️ Limits</button>`;
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-tpm="${model.tpm||250000}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.tpm)" title="Change RPM / RPD / TPM of ${em}">✏️ Limits</button>`;
     const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtOpen([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
     const lastBtn = lastPos >= 0
       ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
@@ -5131,12 +5239,19 @@ function updateUI(data){
     window._penData = window._penData || {}; window._penData[mn] = info.pen || [];
     const keysAttr = penCount > 0 ? `style="cursor:pointer;text-decoration:underline dotted;" data-m="${em}" onclick="event.stopPropagation();penOpen(this.dataset.m)"` : '';
     const todayN = umToday[mn] ? umToday[mn].today : 0;
+    const tpmU = (data.tpm_usage || {})[mn] || {limit: model.tpm || 250000, used: 0, keys: {}};
+    const tpmLim = model.tpm || 250000, tpmKeys = Object.entries(tpmU.keys || {});
+    const tpmFull = tpmKeys.filter(([, v]) => v >= tpmLim * 0.9).length;
+    const tpmCol = tpmFull && tpmFull === tpmKeys.length ? '#f87171' : (tpmFull ? '#fbbf24' : (tpmU.used ? '#4ade80' : '#6b7280'));
+    const tpmTip = 'Tokens sent in the last minute: ' + (tpmU.used || 0).toLocaleString() + ' (all keys). Limit ' + tpmLim.toLocaleString() + ' per key per minute. '
+      + tpmKeys.map(([k, v]) => k + ': ' + v.toLocaleString()).join(' | ') + ' | sent since start: ' + (tpmU.total_sent || 0).toLocaleString();
     modelsHtml += `<tr style="${blockedLeft>0?'background:rgba(248,113,113,.06);':''}">
       <td class="mn">${pos+1}</td>
       <td><input type="checkbox" class="mt-chk" data-m="${em}" ${mtSel[mn]?'checked':''} onclick="event.stopPropagation()" onchange="mtToggle(this.dataset.m,this.checked)" title="tick to test several models together"></td>
       <td><span style="font-family:monospace;color:#c4b5fd;word-break:break-all;">${em}</span>${tags}</td>
       <td ${keysAttr} title="${avail}/${total} keys available${penCount>0?' | penalized: '+esc(penTip):''}"><b style="color:${countColor};">${avail}/${total}</b></td>
       <td style="color:#9ca3af;">${model.rpm}</td><td style="color:#9ca3af;">${model.rpd}</td>
+      <td style="color:#9ca3af;white-space:nowrap;" title="${esc(tpmTip)}"><b style="color:${tpmCol};">${fmtTok(tpmU.used||0)}</b> <span style="font-size:.8em;">/ ${fmtTok(model.tpm||250000)}</span></td>
       <td style="color:#60a5fa;font-weight:bold;" title="requests today, all keys">${todayN}</td>
       <td><div class="macts">${editBtn}${testBtn}${lastBtn}${blockBtn}${releaseModelBtn}</div></td></tr>`;
   });
@@ -5150,18 +5265,21 @@ function updateUI(data){
   const um = (data.usage || {}).models || {};
   (data.models || []).forEach(model => {
     const u = um[model.name]; if (!u) return;
-    const rpd = model.rpd || 1;
+    const rpd = model.rpd || 1, tpmLim = model.tpm || 250000;
     const rowsH = u.rows.map(r => {
       const pct = Math.min(100, Math.round(r.today * 100 / rpd));
+      const tk = ((((data.tpm_usage || {})[model.name] || {}).keys) || {})[r.key] || 0;
+      const tkPct = Math.min(100, Math.round(tk * 100 / tpmLim));
       const col = r.today >= rpd ? '#f87171' : (r.today >= rpd * 0.7 ? '#fbbf24' : '#4ade80');
       return `<tr><td style="padding:3px 8px;font-family:monospace;color:#93c5fd;">${esc(r.key)}</td>
         <td style="padding:3px 8px;min-width:170px;"><div style="display:flex;align-items:center;gap:8px;"><b style="color:${r.today?col:'#6b7280'};min-width:34px;">${r.today}</b><div style="flex:1;height:6px;background:#27272a;border-radius:3px;"><div style="width:${pct}%;height:6px;background:${col};border-radius:3px;"></div></div><span style="color:#6b7280;font-size:.8em;">/ ${rpd}</span></div></td>
-        <td style="padding:3px 8px;color:${r.yesterday?'#e5e7eb':'#6b7280'};">${r.yesterday}</td></tr>`;
+        <td style="padding:3px 8px;color:${r.yesterday?'#e5e7eb':'#6b7280'};">${r.yesterday}</td>
+        <td style="padding:3px 8px;min-width:150px;"><div style="display:flex;align-items:center;gap:8px;"><b style="color:${tk>=tpmLim?'#f87171':(tk>=tpmLim*0.7?'#fbbf24':(tk?'#4ade80':'#6b7280'))};min-width:42px;">${fmtTok(tk)}</b><div style="flex:1;height:6px;background:#27272a;border-radius:3px;"><div style="width:${tkPct}%;height:6px;background:${tk>=tpmLim?'#f87171':(tk>=tpmLim*0.7?'#fbbf24':'#4ade80')};border-radius:3px;"></div></div><span style="color:#6b7280;font-size:.8em;">/ ${fmtTok(tpmLim)}</span></div></td></tr>`;
     }).join('');
     usageHtml += `<details data-m="${esc(model.name)}" ${usageOpen[model.name]?'open':''} ontoggle="usageOpen[this.dataset.m]=this.open" style="background:#1a1a2e;border:1px solid #4c1d95;border-radius:6px;padding:6px 10px;margin-bottom:6px;">
       <summary style="cursor:pointer;display:flex;gap:14px;flex-wrap:wrap;align-items:center;"><span style="font-family:monospace;color:#c4b5fd;">${esc(model.name)}</span>
-        <span>today <b style="color:#60a5fa;">${u.today}</b></span><span style="color:#9ca3af;">yesterday ${u.yesterday}</span><span style="color:#6b7280;font-size:.8em;">limit ${rpd}/key/day</span></summary>
-      <div style="overflow-x:auto;margin-top:6px;"><table style="border-collapse:collapse;font-size:.9em;"><thead><tr style="color:#9ca3af;text-align:left;"><th style="padding:3px 8px;">Key</th><th style="padding:3px 8px;">Today</th><th style="padding:3px 8px;">Yesterday</th></tr></thead><tbody>${rowsH}</tbody></table></div>
+        <span>today <b style="color:#60a5fa;">${u.today}</b></span><span style="color:#9ca3af;">yesterday ${u.yesterday}</span><span style="color:#6b7280;font-size:.8em;">limit ${rpd}/key/day · ${fmtTok(tpmLim)} tokens/key/min</span></summary>
+      <div style="overflow-x:auto;margin-top:6px;"><table style="border-collapse:collapse;font-size:.9em;"><thead><tr style="color:#9ca3af;text-align:left;"><th style="padding:3px 8px;">Key</th><th style="padding:3px 8px;">Today</th><th style="padding:3px 8px;">Yesterday</th><th style="padding:3px 8px;" title="tokens sent in the last minute / TPM limit">Tokens / min</th></tr></thead><tbody>${rowsH}</tbody></table></div>
     </details>`;
   });
   if (!usageHtml) usageHtml = '<span style="color:#6b7280;">No models.</span>';
@@ -5215,7 +5333,7 @@ function updateUI(data){
           <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
         </div>
         <div style="overflow-x:auto;border:1px solid #2a2a2e;border-radius:6px;">
-          <table class="mtbl"><thead><tr><th style="text-align:right;">#</th><th></th><th>Model</th><th title="keys that are still usable / all keys">Keys ok</th><th>RPM</th><th>RPD</th><th>Today</th><th style="text-align:right;">Actions</th></tr></thead>
+          <table class="mtbl"><thead><tr><th style="text-align:right;">#</th><th></th><th>Model</th><th title="keys that are still usable / all keys">Keys ok</th><th>RPM</th><th>RPD</th><th title="tokens per minute: sent in the last minute (all keys) / limit per key">TPM</th><th>Today</th><th style="text-align:right;">Actions</th></tr></thead>
           <tbody>${modelsHtml||'<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:20px;">No models.</td></tr>'}</tbody></table>
         </div>
         <div class="sub flex-col" style="margin-top:10px;">Blocked models (all keys, for auto / round-robin only - a request that names the model still gets it):<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${blkHtml}</div></div>
@@ -5928,6 +6046,7 @@ def proxy_chat():
                             429, {"Content-Type": "application/json", "Retry-After": str(int(_blk_left) + 1)})
     _ctx_info = _ctx_prepare(data)           # measure the context (shown on the dashboard) + compress old parts if switched on
     _ctx_note = f" [context ~{(_ctx_info.get('after') or 0) // 1000}k tokens]" if _ctx_info.get("after") else ""
+    _est_tokens = int((_ctx_info or {}).get("after") or 0)      # estimated input tokens of this request (TPM accounting)
     messages = data.get("messages", []) or []
     remote_addr = request.headers.get("X-Real-IP") or \
                   (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()) or \
@@ -5985,7 +6104,7 @@ def proxy_chat():
         # is guaranteed valid), but never fail because of it: if it is
         # rate-limited / exhausted / erroring we fall through to normal
         # routing, and prepare_payload() re-injects the cached signature.
-        outcome, key, model = acquire_sticky_slot_wait(client_id, honor_block=_block_applies(requested_model))
+        outcome, key, model = acquire_sticky_slot_wait(client_id, honor_block=_block_applies(requested_model), est_tokens=_est_tokens)
         if outcome == "ok":
             actual_model = model["name"]
             print(f"[STICKY] {client_id} → preferring key=…{key[-6:]} model={actual_model}")
@@ -5999,7 +6118,11 @@ def proxy_chat():
                 resp = _heal_signature(resp, url, headers, data, actual_model)
                 if resp.status_code != 200:
                     _drain_close(resp)
+                    with state_lock:
+                        _tpm_refund(key, actual_model, _est_tokens)      # Google did not take it: its tokens are free again
                 if resp.status_code == 200:
+                    with state_lock:
+                        tpm_total[(key, actual_model)] = tpm_total.get((key, actual_model), 0) + _est_tokens
                     remember_sticky_slot(client_id, key, actual_model)
                     if hasattr(g, "log_entry"):
                         g.log_entry["status"] = f"200 Success ({actual_model})"
@@ -6033,6 +6156,7 @@ def proxy_chat():
             except Exception as e:
                 print(f"[STICKY ERROR] {e} → switching slot")
                 with state_lock:
+                    _tpm_refund(key, actual_model, _est_tokens)
                     _apply_rpm_cooldown(key, actual_model, seconds=60)
         # exhausted / busy / no pin / pinned failed -> normal routing below
 
@@ -6057,7 +6181,6 @@ def proxy_chat():
     tpm_hits = {}                          # (key, model) -> TPM 429s in this request
     cooled_429 = set()                     # slots that answered a non-daily 429 (RPM / TPM): they come back after their cooldown
     dead_slots = set()                     # slots dropped for this request (TPM retries used up / request bigger than the TPM limit)
-    _est_tokens = int((_ctx_info or {}).get("after") or 0)
 
     while True:
         if _cancelled():
@@ -6069,13 +6192,15 @@ def proxy_chat():
             break
 
         # Atomic: pick a viable (key, model) AND reserve its RPM slot in one lock hold.
-        slot = acquire_next_slot(requested_model, exclude=tried)
+        slot = acquire_next_slot(requested_model, exclude=tried, est_tokens=_est_tokens)
 
         if slot is None:
             # Nothing usable right now. Is anything merely waiting (RPM window / cooldown) or is all of it dead for today?
             with state_lock:
                 now_mono = time.monotonic()
                 waits = []
+                waits_untried = []        # same, only for slots this request has not used yet
+                n_tpm_blocked = 0         # unused slots that only wait for their TOKENS-per-minute budget
                 any_waitable = False
                 n_cooling = 0
                 n_tried_alive = 0
@@ -6109,11 +6234,19 @@ def proxy_chat():
                         window = _prune_rpm(k, m_name)          # prune FIRST (a stale window made this loop spin every 0.2 s)
                         if len(window) >= eff:
                             free_in = max(free_in, window[len(window) - eff] + RPM_WINDOW_SECS - now_mono)
+                        if _est_tokens:
+                            _tf = _tpm_free_in(k, m_name, _m_tpm(m_dict), _est_tokens)
+                            if _tf > 0:
+                                free_in = max(free_in, _tf)
+                                if not _was_tried:
+                                    n_tpm_blocked += 1
                         if _was_tried and free_in <= 0:
                             n_tried_alive += 1        # used by this request, failed, not cooling: just not sent again
                             continue
                         any_waitable = True
                         waits.append(max(0.0, free_in))
+                        if not _was_tried:
+                            waits_untried.append(max(0.0, free_in))
                         if free_in > 0:
                             n_cooling += 1
 
@@ -6129,14 +6262,19 @@ def proxy_chat():
                 exit_reason = "all_daily"
                 break
 
-            soonest = min(waits) if waits else 2.0
+            # Some unused slot only waits for its tokens-per-minute budget -> wait for it (<= dashboard limit) even when the
+            # dashboard switch is OFF: the request is not failed because of tokens that free up within seconds.
+            _tpm_only_wait = bool(n_tpm_blocked and TPM_AUTO_WAIT and not _wait_on)
+            if _tpm_only_wait:
+                tpm_any = True
+            soonest = min(waits_untried) if (_tpm_only_wait and waits_untried) else (min(waits) if waits else 2.0)
             n_tried_slots = len(tried)
-            _spec_wait = max(SPECIFIC_MAX_WAIT, _wait_max) if tpm_wait else SPECIFIC_MAX_WAIT
+            _spec_wait = max(SPECIFIC_MAX_WAIT, _wait_max) if (tpm_wait or _tpm_only_wait) else SPECIFIC_MAX_WAIT
             if not _is_pool_req and soonest > _spec_wait:
                 exit_reason = "specific"
                 attempt_errors.append(f"specific model: remaining keys cooling down for {soonest:.0f}s -> not waiting")
                 break
-            if _is_pool_req and not _wait_on:
+            if _is_pool_req and not _wait_on and not _tpm_only_wait:
                 # DEFAULT: no waiting. Every free key x model was tried once (or nothing was free) -> clear error to the user.
                 exit_reason = "once_done" if n_tried_slots else "all_cooling"
                 _trail(f"no free key x model left (each was tried once); soonest cooling slot frees in ~{soonest:.0f}s -> error to the user "
@@ -6177,9 +6315,13 @@ def proxy_chat():
             resp = _heal_signature(resp, url, headers, data, actual_model)
             if resp.status_code != 200:
                 _drain_close(resp)        # error answers are small: read + close now (stream=True otherwise keeps the socket open)
+                with state_lock:
+                    _tpm_refund(key, actual_model, _est_tokens)      # Google did not take it: its tokens are free again
             last_resp = resp
 
             if resp.status_code == 200:
+                with state_lock:
+                    tpm_total[(key, actual_model)] = tpm_total.get((key, actual_model), 0) + _est_tokens
 
                 # Pin this conversation to this exact (key, model) so that
                 # if the assistant's reply contains a tool call, the NEXT
@@ -6443,6 +6585,7 @@ def proxy_chat():
             # a 503: transient, not quota-related, never a daily block.
             attempt_errors.append(f"EXC {actual_model} (…{key[-4:]}): {str(e)[:150]}")
             with state_lock:
+                _tpm_refund(key, actual_model, _est_tokens)
                 n = attempt_counts.get((key, actual_model), 0) + 1
                 attempt_counts[(key, actual_model)] = n
                 _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
