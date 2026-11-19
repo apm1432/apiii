@@ -541,7 +541,10 @@ def acquire_sticky_slot_wait(client_id: str, honor_block=True):
                                     retry can resume on it
       (None, None, None)        -> no pin exists yet for this client
     """
-    deadline = time.monotonic() + STICKY_MAX_WAIT
+    _w_on, _w_max = _wait_cfg()
+    # switch OFF (default): never wait for the pinned slot - if it is busy, normal routing picks a free slot at once.
+    # switch ON: wait for it only if it frees up within wait_max seconds.
+    deadline = time.monotonic() + (min(STICKY_MAX_WAIT, _w_max) if _w_on else 0.0)
     while True:
         with state_lock:
             _prune_conv_sticky()
@@ -1795,7 +1798,39 @@ ROUTING_MODES = ("default", "drain")
 ROUTING_COLLECTION = os.environ.get("ROUTING_MODE_COLLECTION", "wapi_routing_mode")
 ROUTING_FILE = os.environ.get("ROUTING_MODE_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "routing_mode.json"))
 _env_rmode = os.environ.get("ROUTING_MODE", "default").strip().lower()
-ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "updated": 0.0}
+# "Wait for soonest free key" switch (dashboard, saved). OFF (default): a request is sent ONCE to every free
+# (key, model) slot; when all of them fail / are cooling down the user gets a clear error at once (no waiting).
+# ON: when no slot is free, the slot that frees up soonest is used - but only if it frees up within wait_max seconds
+# (default 40); if it is further away the user gets the clear error.
+WAIT_MAX_DEFAULT = 40
+# Context compression (dashboard, saved). mode: off | trim (no AI: shorten old tool outputs, drop repeated blocks, drop
+# old images) | ai (a cheap model of your own pool writes short summaries of old tool outputs; falls back to trim).
+# Only OLD messages are touched: system messages, the first user message, the newest `keep_last` messages and every
+# assistant tool_call stay exactly as they are, so tool-call / tool-result pairs stay valid and the agent loses nothing it
+# still needs. It only runs when the request is bigger than `threshold` tokens.
+CTX_DEFAULT = {"mode": os.environ.get("CTX_COMPRESS", "off").strip().lower(), "threshold": int(os.environ.get("CTX_THRESHOLD", "60000")),
+               "keep_last": 12, "tool_max": 1500, "model": ""}
+def _ctx_clean(c, base=None):
+    """validate / clamp a compress settings dict -> new dict"""
+    out = dict(base or CTX_DEFAULT)
+    c = c if isinstance(c, dict) else {}
+    if "mode" in c and str(c["mode"]).strip().lower() in ("off", "trim", "ai"):
+        out["mode"] = str(c["mode"]).strip().lower()
+    for k, lo, hi in (("threshold", 5000, 900000), ("keep_last", 2, 100), ("tool_max", 200, 20000)):
+        if c.get(k) is not None:
+            try:
+                out[k] = max(lo, min(hi, int(float(c[k]))))
+            except Exception:
+                pass
+    if "model" in c:
+        out["model"] = str(c.get("model") or "").strip()[:120]
+    if out.get("mode") not in ("off", "trim", "ai"):
+        out["mode"] = "off"
+    return out
+ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "updated": 0.0,
+           "wait_soonest": os.environ.get("WAIT_SOONEST", "0") == "1",
+           "wait_max": max(1, min(600, int(float(os.environ.get("WAIT_SOONEST_MAX", str(WAIT_MAX_DEFAULT)))))),
+           "compress": _ctx_clean(CTX_DEFAULT)}
 _routing_io_lock = threading.Lock()
 
 
@@ -1803,15 +1838,24 @@ def _routing_is_drain() -> bool:
     return ROUTING["mode"] == "drain"
 
 
+def _wait_cfg():
+    """-> (wait_soonest_on, wait_max_seconds)  (read without the lock: two plain values)"""
+    return bool(ROUTING.get("wait_soonest")), float(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT)
+
+
 def _routing_view():
     return {"mode": ROUTING["mode"], "modes": list(ROUTING_MODES), "updated": ROUTING["updated"],
+            "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": int(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT),
+            "compress": dict(ROUTING.get("compress") or CTX_DEFAULT),
             "label": "Use first model until exhausted" if _routing_is_drain() else "Default (rotate models)"}
 
 
 def _routing_save_file():
     try:
         with state_lock:
-            snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"]}
+            snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"],
+                    "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
+                    "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
         tmp = ROUTING_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(snap, f)
@@ -1835,7 +1879,9 @@ def _routing_persist():
                 if coll is None:
                     return
                 with state_lock:
-                    doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"]}
+                    doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"],
+                           "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
+                           "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
                 coll.replace_one({"_id": "mode"}, doc, upsert=True)
             except Exception as e:
                 print(f"[ROUTING MODE] MongoDB save failed (still kept in memory + file): {e}")
@@ -1853,6 +1899,15 @@ def _routing_merge(row):
             if upd <= ROUTING["updated"]:
                 return False
             ROUTING.update(mode=mode, updated=upd)
+            if "wait_soonest" in row:
+                ROUTING["wait_soonest"] = bool(row.get("wait_soonest"))
+            if isinstance(row.get("compress"), dict):
+                ROUTING["compress"] = _ctx_clean(row["compress"], ROUTING.get("compress"))
+            try:
+                if row.get("wait_max") is not None:
+                    ROUTING["wait_max"] = max(1, min(600, int(float(row.get("wait_max")))))
+            except Exception:
+                pass
         return True
     except Exception:
         return False
@@ -1881,9 +1936,17 @@ def _routing_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _routing_set(mode):
+def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None):
     with state_lock:
-        ROUTING.update(mode=mode, updated=time.time())
+        if compress is not None:
+            ROUTING["compress"] = _ctx_clean(compress, ROUTING.get("compress"))
+        if mode is not None:
+            ROUTING["mode"] = mode
+        if wait_soonest is not None:
+            ROUTING["wait_soonest"] = bool(wait_soonest)
+        if wait_max is not None:
+            ROUTING["wait_max"] = max(1, min(600, int(wait_max)))
+        ROUTING["updated"] = time.time()
     _routing_persist()
 
 
@@ -2120,6 +2183,7 @@ def _slim_log(e):
     return {"id": e.get("id"), "time": e.get("time"), "ip": _clip(e.get("ip"), 60), "status": _clip(e.get("status"), 80),
             "kind": _log_kind(e), "model": _clip(e.get("model"), 80), "route": _clip(e.get("route"), 200),
             "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 160),
+            "ctx": e.get("ctx_tokens"), "ctx_after": e.get("ctx_after"),
             "is_correct": bool(e.get("is_correct")), "password_used": _clip(e.get("password_used"), 40),
             "error": _clip(err, 600), "n_attempts": len(e.get("attempts") or []),
             "has_detail": bool(e.get("request") or e.get("attempts") or len(str(err or "")) > 600)}
@@ -3270,6 +3334,30 @@ def routing_mode_api():
     if request.method == 'GET':
         return jsonify(_routing_view())
     body = request.get_json(silent=True) or {}
+    # wait switch:  POST {"wait_soonest": true|false, "wait_max": 40}   (mode is optional then)
+    ws = body.get("wait_soonest", request.args.get("wait_soonest"))
+    wm = body.get("wait_max", request.args.get("wait_max"))
+    comp = body.get("compress")
+    if comp is not None and not isinstance(comp, dict):
+        return jsonify({"error": "compress must be an object like {\"mode\": \"trim\", \"threshold\": 60000}"}), 400
+    if comp is not None and "mode" in comp and str(comp["mode"]).strip().lower() not in ("off", "trim", "ai"):
+        return jsonify({"error": "compress.mode must be off, trim or ai"}), 400
+    if ws is not None or wm is not None or comp is not None:
+        if ws is not None:
+            ws = ws if isinstance(ws, bool) else str(ws).strip().lower() in ("1", "true", "on", "yes")
+        if wm is not None:
+            try:
+                wm = int(float(wm))
+            except Exception:
+                return jsonify({"error": "wait_max must be a number of seconds (1-600)"}), 400
+            if not 1 <= wm <= 600:
+                return jsonify({"error": "wait_max must be between 1 and 600 seconds"}), 400
+        _m = str(body.get("mode") or "").strip().lower() or None
+        if _m is not None and _m not in ROUTING_MODES:
+            return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
+        _routing_set(_m, ws, wm, comp)
+        print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']}")
+        return jsonify(_routing_view())
     mode = str(body.get("mode") or request.args.get("mode") or ("default" if request.method == 'DELETE' else "")).strip().lower()
     if mode not in ROUTING_MODES:
         return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
@@ -3453,6 +3541,10 @@ def _model_kind(name, methods):
     return "text-out"
 
 
+_TPM_HINT = (" [Context test: with a big context a 429 usually means the tokens-per-minute (TPM) or per-request "
+             "token limit of this model is hit, not the request-per-minute limit.]")
+
+
 def _probe_pick_key(name, skip_keys):
     """Pick a free key for `name` and reserve its RPM slot (models outside the pool have no limits to respect)."""
     global _probe_rr
@@ -3479,15 +3571,15 @@ def _probe_pick_key(name, skip_keys):
     return None, md
 
 
-def _probe_call(key, name, kind):
+def _probe_call(key, name, kind, tokens=0):
     base = "https://generativelanguage.googleapis.com"
-    t = (GEMINI_CONNECT_TIMEOUT, PROBE_TIMEOUT)
+    t = (GEMINI_CONNECT_TIMEOUT, PENTEST_BIG_TIMEOUT if (tokens and kind == "text-out") else PROBE_TIMEOUT)
     nat = {"x-goog-api-key": key, "Content-Type": "application/json"}
     if kind == "text-out":
         return requests.post(base + "/v1beta/openai/chat/completions",
                              headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
                              json={"model": name, "max_tokens": 200,
-                                   "messages": [{"role": "user", "content": "What is 2 + 2? Answer in one short sentence."}]},
+                                   "messages": [{"role": "user", "content": _pentest_prompt(tokens) if tokens else "What is 2 + 2? Answer in one short sentence."}]},
                              timeout=t)
     if kind == "image-out":
         return requests.post(f"{base}/v1beta/models/{name}:generateContent", headers=nat, timeout=t,
@@ -3550,8 +3642,9 @@ def _probe_base(name, meta):
     return res, kind
 
 
-def _probe_model(name, meta):
+def _probe_model(name, meta, tokens=0):
     res, kind = _probe_base(name, meta)
+    res["tokens"] = tokens if kind == "text-out" else 0
     if kind in ("image-video-out", "live", "aqa"):
         res.update(tested=False, ok=None, response="Not tested here: this model type does not use the normal chat / generateContent call. "
                                                    "It exists in your Google account, so it can be used by the right client.")
@@ -3566,7 +3659,7 @@ def _probe_model(name, meta):
         skip.add(key)
         t0 = time.time()
         try:
-            r = _probe_call(key, name, kind)
+            r = _probe_call(key, name, kind, tokens)
             ms = round((time.time() - t0) * 1000)
             res.update(key="…" + key[-4:], ms=ms, status=r.status_code)
             if r.status_code == 200:
@@ -3589,15 +3682,17 @@ def _probe_model(name, meta):
             last_err = str(e)
             res.update(key="…" + key[-4:], ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + last_err)
     if res["status"] in (429, 403):
-        res["response"] = "Rate-limited right now (" + res["response"] + ") - the model exists, try again later."
+        res["response"] = ("Rate-limited right now (" + res["response"] + ") - the model exists, try again later."
+                           + (_TPM_HINT if tokens else ""))
     return res
 
 
-def _probe_model_on_key(name, meta, key):
+def _probe_model_on_key(name, meta, key, tokens=0):
     """Test ONE model on ONE chosen key (dashboard: 'Test with all keys' / 'Select keys to test').
     Unlike _probe_model it does not pick a free key and does not skip busy keys: the person asked for exactly this
     key, so a 429 / 403 / 404 is reported as it is. Normal accounting: RPM slot reserved, on 200 one RPD counted."""
     res, kind = _probe_base(name, meta)
+    res["tokens"] = tokens if kind == "text-out" else 0
     res["key"] = "…" + key[-4:]
     md = next((m for m in MODELS if _bk(m["name"]) == _bk(name)), None)
     pname = md["name"] if md else name
@@ -3606,7 +3701,7 @@ def _probe_model_on_key(name, meta, key):
         if md:
             with state_lock:
                 _record_request(key, pname)
-        r = _probe_call(key, name, kind)
+        r = _probe_call(key, name, kind, tokens)
         res.update(ms=round((time.time() - t0) * 1000), status=r.status_code)
         if r.status_code == 200:
             outs, txt = _probe_parse(kind, r.json())
@@ -3622,7 +3717,8 @@ def _probe_model_on_key(name, meta, key):
             with state_lock:
                 _handle_429(key, pname, (r.text or "").lower(), raw=r.text, status=r.status_code)
         if r.status_code == 429:
-            res["response"] = "Rate-limited on this key (" + err + ") - the model exists, try again later."
+            res["response"] = ("Rate-limited on this key (" + err + ") - the model exists, try again later."
+                               + (_TPM_HINT if tokens else ""))
     except Exception as e:
         res.update(ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + str(e))
     return res
@@ -3648,6 +3744,11 @@ def model_test_api():
                 "all": request.args.get("all") == "1",
                 "all_keys": request.args.get("all_keys") == "1",
                 "keys": [x for x in (request.args.get("keys") or "").split(",") if x.strip()]}
+    try:
+        ctx_tokens = int(float(body.get("tokens") or request.args.get("tokens") or 0))
+    except Exception:
+        ctx_tokens = 0
+    ctx_tokens = 0 if ctx_tokens <= 0 else max(1000, min(ctx_tokens, 900000))     # 0 = the tiny "2 + 2" question
     raw = [m["name"] for m in MODELS] if body.get("all") else (body.get("models") or [])
     names, seen = [], set()
     for x in raw:
@@ -3681,20 +3782,20 @@ def model_test_api():
     except Exception:
         meta_map = None                      # Google list unavailable: probe by name only
     jobs = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8 if keys_to_use is not None else 4) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=(3 if ctx_tokens else (8 if keys_to_use is not None else 4))) as ex:
         for n in names:
             meta = (meta_map.get(_bk(n)) or {}) if meta_map is not None else None
             if keys_to_use is None:
-                jobs.append(ex.submit(_probe_model, n, meta))
-                time.sleep(0.15)
+                jobs.append(ex.submit(_probe_model, n, meta, ctx_tokens))
+                time.sleep(0.6 if ctx_tokens else 0.15)
                 continue
             kind = _model_kind(n, (meta or {}).get("supportedGenerationMethods", []) or [])
             if kind in ("image-video-out", "live", "aqa"):
                 jobs.append(ex.submit(_probe_model, n, meta))      # not testable here: ONE "not tested" row, not one per key
                 continue
             for k in keys_to_use:
-                jobs.append(ex.submit(_probe_model_on_key, n, meta, k))
-                time.sleep(0.12)             # stagger: many near-simultaneous TLS connections look like a flood to Google
+                jobs.append(ex.submit(_probe_model_on_key, n, meta, k, ctx_tokens))
+                time.sleep(0.6 if ctx_tokens else 0.12)             # stagger: many near-simultaneous TLS connections look like a flood to Google
     results = [j.result() for j in jobs]
     for r in results:
         if r.get("exists") is False:
@@ -3702,7 +3803,8 @@ def model_test_api():
     ok = sum(1 for r in results if r["ok"] is True)
     return jsonify({"total": len(results), "ok": ok, "failed": sum(1 for r in results if r["ok"] is False),
                     "untested": sum(1 for r in results if r["ok"] is None), "results": results,
-                    "multi": keys_to_use is not None, "keys_tested": len(keys_to_use) if keys_to_use is not None else 1})
+                    "multi": keys_to_use is not None, "keys_tested": len(keys_to_use) if keys_to_use is not None else 1,
+                    "tokens": ctx_tokens})
 
 
 @app.route('/release_daily', methods=['POST'])
@@ -4017,7 +4119,13 @@ details.cardx .cbody{padding:12px 15px}
 <button class='btn-s' id='mt-one-btn' onclick='mtSetMode("one")' title='one real call per model on ONE free key (quick). Press Start test to run.'>&#9889; One free key</button>
 <button class='btn-s' id='mt-all-btn' onclick='mtSetMode("all")' title='one real call per model on EVERY key. Press Start test to run.'>&#128273; Test with all keys</button>
 <button class='btn-s' id='mt-pick-btn' onclick='mtTogglePick()' title='choose the keys yourself'>&#127919; Select keys to test</button>
+<span style='color:#9ca3af;font-size:.85em;margin-left:10px;'>Context:</span>
+<select id='mt-ctx' onchange='mtCtxChange()' title='How much text each test request carries. Real agent requests are big (100k+ tokens) - a model can answer a tiny test and still 429 on a big request (tokens-per-minute limit).' style='background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:6px;padding:5px 8px;'>
+<option value='0'>Tiny (2+2)</option><option value='10000'>~10k tokens</option><option value='50000'>~50k tokens</option><option value='100000'>~100k tokens</option><option value='200000'>~200k tokens</option><option value='500000'>~500k tokens</option><option value='custom'>Custom...</option>
+</select>
+<input id='mt-ctx-custom' type='number' min='1000' max='900000' step='1000' placeholder='tokens' style='display:none;width:100px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:6px;padding:5px 8px;'>
 </div>
+<div id='mt-ctx-note' style='display:none;margin-bottom:10px;padding:8px 12px;background:#3b2a05;border:1px solid #fbbf24;border-radius:8px;color:#fde68a;font-size:.85em;'></div>
 <div id='mt-keypick' style='display:none;margin-bottom:12px;padding:10px;background:#141428;border:1px solid #312e81;border-radius:8px;'>
 <div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;'>
 <span style='color:#9ca3af;font-size:.85em;'>Tick the keys:</span>
@@ -4226,7 +4334,7 @@ function renderLogs(data){
       +'<td style="color:#c4b5fd;font-size:.85em;">'+(l.model?esc(l.model):'—')+'</td>'
       +'<td style="color:#93c5fd;font-size:.8em;max-width:220px;word-break:break-word;">'+esc(l.route||'—')+'</td>'
       +'<td style="color:#6b7280;font-size:.85em;white-space:nowrap;">'+ms+'</td>'
-      +'<td><div class="msg">'+esc(l.message||'No message')+'</div></td>'
+      +'<td>'+ctxBadge(l)+'<div class="msg">'+esc(l.message||'No message')+'</div></td>'
       +'<td>'+err+'</td><td style="white-space:nowrap;">'+det+stp+'</td></tr>';
     if(expanded[l.id])html+=detailHtml(l.id);
   });
@@ -4370,7 +4478,15 @@ function liveRow(id,rec,S){
   let cutNew=0;
   if(mode==='short'&&idx.length>3){cutNew=idx.length-3;idx=idx.slice(-3);}
   if(mode==='full')o+=h('Request - '+esc(JSON.stringify(q.params||{}))+' | '+(q.n_messages||0)+' messages'+(q.messages_cut?' (older '+q.messages_cut+' not shown)':''),'#93c5fd');
-  else o+=h('Request - '+(q.n_messages||0)+' messages | '+nNew+' new'+(mode==='detail'?' | '+esc(JSON.stringify(q.params||{})):''),'#93c5fd');
+  else o+=h('Request - '+(q.n_messages||0)+' messages | '+nNew+' new'+(q.ctx?' | context ~'+fmtK(q.ctx.before)+(q.ctx.applied?' → ~'+fmtK(q.ctx.after)+' tokens (compressed)':' tokens'):'')+(mode==='detail'?' | '+esc(JSON.stringify(q.params||{})):''),'#93c5fd');
+  if(q.ctx){
+    const P=q.ctx.parts||{};
+    let cx='📏 Context ~'+(q.ctx.before||0).toLocaleString()+' tokens (estimate): tool results '+fmtK(P.tool_results||0)+' · tools list '+fmtK(P.tools||0)+' · assistant '+fmtK(P.assistant||0)+' · user '+fmtK(P.user||0)+' · system '+fmtK(P.system||0)+(P.images?' · images '+fmtK(P.images):'');
+    if(q.ctx.applied)cx+=' → after compress ('+esc(q.ctx.mode)+') ~'+(q.ctx.after||0).toLocaleString()+': '+(q.ctx.summarized||0)+' summarized, '+(q.ctx.shortened||0)+' shortened, '+(q.ctx.dedup||0)+' repeated blocks, '+(q.ctx.images||0)+' old images removed';
+    else if(q.ctx.mode&&q.ctx.mode!=='off')cx+=' · compress '+esc(q.ctx.mode)+': not needed (under '+fmtK(q.ctx.threshold||0)+')';
+    if((q.ctx.biggest||[]).length)cx+=' · biggest: '+q.ctx.biggest.slice(0,3).map(b=>'#'+b.i+' '+esc(b.role)+' '+fmtK(b.tokens)).join(', ');
+    o+=small(cx,'#7dd3fc');
+  }
   if(q.tools&&q.tools.length){
     const same=S.tl.has(toolsSig(q));
     if(mode==='full'||(mode==='detail'&&!same))o+=h('Tools offered ('+q.tools.length+')'+(same?'':' - changed'),'#a78bfa')+pre(q.tools.map(t=>t.name+' - '+t.description).join(nl),'#c4b5fd');
@@ -4437,6 +4553,13 @@ function lastRender(){
   document.getElementById('lm-add-sel').innerHTML=free.length?free.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join(''):'<option value="">(every model is already in the list)</option>';
   document.getElementById('lm-add-btn').disabled=!free.length;
 }
+function ctxBadge(l){
+  if(!l||!l.ctx)return '';
+  const big=l.ctx>=100000?'#f87171':(l.ctx>=50000?'#fbbf24':'#7dd3fc');
+  const txt=l.ctx_after?('📏 ~'+fmtK(l.ctx)+' → ~'+fmtK(l.ctx_after)+' tok 🗜'):('📏 ~'+fmtK(l.ctx)+' tok');
+  return '<span title="estimated size of this request (context). Red = 100k+, yellow = 50k+" style="display:inline-block;margin-bottom:3px;padding:1px 7px;border-radius:10px;border:1px solid '+big+';color:'+big+';font-size:.75em;white-space:nowrap;">'+txt+'</span> ';
+}
+function fmtK(n){n=+n||0;return n>=1000?(n/1000).toFixed(n>=10000?0:1)+'k':String(n);}
 function lastMove(i,d){i=+i;const j=i+d;if(j<0||j>=lastDraft.length)return;const t=lastDraft[i];lastDraft[i]=lastDraft[j];lastDraft[j]=t;lastRender();}
 function lastRemove(i){lastDraft.splice(+i,1);lastRender();}
 function lastAdd(){const v=document.getElementById('lm-add-sel').value;if(!v)return;lastDraft.push(v);lastRender();}
@@ -4448,6 +4571,32 @@ async function lastReset(){
   if(!confirm('Back to the default (every lite model is last)?'))return;
   const d=await lastCall({action:'reset'},'lm-err');
   if(d)closeLast();
+}
+async function rctxSet(c){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({compress:c})};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));await fetchData(true);return;}
+    lastSig='';await fetchData(true);
+    const cc=d.compress||{};
+    const n=document.getElementById('log-note');if(n)n.textContent='Compress context: '+cc.mode+(cc.mode!=='off'?' above '+Math.round(cc.threshold/1000)+'k tokens':'')+' - saved';
+  }catch(e){alert('Failed: '+e.message);}
+}
+async function rwaitSet(on,secs){
+  const body={};
+  if(on!==null&&on!==undefined)body.wait_soonest=!!on;
+  if(secs!==undefined&&secs!==null)body.wait_max=parseInt(secs,10);
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));await fetchData(true);return;}
+    lastSig='';await fetchData(true);
+    const n=document.getElementById('log-note');if(n)n.textContent='Wait for soonest free key: '+(d.wait_soonest?'ON (max '+d.wait_max+'s)':'OFF')+' - saved';
+  }catch(e){alert('Failed: '+e.message);}
 }
 async function rmodeSet(mode){
   const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})};
@@ -4614,8 +4763,21 @@ function mtToggle(name,on){mtSel[name]=!!on;mtRefreshBtn();}
 function mtSelectAll(on){(window._mtNames||[]).forEach(n=>{mtSel[n]=on;});document.querySelectorAll('.mt-chk').forEach(c=>{c.checked=on;});mtRefreshBtn();}
 function mtClose(){document.getElementById('mt-modal').style.display='none';}
 let mtCtx={names:[],all:false},mtKeySel={},mtMode='one',mtBusy=false;
+function mtCtxTokens(){
+  const sel=document.getElementById('mt-ctx');if(!sel)return 0;
+  if(sel.value==='custom'){const n=parseInt((document.getElementById('mt-ctx-custom')||{}).value,10);return (n>=1000)?Math.min(n,900000):0;}
+  return parseInt(sel.value,10)||0;
+}
+function mtCtxChange(){
+  const sel=document.getElementById('mt-ctx');
+  document.getElementById('mt-ctx-custom').style.display=sel.value==='custom'?'inline-block':'none';
+  const t=mtCtxTokens(),note=document.getElementById('mt-ctx-note');
+  if(t){note.style.display='block';note.textContent='⚠ Each test request will carry about '+t.toLocaleString()+' tokens of text. It uses your tokens-per-minute quota and can be slow (up to 2 min). Test only a few keys/models at once.';}
+  else{note.style.display='none';}
+}
 async function mtCall(names,all,keys,allKeys){
   const body=all?{all:true}:{models:names};
+  const _tk=mtCtxTokens();if(_tk)body.tokens=_tk;
   if(allKeys)body.all_keys=true;else if(keys&&keys.length)body.keys=keys;
   const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
   let r=await fetch('/router/model_test',opts);
@@ -4669,6 +4831,8 @@ function mtRerun(mode){
   else if(mode==='pick'){keys=mtKeyChosen();if(!keys.length)return;}
   const nk=allKeys?mtKeys().length:(keys?keys.length:1);
   const combos=mtModelCount()*nk;
+  const _tk=mtCtxTokens();
+  if(_tk&&combos>3&&!confirm('Each of the '+combos+' requests carries about '+_tk.toLocaleString()+' tokens. That is a lot of quota. Continue?'))return;
   if((combos>1&&mode!=='one'||combos>40)&&!confirm('About '+combos+' real requests to Google ('+mtModelCount()+' models x '+nk+' keys). It can take a few minutes. Continue?'))return;
   mtRun(mtCtx.names,mtCtx.all,keys,allKeys);
 }
@@ -4719,7 +4883,7 @@ async function mtRun(names,all,keys,allKeys){
   if(mtMode!=='pick')document.getElementById('mt-keypick').style.display='none';
   document.getElementById('mt-modal').style.display='block';
   const what=all?'all models':(names.length===1?names[0]:names.length+' selected models');
-  const where=allKeys?' on ALL keys':(multi?' on '+keys.length+' selected key(s)':' on one free key');
+  const where=(allKeys?' on ALL keys':(multi?' on '+keys.length+' selected key(s)':' on one free key'))+(mtCtxTokens()?' · context ~'+mtCtxTokens().toLocaleString()+' tokens':'');
   document.getElementById('mt-title').textContent='🧪 Model test - '+what+where;
   document.getElementById('mt-summary').innerHTML='';
   document.getElementById('mt-bytype').textContent='';
@@ -4854,6 +5018,11 @@ function updateUI(data){
   window._mtNames=(data.models||[]).map(x=>x.name);
   window._lastInfo=data.last_models||{custom:false,order:[],effective:[]};
   const rmMode=(data.routing_mode||{}).mode||'default';
+  const wsOn=!!(data.routing_mode||{}).wait_soonest;
+  const cxc=(data.routing_mode||{}).compress||{};
+  const cxMode=cxc.mode||'off';
+  const cxTh=parseInt(cxc.threshold,10)||60000;
+  const wsMax=parseInt((data.routing_mode||{}).wait_max,10)||40;
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -4980,6 +5149,23 @@ function updateUI(data){
           <span style="display:inline-flex;border:1px solid #4b5563;border-radius:6px;overflow:hidden;">
             <button class="btn-s" style="border:0;border-radius:0;font-weight:bold;color:#fff;background:${rmMode==='default'?'#166534':'#111827'};" onclick="rmodeSet('default')" title="Default: every key of a model one by one, then the next model, ... after the last model start again with the first">${rmMode==='default'?'✅ ':''}🔄 Default</button>
             <button class="btn-s" style="border:0;border-radius:0;border-left:1px solid #4b5563;font-weight:bold;color:#fff;background:${rmMode==='drain'?'#166534':'#111827'};" onclick="rmodeSet('drain')" title="Use the first model (all keys one by one) until every key hits its daily limit / error, then the next model the same way">${rmMode==='drain'?'✅ ':''}⛽ First model until exhausted</button>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${wsOn?'#4ade80':'#4b5563'};border-radius:6px;padding:0 0 0 0;overflow:hidden;" title="OFF (default): a request goes once to every free key x model; if all fail, the user gets an error at once. ON: when nothing is free, the slot that frees up soonest is used - but only if it frees up within the seconds shown; otherwise the user gets a clear error.">
+            <button class="btn-s" style="border:0;border-radius:0;font-weight:bold;color:#fff;background:${wsOn?'#166534':'#111827'};" onclick="rwaitSet(${wsOn?'false':'true'})">${wsOn?'✅ ':''}⏳ Wait for soonest free key: ${wsOn?'ON':'OFF'}</button>
+            <span style="color:#9ca3af;font-size:.8em;">max</span>
+            <input type="number" min="1" max="600" value="${wsMax}" style="width:52px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rwaitSet(null,this.value)">
+            <span style="color:#9ca3af;font-size:.8em;margin-right:6px;">s</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${cxMode!=='off'?'#38bdf8':'#4b5563'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Compress context: when a request is bigger than the limit, OLD tool outputs are shortened (Trim) or summarised by a cheap model of your pool (AI). System messages, the first user message, the newest messages and all tool calls stay untouched.">
+            <span style="color:#7dd3fc;font-weight:bold;">🗜 Compress</span>
+            <select style="background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rctxSet({mode:this.value})">
+              <option value="off" ${cxMode==='off'?'selected':''}>Off</option>
+              <option value="trim" ${cxMode==='trim'?'selected':''}>Trim (no AI)</option>
+              <option value="ai" ${cxMode==='ai'?'selected':''}>AI summary</option>
+            </select>
+            <span style="color:#9ca3af;font-size:.8em;">above</span>
+            <input type="number" min="5" max="900" value="${Math.round(cxTh/1000)}" style="width:52px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rctxSet({threshold:this.value*1000})">
+            <span style="color:#9ca3af;font-size:.8em;margin-right:6px;">k tokens</span>
           </span>
           <button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;font-weight:bold;" onclick="openLast()" title="choose which models are used only after every other model, and in which order">⬇ Last order</button>
           <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;" onclick="openModelForm()">➕ Add model</button>
@@ -5120,6 +5306,370 @@ def _why(status: int, err_text: str, model: str = "") -> str:
 # Default (not set) = enabled.
 WEBAI_ENABLED = os.environ.get("WEBAI_ENABLED", "1").strip().lower() not in ("0", "false", "no", "off")
 WEBAI_FALLBACK = WEBAI_ENABLED and os.environ.get("WEBAI_FALLBACK", "1") != "0"
+
+
+# ─── Context size + compression ───────────────────────────────────────────────────────────────────────────────
+CTX_AI_TIMEOUT = float(os.environ.get("CTX_AI_TIMEOUT", "25"))      # max seconds the summary call may take (then: plain trim)
+CTX_AI_BATCH = 10                                                   # old tool outputs per summary call
+CTX_AI_MAX_BLOCKS = 30                                              # at most this many NEW summaries per request
+_ctx_sum_cache: "collections.OrderedDict" = collections.OrderedDict()   # sha1(text) -> summary (each output is summarised once)
+_ctx_sum_lock = threading.Lock()
+_CTX_IMG_TOKENS = 1100
+
+
+def _ctx_cfg() -> dict:
+    return dict(ROUTING.get("compress") or CTX_DEFAULT)
+
+
+def _txt_tokens(t) -> int:
+    """~tokens of a text: 4 chars/token for plain ASCII, ~1.5 chars/token for Devanagari / other scripts."""
+    if not t:
+        return 0
+    if not isinstance(t, str):
+        try:
+            t = json.dumps(t, ensure_ascii=False)
+        except Exception:
+            t = str(t)
+    na = len(t) - len(t.encode("ascii", "ignore"))
+    return int((len(t) - na) / 4 + na / 1.5) + 1
+
+
+def _content_tokens(c):
+    """-> (text_tokens, image_tokens) of a message content (string or list of parts)"""
+    if isinstance(c, str):
+        return _txt_tokens(c), 0
+    tt = im = 0
+    if isinstance(c, list):
+        for part in c:
+            if isinstance(part, dict):
+                if part.get("type") in ("image_url", "input_image", "image"):
+                    im += _CTX_IMG_TOKENS
+                elif "text" in part:
+                    tt += _txt_tokens(part.get("text"))
+                else:
+                    tt += _txt_tokens(part)
+            else:
+                tt += _txt_tokens(part)
+    elif c is not None:
+        tt += _txt_tokens(c)
+    return tt, im
+
+
+def _msg_tokens(m) -> int:
+    if not isinstance(m, dict):
+        return _txt_tokens(m)
+    tt, im = _content_tokens(m.get("content"))
+    n = tt + im + 4
+    if m.get("tool_calls"):
+        n += _txt_tokens(m["tool_calls"])
+    return n
+
+
+def _ctx_measure(data) -> dict:
+    """Estimated size of a request + where the tokens are (so you can see WHAT makes it big)."""
+    msgs = [m for m in (data.get("messages") or [])]
+    parts = {"system": 0, "user": 0, "assistant": 0, "tool_results": 0, "images": 0, "tools": 0}
+    big = []
+    for i, m in enumerate(msgs):
+        if not isinstance(m, dict):
+            continue
+        role = str(m.get("role") or "")
+        tt, im = _content_tokens(m.get("content"))
+        extra = _txt_tokens(m["tool_calls"]) if m.get("tool_calls") else 0
+        k = "system" if role in ("system", "developer") else ("tool_results" if role == "tool" else ("assistant" if role == "assistant" else "user"))
+        parts[k] += tt + extra + 4
+        parts["images"] += im
+        big.append((tt + extra + im, i, role))
+    if data.get("tools"):
+        parts["tools"] = _txt_tokens(data["tools"])
+    total = sum(parts.values())
+    big.sort(reverse=True)
+    return {"total": total, "n_messages": len(msgs), "parts": parts,
+            "biggest": [{"i": i, "role": r, "tokens": t} for t, i, r in big[:5]]}
+
+
+def _ctx_shorten(text: str, mx: int) -> str:
+    if len(text) <= mx:
+        return text
+    head = int(mx * 0.65)
+    tail = max(0, mx - head)
+    return text[:head] + f"\n[… {len(text) - mx} characters removed to save context …]\n" + (text[-tail:] if tail else "")
+
+
+def _ctx_get_text(m):
+    c = m.get("content")
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list) and c and all(isinstance(x, dict) and x.get("type") in ("text", "input_text") for x in c):
+        return "\n".join(str(x.get("text") or "") for x in c)
+    return None
+
+
+def _ctx_set_text(m, text):
+    if isinstance(m.get("content"), list):
+        m["content"] = [{"type": "text", "text": text}]
+    else:
+        m["content"] = text
+
+
+def _ctx_pick_summary_model():
+    cfg_model = _ctx_cfg().get("model") or ""
+    names = [m["name"] for m in MODELS if not _is_model_blocked(m["name"])]
+    if cfg_model:
+        return cfg_model
+    lite = [n for n in names if _is_lite(n)]
+    return (lite or names or [None])[0]
+
+
+def _ctx_ai_summaries(items, per_max):
+    """items: [(id, text)] -> {id: summary}.  One call per batch, through the normal key pool (RPM/RPD respected).
+    Any failure -> that batch simply gets no summary (the caller falls back to plain trimming)."""
+    out = {}
+    model_name = _ctx_pick_summary_model()
+    if not model_name or not items:
+        return out
+    t_end = time.monotonic() + CTX_AI_TIMEOUT
+    for b in range(0, len(items), CTX_AI_BATCH):
+        batch = items[b:b + CTX_AI_BATCH]
+        try:
+            _stop = _cancelled()
+        except RuntimeError:
+            _stop = False          # called outside a request (tests)
+        if time.monotonic() >= t_end or _stop:
+            break
+        blocks = "\n\n".join(f"### {bid}\n{_ctx_shorten(txt, 6000)}" for bid, txt in batch)
+        sys_p = ("You compress OLD tool outputs of an AI agent so its context gets smaller. For EACH numbered block write a SHORT "
+                 f"summary (max {per_max} characters) that keeps only what the agent may still need: file paths, names, IDs, URLs, "
+                 "numbers, errors and their cause, the final result, decisions. Remove logs, noise, repeated lines and boilerplate. "
+                 "Never invent anything. Reply in the same language as the block. Output format, exactly: a line '### <id>' "
+                 "followed by the summary, for every block, nothing else.")
+        got = None
+        for _try in range(3):
+            if time.monotonic() >= t_end:
+                break
+            slot = acquire_next_slot(model_name, exclude=set())
+            if slot is None:
+                break
+            _k, _m, key, model = slot
+            try:
+                r = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                                  headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+                                  json={"model": model["name"], "max_tokens": 4000, "temperature": 0.1,
+                                        "messages": [{"role": "system", "content": sys_p}, {"role": "user", "content": blocks}]},
+                                  timeout=(GEMINI_CONNECT_TIMEOUT, max(5.0, t_end - time.monotonic())))
+                if r.status_code == 200:
+                    with state_lock:
+                        _record_rpd_success(key, model["name"])
+                    got = str(r.json()["choices"][0]["message"]["content"] or "")
+                    break
+                if r.status_code in (429, 403):
+                    with state_lock:
+                        _handle_429(key, model["name"], (r.text or "").lower(), raw=r.text, status=r.status_code)
+                else:
+                    with state_lock:
+                        _apply_rpm_cooldown(key, model["name"], seconds=60)
+            except Exception as e:
+                print(f"[CTX AI] summary call failed: {e}")
+                break
+        if not got:
+            continue
+        for mm in re.finditer(r"^###\s*(\w+)\s*\n(.*?)(?=^###\s*\w+\s*\n|\Z)", got, re.S | re.M):
+            sm = mm.group(2).strip()
+            if sm:
+                out[mm.group(1)] = _ctx_shorten(sm, per_max * 2)
+    return out
+
+
+def _ctx_compress(data, cfg=None) -> dict:
+    """Measure the request and, when compression is on and it is bigger than the threshold, shrink the OLD part of it
+    (in place). Returns {before, after, mode, shortened, summarized, dedup, images, parts, biggest, applied}."""
+    cfg = cfg or _ctx_cfg()
+    meas = _ctx_measure(data)
+    info = {"before": meas["total"], "after": meas["total"], "mode": cfg["mode"], "threshold": cfg["threshold"],
+            "n_messages": meas["n_messages"], "parts": meas["parts"], "biggest": meas["biggest"],
+            "shortened": 0, "summarized": 0, "dedup": 0, "images": 0, "applied": False}
+    msgs = data.get("messages")
+    if cfg["mode"] == "off" or not isinstance(msgs, list) or meas["total"] <= cfg["threshold"]:
+        return info
+    target = int(cfg["threshold"] * 0.85)
+    n = len(msgs)
+    start = max(0, n - cfg["keep_last"])
+    while 0 < start < n and isinstance(msgs[start], dict) and msgs[start].get("role") == "tool":
+        start -= 1                        # never start the untouched part in the middle of a tool-call group
+    first_user = next((i for i, m in enumerate(msgs) if isinstance(m, dict) and m.get("role") == "user"), -1)
+    total = meas["total"]
+
+    # (0) free savings, no information lost: repeated long blocks in old user messages (the same reminder pasted on
+    #     every turn) and old pictures.
+    last_user_txt = ""
+    for m in reversed(msgs):
+        if isinstance(m, dict) and m.get("role") == "user":
+            last_user_txt = _ctx_get_text(m) or ""
+            break
+    last_blocks = {b.strip() for b in re.split(r"\n\s*\n", last_user_txt) if len(b.strip()) >= 200}
+    for i in range(0, start):
+        m = msgs[i]
+        if not isinstance(m, dict) or i == first_user:
+            continue
+        before = _msg_tokens(m)
+        if m.get("role") == "user" and last_blocks:
+            t = _ctx_get_text(m)
+            if t:
+                blocks = re.split(r"(\n\s*\n)", t)
+                kept, dropped = [], 0
+                for b in blocks:
+                    if b.strip() in last_blocks and len(b.strip()) >= 200:
+                        dropped += 1
+                    else:
+                        kept.append(b)
+                if dropped:
+                    new_t = "".join(kept).strip()
+                    _ctx_set_text(m, new_t or "(repeated reminder removed)")
+                    info["dedup"] += dropped
+        if isinstance(m.get("content"), list):
+            new_parts, rm = [], 0
+            for part in m["content"]:
+                if isinstance(part, dict) and part.get("type") in ("image_url", "input_image", "image"):
+                    rm += 1
+                else:
+                    new_parts.append(part)
+            if rm:
+                new_parts.append({"type": "text", "text": f"[{rm} earlier image(s) removed to save context]"})
+                m["content"] = new_parts
+                info["images"] += rm
+        total -= max(0, before - _msg_tokens(m))
+    if total <= target:
+        info.update(after=total, applied=True)
+        return info
+
+    # (1) old tool outputs (+ very long old assistant text), oldest first, until the request is small enough.
+    def _cands(limit_tool):
+        out = []
+        for i in range(0, start):
+            m = msgs[i]
+            if not isinstance(m, dict) or i == first_user:
+                continue
+            role = m.get("role")
+            if role not in ("tool", "assistant"):
+                continue
+            t = _ctx_get_text(m)
+            if t is None or t.startswith("[summary of an earlier") or "characters removed to save context" in t:
+                continue
+            lim = limit_tool if role == "tool" else limit_tool * 2
+            if len(t) > lim:
+                out.append((i, role, t))
+        return out
+
+    tool_max = cfg["tool_max"]
+    cands = _cands(tool_max)
+    summaries = {}
+    if cfg["mode"] == "ai" and cands:
+        need, ids = total - target, []
+        acc = 0
+        for i, role, t in cands:
+            if role != "tool":
+                continue
+            ids.append((i, t))
+            acc += _txt_tokens(t)
+            if acc >= need * 1.2 or len(ids) >= CTX_AI_MAX_BLOCKS:
+                break
+        todo, hmap = [], {}
+        for i, t in ids:
+            h = hashlib.sha1(t.encode("utf-8", "ignore")).hexdigest()
+            hmap[i] = h
+            with _ctx_sum_lock:
+                hit = _ctx_sum_cache.get(h)
+            if hit:
+                summaries[h] = hit
+            else:
+                todo.append((h[:8], t, h))
+        if todo:
+            got = _ctx_ai_summaries([(a, b) for a, b, _ in todo], tool_max)
+            for short, _t, h in todo:
+                if short in got:
+                    summaries[h] = got[short]
+                    with _ctx_sum_lock:
+                        _ctx_sum_cache[h] = got[short]
+                        while len(_ctx_sum_cache) > 2000:
+                            _ctx_sum_cache.popitem(last=False)
+        for i, role, t in cands:
+            if total <= target:
+                break
+            h = hmap.get(i) if role == "tool" else None
+            sm = summaries.get(h) if h else None
+            if not sm:
+                continue
+            new_t = f"[summary of an earlier tool output ({len(t)} chars shortened)]\n{sm}"
+            if len(new_t) >= len(t):
+                continue
+            before = _msg_tokens(msgs[i])
+            _ctx_set_text(msgs[i], new_t)
+            total -= max(0, before - _msg_tokens(msgs[i]))
+            info["summarized"] += 1
+
+    for lim in (tool_max, max(300, tool_max // 3)):          # pass 1 normal, pass 2 stronger if still too big
+        for i, role, t in _cands(lim):
+            if total <= target:
+                break
+            before = _msg_tokens(msgs[i])
+            _ctx_set_text(msgs[i], _ctx_shorten(t, lim if role == "tool" else lim * 2))
+            total -= max(0, before - _msg_tokens(msgs[i]))
+            info["shortened"] += 1
+        if total <= target:
+            break
+    info["after"] = _ctx_measure(data)["total"]
+    info["applied"] = bool(info["shortened"] or info["summarized"] or info["dedup"] or info["images"])
+    return info
+
+
+def _ctx_prepare(data) -> dict:
+    """Called once per request: measure, compress if enabled, record it for the dashboard. Never raises."""
+    try:
+        info = _ctx_compress(data)
+    except Exception as e:
+        print(f"[CTX] compress failed (request sent unchanged): {e}")
+        try:
+            m = _ctx_measure(data)
+            info = {"before": m["total"], "after": m["total"], "mode": "error", "n_messages": m["n_messages"], "parts": m["parts"],
+                    "biggest": m["biggest"], "shortened": 0, "summarized": 0, "dedup": 0, "images": 0, "applied": False}
+        except Exception:
+            return {"before": 0, "after": 0}
+    try:
+        if hasattr(g, "log_entry"):
+            g.log_entry["ctx_tokens"] = info["before"]
+            g.log_entry["ctx_after"] = info["after"] if info.get("applied") else None
+        rec = getattr(g, "live", None)
+        if rec is not None:
+            rec["req"]["ctx"] = {k: info.get(k) for k in ("before", "after", "mode", "threshold", "parts", "biggest", "shortened",
+                                                          "summarized", "dedup", "images", "applied")}
+        if info.get("applied"):
+            _trail(f"context ~{info['before']:,} -> ~{info['after']:,} tokens ({info['mode']}: {info['summarized']} summarized, "
+                   f"{info['shortened']} shortened, {info['dedup']} repeated blocks, {info['images']} old images removed)")
+        else:
+            _trail(f"context ~{info['before']:,} tokens" + (f" (compression {info['mode']}: under the {info.get('threshold', 0):,} limit)"
+                                                           if info.get("mode") not in ("off", "error", None) else ""))
+    except Exception as e:
+        print(f"[CTX] log failed: {e}")
+    return info
+
+
+@app.route('/context_preview', methods=['POST', 'OPTIONS'])
+@app.route('/router/context_preview', methods=['POST', 'OPTIONS'])
+def context_preview_api():
+    """POST a chat-completions body (+ optional "compress": {...}) -> what the compression would do. Nothing is sent to Google
+    (mode "ai" is shown as "trim" here). Auth: Bearer <PASSWORD> or the dashboard login."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    body = request.get_json(silent=True) or {}
+    cfg = _ctx_clean(body.pop("compress", None) or {}, _ctx_cfg())
+    if cfg["mode"] == "ai":
+        cfg["mode"] = "trim"
+    data = copy.deepcopy(normalize_to_chat_completions(body))
+    info = _ctx_compress(data, cfg)
+    return jsonify(info)
+
 
 def _webai_route(*args, **kwargs):
     """Same as @app.route, but registers NOTHING when WebAI is disabled (the URL then simply does not exist)."""
@@ -5332,6 +5882,8 @@ def proxy_chat():
             return Response(json.dumps({"error": {"message": f"Model '{requested_model}' is temporarily blocked by the admin ({int(_blk_left)}s left).",
                                                    "type": "model_blocked", "code": "model_blocked"}}),
                             429, {"Content-Type": "application/json", "Retry-After": str(int(_blk_left) + 1)})
+    _ctx_info = _ctx_prepare(data)           # measure the context (shown on the dashboard) + compress old parts if switched on
+    _ctx_note = f" [context ~{(_ctx_info.get('after') or 0) // 1000}k tokens]" if _ctx_info.get("after") else ""
     messages = data.get("messages", []) or []
     remote_addr = request.headers.get("X-Real-IP") or \
                   (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()) or \
@@ -5451,6 +6003,9 @@ def proxy_chat():
     exit_reason = "all_daily"
     _wait_note_ts = 0.0
     _is_pool_req = (requested_model or "").lower() in _GENERIC_MODEL_ALIASES
+    _wait_on, _wait_max = _wait_cfg()      # dashboard switch "wait for soonest free key" (default OFF) + its limit (default 40 s)
+    soonest = 0.0
+    n_tried_slots = 0
 
     while True:
         if _cancelled():
@@ -5469,6 +6024,8 @@ def proxy_chat():
                 now_mono = time.monotonic()
                 waits = []
                 any_waitable = False
+                n_cooling = 0
+                n_tried_alive = 0
                 cand_models = get_active_models()
                 if not _is_pool_req:      # a specific model was requested: only that one is ever picked
                     cand_models = [m for m in cand_models if m["name"] == requested_model] or \
@@ -5480,15 +6037,17 @@ def proxy_chat():
                         continue                      # manually blocked (auto mode): never wait for it
                     eff = _effective_rpm(m_dict["rpm"])
                     for k in API_KEYS:
-                        if (k, m_name) in tried:
+                        # switch ON: slots already used by this request are not waited for again.
+                        # switch OFF: they are only LOOKED AT (to tell the user when the soonest slot frees up), never re-sent.
+                        _was_tried = (k, m_name) in tried
+                        if _was_tried and (_wait_on or not _is_pool_req):
                             continue
-                        if (k, m_name) in PERMANENTLY_BROKEN_MODELS:
+                        if (k, m_name) in PERMANENTLY_BROKEN_MODELS or (k, m_name) in img_skip:
                             continue
                         if _is_daily_penalized(k, m_name):
                             continue
                         if not _rpd_available(k, m_name, m_dict["rpd"]):
                             continue
-                        any_waitable = True
                         # free only when BOTH the 429 cooldown and the RPM window allow it -> take the later one.
                         free_in = 0.0
                         cd = rpm_cooldown.get((k, m_name), 0)
@@ -5497,8 +6056,20 @@ def proxy_chat():
                         window = _prune_rpm(k, m_name)          # prune FIRST (a stale window made this loop spin every 0.2 s)
                         if len(window) >= eff:
                             free_in = max(free_in, window[len(window) - eff] + RPM_WINDOW_SECS - now_mono)
+                        if _was_tried and free_in <= 0:
+                            n_tried_alive += 1        # used by this request, failed, not cooling: just not sent again
+                            continue
+                        any_waitable = True
                         waits.append(max(0.0, free_in))
+                        if free_in > 0:
+                            n_cooling += 1
 
+            if not any_waitable and n_tried_alive and _is_pool_req and not _wait_on:
+                exit_reason = "once_done"
+                soonest = 0.0
+                n_tried_slots = n_tried_alive
+                _trail("every free key x model was tried once and none answered -> error to the user (switch 'Wait for soonest free key' is OFF)")
+                break
             if not any_waitable:
                 print("[EXHAUSTED] All key×model combos are daily-exhausted, blocked or broken.")
                 attempt_errors.append("pool: every key×model is daily-exhausted / broken for today (resets at Google reset, 13:30 IST)")
@@ -5506,24 +6077,38 @@ def proxy_chat():
                 break
 
             soonest = min(waits) if waits else 2.0
+            n_tried_slots = len(tried)
             if not _is_pool_req and soonest > SPECIFIC_MAX_WAIT:
                 exit_reason = "specific"
                 attempt_errors.append(f"specific model: remaining keys cooling down for {soonest:.0f}s -> not waiting")
+                break
+            if _is_pool_req and not _wait_on:
+                # DEFAULT: no waiting. Every free key x model was tried once (or nothing was free) -> clear error to the user.
+                exit_reason = "once_done" if n_tried_slots else "all_cooling"
+                _trail(f"no free key x model left (each was tried once); soonest cooling slot frees in ~{soonest:.0f}s -> error to the user "
+                       "(switch 'Wait for soonest free key' is OFF)")
+                break
+            if _is_pool_req and soonest > _wait_max:
+                # switch ON, but even the soonest slot is further away than the limit -> do not wait, clear error
+                exit_reason = "soonest_too_far"
+                _trail(f"soonest free slot is ~{soonest:.0f}s away (> {int(_wait_max)}s limit) -> error to the user")
                 break
             wait_secs = min(soonest + 0.2, 5.0)          # re-check at least every 5 s (a lock may have been released)
             if deadline is not None:
                 wait_secs = max(0.05, min(wait_secs, deadline - time.monotonic()))
             _now_ts = time.monotonic()
             if _now_ts - _wait_note_ts >= 10.0:          # one trail line per ~10 s, not hundreds
-                _trail(f"all slots busy (RPM cooldown) -> waiting, soonest free in ~{soonest:.0f}s")
+                _trail(f"all slots busy (RPM cooldown) -> waiting for the soonest free slot, free in ~{soonest:.0f}s (limit {int(_wait_max)}s)")
                 _wait_note_ts = _now_ts
             _cancel_sleep(wait_secs)
             continue
 
         k_idx, m_idx, key, model = slot
         actual_model = model["name"]
-        if not _is_pool_req:
-            tried.add((key, actual_model))      # specific model: one attempt per key, never a second one
+        if not _is_pool_req or not _wait_on:
+            # specific model, or the "wait for soonest free key" switch is OFF: every (key, model) slot gets exactly ONE
+            # attempt per request, never a second one.
+            tried.add((key, actual_model))
         data["model"] = actual_model
         _trail(f"sent to {actual_model} (key …{key[-4:]})")
 
@@ -5596,8 +6181,8 @@ def proxy_chat():
                     # a real 403 (invalid / leaked / not allowed key) is not a rate limit: do not retry this combo in this request
                     tried.add((key, actual_model))
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
-                _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit -> next slot")
-                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit | {_short_err(err_text, 220)}")
+                _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit{_ctx_note} -> next slot")
+                attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit{_ctx_note} | {_short_err(err_text, 220)}")
                 continue  # instantly retry with the next best slot
 
             elif resp.status_code in (500, 502, 503, 504, 408, 401):
@@ -5813,6 +6398,29 @@ def proxy_chat():
         out_headers = [(n, v) for n, v in last_resp.raw.headers.items() if n.lower() not in excluded]
         return Response(last_resp.content, last_resp.status_code, out_headers)
 
+    if exit_reason in ("once_done", "all_cooling", "soonest_too_far"):
+        _sn = int(soonest) + 1
+        if exit_reason == "once_done":
+            msg = (f"All free keys and models were tried once and every one failed or is rate-limited"
+                   + (f" (last errors: {' | '.join(attempt_errors[-3:])})" if attempt_errors else "")
+                   + (f". The soonest slot frees up in about {_sn}s." if soonest > 0 else ".")
+                   + " Please retry shortly. (Dashboard switch 'Wait for soonest free key' is OFF.)")
+            code = "all_slots_tried_once"
+        elif exit_reason == "all_cooling":
+            msg = (f"All keys and models are cooling down (rate limit) right now. The soonest one frees up in about {_sn}s. "
+                   "Please retry then. (Dashboard switch 'Wait for soonest free key' is OFF, so the request was not held.)")
+            code = "all_slots_cooling"
+        else:
+            msg = (f"All keys and models are cooling down. The soonest one frees up in about {_sn}s, which is longer than the "
+                   f"{int(_wait_max)}s wait limit, so the request was not held. Please retry in about {_sn}s.")
+            code = "soonest_slot_too_far"
+        code_retry = max(1, min(_sn, 600))
+        if hasattr(g, "log_entry"):
+            g.log_entry["error_detail"] = f"{code}: {msg}"
+        return Response(json.dumps({"error": {"message": msg, "type": "rate_limit_error", "code": code,
+                                              "retry_after_seconds": code_retry,
+                                              "details": attempt_errors[-6:] + [fb_info]}}),
+                        429, {"Content-Type": "application/json", "Retry-After": str(code_retry)})
     if exit_reason == "deadline":
         msg = (f"No key answered within {int(REQUEST_MAX_SECS)}s (all keys were RPM-busy / cooling down). "
                "Please retry in a minute.")
