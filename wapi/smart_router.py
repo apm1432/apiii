@@ -1125,6 +1125,11 @@ def _stream_gemini_sse(resp, log_entry=None, log_start=None, model=None):
                 for ln in lines:
                     if b"thought_signature" in ln or b"tool_calls" in ln:
                         capture_signatures(ln, model)
+                    if b'prompt_tokens' in ln or b'promptTokenCount' in ln:
+                        try:
+                            _tok_usage_from(json.loads(ln.decode("utf-8", "replace").split("data:", 1)[-1].strip()), log_entry)
+                        except Exception:
+                            pass
             yield chunk
         if sig_buf and (b"thought_signature" in sig_buf or b"tool_calls" in sig_buf):
             capture_signatures(sig_buf, model)
@@ -1154,6 +1159,10 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
             return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start, actual_model), resp.close), resp.status_code, out_headers)
         body = resp.content
         capture_signatures(body, actual_model)
+        try:
+            _tok_usage_from(json.loads(body.decode("utf-8", "replace")), getattr(g, "log_entry", None))
+        except Exception:
+            pass
         return Response(body, resp.status_code, out_headers)
     body = resp.content
     capture_signatures(body, actual_model)
@@ -1162,6 +1171,7 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
     except Exception:
         out_headers = [(n, v) for n, v in resp.raw.headers.items() if n.lower() not in excluded]
         return Response(body, resp.status_code, out_headers)
+    _tok_usage_from(gemini_json, getattr(g, "log_entry", None))
     responses_json = chat_completion_to_responses_json(gemini_json, actual_model)
     if client_stream_requested:
         return Response(responses_sse_stream(responses_json), mimetype="text/event-stream")
@@ -2366,7 +2376,7 @@ def _slim_log(e):
     return {"id": e.get("id"), "time": e.get("time"), "ip": _clip(e.get("ip"), 60), "status": _clip(e.get("status"), 80),
             "kind": _log_kind(e), "model": _clip(e.get("model"), 80), "route": _clip(e.get("route"), 200),
             "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 160),
-            "ctx": e.get("ctx_tokens"), "ctx_after": e.get("ctx_after"),
+            "ctx": e.get("ctx_tokens"), "ctx_after": e.get("ctx_after"), "ctx_real": e.get("ctx_real"),
             "is_correct": bool(e.get("is_correct")), "password_used": _clip(e.get("password_used"), 40),
             "error": _clip(err, 600), "n_attempts": len(e.get("attempts") or []),
             "has_detail": bool(e.get("request") or e.get("attempts") or len(str(err or "")) > 600)}
@@ -4779,7 +4789,8 @@ function ctxBadge(l){
   if(!l||!l.ctx)return '';
   const big=l.ctx>=100000?'#f87171':(l.ctx>=50000?'#fbbf24':'#7dd3fc');
   const txt=l.ctx_after?('📏 ~'+fmtK(l.ctx)+' → ~'+fmtK(l.ctx_after)+' tok 🗜'):('📏 ~'+fmtK(l.ctx)+' tok');
-  return '<span title="estimated size of this request (context). Red = 100k+, yellow = 50k+" style="display:inline-block;margin-bottom:3px;padding:1px 7px;border-radius:10px;border:1px solid '+big+';color:'+big+';font-size:.75em;white-space:nowrap;">'+txt+'</span> ';
+  const rl=l.ctx_real?(' · Google: '+fmtK(l.ctx_real)):'';
+  return '<span title="estimated size of this request (context). Red = 100k+, yellow = 50k+. Google = the real prompt tokens Google counted for what was sent" style="display:inline-block;margin-bottom:3px;padding:1px 7px;border-radius:10px;border:1px solid '+big+';color:'+big+';font-size:.75em;white-space:nowrap;">'+txt+rl+'</span> ';
 }
 function fmtK(n){n=+n||0;return n>=1000?(n/1000).toFixed(n>=10000?0:1)+'k':String(n);}
 function lastMove(i,d){i=+i;const j=i+d;if(j<0||j>=lastDraft.length)return;const t=lastDraft[i];lastDraft[i]=lastDraft[j];lastDraft[j]=t;lastRender();}
@@ -5591,8 +5602,37 @@ def _ctx_cfg() -> dict:
     return dict(ROUTING.get("compress") or CTX_DEFAULT)
 
 
+_tok_cal = {"ratio": 1.0, "n": 0}      # real Google prompt tokens / our estimate, learned from the answers (moving average)
+
+
+def _tok_learn(raw_est, real):
+    """Called with the RAW (uncalibrated) estimate of a request and the prompt_tokens Google reported for it."""
+    try:
+        if raw_est < 2000 or real <= 0:
+            return
+        r = max(0.3, min(3.0, real / raw_est))
+        _tok_cal["ratio"] = r if _tok_cal["n"] == 0 else (_tok_cal["ratio"] * 0.8 + r * 0.2)
+        _tok_cal["n"] += 1
+    except Exception:
+        pass
+
+
+def _tok_usage_from(obj, log_entry):
+    """obj: a parsed Gemini/OpenAI JSON (whole answer or one stream chunk). Stores the REAL prompt tokens on the log entry and
+    teaches the estimator. Never raises."""
+    try:
+        u = (obj or {}).get("usage") or {}
+        real = int(u.get("prompt_tokens") or (obj or {}).get("usageMetadata", {}).get("promptTokenCount") or 0)
+        if real > 0 and log_entry is not None and not log_entry.get("ctx_real"):
+            log_entry["ctx_real"] = real
+            _tok_learn(float(log_entry.get("ctx_raw") or 0), real)
+    except Exception:
+        pass
+
+
 def _txt_tokens(t) -> int:
-    """~tokens of a text: 4 chars/token for plain ASCII, ~1.5 chars/token for Devanagari / other scripts."""
+    """~tokens of a text: 4 chars/token for plain ASCII, ~1.5 chars/token for Devanagari / other scripts, times the learned
+    correction factor (real Google tokens / estimate)."""
     if not t:
         return 0
     if not isinstance(t, str):
@@ -5601,7 +5641,7 @@ def _txt_tokens(t) -> int:
         except Exception:
             t = str(t)
     na = len(t) - len(t.encode("ascii", "ignore"))
-    return int((len(t) - na) / 4 + na / 1.5) + 1
+    return int(((len(t) - na) / 4 + na / 1.5) * _tok_cal["ratio"]) + 1
 
 
 def _content_tokens(c):
@@ -6067,6 +6107,7 @@ def _ctx_prepare(data) -> dict:
     try:
         if hasattr(g, "log_entry"):
             g.log_entry["ctx_tokens"] = info["before"]
+            g.log_entry["ctx_raw"] = round(info["after"] / max(0.05, _tok_cal["ratio"]))      # estimate without correction (to compare with Google's number)
             g.log_entry["ctx_after"] = info["after"] if info.get("applied") else None
         rec = getattr(g, "live", None)
         if rec is not None:
