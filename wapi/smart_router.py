@@ -557,6 +557,16 @@ def acquire_sticky_slot_wait(client_id: str, honor_block=True):
 
             if _is_rpm_cooldown(key, model_name) or not _rpm_available(key, model_name, model_dict["rpm"]):
                 rpm_blocked = True
+                # how long until this pinned slot is usable again (cooldown AND RPM window)
+                _now_m = time.monotonic()
+                _free_in = max(0.0, rpm_cooldown.get((key, model_name), 0) - _now_m)
+                _win = _prune_rpm(key, model_name)
+                _eff = _effective_rpm(model_dict["rpm"])
+                if len(_win) >= _eff:
+                    _free_in = max(_free_in, _win[len(_win) - _eff] + RPM_WINDOW_SECS - _now_m)
+                if _free_in > max(0.0, deadline - _now_m):
+                    # a long block (10 min 503 / 30 min 404 ...) cannot be waited out -> switch now, do not sit idle
+                    return ("busy", None, None)
             else:
                 rpm_blocked = False
 
@@ -1414,9 +1424,19 @@ def _record_rpd_success(key, model_name):
         print(f"[USAGE] {e}")
 
 def _apply_rpm_cooldown(key, model_name, seconds=62):
-    """Apply 62s cooldown to this key+model pair after 429."""
-    rpm_cooldown[(key, model_name)] = time.monotonic() + seconds + EXTRA_WAIT
-    print(f"[COOLDOWN] key=…{key[-6:]} model={model_name} blocked for {seconds}s")
+    """Block this key+model pair for `seconds` (+EXTRA_WAIT). A new cooldown can only EXTEND an existing block, never
+    shorten it: before, a request that was already in flight when a 10-minute block (503 high demand, 401/403, 404 =
+    30 min) was set came back with a timeout / 429 and overwrote it with 20-120 s -> the pair was used again after
+    one minute although it should have stayed blocked."""
+    new_until = time.monotonic() + seconds + EXTRA_WAIT
+    k = (key, model_name)
+    old_until = rpm_cooldown.get(k, 0)
+    if new_until > old_until:
+        rpm_cooldown[k] = new_until
+        print(f"[COOLDOWN] key=…{key[-6:]} model={model_name} blocked for {seconds}s")
+    else:
+        print(f"[COOLDOWN] key=…{key[-6:]} model={model_name} already blocked for {int(old_until - time.monotonic())}s more "
+              f"(new {seconds}s cooldown ignored - never shortens a block)")
 
 def _next_google_reset_ts():
     """Next midnight Pacific Time (+30 s) = when Google's free-tier daily quota really resets."""
