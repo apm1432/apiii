@@ -1466,7 +1466,7 @@ def _record_request(key, model_name):
     rpm_window[(key, model_name)].append(time.monotonic())
 
 HD503_STRIKES = int(os.environ.get("HD503_STRIKES", "2"))          # same-model 503 "high demand" answers before it is blocked / the error is returned
-HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "600"))   # a 503 "high demand" pauses ONLY that key for that model for 10 min (other keys keep using the model)
+HD503_BLOCK_SECS = int(os.environ.get("HD503_BLOCK_SECS", "240"))   # DEFAULT pause after a 503 "high demand" (4 min) - ONLY that key+model is paused. Changeable live on the /logs dashboard (saved), see _hd503_secs()
 HD503_WINDOW_SECS = int(os.environ.get("HD503_WINDOW_SECS", "300")) # strikes older than this are forgotten
 HIGH_DEMAND_503: dict = {}   # model key -> [timestamps of recent 503 answers]
 
@@ -1477,7 +1477,7 @@ def _is_high_demand_503(status, text) -> bool:
 
 def _hd503_strike(model_name, pool_request: bool) -> bool:
     """Record one 503 'high demand' for this model. Returns True when it just reached HD503_STRIKES in the window.
-    Pool/auto request: the model is blocked for HD503_BLOCK_SECS (the existing model block, which lifts itself),
+    Pool/auto request: the model is blocked for _hd503_secs() (the existing model block, which lifts itself),
     and the strikes are reset. Caller must hold state_lock."""
     bk = _bk(model_name)
     now = time.time()
@@ -1489,13 +1489,13 @@ def _hd503_strike(model_name, pool_request: bool) -> bool:
     HIGH_DEMAND_503.pop(bk, None)
     if pool_request:
         display = next((m["name"] for m in MODELS if _bk(m["name"]) == bk), str(model_name).split("/")[-1])
-        MODEL_BLOCKS[bk] = {"model": display, "until": now + HD503_BLOCK_SECS, "since": now,
-                            "reason": f"auto: {HD503_STRIKES}x 503 high demand -> blocked {HD503_BLOCK_SECS // 60} min"}
+        MODEL_BLOCKS[bk] = {"model": display, "until": now + _hd503_secs(), "since": now,
+                            "reason": f"auto: {HD503_STRIKES}x 503 high demand -> blocked {_hd503_label()}"}
         try:
             _blocks_persist("set", bk)
         except Exception as e:
             print(f"[HD503] persist failed: {e}")
-        print(f"[HD503] {display}: {HD503_STRIKES}x 503 high demand -> blocked for auto for {HD503_BLOCK_SECS}s")
+        print(f"[HD503] {display}: {HD503_STRIKES}x 503 high demand -> blocked for auto for {_hd503_secs()}s")
     return True
 
 
@@ -1947,7 +1947,8 @@ def _ctx_clean(c, base=None):
 ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "updated": 0.0,
            "wait_soonest": os.environ.get("WAIT_SOONEST", "0") == "1",
            "wait_max": max(1, min(600, int(float(os.environ.get("WAIT_SOONEST_MAX", str(WAIT_MAX_DEFAULT)))))),
-           "compress": _ctx_clean(CTX_DEFAULT)}
+           "compress": _ctx_clean(CTX_DEFAULT),
+           "hd503_secs": max(10, min(7200, int(HD503_BLOCK_SECS)))}      # 503 "high demand" cooldown (seconds), dashboard-controlled
 _routing_io_lock = threading.Lock()
 
 
@@ -1960,9 +1961,23 @@ def _wait_cfg():
     return bool(ROUTING.get("wait_soonest")), float(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT)
 
 
+def _hd503_secs() -> int:
+    """Current cooldown (seconds) for a 503 'high demand' answer - set on the /logs dashboard, default 4 min."""
+    try:
+        return max(10, min(7200, int(ROUTING.get("hd503_secs") or HD503_BLOCK_SECS)))
+    except Exception:
+        return 240
+
+
+def _hd503_label() -> str:
+    s = _hd503_secs()
+    return f"{s // 60} min" if s % 60 == 0 else (f"{s / 60:.1f} min" if s >= 60 else f"{s} s")
+
+
 def _routing_view():
     return {"mode": ROUTING["mode"], "modes": list(ROUTING_MODES), "updated": ROUTING["updated"],
             "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": int(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT),
+            "hd503_secs": _hd503_secs(), "hd503_default": 240,
             "compress": dict(ROUTING.get("compress") or CTX_DEFAULT),
             "label": "Use first model until exhausted" if _routing_is_drain() else "Default (rotate models)"}
 
@@ -1972,6 +1987,7 @@ def _routing_save_file():
         with state_lock:
             snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"],
                     "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
+                    "hd503_secs": ROUTING.get("hd503_secs"),
                     "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
         tmp = ROUTING_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -1998,6 +2014,7 @@ def _routing_persist():
                 with state_lock:
                     doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"],
                            "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
+                           "hd503_secs": ROUTING.get("hd503_secs"),
                            "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
                 coll.replace_one({"_id": "mode"}, doc, upsert=True)
             except Exception as e:
@@ -2020,6 +2037,11 @@ def _routing_merge(row):
                 ROUTING["wait_soonest"] = bool(row.get("wait_soonest"))
             if isinstance(row.get("compress"), dict):
                 ROUTING["compress"] = _ctx_clean(row["compress"], ROUTING.get("compress"))
+            try:
+                if row.get("hd503_secs") is not None:
+                    ROUTING["hd503_secs"] = max(10, min(7200, int(float(row.get("hd503_secs")))))
+            except Exception:
+                pass
             try:
                 if row.get("wait_max") is not None:
                     ROUTING["wait_max"] = max(1, min(600, int(float(row.get("wait_max")))))
@@ -2053,7 +2075,7 @@ def _routing_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None):
+def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd503_secs=None):
     with state_lock:
         if compress is not None:
             ROUTING["compress"] = _ctx_clean(compress, ROUTING.get("compress"))
@@ -2063,6 +2085,8 @@ def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None):
             ROUTING["wait_soonest"] = bool(wait_soonest)
         if wait_max is not None:
             ROUTING["wait_max"] = max(1, min(600, int(wait_max)))
+        if hd503_secs is not None:
+            ROUTING["hd503_secs"] = max(10, min(7200, int(hd503_secs)))
         ROUTING["updated"] = time.time()
     _routing_persist()
 
@@ -3466,11 +3490,22 @@ def routing_mode_api():
     ws = body.get("wait_soonest", request.args.get("wait_soonest"))
     wm = body.get("wait_max", request.args.get("wait_max"))
     comp = body.get("compress")
+    # 503 "high demand" cooldown:  POST {"hd503_minutes": 4}  or  {"hd503_secs": 240}   (10 s - 120 min, default 4 min)
+    hd = None
+    _hd_raw_s = body.get("hd503_secs", request.args.get("hd503_secs"))
+    _hd_raw_m = body.get("hd503_minutes", request.args.get("hd503_minutes"))
+    if _hd_raw_s is not None or _hd_raw_m is not None:
+        try:
+            hd = int(round(float(_hd_raw_s) if _hd_raw_s is not None else float(_hd_raw_m) * 60))
+        except Exception:
+            return jsonify({"error": "hd503_minutes must be a number (minutes)"}), 400
+        if not 10 <= hd <= 7200:
+            return jsonify({"error": "503 cooldown must be between 10 seconds and 120 minutes"}), 400
     if comp is not None and not isinstance(comp, dict):
         return jsonify({"error": "compress must be an object like {\"mode\": \"trim\", \"threshold\": 60000}"}), 400
     if comp is not None and "mode" in comp and str(comp["mode"]).strip().lower() not in ("off", "trim", "ai"):
         return jsonify({"error": "compress.mode must be off, trim or ai"}), 400
-    if ws is not None or wm is not None or comp is not None:
+    if ws is not None or wm is not None or comp is not None or hd is not None:
         if ws is not None:
             ws = ws if isinstance(ws, bool) else str(ws).strip().lower() in ("1", "true", "on", "yes")
         if wm is not None:
@@ -3483,8 +3518,8 @@ def routing_mode_api():
         _m = str(body.get("mode") or "").strip().lower() or None
         if _m is not None and _m not in ROUTING_MODES:
             return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
-        _routing_set(_m, ws, wm, comp)
-        print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']}")
+        _routing_set(_m, ws, wm, comp, hd)
+        print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']} 503_cooldown={_hd503_secs()}s")
         return jsonify(_routing_view())
     mode = str(body.get("mode") or request.args.get("mode") or ("default" if request.method == 'DELETE' else "")).strip().lower()
     if mode not in ROUTING_MODES:
@@ -4746,6 +4781,19 @@ async function rwaitSet(on,secs){
     const n=document.getElementById('log-note');if(n)n.textContent='Wait for soonest free key: '+(d.wait_soonest?'ON (max '+d.wait_max+'s)':'OFF')+' - saved';
   }catch(e){alert('Failed: '+e.message);}
 }
+async function rhdSet(mins){
+  const m=parseFloat(mins);
+  if(!(m>0)){alert('Enter minutes, e.g. 4');await fetchData(true);return;}
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({hd503_minutes:m})};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));await fetchData(true);return;}
+    lastSig='';await fetchData(true);
+    const n=document.getElementById('log-note');if(n)n.textContent='503 high-demand cooldown: '+(d.hd503_secs/60)+' min - saved (new cooldowns only)';
+  }catch(e){alert('Failed: '+e.message);}
+}
 async function rmodeSet(mode){
   const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})};
   try{
@@ -5175,6 +5223,9 @@ function updateUI(data){
   const cxMode=cxc.mode||'off';
   const cxTh=parseInt(cxc.threshold,10)||60000;
   const wsMax=parseInt((data.routing_mode||{}).wait_max,10)||40;
+  const hdSecs=parseInt((data.routing_mode||{}).hd503_secs,10)||240;
+  const hdMin=Math.round(hdSecs/6)/10;
+  const hdDef=(hdSecs===240);
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -5317,6 +5368,12 @@ function updateUI(data){
             <span style="color:#9ca3af;font-size:.8em;">max</span>
             <input type="number" min="1" max="600" value="${wsMax}" style="width:52px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rwaitSet(null,this.value)">
             <span style="color:#9ca3af;font-size:.8em;margin-right:6px;">s</span>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${hdDef?'#4b5563':'#fbbf24'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Cooldown after Google answers 503 'high demand': that key+model pair is paused for this long (other keys keep using the model). Default 4 min. Applies to NEW cooldowns only.">
+            <span style="color:#fbbf24;font-weight:bold;">🔥 503 high-demand cooldown</span>
+            <input type="number" min="0.2" max="120" step="0.5" value="${hdMin}" style="width:56px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rhdSet(this.value)">
+            <span style="color:#9ca3af;font-size:.8em;">min</span>
+            <button class="btn-s" style="border:0;border-radius:0;" ${hdDef?'disabled':''} onclick="rhdSet(4)" title="back to the default (4 min)">↺ 4</button>
           </span>
           <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${cxMode!=='off'?'#38bdf8':'#4b5563'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Compress context: when a request is bigger than the limit, OLD tool outputs are shortened (Trim) or summarised by a cheap model of your pool (AI). System messages, the first user message, the newest messages and all tool calls stay untouched.">
             <span style="color:#7dd3fc;font-weight:bold;">🗜 Compress</span>
@@ -6141,7 +6198,7 @@ def proxy_chat():
                             _handle_429(key, actual_model, err, raw=resp.text, status=resp.status_code)
                 elif resp.status_code in (500, 502, 503, 504, 408):
                     with state_lock:
-                        _apply_rpm_cooldown(key, actual_model, seconds=(HD503_BLOCK_SECS if resp.status_code == 503 else 60))
+                        _apply_rpm_cooldown(key, actual_model, seconds=(_hd503_secs() if resp.status_code == 503 else 60))
                 if resp.status_code == 400:
                     _e400 = resp.text.lower()
                     if (has_images and image_fix.is_image_error(_e400)) or image_fix.is_capability_error(_e400):
@@ -6426,9 +6483,9 @@ def proxy_chat():
                     n = attempt_counts.get((key, actual_model), 0) + 1
                     attempt_counts[(key, actual_model)] = n
                     # "high demand" = Google is busy for THIS key+model right now: pause only this pair for
-                    # HD503_BLOCK_SECS (10 min). The model stays open for every other key, so keys that still work keep
+                    # the dashboard 503 cooldown (default 4 min). The model stays open for every other key, so keys that still work keep
                     # serving it. Other 5xx errors keep the short 20-120 s breather.
-                    _cd_secs = HD503_BLOCK_SECS if _is_hd else (600 if resp.status_code == 401 else min(20 * n, 120))
+                    _cd_secs = _hd503_secs() if _is_hd else (600 if resp.status_code == 401 else min(20 * n, 120))
                     _apply_rpm_cooldown(key, actual_model, seconds=_cd_secs)
                     print(f"[{resp.status_code}] model={actual_model} key=…{key[-6:]} "
                           f"server error #{n} -> cooldown {_cd_secs}s (this key only), trying other combos first")
@@ -6441,10 +6498,10 @@ def proxy_chat():
                             _hd_hit = hd_req[actual_model] >= HD503_STRIKES
                 attempt_errors.append(f"{resp.status_code} {actual_model} (…{key[-4:]}): server overloaded/unavailable")
                 if _is_hd and _is_pool_req:
-                    _trail(f"503 high demand on {actual_model} (key …{key[-4:]}) -> only this key is paused for this model for {HD503_BLOCK_SECS // 60} min")
+                    _trail(f"503 high demand on {actual_model} (key …{key[-4:]}) -> only this key is paused for this model for {_hd503_label()}")
                 if _hd_hit and _is_pool_req:
-                    _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} -> blocked for auto for {HD503_BLOCK_SECS // 60} min")
-                    attempt_errors.append(f"{actual_model} blocked for auto {HD503_BLOCK_SECS // 60} min (2x 503 high demand)")
+                    _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} -> blocked for auto for {_hd503_label()}")
+                    attempt_errors.append(f"{actual_model} blocked for auto {_hd503_label()} (2x 503 high demand)")
                 elif _hd_hit:
                     _trail(f"503 high demand x{HD503_STRIKES} on {actual_model} (chosen by the user) -> error returned")
                     with state_lock:
