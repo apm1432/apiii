@@ -56,6 +56,11 @@ GEMINI_CONNECT_TIMEOUT = float(os.environ.get("GEMINI_CONNECT_TIMEOUT", "10"))
 # (the request timed out, was repeated on the next key and could time out again). 120 s = the user gets the complete
 # answer; a truly hung key is still dropped after 2 minutes. The anti-504 heartbeat keeps the client connection alive.
 GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "120"))
+# A request to a NAMED model (user picked it on purpose) keeps the long timeout above - they are willing to wait for THAT model.
+# An AUTO/pool request should NOT wait the same 120s on a hung/overloaded key: if nothing comes back in this many seconds,
+# the connection is almost certainly stuck (Google went silent, not "still thinking") -> cut it and let round-robin move on
+# to the next key/model immediately, instead of burning 120s doing nothing for every dead attempt.
+GEMINI_POOL_READ_TIMEOUT = float(os.environ.get("GEMINI_POOL_READ_TIMEOUT", "90"))
 RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
 
 def _effective_rpm(rpm_limit: int) -> int:
@@ -1505,6 +1510,7 @@ HIGH_DEMAND_503: dict = {}   # model key -> [timestamps of recent 503 answers]
 HD_RR_ENABLED = os.environ.get("HD_RR", "1") != "0"
 HD_RR_ROUNDS = max(1, int(os.environ.get("HD_RR_ROUNDS", "3")))        # failed round-robin rounds before "back to the priority model"
 HD_RR_RESTARTS = max(0, int(os.environ.get("HD_RR_RESTARTS", "1")))    # how many times a request may restart from the priority model
+HD_SAME_MODEL_TRIES = max(1, int(os.environ.get("HD_SAME_MODEL_TRIES", "1")))  # 1 = ONE 503 on a model -> straight to the NEXT model (A -> B -> C). Only raise it if you want extra keys of the same model tried first
 HD_RR_PAUSE = max(0.0, float(os.environ.get("HD_RR_PAUSE", "2")))      # seconds to wait between two rounds (503s are usually brief)
 
 
@@ -2134,7 +2140,7 @@ def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd5
     _routing_persist()
 
 
-def _list_combos_in_order(requested_model: str, hd_priority: bool = False, hd_after=None):
+def _list_combos_in_order(requested_model: str, hd_priority: bool = False, hd_after=None, hd_inclusive: bool = False):
     """
     Builds the ordered candidate list (key, model) for a request.
     hd_priority / hd_after: used by the 503 "high demand" round-robin (pool requests only). The models are then listed in
@@ -2215,7 +2221,10 @@ def _list_combos_in_order(requested_model: str, hd_priority: bool = False, hd_af
             if hd_after:
                 _ix = next((i for i, m in enumerate(flat) if _bk(m["name"]) == hd_after), None)
                 if _ix is not None:
-                    flat = flat[_ix + 1:] + flat[:_ix + 1]
+                    if hd_inclusive:      # stay on this model: its next free key first, then the following models
+                        flat = flat[_ix:] + flat[:_ix]
+                    else:
+                        flat = flat[_ix + 1:] + flat[:_ix + 1]
             for m_i, m in enumerate(flat):
                 for i in range(K):
                     k_i = (current_combo_idx + i) % K
@@ -2261,7 +2270,8 @@ def _list_combos_in_order(requested_model: str, hd_priority: bool = False, hd_af
 
 
 def acquire_next_slot(requested_model: str, exclude: set, est_tokens: int = 0,
-                      skip_models=None, hd_priority: bool = False, hd_after=None, ignore_block: bool = False):
+                      skip_models=None, hd_priority: bool = False, hd_after=None, ignore_block: bool = False,
+                      hd_inclusive: bool = False):
     """
     Atomically picks the next viable (key, model) combo AND reserves it
     (records the request timestamp) in one locked step.
@@ -2283,7 +2293,7 @@ def acquire_next_slot(requested_model: str, exclude: set, est_tokens: int = 0,
         if not API_KEYS:
             return None
 
-        combos = _list_combos_in_order(requested_model, hd_priority=hd_priority, hd_after=hd_after)
+        combos = _list_combos_in_order(requested_model, hd_priority=hd_priority, hd_after=hd_after, hd_inclusive=hd_inclusive)
         _honor_block = _block_applies(requested_model) and not ignore_block
 
         for (k_i, m_i, key, model) in combos:
@@ -6428,6 +6438,23 @@ def proxy_chat():
     hd_rounds = 0            # failed rounds since the last (re)start from the priority model
     hd_restarts_used = 0     # how often this request already went back to the priority model after HD_RR_ROUNDS failed rounds
     hd_total = 0             # 503 high demand answers in this request (statistics / error text)
+    hd_model_cnt = {}        # model key -> 503s in the current round (a model gets HD_SAME_MODEL_TRIES different keys before we move on)
+    hd_stay_model = None     # model key we are still retrying with its NEXT key (None = move on to the next model)
+
+    def _hd_note_503(model_name):
+        """One 503 high demand on this model. Returns True = retry the SAME model with its next key, False = next model."""
+        nonlocal hd_last_model, hd_stay_model, hd_total
+        bk_ = _bk(model_name)
+        hd_total += 1
+        hd_model_cnt[bk_] = hd_model_cnt.get(bk_, 0) + 1
+        if hd_model_cnt[bk_] < HD_SAME_MODEL_TRIES:
+            hd_stay_model = bk_
+            return True
+        hd_model_cnt.pop(bk_, None)
+        hd_round_failed.add(bk_)
+        hd_last_model = bk_
+        hd_stay_model = None
+        return False
 
     def _skip_model_this_request(model_name):
         # this MODEL cannot take this input -> no key of it is tried again for this request
@@ -6450,8 +6477,9 @@ def proxy_chat():
             data["model"] = actual_model
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+            _rt = GEMINI_POOL_READ_TIMEOUT if (requested_model or "").lower() in _GENERIC_MODEL_ALIASES else GEMINI_READ_TIMEOUT
             try:
-                resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
+                resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, _rt))
                 resp = _heal_signature(resp, url, headers, data, actual_model)
                 if resp.status_code != 200:
                     _drain_close(resp)
@@ -6481,10 +6509,9 @@ def proxy_chat():
                             and _is_high_demand_503(resp.status_code, getattr(resp, "text", "")):
                         with state_lock:
                             _apply_rpm_cooldown(key, actual_model, seconds=_hd503_secs())
-                        hd_round_failed.add(_bk(actual_model))
-                        hd_last_model = _bk(actual_model)
-                        hd_total += 1
-                        _trail(f"503 high demand on pinned {actual_model} (key …{key[-4:]}) -> this key paused {_hd503_label()}, next model")
+                        _same = _hd_note_503(actual_model)
+                        _trail(f"503 high demand on pinned {actual_model} (key …{key[-4:]}) -> this key paused {_hd503_label()}, "
+                               + ("same model, next key" if _same else "next model"))
                     else:
                         with state_lock:
                             _apply_rpm_cooldown(key, actual_model, seconds=(_hd503_secs() if resp.status_code == 503 else 60))
@@ -6540,7 +6567,14 @@ def proxy_chat():
         # Atomic: pick a viable (key, model) AND reserve its RPM slot in one lock hold.
         slot = acquire_next_slot(requested_model, exclude=tried, est_tokens=_est_tokens,
                                  skip_models=hd_round_failed,
-                                 hd_priority=(hd_total > 0), hd_after=hd_last_model)
+                                 hd_priority=(hd_total > 0), hd_after=(hd_stay_model or hd_last_model),
+                                 hd_inclusive=bool(hd_stay_model))
+
+        if slot is None and _is_pool_req and HD_RR_ENABLED and hd_stay_model:
+            # the model we were retrying has no free key left and no other model is usable either -> count it as failed
+            hd_round_failed.add(hd_stay_model)
+            hd_last_model = hd_stay_model
+            hd_stay_model = None
 
         if slot is None and _is_pool_req and HD_RR_ENABLED and hd_round_failed:
             # Every available model answered 503 high demand once = one FAILED ROUND.
@@ -6559,6 +6593,8 @@ def proxy_chat():
                 _trail(f"{HD_RR_ROUNDS} rounds failed -> back to the PRIORITY model from the beginning, with its free keys "
                        f"(restart {hd_restarts_used}/{HD_RR_RESTARTS})")
             hd_round_failed.clear()
+            hd_model_cnt.clear()
+            hd_stay_model = None
             hd_last_model = None                            # next round starts at the priority model, on its next free key
             _cancel_sleep(HD_RR_PAUSE)
             continue
@@ -6680,7 +6716,8 @@ def proxy_chat():
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
         try:
-            resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
+            _rt = GEMINI_POOL_READ_TIMEOUT if _is_pool_req else GEMINI_READ_TIMEOUT
+            resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, _rt))
             resp = _heal_signature(resp, url, headers, data, actual_model)
             if resp.status_code != 200:
                 _drain_close(resp)        # error answers are small: read + close now (stream=True otherwise keeps the socket open)
@@ -6795,11 +6832,11 @@ def proxy_chat():
                     with state_lock:
                         _apply_rpm_cooldown(key, actual_model, seconds=_hd503_secs())
                     tried.discard((key, actual_model))      # allowed again in a later round (the cooldown still protects it)
-                    hd_round_failed.add(_bk(actual_model))
-                    hd_last_model = _bk(actual_model)
-                    hd_total += 1
-                    attempt_errors.append(f"503 {actual_model} (…{key[-4:]}): high demand -> this key paused {_hd503_label()}, next model")
-                    _trail(f"503 high demand on {actual_model} (key …{key[-4:]}) -> this key paused {_hd503_label()}, next model")
+                    _same = _hd_note_503(actual_model)
+                    _nx = (f"same model, next key (try {hd_model_cnt.get(_bk(actual_model), 0) + 1}/{HD_SAME_MODEL_TRIES})"
+                           if _same else "next model")
+                    attempt_errors.append(f"503 {actual_model} (…{key[-4:]}): high demand -> this key paused {_hd503_label()}, {_nx}")
+                    _trail(f"503 high demand on {actual_model} (key …{key[-4:]}) -> this key paused {_hd503_label()}, {_nx}")
                     continue
                 _hd_hit = False
                 _is_hd = _is_high_demand_503(resp.status_code, _hd_text)
@@ -6969,7 +7006,18 @@ def proxy_chat():
                 _tpm_refund(key, actual_model, _est_tokens)
                 n = attempt_counts.get((key, actual_model), 0) + 1
                 attempt_counts[(key, actual_model)] = n
-                _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
+                _is_to = isinstance(e, (requests.exceptions.Timeout, requests.exceptions.ConnectionError))
+                if HD_RR_ENABLED and _is_pool_req and _is_to:
+                    # a hung / timed-out answer = the model is overloaded: treat it EXACTLY like a 503 high demand
+                    # (this key paused for the dashboard 503 cooldown, request goes to the NEXT model, round robin rules apply)
+                    _apply_rpm_cooldown(key, actual_model, seconds=_hd503_secs())
+                else:
+                    _apply_rpm_cooldown(key, actual_model, seconds=min(20 * n, 120))
+            if HD_RR_ENABLED and _is_pool_req and _is_to:
+                tried.discard((key, actual_model))
+                _same = _hd_note_503(actual_model)
+                _trail(f"timeout/network error on {actual_model} (key …{key[-4:]}) -> treated as high demand, this key paused "
+                       f"{_hd503_label()}, " + ("same model, next key" if _same else "next model"))
             continue
 
     # Every key×model combo was tried (or the pool is genuinely exhausted / cooling down).
