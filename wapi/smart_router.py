@@ -1516,9 +1516,34 @@ def _parse_retry_secs(t: str):
             return total
     return None
 
+# ─── TPM (tokens per minute) ─────────────────────────────────────────────────
+# A TPM 429 is NOT a failure of the request: Google says exactly how long to wait ("Please retry in 40s" / retryDelay).
+# That (key, model) gets a cooldown of exactly that time, and the request goes to another slot - or, when no slot is free,
+# WAITS for the soonest one if it frees up within the dashboard limit ("Wait for soonest free key" -> max seconds, default 40),
+# even when that dashboard switch is OFF. Only when the soonest slot is further away than that limit the user gets the error.
+TPM_AUTO_WAIT = os.environ.get("TPM_AUTO_WAIT", "1") != "0"                  # 0 = old behaviour (TPM 429 follows the dashboard switch)
+TPM_RETRIES_PER_SLOT = int(os.environ.get("TPM_RETRIES_PER_SLOT", "2"))      # one request may hit TPM this often on the SAME (key, model), then that slot is dropped for the request
+
+
+def _is_tpm_429(t: str) -> bool:
+    """True when a (lower-cased) 429 body is a TOKENS-per-minute limit (input / output token count per model per minute)."""
+    t = (t or "").lower()
+    if "input_token_count" in t or "output_token_count" in t or "inputtokens" in t or "outputtokens" in t \
+            or "tokenspermodelperminute" in t or "tokens per minute" in t or "tokens_per_minute" in t:
+        return True
+    return "token" in t and ("perminute" in t or "per minute" in t or "per_minute" in t)
+
+
+def _quota_limit_value(t: str):
+    """The 'limit: 250000' number of a quota error (int) or None."""
+    t = (t or "").lower()
+    m = re.search(r'limit:\s*(\d+)', t) or re.search(r'quotavalue"?\s*[:=]\s*"?(\d+)', t)
+    return int(m.group(1)) if m else None
+
+
 def _handle_429(key, model_name, err_text: str, raw=None, status=429) -> str:
     """Classify a 429 and apply the right penalty. Call with state_lock held.
-    Returns "daily" or "rpm".
+    Returns "daily", "tpm" (tokens per minute) or "rpm".
 
     Google's free-tier Gemini 3.x models return a quotaId string containing
     "...PerDay...FreeTier" even for errors that come back with a short
@@ -1551,6 +1576,13 @@ def _handle_429(key, model_name, err_text: str, raw=None, status=429) -> str:
         _apply_daily_penalty(key, model_name, retry)
         rate_strikes.pop(k, None)
         return "daily"
+
+    # ── Tokens-per-minute (TPM) ───────────────────────────────────────────────
+    # Cooldown = exactly what Google asks (retryDelay / "retry in Ns"), never a daily lock. No wait time given -> 62 s.
+    if _is_tpm_429(t):
+        rate_strikes.pop(k, None)
+        _apply_rpm_cooldown(key, model_name, seconds=int(retry or 62))
+        return "tpm"
 
     # ── Per-minute / RPM detection ────────────────────────────────────────────
     # Explicit label -> definitely RPM, short cooldown, reset strikes.
@@ -3545,6 +3577,18 @@ _TPM_HINT = (" [Context test: with a big context a 429 usually means the tokens-
              "token limit of this model is hit, not the request-per-minute limit.]")
 
 
+def _rate_hint(err_text, tokens=0) -> str:
+    """Honest one-line explanation for a 429 in the model test (it used to say 'TPM' for every 429 of a context test,
+    also for a plain DAILY request limit)."""
+    t = (err_text or "").lower()
+    if _is_tpm_429(t):
+        return " [This is the TOKENS-per-minute (TPM) limit: the cooldown follows Google's own wait time, the request is not lost.]"
+    r = _parse_retry_secs(t)
+    if "perday" in t or "per day" in t or "per_day" in t or (r is not None and r > 300):
+        return " [This is the DAILY request limit (RPD), not TPM: it unlocks after the time Google names in 'retry in'.]"
+    return _TPM_HINT if tokens else ""
+
+
 def _probe_pick_key(name, skip_keys):
     """Pick a free key for `name` and reserve its RPM slot (models outside the pool have no limits to respect)."""
     global _probe_rr
@@ -3683,7 +3727,7 @@ def _probe_model(name, meta, tokens=0):
             res.update(key="…" + key[-4:], ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + last_err)
     if res["status"] in (429, 403):
         res["response"] = ("Rate-limited right now (" + res["response"] + ") - the model exists, try again later."
-                           + (_TPM_HINT if tokens else ""))
+                           + _rate_hint(res["response"], tokens))
     return res
 
 
@@ -3718,7 +3762,7 @@ def _probe_model_on_key(name, meta, key, tokens=0):
                 _handle_429(key, pname, (r.text or "").lower(), raw=r.text, status=r.status_code)
         if r.status_code == 429:
             res["response"] = ("Rate-limited on this key (" + err + ") - the model exists, try again later."
-                               + (_TPM_HINT if tokens else ""))
+                               + _rate_hint(err, tokens))
     except Exception as e:
         res.update(ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + str(e))
     return res
@@ -6003,13 +6047,22 @@ def proxy_chat():
     exit_reason = "all_daily"
     _wait_note_ts = 0.0
     _is_pool_req = (requested_model or "").lower() in _GENERIC_MODEL_ALIASES
-    _wait_on, _wait_max = _wait_cfg()      # dashboard switch "wait for soonest free key" (default OFF) + its limit (default 40 s)
+    _wait_cfg_on, _wait_max = _wait_cfg()  # dashboard switch "wait for soonest free key" (default OFF) + its limit (default 40 s)
+    _wait_on = _wait_cfg_on
     soonest = 0.0
     n_tried_slots = 0
+    # TPM (tokens per minute) handling: a TPM 429 switches waiting ON for THIS request (up to the dashboard limit _wait_max)
+    tpm_wait = False                       # a TPM 429 happened in this request -> wait for the soonest slot (<= _wait_max)
+    tpm_any = False
+    tpm_hits = {}                          # (key, model) -> TPM 429s in this request
+    cooled_429 = set()                     # slots that answered a non-daily 429 (RPM / TPM): they come back after their cooldown
+    dead_slots = set()                     # slots dropped for this request (TPM retries used up / request bigger than the TPM limit)
+    _est_tokens = int((_ctx_info or {}).get("after") or 0)
 
     while True:
         if _cancelled():
             return _cancel_response()
+        _wait_on = _wait_cfg_on or tpm_wait
         if deadline is not None and time.monotonic() >= deadline:
             exit_reason = "deadline"
             attempt_errors.append(f"gave up after {int(REQUEST_MAX_SECS)}s of waiting for a free key")
@@ -6078,7 +6131,8 @@ def proxy_chat():
 
             soonest = min(waits) if waits else 2.0
             n_tried_slots = len(tried)
-            if not _is_pool_req and soonest > SPECIFIC_MAX_WAIT:
+            _spec_wait = max(SPECIFIC_MAX_WAIT, _wait_max) if tpm_wait else SPECIFIC_MAX_WAIT
+            if not _is_pool_req and soonest > _spec_wait:
                 exit_reason = "specific"
                 attempt_errors.append(f"specific model: remaining keys cooling down for {soonest:.0f}s -> not waiting")
                 break
@@ -6098,7 +6152,7 @@ def proxy_chat():
                 wait_secs = max(0.05, min(wait_secs, deadline - time.monotonic()))
             _now_ts = time.monotonic()
             if _now_ts - _wait_note_ts >= 10.0:          # one trail line per ~10 s, not hundreds
-                _trail(f"all slots busy (RPM cooldown) -> waiting for the soonest free slot, free in ~{soonest:.0f}s (limit {int(_wait_max)}s)")
+                _trail(f"all slots busy ({'TPM/RPM' if tpm_any else 'RPM'} cooldown) -> waiting for the soonest free slot, free in ~{soonest:.0f}s (limit {int(_wait_max)}s)")
                 _wait_note_ts = _now_ts
             _cancel_sleep(wait_secs)
             continue
@@ -6176,12 +6230,40 @@ def proxy_chat():
                         # cooldown timer keeps acquire_next_slot from
                         # re-picking it until the cooldown actually clears,
                         # after which it's fair game again on a later pass.
+                        cooled_429.add((key, actual_model))
+                    _tpm_note = ""
+                    if kind == "tpm" and TPM_AUTO_WAIT:
+                        tpm_any = True
+                        _lim = _quota_limit_value(err_text)
+                        _cd_left = max(0, int(rpm_cooldown.get((key, actual_model), 0) - time.monotonic()))
+                        _n_hit = tpm_hits[(key, actual_model)] = tpm_hits.get((key, actual_model), 0) + 1
+                        if _lim is not None and (_lim == 0 or (_est_tokens and _est_tokens >= _lim)):
+                            # this request is bigger than the model's whole per-minute token limit (or the limit is 0 on this
+                            # tier): waiting can never help -> this model is dropped for this request, the others go on
+                            for _k in API_KEYS:
+                                tried.add((_k, actual_model))
+                                dead_slots.add((_k, actual_model))
+                            _tpm_note = f" | request (~{_est_tokens:,} tokens) is not below the model's TPM limit {_lim:,} -> {actual_model} dropped for this request"
+                        elif _n_hit >= max(1, TPM_RETRIES_PER_SLOT):
+                            tried.add((key, actual_model))
+                            dead_slots.add((key, actual_model))
+                            _tpm_note = f" | TPM hit {_n_hit}x on this slot -> not retried again in this request"
+                        else:
+                            tpm_wait = True
+                            _tpm_note = f" | Google asks ~{_cd_left}s -> cooldown set, will wait for the soonest slot (<= {int(_wait_max)}s)"
+                        if tpm_wait:
+                            # slots that were only cooling down (RPM / TPM 429) are not lost: they are usable again after their cooldown
+                            tried.difference_update(cooled_429 - dead_slots)
+                    elif tpm_wait and kind != "daily":
+                        tried.discard((key, actual_model))        # (specific-model requests add every sent slot to `tried`)
+                        if (key, actual_model) in dead_slots:
+                            tried.add((key, actual_model))
 
                 if resp.status_code == 403 and kind != "daily" and not any(w in err_text for w in ("quota", "exhaust", "rate", "limit")):
                     # a real 403 (invalid / leaked / not allowed key) is not a rate limit: do not retry this combo in this request
                     tried.add((key, actual_model))
                 print(f"[429] key=…{key[-6:]} model={actual_model} → instantly switching to next key/model")
-                _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit{_ctx_note} -> next slot")
+                _trail(f"429 {actual_model} (key …{key[-4:]}) {kind}-limit{_ctx_note}{_tpm_note} -> next slot")
                 attempt_errors.append(f"429 {actual_model} (…{key[-4:]}): {kind}-limit{_ctx_note} | {_short_err(err_text, 220)}")
                 continue  # instantly retry with the next best slot
 
@@ -6400,19 +6482,20 @@ def proxy_chat():
 
     if exit_reason in ("once_done", "all_cooling", "soonest_too_far"):
         _sn = int(soonest) + 1
+        _tpm_msg = (" Cause: Google's TOKENS-per-minute (TPM) limit of the models (not the request limit)." if tpm_any else "")
         if exit_reason == "once_done":
             msg = (f"All free keys and models were tried once and every one failed or is rate-limited"
                    + (f" (last errors: {' | '.join(attempt_errors[-3:])})" if attempt_errors else "")
                    + (f". The soonest slot frees up in about {_sn}s." if soonest > 0 else ".")
-                   + " Please retry shortly. (Dashboard switch 'Wait for soonest free key' is OFF.)")
+                   + _tpm_msg + " Please retry shortly. (Dashboard switch 'Wait for soonest free key' is OFF.)")
             code = "all_slots_tried_once"
         elif exit_reason == "all_cooling":
             msg = (f"All keys and models are cooling down (rate limit) right now. The soonest one frees up in about {_sn}s. "
-                   "Please retry then. (Dashboard switch 'Wait for soonest free key' is OFF, so the request was not held.)")
+                   + _tpm_msg + " Please retry then. (Dashboard switch 'Wait for soonest free key' is OFF, so the request was not held.)")
             code = "all_slots_cooling"
         else:
             msg = (f"All keys and models are cooling down. The soonest one frees up in about {_sn}s, which is longer than the "
-                   f"{int(_wait_max)}s wait limit, so the request was not held. Please retry in about {_sn}s.")
+                   f"{int(_wait_max)}s wait limit, so the request was not held. Please retry in about {_sn}s." + _tpm_msg)
             code = "soonest_slot_too_far"
         code_retry = max(1, min(_sn, 600))
         if hasattr(g, "log_entry"):
