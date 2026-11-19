@@ -1941,7 +1941,7 @@ WAIT_MAX_DEFAULT = 40
 # assistant tool_call stay exactly as they are, so tool-call / tool-result pairs stay valid and the agent loses nothing it
 # still needs. It only runs when the request is bigger than `threshold` tokens.
 CTX_DEFAULT = {"mode": os.environ.get("CTX_COMPRESS", "off").strip().lower(), "threshold": int(os.environ.get("CTX_THRESHOLD", "60000")),
-               "keep_last": 12, "tool_max": 1500, "model": ""}
+               "keep_last": 12, "tool_max": 1500, "model": "", "fallback": True}
 def _ctx_clean(c, base=None):
     """validate / clamp a compress settings dict -> new dict"""
     out = dict(base or CTX_DEFAULT)
@@ -1959,6 +1959,9 @@ def _ctx_clean(c, base=None):
         if isinstance(_mv, (list, tuple)):
             _mv = ",".join(str(x) for x in _mv)
         out["model"] = ",".join(x.strip() for x in str(_mv).split(",") if x.strip())[:600]     # summary models, comma separated
+    if "fallback" in c:      # AI mode only: when the summary does not come, shorten (trim) the old outputs instead?
+        fv = c["fallback"]
+        out["fallback"] = fv if isinstance(fv, bool) else str(fv).strip().lower() in ("1", "true", "on", "yes")
     if out.get("mode") not in ("off", "trim", "ai"):
         out["mode"] = "off"
     return out
@@ -5259,6 +5262,7 @@ function updateUI(data){
   const cxc=(data.routing_mode||{}).compress||{};
   const cxMode=cxc.mode||'off';
   const cxTh=parseInt(cxc.threshold,10)||60000;
+  const cxFb=cxc.fallback!==false;
   const cxSel=String(cxc.model||'').split(',').map(x=>x.trim()).filter(Boolean);
   const wsMax=parseInt((data.routing_mode||{}).wait_max,10)||40;
   const hdSecs=parseInt((data.routing_mode||{}).hd503_secs,10)||240;
@@ -5422,7 +5426,8 @@ function updateUI(data){
             </select>
             <span style="color:#9ca3af;font-size:.8em;">above</span>
             <input type="number" min="5" max="900" value="${Math.round(cxTh/1000)}" style="width:52px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rctxSet({threshold:this.value*1000})">
-            <span style="color:#9ca3af;font-size:.8em;margin-right:6px;">k tokens</span>
+            <span style="color:#9ca3af;font-size:.8em;">k tokens</span>
+            <label style="display:inline-flex;align-items:center;gap:3px;margin-right:6px;font-size:.8em;color:${cxMode==='ai'?'#fde68a':'#6b7280'};cursor:pointer;" title="AI summary mode: ON = if the summary does not come, the old outputs are trimmed automatically. OFF = no trim, the request is sent as it is."><input type="checkbox" ${cxFb?'checked':''} onchange="rctxSet({fallback:this.checked})"> ↩ trim fallback</label>
           </span>
           <details style="position:relative;display:inline-block;" title="Models used for the AI summary (round robin). They are used even if blocked for auto. Nothing ticked = no AI summary (plain trim).">
             <summary class="btn-s" style="cursor:pointer;list-style:none;border:1px solid ${cxSel.length?'#38bdf8':'#4b5563'};border-radius:6px;padding:3px 8px;color:#7dd3fc;">🤖 Summary models: ${cxSel.length?cxSel.length+' (round robin)':'none (trim only)'}</summary>
@@ -5795,7 +5800,8 @@ def _ctx_ai_summaries(items, per_max):
     Any failure -> that batch simply gets no summary (the caller falls back to plain trimming)."""
     global _ctx_ai_off_until
     out = {}
-    if not items or time.monotonic() < _ctx_ai_off_until:
+    _fb = bool(_ctx_cfg().get("fallback", True))
+    if not items or (_fb and time.monotonic() < _ctx_ai_off_until):
         return out
     t_end = time.monotonic() + CTX_AI_TIMEOUT
     for b in range(0, len(items), CTX_AI_BATCH):
@@ -5852,7 +5858,7 @@ def _ctx_ai_summaries(items, per_max):
             sm = mm.group(2).strip()
             if sm:
                 out[mm.group(1)] = _ctx_shorten(sm, per_max * 2)
-    if items and not out:
+    if items and not out and _fb:
         _ctx_ai_off_until = time.monotonic() + 300
         print("[CTX AI] no summary came back -> plain trim for the next 5 min")
     return out
@@ -5994,6 +6000,11 @@ def _ctx_compress(data, cfg=None) -> dict:
             total -= max(0, before - _msg_tokens(msgs[i]))
             info["summarized"] += 1
 
+    if cfg["mode"] == "ai" and not cfg.get("fallback", True):
+        # fallback OFF: only real AI summaries are used. What could not be summarised is sent as it is (no trim).
+        info["after"] = _ctx_measure(data)["total"]
+        info["applied"] = bool(info["summarized"] or info["dedup"] or info["images"])
+        return info
     for lim in (tool_max, max(300, tool_max // 3)):          # pass 1 normal, pass 2 stronger (also re-shortens what pass 1 cut)
         for i, role, t in _cands(lim, 0, start, allow_marked=(lim != tool_max)):
             if total <= target:
