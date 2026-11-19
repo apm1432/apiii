@@ -466,7 +466,11 @@ def _cfg_view():
 # is unaffected -- only steps *within* one tool-calling task stay glued to
 # the same model.
 CONV_STICKY_TTL = 3 * 60 * 60   # forget a caller's pin after 3h of no traffic
-STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "0"))  # short wait for RPM on the pinned model; after that we switch (signatures are re-injected)
+# A tool-call continuation WAITS this many seconds for the pinned (key, model) when it is only RPM-limited, instead of
+# switching model (a switch loses that model's real thought_signature = some reasoning quality). 65 s > the 61 s RPM
+# window, so a continuation normally always resumes on the same model. It switches only when the pinned slot is dead
+# (daily limit / broken / blocked) or still unusable after this wait. 0 = switch at once (old behaviour).
+STICKY_MAX_WAIT = float(os.environ.get("STICKY_MAX_WAIT", "65"))
 conversation_sticky: dict = {}   # client_id -> (key, model_name, last_used_monotonic)
 
 def _client_id_from_request(data: dict, remote_addr: str) -> str:
