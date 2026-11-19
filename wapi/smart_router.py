@@ -1111,6 +1111,17 @@ def _drain_close(resp):
         pass
 
 
+def _log_done(log_entry, log_start):
+    """The answer is finished (or the client left): total time = request arrival -> now. Never raises."""
+    try:
+        if log_entry is not None:
+            log_entry["streaming"] = False
+            if log_start is not None:
+                log_entry["response_ms"] = round((time.monotonic() - log_start) * 1000)
+    except Exception:
+        pass
+
+
 def _stream_gemini_sse(resp, log_entry=None, log_start=None, model=None):
     """Streams Gemini SSE chunks immediately to the client without buffering resp.content,
     while capturing tool_call thought_signatures on the fly as lines arrive."""
@@ -1138,8 +1149,7 @@ def _stream_gemini_sse(resp, log_entry=None, log_start=None, model=None):
             resp.close()
         except Exception:
             pass
-        if log_entry is not None and log_start is not None:
-            log_entry["response_ms"] = round((time.monotonic() - log_start) * 1000)
+        _log_done(log_entry, log_start)
 
 def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, client_stream_requested: bool):
     """Build the Response for a 200 from Gemini. Plain /v1/chat/completions
@@ -1156,7 +1166,9 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
             out_headers.append(('X-Accel-Buffering', 'no'))
             log_entry = getattr(g, "log_entry", None)
             log_start = getattr(g, "_log_start", None)
-            return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start, actual_model), resp.close), resp.status_code, out_headers)
+            if log_entry is not None:
+                log_entry["streaming"] = True
+            return Response(_GuardedIter(_stream_gemini_sse(resp, log_entry, log_start, actual_model), lambda: (resp.close(), _log_done(log_entry, log_start))), resp.status_code, out_headers)
         body = resp.content
         capture_signatures(body, actual_model)
         try:
@@ -2376,6 +2388,8 @@ def _slim_log(e):
     return {"id": e.get("id"), "time": e.get("time"), "ip": _clip(e.get("ip"), 60), "status": _clip(e.get("status"), 80),
             "kind": _log_kind(e), "model": _clip(e.get("model"), 80), "route": _clip(e.get("route"), 200),
             "response_ms": e.get("response_ms"), "message": _clip(e.get("message"), 160),
+            "streaming": bool(e.get("streaming")),
+            "age_ms": (int((time.time() - e["t0"]) * 1000) if e.get("t0") else None),
             "ctx": e.get("ctx_tokens"), "ctx_after": e.get("ctx_after"), "ctx_real": e.get("ctx_real"),
             "is_correct": bool(e.get("is_correct")), "password_used": _clip(e.get("password_used"), 40),
             "error": _clip(err, 600), "n_attempts": len(e.get("attempts") or []),
@@ -2895,7 +2909,7 @@ def _cancel_response():
 
 def _live_begin(log_entry, raw, path):
     try:
-        rec = {"id": log_entry["id"], "boot": BOOT_ID, "t0": time.time(), "t1": None, "done": False,
+        rec = {"id": log_entry["id"], "boot": BOOT_ID, "t0": log_entry.get("t0") or time.time(), "t1": None, "done": False,
                "req": _live_req(raw, path), "resp": None, "trail": [], "attempts": [], "log": log_entry}
         with live_lock:
             live_full[rec["id"]] = rec
@@ -3084,7 +3098,7 @@ def strict_password_and_log():
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
-    g._log_start = time.monotonic()  # for response_ms in after_request, not stored in log_entry itself
+    g._log_start = request.environ.get("wapi.t0_mono") or time.monotonic()  # arrival time (see the wrapper), for response_ms in after_request
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
     _lk = _auth_locked_secs()
@@ -3118,7 +3132,7 @@ def strict_password_and_log():
         formatted_msg = (str(msg) if msg else "") + _files_note
 
     log_entry = {
-        "time": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
+        "time": datetime.datetime.fromtimestamp(request.environ.get("wapi.t0_wall") or time.time(), IST).strftime("%Y-%m-%d %H:%M:%S"),
         "ip": request.headers.get("Cf-Connecting-Ip",
               request.headers.get("X-Forwarded-For", request.remote_addr)),
         "path": request.path,
@@ -3127,6 +3141,8 @@ def strict_password_and_log():
         "message": formatted_msg,
         "model": None,           # filled in on a successful 200 (which key/model served it)
         "response_ms": None,     # filled in in after_request below
+        "t0": request.environ.get("wapi.t0_wall") or time.time(),       # when the request ARRIVED (epoch s): the dashboard shows the running time of pending / streaming rows
+        "streaming": False,      # True while the answer is still being streamed to the client
         "error_detail": None,    # filled in on failure -- WHY it failed, not just the status code
         "status": "Pending..."
     }
@@ -4529,8 +4545,12 @@ function restoreScroll(tb,sv){
   if(Math.abs(window.scrollY-sv.y)>1)window.scrollTo(window.scrollX,sv.y);
 }
 setInterval(()=>{if(deferredRender&&window._last&&!userReading()){deferredRender=false;renderLogs(window._last);}},1000);
+function fmtDur(ms){ms=+ms||0;if(ms<1000)return ms+'ms';const s=ms/1000;return s>=60?Math.floor(s/60)+'m '+(s%60).toFixed(1)+'s':s.toFixed(1)+'s';}
+function fmtLive(ms){ms=Math.max(0,Math.round(ms/100)/10);return '⏳ '+(ms>=60?Math.floor(ms/60)+'m '+Math.round(ms%60)+'s':ms.toFixed(1)+'s');}
+setInterval(()=>{document.querySelectorAll('.ms-live').forEach(e=>{e.textContent=fmtLive((+e.dataset.base||0)+(Date.now()-(+e.dataset.at||Date.now())));});},500);
 function renderLogs(data){
   window._last=data;
+  window._logsAt=Date.now();
   const recent=data.logs||[],old=data.older_errors||[];
   const cnt={ok:0,warn:0,fail:0,pending:0};
   recent.forEach(l=>{cnt[l.kind]=(cnt[l.kind]||0)+1;});
@@ -4556,7 +4576,9 @@ function renderLogs(data){
     const bar=k==='fail'?'background:rgba(248,113,113,.09);border-left:3px solid #f87171;':k==='warn'?'background:rgba(251,191,36,.07);border-left:3px solid #fbbf24;':k==='pending'?'border-left:3px solid #60a5fa;':'';
     const bc=k==='fail'?'bg-red':k==='warn'?'bg-amber':k==='pending'?'bg-blue':'bg-green';
     const pwd=l.is_correct?'🛡️':'<span class="pwd-wrong">'+esc(l.password_used||'NONE')+'</span>';
-    const ms=(l.response_ms!==null&&l.response_ms!==undefined)?l.response_ms+'ms':'—';
+    const live=(k==='pending'||l.streaming)&&l.age_ms!=null&&filter!=='saved';
+    const ms=live?('<span class="ms-live" data-base="'+l.age_ms+'" data-at="'+(window._logsAt||Date.now())+'" style="color:#93c5fd;">'+fmtLive(l.age_ms+(Date.now()-(window._logsAt||Date.now())))+'</span>')
+      :((l.response_ms!==null&&l.response_ms!==undefined)?'<span title="'+l.response_ms+' ms: from the moment the request arrived until the answer was finished">'+fmtDur(l.response_ms)+'</span>':'—');
     const err=l.error?'<div class="err'+(k==='warn'?' warn':'')+'">'+esc(l.error)+'</div>':'<span style="color:#4ade80;">—</span>';
     const det=(true)?'<button class="btn-s" onclick="toggleDetail('+l.id+')">'+(expanded[l.id]?'✕':'Details')+'</button>':'';
     const stp=(k==='pending'&&filter!=='saved')?' <button class="btn-s" style="background:#7f1d1d;border-color:#f87171;color:#fee2e2;font-weight:bold;" data-id="'+l.id+'" onclick="stopReq(this.dataset.id)" title="Stop this pending request (the client gets 499)">⏹ Stop</button>':'';
@@ -7509,7 +7531,7 @@ def webapi_proxy(sub):
 
     def _start_log(authorized: bool):
         raw_bytes = request.get_data()
-        g._log_start = time.monotonic()
+        g._log_start = request.environ.get("wapi.t0_mono") or time.monotonic()
         model = None
         if _is_chat:
             raw_json = request.get_json(silent=True) or {}
@@ -7775,6 +7797,8 @@ class _Anti504HeartbeatMiddleware:
         return path.endswith("/chat/completions") or path.endswith("/responses")
 
     def __call__(self, environ, start_response):
+        environ["wapi.t0_mono"] = _hb_time.monotonic()      # the moment the request ARRIVED (before its body is read) -> response time starts here
+        environ["wapi.t0_wall"] = _hb_time.time()
         if not self._is_target_request(environ):
             return self.wsgi_app(environ, start_response)
 
