@@ -1618,8 +1618,10 @@ def refresh_models_loop():
         if API_KEYS:
             for key in API_KEYS:
                 try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
-                    resp = requests.get(url, timeout=10)
+                    # key in a HEADER, never in the URL: a requests exception message contains the URL, so a
+                    # network error would have printed the full key into the server logs
+                    resp = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                                        headers={"x-goog-api-key": key}, timeout=10)
                     if resp.status_code == 200:
                         data = resp.json().get("models", [])
                         new_rr, new_openai = [], []
@@ -2263,17 +2265,23 @@ def test_all_keys():
     """
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
-    bearer_ok = (auth_header == f"Bearer {expected_pass}")
+    _lk = _auth_locked_secs()
+    if _lk:
+        return _auth_locked_response(_lk)
+    bearer_ok = _pw_eq(auth_header, f"Bearer {expected_pass}")
     basic_ok  = False
     if auth_header.startswith("Basic "):
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             _, pwd = decoded.split(":", 1)
-            basic_ok = (pwd == expected_pass)
+            basic_ok = _pw_eq(pwd, expected_pass)
         except Exception:
             pass
     if not bearer_ok and not basic_ok:
+        if auth_header:
+            _auth_failed()
         return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="WAPI Test"'})
+    _auth_succeeded()
 
     # Questions are assigned by model-index using the shared MODEL_QUESTIONS pool
     # defined near /add — so newly added models automatically get a unique question
@@ -2325,9 +2333,91 @@ def test_all_keys():
         "results": results
     })
 
+# ─── Wrong-password rate limit (brute-force guard) ───────────────────────────────
+# One shared PASSWORD protects the API, the dashboard and the admin routes, so guessing it must be slow.
+# AUTH_FAIL_MAX wrong passwords from one IP inside AUTH_FAIL_WINDOW seconds -> that IP is refused (HTTP 429, even with the
+# right password) for AUTH_LOCK_SECS. Requests WITHOUT any credentials (the browser's first login prompt) are not counted.
+# The IP is nginx's X-Real-IP (nginx overwrites it, a client cannot fake it; gunicorn only listens on 127.0.0.1), then the
+# LAST X-Forwarded-For entry (the one nginx added), then the socket address. AUTH_RATELIMIT=0 switches the limit off.
+# State is in memory: a restart / redeploy clears every lock.
+import hmac as _hmac
+AUTH_RATELIMIT = os.environ.get("AUTH_RATELIMIT", "1") != "0"
+AUTH_FAIL_MAX = int(os.environ.get("AUTH_FAIL_MAX", "10"))
+AUTH_FAIL_WINDOW = float(os.environ.get("AUTH_FAIL_WINDOW", "600"))
+AUTH_LOCK_SECS = float(os.environ.get("AUTH_LOCK_SECS", "900"))
+_AUTH_MAX_TRACKED = 5000
+_auth_fails: dict = {}          # ip -> [timestamps of recent wrong passwords]
+_auth_locked: dict = {}         # ip -> unix time until which the IP is refused
+_auth_state_lock = threading.Lock()
+
+
+def _pw_eq(a, b) -> bool:
+    """Constant-time string compare (a plain == leaks how many leading characters matched)."""
+    return _hmac.compare_digest(str(a or "").encode("utf-8"), str(b or "").encode("utf-8"))
+
+
+def _auth_client_ip() -> str:
+    ip = (request.headers.get("X-Real-IP") or "").strip()
+    if ip:
+        return ip
+    xff = (request.headers.get("X-Forwarded-For") or "").strip()
+    if xff:
+        return xff.split(",")[-1].strip()
+    return request.remote_addr or "?"
+
+
+def _auth_locked_secs() -> int:
+    """Seconds this client is still refused (0 = free)."""
+    if not AUTH_RATELIMIT:
+        return 0
+    ip, now = _auth_client_ip(), time.time()
+    with _auth_state_lock:
+        until = _auth_locked.get(ip, 0)
+        if until > now:
+            return int(until - now) + 1
+        if until:
+            _auth_locked.pop(ip, None)
+    return 0
+
+
+def _auth_failed():
+    """Call when a request carried credentials and they were WRONG."""
+    if not AUTH_RATELIMIT:
+        return
+    ip, now = _auth_client_ip(), time.time()
+    with _auth_state_lock:
+        lst = [t for t in _auth_fails.get(ip, []) if now - t < AUTH_FAIL_WINDOW]
+        lst.append(now)
+        _auth_fails[ip] = lst
+        if len(lst) >= AUTH_FAIL_MAX:
+            _auth_locked[ip] = now + AUTH_LOCK_SECS
+            _auth_fails.pop(ip, None)
+            print(f"[AUTH LOCK] {ip}: {AUTH_FAIL_MAX} wrong passwords in {int(AUTH_FAIL_WINDOW)}s -> refused for {int(AUTH_LOCK_SECS)}s", flush=True)
+        if len(_auth_fails) > _AUTH_MAX_TRACKED:                       # never grow without bound
+            for k in [k for k, v in _auth_fails.items() if not v or now - v[-1] >= AUTH_FAIL_WINDOW]:
+                _auth_fails.pop(k, None)
+            while len(_auth_fails) > _AUTH_MAX_TRACKED:
+                _auth_fails.pop(next(iter(_auth_fails)), None)
+        if len(_auth_locked) > _AUTH_MAX_TRACKED:
+            for k in [k for k, v in _auth_locked.items() if v <= now]:
+                _auth_locked.pop(k, None)
+
+
+def _auth_succeeded():
+    if _auth_fails:
+        with _auth_state_lock:
+            _auth_fails.pop(_auth_client_ip(), None)
+
+
+def _auth_locked_response(secs):
+    return Response(json.dumps({"error": {"message": f"Too many wrong passwords from this address. Try again in {secs} s.",
+                                          "type": "too_many_attempts"}}),
+                    429, {"Content-Type": "application/json", "Retry-After": str(secs)})
+
+
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 def check_browser_auth(username, password):
-    return password == os.environ.get("PASSWORD", "")
+    return _pw_eq(password or "", os.environ.get("PASSWORD", ""))
 
 def request_browser_login():
     return Response('Login Required', 401,
@@ -2336,9 +2426,16 @@ def request_browser_login():
 def requires_browser_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        _lk = _auth_locked_secs()
+        if _lk:
+            return _auth_locked_response(_lk)
         auth = request.authorization
-        if not auth or not check_browser_auth(auth.username, auth.password):
+        if not auth:
+            return request_browser_login()                 # first visit: the browser has not asked for a password yet (not a failure)
+        if not check_browser_auth(auth.username, auth.password):
+            _auth_failed()
             return request_browser_login()
+        _auth_succeeded()
         return f(*args, **kwargs)
     return decorated
 
@@ -2733,7 +2830,14 @@ def strict_password_and_log():
     g._log_start = time.monotonic()  # for response_ms in after_request, not stored in log_entry itself
     expected_pass = os.environ.get("PASSWORD", "")
     auth_header   = request.headers.get("Authorization", "")
-    is_correct    = (auth_header == f"Bearer {expected_pass}")
+    _lk = _auth_locked_secs()
+    if _lk:
+        return _auth_locked_response(_lk)       # refused before anything is logged: a guessing attack must not flood the log
+    is_correct    = _pw_eq(auth_header, f"Bearer {expected_pass}")
+    if is_correct:
+        _auth_succeeded()
+    elif auth_header:
+        _auth_failed()
 
     msg = ""
     if request.is_json:
@@ -2946,11 +3050,19 @@ def _admin_ok() -> bool:
     expected = os.environ.get("PASSWORD", "")
     if not expected:
         return False
+    if _auth_locked_secs():
+        return False
     h = request.headers.get("Authorization", "")
     if h.startswith("Bearer ") and hmac.compare_digest(h[7:], expected):
+        _auth_succeeded()
         return True
     a = request.authorization
-    return bool(a and a.password is not None and hmac.compare_digest(str(a.password), expected))
+    if a and a.password is not None and hmac.compare_digest(str(a.password), expected):
+        _auth_succeeded()
+        return True
+    if h:
+        _auth_failed()
+    return False
 
 
 @app.route('/model_block', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
@@ -5746,8 +5858,8 @@ def proxy_transcriptions():
         if _is_daily_penalized(key, TRANSCRIBE_MODEL):
             continue
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{TRANSCRIBE_MODEL}:generateContent?key={key}"
-            resp = requests.post(url, json=payload, timeout=60)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{TRANSCRIBE_MODEL}:generateContent"
+            resp = requests.post(url, json=payload, headers={"x-goog-api-key": key}, timeout=60)     # key in a header, not in the URL (see refresh_models_loop)
             if resp.status_code == 200:
                 with state_lock:
                     metrics["successful_api_calls"] += 1
@@ -5939,10 +6051,19 @@ def _webapi_authorized() -> bool:
     expected = os.environ.get("PASSWORD", "")
     if not expected:
         return False
-    if request.headers.get("Authorization", "") == f"Bearer {expected}":
+    if _auth_locked_secs():
+        return False
+    h = request.headers.get("Authorization", "")
+    if _pw_eq(h, f"Bearer {expected}"):
+        _auth_succeeded()
         return True
     auth = request.authorization
-    return bool(auth and auth.password == expected)
+    if auth and _pw_eq(auth.password or "", expected):
+        _auth_succeeded()
+        return True
+    if h:
+        _auth_failed()
+    return False
 
 def _webapi_rewrite_text(text: str) -> str:
     # dashboard pages use absolute paths (/ui/..., /v1/...) -> keep them under the prefix

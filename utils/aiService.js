@@ -1079,7 +1079,7 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
         const keySuffix = key.substring(key.length - 4);
         if (onChunk) onChunk(`\n[System] Attempt ${attempts+1} | Model: ${model} | Key: ...${keySuffix}\nAI Thinking:\n`);
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;   // key goes in the x-goog-api-key header, never in the URL
         
         let parts = [];
         // one image (string) or several page images (array): a question can continue on the next page
@@ -1098,7 +1098,7 @@ async function runGemini(prompt, imageBase64, onChunk, processFn, maxAttempts = 
 
         try {
             const resp = await axios.post(url, payload, {
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
                 responseType: 'stream',
                 timeout: 600000
             });
@@ -1698,9 +1698,9 @@ async function chatViaGemini(payload, { model: onlyModel, maxAttempts, maxWaitMs
         const { key, model, waitTime } = pick;
         if (waitTime > 0) await sleep(waitTime);
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         try {
-            const resp = await axios.post(url, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 90000 });
+            const resp = await axios.post(url, payload, { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, timeout: 90000 });
             let text = extractText(resp.data).trim();
             if (!text) {
                 const reason = resp.data && resp.data.candidates && resp.data.candidates[0] && resp.data.candidates[0].finishReason;
