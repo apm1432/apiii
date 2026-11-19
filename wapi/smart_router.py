@@ -2725,7 +2725,8 @@ def strict_password_and_log():
         return
     if request.path in ['/ping', '/healthz', '/logs', '/dashboard_data', '/status', '/test_keys', '/release_daily', '/router/release_daily',
                         '/model_block', '/router/model_block', '/model_config', '/router/model_config', '/model_available', '/router/model_available', '/model_test', '/router/model_test',
-                        '/model_last', '/router/model_last', '/routing_mode', '/router/routing_mode', '/request_cancel', '/router/request_cancel']:
+                        '/model_last', '/router/model_last', '/routing_mode', '/router/routing_mode', '/request_cancel', '/router/request_cancel',
+                        '/test_penalized', '/router/test_penalized']:
         return
     if request.path == WEBAPI_PREFIX or request.path.startswith(WEBAPI_PREFIX + '/'):
         return  # /api/web/v1 -> own auth inside webapi_proxy() (Bearer OR browser Basic)
@@ -3419,9 +3420,9 @@ def _probe_parse(kind, j):
 def _probe_err(r):
     try:
         e = r.json().get("error") or {}
-        return str(e.get("message") or r.text)[:260]
+        return str(r.text or "")        # the COMPLETE answer Google sent (no cutting)
     except Exception:
-        return (r.text or "")[:260]
+        return (r.text or "")
 
 
 def _probe_base(name, meta):
@@ -3458,7 +3459,7 @@ def _probe_model(name, meta):
             res.update(key="…" + key[-4:], ms=ms, status=r.status_code)
             if r.status_code == 200:
                 outs, txt = _probe_parse(kind, r.json())
-                res.update(ok=True, outputs=outs, response=txt[:400])
+                res.update(ok=True, outputs=outs, response=txt)
                 if md:
                     with state_lock:
                         _record_rpd_success(key, md["name"])
@@ -3473,10 +3474,10 @@ def _probe_model(name, meta):
             if r.status_code in (400, 404):
                 break                                    # the MODEL is the problem, other keys will say the same
         except Exception as e:
-            last_err = str(e)[:200]
+            last_err = str(e)
             res.update(key="…" + key[-4:], ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + last_err)
     if res["status"] in (429, 403):
-        res["response"] = "Rate-limited right now (" + res["response"][:160] + ") - the model exists, try again later."
+        res["response"] = "Rate-limited right now (" + res["response"] + ") - the model exists, try again later."
     return res
 
 
@@ -3497,7 +3498,7 @@ def _probe_model_on_key(name, meta, key):
         res.update(ms=round((time.time() - t0) * 1000), status=r.status_code)
         if r.status_code == 200:
             outs, txt = _probe_parse(kind, r.json())
-            res.update(ok=True, outputs=outs, response=txt[:400])
+            res.update(ok=True, outputs=outs, response=txt)
             if md:
                 with state_lock:
                     _record_rpd_success(key, pname)
@@ -3509,9 +3510,9 @@ def _probe_model_on_key(name, meta, key):
             with state_lock:
                 _handle_429(key, pname, (r.text or "").lower(), raw=r.text, status=r.status_code)
         if r.status_code == 429:
-            res["response"] = "Rate-limited on this key (" + err[:160] + ") - the model exists, try again later."
+            res["response"] = "Rate-limited on this key (" + err + ") - the model exists, try again later."
     except Exception as e:
-        res.update(ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + str(e)[:200])
+        res.update(ms=round((time.time() - t0) * 1000), status=0, response="Exception: " + str(e))
     return res
 
 
@@ -3643,6 +3644,95 @@ def release_daily():
     released = sorted(released_set)
     print(f"[RELEASE DAILY] released {len(released)} lock(s): {released}")
     return jsonify({"released": len(released), "items": released})
+
+
+# ─── Test ONLY the daily-locked (key, model) pairs ───────────────────────────────
+# Dashboard button "Test locked keys". Healthy keys are never touched (no wasted quota), only the pairs that are
+# daily-locked right now are called. A 200 unlocks the pair (it is free again); any other answer leaves the lock as it is
+# (no new penalty is applied by this test, so it can never make things worse). context = "normal" (tiny question) or
+# "large" (~PENTEST_BIG_TOKENS tokens of filler text, then the same tiny question).
+PENTEST_BIG_TOKENS = int(os.environ.get("PENTEST_BIG_TOKENS", "100000"))
+PENTEST_BIG_TIMEOUT = float(os.environ.get("PENTEST_BIG_TIMEOUT", "120"))
+_PENTEST_PARA = "The quick brown fox jumps over the lazy dog while the river flows quietly past the old stone bridge. "
+
+
+def _pentest_prompt(tokens):
+    q = "What is 2 + 2? Answer in one short sentence."
+    if not tokens:
+        return q
+    reps = max(1, int(tokens * 4 / len(_PENTEST_PARA)))        # ~4 characters per token
+    return (_PENTEST_PARA * reps) + "\n\nIgnore all the text above. " + q
+
+
+def _pentest_one(key, model, tokens):
+    res = {"key": "…" + key[-4:], "model": model, "ok": False, "status": 0, "ms": 0, "unlocked": False, "response": ""}
+    t0 = time.time()
+    try:
+        with state_lock:
+            _record_request(key, model)
+        r = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                          headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+                          json={"model": model, "max_tokens": 200, "messages": [{"role": "user", "content": _pentest_prompt(tokens)}]},
+                          timeout=(GEMINI_CONNECT_TIMEOUT, PENTEST_BIG_TIMEOUT if tokens else PROBE_TIMEOUT))
+        res.update(status=r.status_code, ms=round((time.time() - t0) * 1000))
+        if r.status_code == 200:
+            try:
+                txt = str(r.json()["choices"][0]["message"]["content"] or "").strip()
+            except Exception:
+                txt = r.text
+            with state_lock:
+                _record_rpd_success(key, model)
+                _clear_penalty(key, model)
+            res.update(ok=True, unlocked=True, response=txt or "(answered)")
+        else:
+            res["response"] = _probe_err(r)
+    except Exception as e:
+        res.update(ms=round((time.time() - t0) * 1000), response="Exception: " + str(e))
+    return res
+
+
+@app.route('/test_penalized', methods=['POST', 'OPTIONS'])
+@app.route('/router/test_penalized', methods=['POST', 'OPTIONS'])
+def test_penalized_api():
+    """POST {"context": "normal" | "large", "tokens": 100000 (optional, large only), "key": "ab12" (opt), "model": "x" (opt)}
+    Calls only the pairs that are daily-locked right now; a 200 unlocks the pair."""
+    if request.method == 'OPTIONS':
+        return Response(status=200)
+    if not _admin_ok():
+        return Response("Unauthorized", 401, {"WWW-Authenticate": 'Basic realm="Admin (password field = your API PASSWORD)"'})
+    body = request.get_json(silent=True) or {}
+    large = str(body.get("context") or "normal").lower() in ("large", "big", "100k")
+    try:
+        tokens = int(body.get("tokens") or PENTEST_BIG_TOKENS) if large else 0
+    except Exception:
+        tokens = PENTEST_BIG_TOKENS if large else 0
+    tokens = max(1000, min(tokens, 900000)) if large else 0
+    key_sfx = str(body.get("key") or "").replace("...", "").replace("…", "").strip()
+    model = str(body.get("model") or "").strip()
+    now = time.time()
+    with state_lock:
+        pairs = [(k, m) for (k, m), until in key_daily_penalty.items() if until > now]
+    if key_sfx:
+        pairs = [(k, m) for (k, m) in pairs if k.endswith(key_sfx)]
+    if model:
+        pairs = [(k, m) for (k, m) in pairs if m == model]
+    if not pairs:
+        return jsonify({"total": 0, "ok": 0, "failed": 0, "unlocked": 0, "tokens": tokens, "results": [],
+                        "message": "No daily-locked key to test."})
+    capped = len(pairs) > PROBE_MAX_COMBOS
+    total_locked = len(pairs)
+    pairs = pairs[:PROBE_MAX_COMBOS]
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3 if large else 6) as ex:
+        jobs = []
+        for k, m in pairs:
+            jobs.append(ex.submit(_pentest_one, k, m, tokens))
+            time.sleep(0.6 if large else 0.15)       # stagger (large requests also hit the tokens-per-minute limit)
+        results = [j.result() for j in jobs]
+    ok = sum(1 for r in results if r["ok"])
+    print(f"[TEST LOCKED] {len(results)} locked pair(s) tested, context={'~' + str(tokens) + ' tokens' if large else 'normal'}: {ok} unlocked")
+    return jsonify({"total": len(results), "ok": ok, "failed": len(results) - ok, "unlocked": ok, "tokens": tokens, "results": results,
+                    "capped": capped, "total_locked": total_locked})
 
 
 @app.route('/logs', methods=['GET'])
@@ -4580,6 +4670,56 @@ async function mdlTest(){
   btn.disabled=false;
 }
 
+function ptShow(d,big){
+  let m=document.getElementById('pt-modal');
+  if(!m){m=document.createElement('div');m.id='pt-modal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;overflow:auto;padding:20px;';
+    document.body.appendChild(m);}
+  const rs=d.results||[];
+  const per={},order=[];
+  rs.forEach(r=>{if(!per[r.model]){per[r.model]={ok:0,n:0};order.push(r.model);}per[r.model].n++;if(r.ok)per[r.model].ok++;});
+  let h='<div style="max-width:1200px;margin:0 auto;background:#18181b;border:1px solid #3f3f46;border-radius:12px;padding:16px;color:#e5e7eb;">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h2 style="margin:0;font-size:1.15em;">🧪 Locked keys test ('+(big?'~'+d.tokens+' tokens context':'normal context')+')</h2>'+
+    '<button class="btn-s" onclick="document.getElementById(&quot;pt-modal&quot;).style.display=&quot;none&quot;">✕ Close</button></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'+
+    '<span style="border:1px solid #4ade80;color:#4ade80;border-radius:8px;padding:6px 12px;font-weight:bold;">🔓 Unlocked / works: '+(d.ok||0)+'</span>'+
+    '<span style="border:1px solid #f87171;color:#f87171;border-radius:8px;padding:6px 12px;font-weight:bold;">🔒 Still failing: '+(d.failed||0)+'</span>'+
+    '<span style="border:1px solid #4b5563;color:#9ca3af;border-radius:8px;padding:6px 12px;">📊 Total shown: '+rs.length+'</span></div>'+
+    (d.capped?'<div style="color:#fbbf24;margin-bottom:8px;">⚠️ '+d.total_locked+' locked pairs exist, only the first '+rs.length+' were tested (PROBE_MAX_COMBOS limit).</div>':'')+
+    '<div style="margin-bottom:10px;">Per model: '+order.map(n=>{const p=per[n];const c=p.ok===p.n?'#4ade80':(p.ok===0?'#f87171':'#fbbf24');return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 9px;border:1px solid '+c+';border-radius:999px;color:'+c+';font-size:.9em;"><span style="font-family:monospace;">'+esc(n)+'</span> '+p.ok+'/'+p.n+' keys</span>';}).join('')+'</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.85em;"><thead><tr style="text-align:left;color:#9ca3af;border-bottom:1px solid #3f3f46;"><th style="padding:6px;">Model</th><th style="padding:6px;">Key</th><th style="padding:6px;">Result</th><th style="padding:6px;">ms</th><th style="padding:6px;">Full answer / error from Google</th></tr></thead><tbody>';
+  rs.forEach(r=>{
+    const c=r.ok?'#4ade80':'#f87171';
+    h+='<tr style="border-bottom:1px solid #2d2d2d;vertical-align:top;background:'+(r.ok?'rgba(74,222,128,.05)':'rgba(248,113,113,.05)')+';">'+
+      '<td style="padding:6px;font-family:monospace;color:#c4b5fd;">'+esc(r.model)+'</td>'+
+      '<td style="padding:6px;font-family:monospace;color:#93c5fd;">'+esc(r.key)+'</td>'+
+      '<td style="padding:6px;font-weight:bold;color:'+c+';white-space:nowrap;">'+(r.ok?'✅ 200 unlocked':'❌ '+(r.status||'error'))+'</td>'+
+      '<td style="padding:6px;color:#6b7280;">'+(r.ms||'')+'</td>'+
+      '<td style="padding:6px;"><pre style="margin:0;white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:.95em;color:'+(r.ok?'#e5e7eb':'#fca5a5')+';">'+esc(r.response||'')+'</pre></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  m.innerHTML=h;m.style.display='block';
+}
+async function testPenalized(ctx){
+  const noteEl=document.getElementById('log-note');
+  const big=ctx==='large';
+  if(big&&!confirm('Send about 100k tokens of context to EVERY daily-locked key? This can take a few minutes and uses many tokens.'))return;
+  if(noteEl)noteEl.textContent='⏳ Testing daily-locked keys only ('+(big?'100k context':'normal context')+')...';
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({context:ctx})};
+  try{
+    let r=await fetch('/router/test_penalized',opts);
+    if(r.status===404){r=await fetch('test_penalized',opts);}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(!d.total){if(noteEl)noteEl.textContent='✅ '+(d.message||'No daily-locked key to test.');return;}
+    const bad={};
+    (d.results||[]).forEach(x=>{if(!x.ok){bad[x.status]=(bad[x.status]||0)+1;}});
+    const badTxt=Object.entries(bad).map(([s,n])=>n+'x HTTP '+s).join(', ');
+    ptShow(d,big);
+    if(noteEl)noteEl.textContent='🧪 Tested '+d.total+' locked key/model pair(s): 🔓 '+d.unlocked+' unlocked'+(d.failed?' · 🔒 '+d.failed+' still locked ('+badTxt+')':'');
+    lastSig='';await fetchData(true);
+  }catch(e){if(noteEl)noteEl.textContent='❌ Test failed: '+e.message;}
+}
 async function releaseDaily(keyFilter='', modelFilter=''){
   const payload={};
   if(keyFilter)payload.key=keyFilter;
@@ -4606,7 +4746,7 @@ function updateUI(data){
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
   if(penEntries.length>0){
-    penHtml+=`<div style="width:100%;margin-bottom:6px;"><button class="btn-s" style="background:#dc2626;border-color:#ef4444;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="releaseDaily('','')">🔓 Release All Daily Locks (${penEntries.length})</button></div>`;
+    penHtml+=`<div style="width:100%;margin-bottom:6px;"><button class="btn-s" style="background:#dc2626;border-color:#ef4444;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="releaseDaily('','')">🔓 Release All Daily Locks (${penEntries.length})</button> <button class="btn-s" style="background:#1d4ed8;border-color:#60a5fa;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="testPenalized('normal')" title="Calls ONLY the locked keys with a tiny question. A 200 unlocks that key. Healthy keys are not touched.">🧪 Test locked keys (normal)</button> <button class="btn-s" style="background:#6d28d9;border-color:#a78bfa;color:#fff;font-weight:bold;padding:5px 12px;font-size:.85em;" onclick="testPenalized('large')" title="Same, but each locked key gets about 100k tokens of context first (uses more tokens).">🧪 Test locked keys (100k context)</button></div>`;
     for(const[kv,mins] of penEntries){
       const pipe=kv.lastIndexOf('|');
       const keyPart=pipe>=0?kv.slice(0,pipe):kv;
