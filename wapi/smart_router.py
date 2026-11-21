@@ -5180,7 +5180,7 @@ async function modelBlockCall(payload){
 let mdlEditing=false,mdlSavedFlag=false,mdlInEnv=false;
 let availModels=[],usageOpen={};
 // the three big cards: Active Keys + Requests per day start collapsed, Models open. Kept while the page refreshes itself.
-let cardOpen={keys:false,models:true,usage:false};
+let cardOpen={keys:false,models:false,usage:false};   // all cards start closed after a page refresh; the state you set while the page is open is kept
 function cardToggle(k,open){cardOpen[k]=!!open;}
 async function loadAvailable(force){
   const sel=document.getElementById('mdl-pick'),note=document.getElementById('mdl-pick-note');
