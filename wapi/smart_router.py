@@ -1610,6 +1610,11 @@ HD_RR_PAUSE = max(0.0, float(os.environ.get("HD_RR_PAUSE", "2")))      # seconds
 
 
 def _is_high_demand_503(status, text) -> bool:
+    # Google's own server-side failures are treated EXACTLY like a 503 high demand: 504 (DEADLINE_EXCEEDED, model too slow),
+    # 500 (internal error), 502 (bad gateway), 408 (request timeout). This key+model is paused for the 503 cooldown and the
+    # request goes on to the NEXT model / key at once, instead of walking through every key of the same failing model.
+    if status in (500, 502, 504, 408):
+        return True
     return status == 503 and any(w in (text or "").lower() for w in ("high demand", "unavailable", "overloaded"))
 
 
@@ -6770,7 +6775,7 @@ def proxy_chat():
                                + ("same model, next key" if _same else "next model"))
                     else:
                         with state_lock:
-                            _apply_rpm_cooldown(key, actual_model, seconds=(_hd503_secs() if resp.status_code == 503 else 60))
+                            _apply_rpm_cooldown(key, actual_model, seconds=(_hd503_secs() if resp.status_code in (500, 502, 503, 504, 408) else 60))
                 if resp.status_code == 400:
                     _e400 = resp.text.lower()
                     if (has_images and image_fix.is_image_error(_e400)) or image_fix.is_capability_error(_e400):
