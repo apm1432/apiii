@@ -61,6 +61,10 @@ GEMINI_READ_TIMEOUT = float(os.environ.get("GEMINI_READ_TIMEOUT", "120"))
 # the connection is almost certainly stuck (Google went silent, not "still thinking") -> cut it and let round-robin move on
 # to the next key/model immediately, instead of burning 120s doing nothing for every dead attempt.
 GEMINI_POOL_READ_TIMEOUT = float(os.environ.get("GEMINI_POOL_READ_TIMEOUT", "90"))
+# TIMEOUTS ARE NOW CHANGEABLE ON THE DASHBOARD (Models tab): one DEFAULT timeout for every model (replaces the 120 s above,
+# saved + survives restarts) and an optional OWN timeout per model (✏️ Limits -> "Timeout"). A model with its own timeout
+# always uses it (named AND auto/pool requests); every other model uses the default. The env value is only the start value.
+TIMEOUT_MIN, TIMEOUT_MAX = 5, 1800
 RPM_WINDOW_SECS = 60.0 + EXTRA_WAIT
 
 def _effective_rpm(rpm_limit: int) -> int:
@@ -308,6 +312,7 @@ CUSTOM_MODELS_FILE = os.environ.get("CUSTOM_MODELS_FILE", os.path.join(os.path.d
 CUSTOM_CFG: dict = {}       # model key (lower-case) -> {"name", "rpm", "rpd", "added", "updated"}
 _MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]{0,99}$")
 _cfg_io_lock = threading.Lock()
+_KEEP = object()            # "argument not given -> keep the current value" (None = "use the default")
 
 
 def _cfg_clean_name(raw):
@@ -330,9 +335,11 @@ def _cfg_int(v, lo, hi):
     return int(f)
 
 
-def _cfg_apply(name, rpm, rpd, tpm=None):
+def _cfg_apply(name, rpm, rpd, tpm=None, timeout=_KEEP):
     """Put the model in the routing list (or update its limits). Returns True when a new entry was created.
-    tpm=None keeps the model's current TPM limit (new model: TPM_DEFAULT)."""
+    tpm=None keeps the model's current TPM limit (new model: TPM_DEFAULT).
+    timeout: seconds this model may stay silent before the request is cut (its OWN timeout). None = use the dashboard
+    default timeout; _KEEP = leave as it is."""
     bk = _bk(name)
     with state_lock:
         ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
@@ -340,8 +347,16 @@ def _cfg_apply(name, rpm, rpd, tpm=None):
             ex["rpm"], ex["rpd"] = int(rpm), int(rpd)
             if tpm is not None:
                 ex["tpm"] = int(tpm)
+            if timeout is not _KEEP:
+                if timeout:
+                    ex["timeout"] = int(timeout)
+                else:
+                    ex.pop("timeout", None)
             return False
-        MODELS.append({"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": int(tpm) if tpm is not None else TPM_DEFAULT})
+        nm = {"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": int(tpm) if tpm is not None else TPM_DEFAULT}
+        if timeout is not _KEEP and timeout:
+            nm["timeout"] = int(timeout)
+        MODELS.append(nm)
         return True
 
 
@@ -362,6 +377,7 @@ def _cfg_remove(name):
         if env is not None:
             if ex is not None:
                 ex["rpm"], ex["rpd"], ex["tpm"] = env["rpm"], env["rpd"], _m_tpm(env)
+                ex.pop("timeout", None)          # back to the default timeout
             else:
                 MODELS.append(dict(env))
             return "reset"
@@ -415,6 +431,7 @@ def _cfg_merge(rows):
             name = _cfg_clean_name(r.get("name") or r.get("_id"))
             rpm, rpd = _cfg_int(r.get("rpm"), 1, 1_000_000), _cfg_int(r.get("rpd"), 1, 100_000_000)
             tpm = _cfg_int(r.get("tpm"), 1, 1_000_000_000)      # older saved rows have none -> the model keeps its current TPM
+            tmo = _cfg_int(r.get("timeout"), TIMEOUT_MIN, TIMEOUT_MAX)   # own timeout of the model; none = dashboard default
             if not name or rpm is None or rpd is None:
                 continue
             bk = _bk(name)
@@ -427,7 +444,9 @@ def _cfg_merge(rows):
                                   "updated": float(r.get("updated") or time.time())}
                 if tpm is not None:
                     CUSTOM_CFG[bk]["tpm"] = tpm
-            _cfg_apply(name, rpm, rpd, tpm)
+                if tmo is not None:
+                    CUSTOM_CFG[bk]["timeout"] = tmo
+            _cfg_apply(name, rpm, rpd, tpm, tmo)
             n += 1
         except Exception:
             continue
@@ -455,16 +474,20 @@ def _cfg_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _cfg_save(name, rpm, rpd, tpm=None):
-    """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new."""
+def _cfg_save(name, rpm, rpd, tpm=None, timeout=_KEEP):
+    """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new.
+    timeout: _KEEP = unchanged, None = back to the default timeout, number = this model's own timeout (seconds)."""
     bk, now = _bk(name), time.time()
     with state_lock:
         prev = CUSTOM_CFG.get(bk)
         ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
         eff_tpm = int(tpm) if tpm is not None else int((prev or {}).get("tpm") or (_m_tpm(ex) if ex else TPM_DEFAULT))
+        eff_tmo = (prev or {}).get("timeout") if timeout is _KEEP else timeout
         CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": eff_tpm,
                           "added": (prev or {}).get("added", now), "updated": now}
-    created = _cfg_apply(name, rpm, rpd, eff_tpm)
+        if eff_tmo:
+            CUSTOM_CFG[bk]["timeout"] = int(eff_tmo)
+    created = _cfg_apply(name, rpm, rpd, eff_tpm, (int(eff_tmo) if eff_tmo else None))
     _cfg_persist("set", bk)
     return created
 
@@ -472,7 +495,7 @@ def _cfg_save(name, rpm, rpd, tpm=None):
 def _cfg_view():
     with state_lock:
         env = {_bk(m["name"]) for m in ENV_MODELS}
-        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "tpm": _m_tpm(m), "saved": _bk(m["name"]) in CUSTOM_CFG,
+        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "tpm": _m_tpm(m), "timeout": (m.get("timeout") or None), "saved": _bk(m["name"]) in CUSTOM_CFG,
                  "in_env": _bk(m["name"]) in env} for m in MODELS]
 
 
@@ -1227,7 +1250,7 @@ def prepare_payload(data: dict, model_name: str, force_dummy: bool = False) -> d
     payload["messages"] = msgs
     return payload
 
-def _heal_signature(resp, url, headers, data, model_name):
+def _heal_signature(resp, url, headers, data, model_name, rt=None):
     """If Google says the signature is missing/invalid, retry ONCE on the same
     key+model with the dummy signature instead of failing the user."""
     try:
@@ -1235,7 +1258,7 @@ def _heal_signature(resp, url, headers, data, model_name):
             print(f"[SIG HEAL] {model_name}: signature 400 -> retrying with dummy signature")
             _drain_close(resp)
             return requests.post(url, json=prepare_payload(data, model_name, force_dummy=True),
-                                 headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, GEMINI_READ_TIMEOUT))
+                                 headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, rt or _read_timeout(model_name)))
     except Exception as e:
         print(f"[SIG HEAL ERROR] {e}")
     return resp
@@ -1997,7 +2020,8 @@ ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "up
            "wait_soonest": os.environ.get("WAIT_SOONEST", "0") == "1",
            "wait_max": max(1, min(600, int(float(os.environ.get("WAIT_SOONEST_MAX", str(WAIT_MAX_DEFAULT)))))),
            "compress": _ctx_clean(CTX_DEFAULT),
-           "hd503_secs": max(10, min(7200, int(HD503_BLOCK_SECS)))}      # 503 "high demand" cooldown (seconds), dashboard-controlled
+           "hd503_secs": max(10, min(7200, int(HD503_BLOCK_SECS))),      # 503 "high demand" cooldown (seconds), dashboard-controlled
+           "timeout": None}      # DEFAULT read timeout (seconds) set on the dashboard; None = GEMINI_READ_TIMEOUT (env, 120)
 _routing_io_lock = threading.Lock()
 
 
@@ -2023,10 +2047,45 @@ def _hd503_label() -> str:
     return f"{s // 60} min" if s % 60 == 0 else (f"{s / 60:.1f} min" if s >= 60 else f"{s} s")
 
 
+def _default_read_timeout() -> float:
+    """The default timeout (seconds): dashboard value when set, otherwise GEMINI_READ_TIMEOUT (env, 120)."""
+    try:
+        v = ROUTING.get("timeout")
+        return float(v) if v else GEMINI_READ_TIMEOUT
+    except Exception:
+        return GEMINI_READ_TIMEOUT
+
+
+def _model_read_timeout(model_name):
+    """The model's OWN timeout in seconds, or None when it has none (-> the default is used)."""
+    bk = _bk(model_name)
+    for m in list(MODELS):
+        if _bk(m["name"]) == bk:
+            try:
+                t = float(m.get("timeout") or 0)
+            except (TypeError, ValueError):
+                t = 0
+            return t if t > 0 else None
+    return None
+
+
+def _read_timeout(model_name, is_pool=False) -> float:
+    """How long Google may stay silent for THIS model before the request is cut and the next key/model is tried.
+    1) the model's own timeout (dashboard -> model -> Limits -> Timeout) wins, for named AND auto/pool requests;
+    2) otherwise the dashboard default; an auto/pool request is still capped at GEMINI_POOL_READ_TIMEOUT (90 s)."""
+    own = _model_read_timeout(model_name)
+    if own:
+        return own
+    d = _default_read_timeout()
+    return min(d, GEMINI_POOL_READ_TIMEOUT) if is_pool else d
+
+
 def _routing_view():
     return {"mode": ROUTING["mode"], "modes": list(ROUTING_MODES), "updated": ROUTING["updated"],
             "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": int(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT),
             "hd503_secs": _hd503_secs(), "hd503_default": 240,
+            "timeout_secs": int(_default_read_timeout()), "timeout_env_default": int(GEMINI_READ_TIMEOUT),
+            "timeout_custom": bool(ROUTING.get("timeout")), "pool_timeout": int(GEMINI_POOL_READ_TIMEOUT),
             "compress": dict(ROUTING.get("compress") or CTX_DEFAULT),
             "label": "Use first model until exhausted" if _routing_is_drain() else "Default (rotate models)"}
 
@@ -2036,7 +2095,7 @@ def _routing_save_file():
         with state_lock:
             snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"],
                     "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
-                    "hd503_secs": ROUTING.get("hd503_secs"),
+                    "hd503_secs": ROUTING.get("hd503_secs"), "timeout_secs": ROUTING.get("timeout"),
                     "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
         tmp = ROUTING_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -2063,7 +2122,7 @@ def _routing_persist():
                 with state_lock:
                     doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"],
                            "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
-                           "hd503_secs": ROUTING.get("hd503_secs"),
+                           "hd503_secs": ROUTING.get("hd503_secs"), "timeout_secs": ROUTING.get("timeout"),
                            "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
                 coll.replace_one({"_id": "mode"}, doc, upsert=True)
             except Exception as e:
@@ -2096,6 +2155,12 @@ def _routing_merge(row):
                     ROUTING["wait_max"] = max(1, min(600, int(float(row.get("wait_max")))))
             except Exception:
                 pass
+            if "timeout_secs" in row:            # saved default timeout (None = back to the env default)
+                try:
+                    _tv = row.get("timeout_secs")
+                    ROUTING["timeout"] = max(TIMEOUT_MIN, min(TIMEOUT_MAX, int(float(_tv)))) if _tv else None
+                except Exception:
+                    pass
         return True
     except Exception:
         return False
@@ -2124,8 +2189,10 @@ def _routing_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd503_secs=None):
+def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd503_secs=None, timeout=_KEEP):
     with state_lock:
+        if timeout is not _KEEP:          # None = back to the env default (GEMINI_READ_TIMEOUT)
+            ROUTING["timeout"] = max(TIMEOUT_MIN, min(TIMEOUT_MAX, int(timeout))) if timeout else None
         if compress is not None:
             ROUTING["compress"] = _ctx_clean(compress, ROUTING.get("compress"))
         if mode is not None:
@@ -3576,11 +3643,24 @@ def routing_mode_api():
             return jsonify({"error": "hd503_minutes must be a number (minutes)"}), 400
         if not 10 <= hd <= 7200:
             return jsonify({"error": "503 cooldown must be between 10 seconds and 120 minutes"}), 400
+    # default timeout:  POST {"timeout_secs": 150}   (5 - 1800 s)   |   {"timeout_secs": null}  or  "default"  -> back to the env default (120)
+    tmo = _KEEP
+    if "timeout_secs" in body or "timeout_secs" in request.args:
+        _tv = body.get("timeout_secs", request.args.get("timeout_secs"))
+        if _tv is None or str(_tv).strip().lower() in ("", "default", "reset", "none", "null", "0"):
+            tmo = None
+        else:
+            try:
+                tmo = int(round(float(_tv)))
+            except Exception:
+                return jsonify({"error": "timeout_secs must be a number of seconds"}), 400
+            if not TIMEOUT_MIN <= tmo <= TIMEOUT_MAX:
+                return jsonify({"error": f"timeout must be between {TIMEOUT_MIN} and {TIMEOUT_MAX} seconds"}), 400
     if comp is not None and not isinstance(comp, dict):
         return jsonify({"error": "compress must be an object like {\"mode\": \"trim\", \"threshold\": 60000}"}), 400
     if comp is not None and "mode" in comp and str(comp["mode"]).strip().lower() not in ("off", "trim", "ai"):
         return jsonify({"error": "compress.mode must be off, trim or ai"}), 400
-    if ws is not None or wm is not None or comp is not None or hd is not None:
+    if ws is not None or wm is not None or comp is not None or hd is not None or tmo is not _KEEP:
         if ws is not None:
             ws = ws if isinstance(ws, bool) else str(ws).strip().lower() in ("1", "true", "on", "yes")
         if wm is not None:
@@ -3593,8 +3673,8 @@ def routing_mode_api():
         _m = str(body.get("mode") or "").strip().lower() or None
         if _m is not None and _m not in ROUTING_MODES:
             return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
-        _routing_set(_m, ws, wm, comp, hd)
-        print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']} 503_cooldown={_hd503_secs()}s")
+        _routing_set(_m, ws, wm, comp, hd, tmo)
+        print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']} 503_cooldown={_hd503_secs()}s default_timeout={int(_default_read_timeout())}s")
         return jsonify(_routing_view())
     mode = str(body.get("mode") or request.args.get("mode") or ("default" if request.method == 'DELETE' else "")).strip().lower()
     if mode not in ROUTING_MODES:
@@ -3609,7 +3689,8 @@ def routing_mode_api():
 def model_config_api():
     """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, or remove it.
       GET                                                    -> {"models": [{name, rpm, rpd, saved, in_env}, ...]}
-      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250, "tpm": 250000}   add (or update the limits of an existing model; tpm optional)
+      POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250, "tpm": 250000, "timeout": 90}   add (or update the limits of an existing model; tpm optional;
+           timeout = this model's OWN timeout in seconds (5-1800); "timeout": null / "" = use the dashboard default; omitted = unchanged)
       POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
            saved-only model -> removed from routing; GEMINI_MODELS model -> back to its env limits
     Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
@@ -3649,10 +3730,21 @@ def model_config_api():
         tpm = _cfg_int(body.get("tpm"), 1, 1_000_000_000)
         if tpm is None:
             return jsonify({"error": "tpm must be a whole number >= 1 (tokens per minute per key, default %d)" % TPM_DEFAULT}), 400
-    created = _cfg_save(name, rpm, rpd, tpm)
+    tmo = _KEEP                                  # optional: the model's OWN timeout (s). null / "" / 0 = default timeout. omitted = unchanged
+    if "timeout" in body:
+        _tv = body.get("timeout")
+        if _tv is None or str(_tv).strip().lower() in ("", "default", "none", "null", "0"):
+            tmo = None
+        else:
+            tmo = _cfg_int(_tv, TIMEOUT_MIN, TIMEOUT_MAX)
+            if tmo is None:
+                return jsonify({"error": f"timeout must be a whole number of seconds between {TIMEOUT_MIN} and {TIMEOUT_MAX} (empty = default timeout)"}), 400
+    created = _cfg_save(name, rpm, rpd, tpm, tmo)
     _tpm_eff = next((_m_tpm(m) for m in MODELS if _bk(m["name"]) == bk), TPM_DEFAULT)
-    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} tpm={_tpm_eff} (saved)")
-    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "tpm": _tpm_eff, "created": created, "models": _cfg_view()})
+    _tmo_eff = _model_read_timeout(name)
+    print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} tpm={_tpm_eff} timeout={int(_tmo_eff) if _tmo_eff else 'default'} (saved)")
+    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "tpm": _tpm_eff, "timeout": (int(_tmo_eff) if _tmo_eff else None),
+                    "created": created, "models": _cfg_view()})
 
 
 _avail_cache = {"t": 0.0, "models": None}
@@ -4343,6 +4435,8 @@ details.cardx .cbody{padding:12px 15px}
 <div style="flex:1;"><div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;" title="tokens per minute, per key">TPM (tokens / min / key)</div>
 <input id="mdl-tpm" type="number" min="1" placeholder="250000" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"></div>
 </div>
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;" title="How long Google may stay silent for THIS model before the request is cut and the next key/model is tried. Empty = use the default timeout.">&#9201; Timeout of this model (seconds) <span id="mdl-to-hint" style="color:#6b7280;"></span></div>
+<input id="mdl-timeout" type="number" min="5" max="1800" placeholder="empty = default" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
 <div style='display:flex;gap:8px;align-items:center;margin-bottom:6px;'>
 <button class='btn-s' id='mdl-test-btn' onclick='mdlTest()' style='background:#2d1b69;border-color:#4c1d95;padding:6px 12px;'>🧪 Test this model</button>
 <span style='color:#6b7280;font-size:.78em;'>checks that it works and shows its type (text / image / audio ...) - before you save</span>
@@ -4864,6 +4958,20 @@ async function rwaitSet(on,secs){
     const n=document.getElementById('log-note');if(n)n.textContent='Wait for soonest free key: '+(d.wait_soonest?'ON (max '+d.wait_max+'s)':'OFF')+' - saved';
   }catch(e){alert('Failed: '+e.message);}
 }
+async function rtoSet(secs){
+  const reset=(secs===null||secs==='default');
+  const v=parseInt(secs,10);
+  if(!reset&&!(v>=5&&v<=1800)){alert('Timeout must be 5 - 1800 seconds');await fetchData(true);return;}
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({timeout_secs:reset?null:v})};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));await fetchData(true);return;}
+    lastSig='';await fetchData(true);
+    const n=document.getElementById('log-note');if(n)n.textContent='Default timeout: '+d.timeout_secs+' s - saved (models with their own timeout keep it)';
+  }catch(e){alert('Failed: '+e.message);}
+}
 async function rhdSet(mins){
   const m=parseFloat(mins);
   if(!(m>0)){alert('Enter minutes, e.g. 4');await fetchData(true);return;}
@@ -4984,7 +5092,7 @@ function pickModel(){
   note.textContent='RPM/RPD suggested ('+m.limits_from+') - Google does not publish them through the API, please check your quota and edit if different.'+tok;
 }
 function fmtTok(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+'M':(n>=1e3?Math.round(n/1e3)+'k':String(n));}
-function openModelForm(name,rpm,rpd,saved,inEnv,tpm){
+function openModelForm(name,rpm,rpd,saved,inEnv,tpm,tmo){
   mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
   document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
   const n=document.getElementById('mdl-name');
@@ -4992,6 +5100,8 @@ function openModelForm(name,rpm,rpd,saved,inEnv,tpm){
   document.getElementById('mdl-rpm').value=rpm||'';
   document.getElementById('mdl-rpd').value=rpd||'';
   document.getElementById('mdl-tpm').value=tpm||250000;
+  document.getElementById('mdl-timeout').value=(tmo&&Number(tmo)>0)?tmo:'';
+  document.getElementById('mdl-to-hint').textContent='(empty = default '+(window._defTimeout||120)+' s)';
   document.getElementById('mdl-err').textContent='';
   const del=document.getElementById('mdl-del');
   del.style.display=(mdlEditing&&mdlSavedFlag)?'inline-block':'none';
@@ -5019,14 +5129,16 @@ async function saveModelCfg(){
   const rpm=document.getElementById('mdl-rpm').value.trim();
   const rpd=document.getElementById('mdl-rpd').value.trim();
   const tpm=document.getElementById('mdl-tpm').value.trim();
+  const tmoRaw=document.getElementById('mdl-timeout').value.trim();
   const errEl=document.getElementById('mdl-err');
   if(!name){errEl.textContent='Enter the model name';return;}
   if(!rpm||!rpd){errEl.textContent='Enter both RPM and RPD';return;}
-  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd,tpm:tpm||250000});
+  if(tmoRaw&&!(parseInt(tmoRaw,10)>=5&&parseInt(tmoRaw,10)<=1800)){errEl.textContent='Timeout must be 5 - 1800 seconds (or empty for the default)';return;}
+  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd,tpm:tpm||250000,timeout:tmoRaw?parseInt(tmoRaw,10):null});
   if(d){
     closeModelForm();
     const noteEl=document.getElementById('log-note');
-    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+', TPM '+fmtTok(d.tpm)+') - saved';
+    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+', TPM '+fmtTok(d.tpm)+', timeout '+(d.timeout?d.timeout+' s':'default')+') - saved';
   }
 }
 async function deleteModelCfg(){
@@ -5311,6 +5423,10 @@ function updateUI(data){
   const hdSecs=parseInt((data.routing_mode||{}).hd503_secs,10)||240;
   const hdMin=Math.round(hdSecs/6)/10;
   const hdDef=(hdSecs===240);
+  const toSecs=parseInt((data.routing_mode||{}).timeout_secs,10)||120;
+  const toEnv=parseInt((data.routing_mode||{}).timeout_env_default,10)||120;
+  const toDef=!((data.routing_mode||{}).timeout_custom);
+  window._defTimeout=toSecs;
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -5358,7 +5474,7 @@ function updateUI(data){
     const em = esc(mn);
     const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
     const lastPos = o.lp;
-    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-tpm="${model.tpm||250000}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.tpm)" title="Change RPM / RPD / TPM of ${em}">✏️ Limits</button>`;
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-tpm="${model.tpm||250000}" data-to="${model.timeout||''}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.tpm,this.dataset.to)" title="Change RPM / RPD / TPM / timeout of ${em}">✏️ Limits</button>`;
     const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtOpen([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
     const lastBtn = lastPos >= 0
       ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
@@ -5369,7 +5485,8 @@ function updateUI(data){
     const releaseModelBtn = penCount > 0
       ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
       : '';
-    const tags = (cfgInfo.saved ? ' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>' : '')
+    const tags = (model.timeout ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="this model has its own timeout (default is ${toSecs} s)">⏱ ${model.timeout}s</span>` : '')
+      + (cfgInfo.saved ? ' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>' : '')
       + (lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '')
       + (blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.75em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '');
     window._penData = window._penData || {}; window._penData[mn] = info.pen || [];
@@ -5459,6 +5576,12 @@ function updateUI(data){
             <input type="number" min="0.2" max="120" step="0.5" value="${hdMin}" style="width:56px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rhdSet(this.value)">
             <span style="color:#9ca3af;font-size:.8em;">min</span>
             <button class="btn-s" style="border:0;border-radius:0;" ${hdDef?'disabled':''} onclick="rhdSet(4)" title="back to the default (4 min)">↺ 4</button>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${toDef?'#4b5563':'#fbbf24'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Default timeout: how long Google may stay silent before a request is cut and the next key/model is tried. Used by every model that has no timeout of its own (set a model's own timeout with its ✏️ Limits button). Auto/round-robin requests are capped at ${data.routing_mode.pool_timeout||90} s unless the model has its own timeout. Saved - stays after a restart.">
+            <span style="color:#fbbf24;font-weight:bold;">⏱ Default timeout</span>
+            <input type="number" min="5" max="1800" step="1" value="${toSecs}" style="width:60px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rtoSet(this.value)">
+            <span style="color:#9ca3af;font-size:.8em;">s</span>
+            <button class="btn-s" style="border:0;border-radius:0;" ${toDef?'disabled':''} onclick="rtoSet('default')" title="back to the default (${toEnv} s)">↺ ${toEnv}</button>
           </span>
           <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${cxMode!=='off'?'#38bdf8':'#4b5563'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Compress context: when a request is bigger than the limit, OLD tool outputs are shortened (Trim) or summarised by a cheap model of your pool (AI). System messages, the first user message, the newest messages and all tool calls stay untouched.">
             <span style="color:#7dd3fc;font-weight:bold;">🗜 Compress</span>
@@ -6477,10 +6600,10 @@ def proxy_chat():
             data["model"] = actual_model
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-            _rt = GEMINI_POOL_READ_TIMEOUT if (requested_model or "").lower() in _GENERIC_MODEL_ALIASES else GEMINI_READ_TIMEOUT
+            _rt = _read_timeout(actual_model, (requested_model or "").lower() in _GENERIC_MODEL_ALIASES)
             try:
                 resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, _rt))
-                resp = _heal_signature(resp, url, headers, data, actual_model)
+                resp = _heal_signature(resp, url, headers, data, actual_model, _rt)
                 if resp.status_code != 200:
                     _drain_close(resp)
                     with state_lock:
@@ -6716,9 +6839,9 @@ def proxy_chat():
         url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
         try:
-            _rt = GEMINI_POOL_READ_TIMEOUT if _is_pool_req else GEMINI_READ_TIMEOUT
+            _rt = _read_timeout(actual_model, _is_pool_req)
             resp = _post_cancellable(url, json=prepare_payload(data, actual_model), headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, _rt))
-            resp = _heal_signature(resp, url, headers, data, actual_model)
+            resp = _heal_signature(resp, url, headers, data, actual_model, _rt)
             if resp.status_code != 200:
                 _drain_close(resp)        # error answers are small: read + close now (stream=True otherwise keeps the socket open)
                 with state_lock:
