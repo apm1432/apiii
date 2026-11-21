@@ -335,7 +335,7 @@ def _cfg_int(v, lo, hi):
     return int(f)
 
 
-def _cfg_apply(name, rpm, rpd, tpm=None, timeout=_KEEP):
+def _cfg_apply(name, rpm, rpd, tpm=None, timeout=_KEEP, reasoning=_KEEP):
     """Put the model in the routing list (or update its limits). Returns True when a new entry was created.
     tpm=None keeps the model's current TPM limit (new model: TPM_DEFAULT).
     timeout: seconds this model may stay silent before the request is cut (its OWN timeout). None = use the dashboard
@@ -352,10 +352,17 @@ def _cfg_apply(name, rpm, rpd, tpm=None, timeout=_KEEP):
                     ex["timeout"] = int(timeout)
                 else:
                     ex.pop("timeout", None)
+            if reasoning is not _KEEP:          # this model's own thinking level (None = dashboard default)
+                if reasoning:
+                    ex["reasoning"] = reasoning
+                else:
+                    ex.pop("reasoning", None)
             return False
         nm = {"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": int(tpm) if tpm is not None else TPM_DEFAULT}
         if timeout is not _KEEP and timeout:
             nm["timeout"] = int(timeout)
+        if reasoning is not _KEEP and reasoning:
+            nm["reasoning"] = reasoning
         MODELS.append(nm)
         return True
 
@@ -378,6 +385,7 @@ def _cfg_remove(name):
             if ex is not None:
                 ex["rpm"], ex["rpd"], ex["tpm"] = env["rpm"], env["rpd"], _m_tpm(env)
                 ex.pop("timeout", None)          # back to the default timeout
+                ex.pop("reasoning", None)        # back to the default thinking level
             else:
                 MODELS.append(dict(env))
             return "reset"
@@ -432,6 +440,7 @@ def _cfg_merge(rows):
             rpm, rpd = _cfg_int(r.get("rpm"), 1, 1_000_000), _cfg_int(r.get("rpd"), 1, 100_000_000)
             tpm = _cfg_int(r.get("tpm"), 1, 1_000_000_000)      # older saved rows have none -> the model keeps its current TPM
             tmo = _cfg_int(r.get("timeout"), TIMEOUT_MIN, TIMEOUT_MAX)   # own timeout of the model; none = dashboard default
+            rea = _clean_effort(r.get("reasoning"))                      # own thinking level; none = dashboard default
             if not name or rpm is None or rpd is None:
                 continue
             bk = _bk(name)
@@ -446,7 +455,9 @@ def _cfg_merge(rows):
                     CUSTOM_CFG[bk]["tpm"] = tpm
                 if tmo is not None:
                     CUSTOM_CFG[bk]["timeout"] = tmo
-            _cfg_apply(name, rpm, rpd, tpm, tmo)
+                if rea is not None:
+                    CUSTOM_CFG[bk]["reasoning"] = rea
+            _cfg_apply(name, rpm, rpd, tpm, tmo, rea)
             n += 1
         except Exception:
             continue
@@ -474,7 +485,7 @@ def _cfg_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _cfg_save(name, rpm, rpd, tpm=None, timeout=_KEEP):
+def _cfg_save(name, rpm, rpd, tpm=None, timeout=_KEEP, reasoning=_KEEP):
     """Apply + remember one model (used by the dashboard, /model_config and /add). Returns True when it was new.
     timeout: _KEEP = unchanged, None = back to the default timeout, number = this model's own timeout (seconds)."""
     bk, now = _bk(name), time.time()
@@ -483,11 +494,14 @@ def _cfg_save(name, rpm, rpd, tpm=None, timeout=_KEEP):
         ex = next((m for m in MODELS if _bk(m["name"]) == bk), None)
         eff_tpm = int(tpm) if tpm is not None else int((prev or {}).get("tpm") or (_m_tpm(ex) if ex else TPM_DEFAULT))
         eff_tmo = (prev or {}).get("timeout") if timeout is _KEEP else timeout
+        eff_rea = (prev or {}).get("reasoning") if reasoning is _KEEP else reasoning
         CUSTOM_CFG[bk] = {"name": name, "rpm": int(rpm), "rpd": int(rpd), "tpm": eff_tpm,
                           "added": (prev or {}).get("added", now), "updated": now}
         if eff_tmo:
             CUSTOM_CFG[bk]["timeout"] = int(eff_tmo)
-    created = _cfg_apply(name, rpm, rpd, eff_tpm, (int(eff_tmo) if eff_tmo else None))
+        if eff_rea:
+            CUSTOM_CFG[bk]["reasoning"] = eff_rea
+    created = _cfg_apply(name, rpm, rpd, eff_tpm, (int(eff_tmo) if eff_tmo else None), (eff_rea or None))
     _cfg_persist("set", bk)
     return created
 
@@ -495,7 +509,7 @@ def _cfg_save(name, rpm, rpd, tpm=None, timeout=_KEEP):
 def _cfg_view():
     with state_lock:
         env = {_bk(m["name"]) for m in ENV_MODELS}
-        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "tpm": _m_tpm(m), "timeout": (m.get("timeout") or None), "saved": _bk(m["name"]) in CUSTOM_CFG,
+        return [{"name": m["name"], "rpm": m["rpm"], "rpd": m["rpd"], "tpm": _m_tpm(m), "timeout": (m.get("timeout") or None), "reasoning": (m.get("reasoning") or None), "saved": _bk(m["name"]) in CUSTOM_CFG,
                  "in_env": _bk(m["name"]) in env} for m in MODELS]
 
 
@@ -755,6 +769,10 @@ CHAT_COMPLETIONS_ALLOWED_KEYS = {
     "presence_penalty", "frequency_penalty", "logit_bias", "seed",
     "tools", "tool_choice", "functions", "function_call",
     "response_format", "logprobs", "top_logprobs", "parallel_tool_calls",
+    # Gemini thinking control (Google's OpenAI-compat docs): reasoning_effort = minimal|low|medium|high. Before this fix it was
+    # silently stripped, so a client could never lower the thinking time. extra_body / google carry Gemini-only fields
+    # (thinking_config ...) exactly as Google documents them (the OpenAI SDK merges extra_body into the top level).
+    "reasoning_effort", "extra_body", "google",
     "_conv_hint",  # internal marker, stripped later in proxy_chat before forwarding
     "_wants_search",  # internal marker: the client asked for web search (see _extract_search_intent), stripped in proxy_chat
 }
@@ -985,6 +1003,28 @@ def search_via_native(data: dict, requested_model: str, is_responses_api: bool, 
         return None
     return None
 
+REASONING_LEVELS = ("minimal", "low", "medium", "high")
+
+
+def _clean_effort(v):
+    """Any client spelling -> one of minimal|low|medium|high, or None (unknown / not set).
+    'none' -> minimal and 'xhigh' -> high, because Gemini 3 / 2.5-pro cannot switch thinking off or go higher."""
+    if v is None or isinstance(v, bool):
+        return None
+    v = str(v).strip().lower()
+    v = {"none": "minimal", "off": "minimal", "xhigh": "high", "max": "high"}.get(v, v)
+    return v if v in REASONING_LEVELS else None
+
+
+def _has_thinking_config(d: dict) -> bool:
+    """Client already sent Gemini's own thinking_config (top level 'google' or extra_body.google). Google rejects it together
+    with reasoning_effort, so then reasoning_effort must not be added."""
+    for g_ in (d.get("google"), (d.get("extra_body") or {}).get("google") if isinstance(d.get("extra_body"), dict) else None):
+        if isinstance(g_, dict) and g_.get("thinking_config"):
+            return True
+    return False
+
+
 def normalize_to_chat_completions(data: dict) -> dict:
     """Accepts either a normal Chat Completions body OR a Responses-API body
     and returns something Gemini's /v1beta/openai/chat/completions accepts."""
@@ -1016,6 +1056,16 @@ def normalize_to_chat_completions(data: dict) -> dict:
     if instructions:
         data["messages"] = [{"role": "system", "content": instructions}] + data.get("messages", [])
 
+    # Responses-API style  "reasoning": {"effort": "low"}  ->  reasoning_effort
+    _rz = data.get("reasoning")
+    if isinstance(_rz, dict) and data.get("reasoning_effort") is None and _rz.get("effort") is not None:
+        data["reasoning_effort"] = _rz.get("effort")
+    if "reasoning_effort" in data:
+        _eff = _clean_effort(data.get("reasoning_effort"))
+        if _eff:
+            data["reasoning_effort"] = _eff
+        else:
+            data.pop("reasoning_effort", None)
     out = {k: v for k, v in data.items() if k in CHAT_COMPLETIONS_ALLOWED_KEYS}
     if wants_search:
         out["_wants_search"] = True
@@ -1217,7 +1267,22 @@ def _finalize_success_response(resp, is_responses_api: bool, actual_model: str, 
         return Response(responses_sse_stream(responses_json), mimetype="text/event-stream")
     return jsonify(responses_json)
 
-def prepare_payload(data: dict, model_name: str, force_dummy: bool = False) -> dict:
+def _apply_reasoning(payload: dict, model_name: str, drop: bool = False) -> dict:
+    """Thinking level for ONE upstream call. Priority: what the client sent > the model's own level (dashboard, Limits)
+    > the dashboard default. Only gemini-* models think (gemma does not -> never sent there). Google rejects
+    reasoning_effort together with thinking_config, so nothing is added when the client uses thinking_config."""
+    if drop or not str(model_name or "").startswith("gemini-") or _has_thinking_config(payload):
+        payload.pop("reasoning_effort", None)
+        return payload
+    if _clean_effort(payload.get("reasoning_effort")) is None:
+        payload.pop("reasoning_effort", None)
+        eff = _model_reasoning(model_name) or _clean_effort(ROUTING.get("reasoning"))
+        if eff:
+            payload["reasoning_effort"] = eff
+    return payload
+
+
+def prepare_payload(data: dict, model_name: str, force_dummy: bool = False, no_reasoning: bool = False) -> dict:
     """Copy of the request with signatures fixed up for the chosen model.
     - gemini-*  : restore the cached real signature; dummy if none cached
                   (dummy is only used for gemini-3*, where it is required).
@@ -1248,7 +1313,7 @@ def prepare_payload(data: dict, model_name: str, force_dummy: bool = False) -> d
         if is_g3 and SIG_FALLBACK and not any(_extract_sig(tc) for tc in tcs):
             tcs[0].setdefault("extra_content", {}).setdefault("google", {})["thought_signature"] = SIG_FALLBACK
     payload["messages"] = msgs
-    return payload
+    return _apply_reasoning(payload, model_name, drop=no_reasoning)
 
 def _heal_signature(resp, url, headers, data, model_name, rt=None):
     """If Google says the signature is missing/invalid, retry ONCE on the same
@@ -1259,6 +1324,13 @@ def _heal_signature(resp, url, headers, data, model_name, rt=None):
             _drain_close(resp)
             return requests.post(url, json=prepare_payload(data, model_name, force_dummy=True),
                                  headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, rt or _read_timeout(model_name)))
+        if resp.status_code == 400:
+            _t = resp.text.lower()
+            if ("reasoning" in _t or "thinking" in _t) and "reasoning_effort" in prepare_payload(data, model_name):
+                print(f"[THINK HEAL] {model_name}: 400 about thinking -> retrying once without reasoning_effort")
+                _drain_close(resp)
+                return requests.post(url, json=prepare_payload(data, model_name, no_reasoning=True),
+                                     headers=headers, stream=True, timeout=(GEMINI_CONNECT_TIMEOUT, rt or _read_timeout(model_name)))
     except Exception as e:
         print(f"[SIG HEAL ERROR] {e}")
     return resp
@@ -2021,6 +2093,7 @@ ROUTING = {"mode": _env_rmode if _env_rmode in ROUTING_MODES else "default", "up
            "wait_max": max(1, min(600, int(float(os.environ.get("WAIT_SOONEST_MAX", str(WAIT_MAX_DEFAULT)))))),
            "compress": _ctx_clean(CTX_DEFAULT),
            "hd503_secs": max(10, min(7200, int(HD503_BLOCK_SECS))),      # 503 "high demand" cooldown (seconds), dashboard-controlled
+           "reasoning": _clean_effort(os.environ.get("REASONING_EFFORT")) or "",     # default thinking level ("" = the model decides)
            "timeout": None}      # DEFAULT read timeout (seconds) set on the dashboard; None = GEMINI_READ_TIMEOUT (env, 120)
 _routing_io_lock = threading.Lock()
 
@@ -2056,6 +2129,15 @@ def _default_read_timeout() -> float:
         return GEMINI_READ_TIMEOUT
 
 
+def _model_reasoning(model_name):
+    """The model's OWN thinking level (minimal|low|medium|high) or None -> the dashboard default is used."""
+    bk = _bk(model_name)
+    for m in list(MODELS):
+        if _bk(m["name"]) == bk:
+            return _clean_effort(m.get("reasoning"))
+    return None
+
+
 def _model_read_timeout(model_name):
     """The model's OWN timeout in seconds, or None when it has none (-> the default is used)."""
     bk = _bk(model_name)
@@ -2084,6 +2166,7 @@ def _routing_view():
     return {"mode": ROUTING["mode"], "modes": list(ROUTING_MODES), "updated": ROUTING["updated"],
             "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": int(ROUTING.get("wait_max") or WAIT_MAX_DEFAULT),
             "hd503_secs": _hd503_secs(), "hd503_default": 240,
+            "reasoning": ROUTING.get("reasoning") or "", "reasoning_levels": list(REASONING_LEVELS),
             "timeout_secs": int(_default_read_timeout()), "timeout_env_default": int(GEMINI_READ_TIMEOUT),
             "timeout_custom": bool(ROUTING.get("timeout")), "pool_timeout": int(GEMINI_POOL_READ_TIMEOUT),
             "compress": dict(ROUTING.get("compress") or CTX_DEFAULT),
@@ -2096,6 +2179,7 @@ def _routing_save_file():
             snap = {"mode": ROUTING["mode"], "updated": ROUTING["updated"],
                     "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
                     "hd503_secs": ROUTING.get("hd503_secs"), "timeout_secs": ROUTING.get("timeout"),
+                    "reasoning": ROUTING.get("reasoning") or "",
                     "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
         tmp = ROUTING_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -2123,6 +2207,7 @@ def _routing_persist():
                     doc = {"_id": "mode", "mode": ROUTING["mode"], "updated": ROUTING["updated"],
                            "wait_soonest": bool(ROUTING.get("wait_soonest")), "wait_max": ROUTING.get("wait_max"),
                            "hd503_secs": ROUTING.get("hd503_secs"), "timeout_secs": ROUTING.get("timeout"),
+                           "reasoning": ROUTING.get("reasoning") or "",
                            "compress": dict(ROUTING.get("compress") or CTX_DEFAULT)}
                 coll.replace_one({"_id": "mode"}, doc, upsert=True)
             except Exception as e:
@@ -2155,6 +2240,8 @@ def _routing_merge(row):
                     ROUTING["wait_max"] = max(1, min(600, int(float(row.get("wait_max")))))
             except Exception:
                 pass
+            if "reasoning" in row:               # saved default thinking level ("" = model decides)
+                ROUTING["reasoning"] = _clean_effort(row.get("reasoning")) or ""
             if "timeout_secs" in row:            # saved default timeout (None = back to the env default)
                 try:
                     _tv = row.get("timeout_secs")
@@ -2189,8 +2276,10 @@ def _routing_load():
     threading.Thread(target=_bg, daemon=True).start()
 
 
-def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd503_secs=None, timeout=_KEEP):
+def _routing_set(mode=None, wait_soonest=None, wait_max=None, compress=None, hd503_secs=None, timeout=_KEEP, reasoning=_KEEP):
     with state_lock:
+        if reasoning is not _KEEP:        # "" / None = the model decides
+            ROUTING["reasoning"] = _clean_effort(reasoning) or ""
         if timeout is not _KEEP:          # None = back to the env default (GEMINI_READ_TIMEOUT)
             ROUTING["timeout"] = max(TIMEOUT_MIN, min(TIMEOUT_MAX, int(timeout))) if timeout else None
         if compress is not None:
@@ -3656,11 +3745,21 @@ def routing_mode_api():
                 return jsonify({"error": "timeout_secs must be a number of seconds"}), 400
             if not TIMEOUT_MIN <= tmo <= TIMEOUT_MAX:
                 return jsonify({"error": f"timeout must be between {TIMEOUT_MIN} and {TIMEOUT_MAX} seconds"}), 400
+    # default thinking level:  POST {"reasoning_default": "low"}  (minimal|low|medium|high)   |  {"reasoning_default": ""}  -> the model decides
+    rea = _KEEP
+    if "reasoning_default" in body or "reasoning_default" in request.args:
+        _rv = body.get("reasoning_default", request.args.get("reasoning_default"))
+        if _rv is None or str(_rv).strip().lower() in ("", "default", "null", "model"):
+            rea = ""
+        else:
+            rea = _clean_effort(_rv)
+            if rea is None:
+                return jsonify({"error": "reasoning_default must be one of: " + ", ".join(REASONING_LEVELS) + " (empty = the model decides)"}), 400
     if comp is not None and not isinstance(comp, dict):
         return jsonify({"error": "compress must be an object like {\"mode\": \"trim\", \"threshold\": 60000}"}), 400
     if comp is not None and "mode" in comp and str(comp["mode"]).strip().lower() not in ("off", "trim", "ai"):
         return jsonify({"error": "compress.mode must be off, trim or ai"}), 400
-    if ws is not None or wm is not None or comp is not None or hd is not None or tmo is not _KEEP:
+    if ws is not None or wm is not None or comp is not None or hd is not None or tmo is not _KEEP or rea is not _KEEP:
         if ws is not None:
             ws = ws if isinstance(ws, bool) else str(ws).strip().lower() in ("1", "true", "on", "yes")
         if wm is not None:
@@ -3673,7 +3772,7 @@ def routing_mode_api():
         _m = str(body.get("mode") or "").strip().lower() or None
         if _m is not None and _m not in ROUTING_MODES:
             return jsonify({"error": "mode must be one of: " + ", ".join(ROUTING_MODES)}), 400
-        _routing_set(_m, ws, wm, comp, hd, tmo)
+        _routing_set(_m, ws, wm, comp, hd, tmo, rea)
         print(f"[ROUTING] wait_soonest={ROUTING['wait_soonest']} wait_max={ROUTING['wait_max']}s mode={ROUTING['mode']} compress={ROUTING['compress']} 503_cooldown={_hd503_secs()}s default_timeout={int(_default_read_timeout())}s")
         return jsonify(_routing_view())
     mode = str(body.get("mode") or request.args.get("mode") or ("default" if request.method == 'DELETE' else "")).strip().lower()
@@ -3690,7 +3789,8 @@ def model_config_api():
     """Add a model with its RPM / RPD limits (saved: survives restarts), change its limits, or remove it.
       GET                                                    -> {"models": [{name, rpm, rpd, saved, in_env}, ...]}
       POST {"model": "gemini-3.9-flash", "rpm": 10, "rpd": 250, "tpm": 250000, "timeout": 90}   add (or update the limits of an existing model; tpm optional;
-           timeout = this model's OWN timeout in seconds (5-1800); "timeout": null / "" = use the dashboard default; omitted = unchanged)
+           timeout = this model's OWN timeout in seconds (5-1800); "timeout": null / "" = use the dashboard default; omitted = unchanged;
+           "reasoning": "low" = this model's own thinking level minimal|low|medium|high, null / "" = dashboard default)
       POST {"action": "delete", "model": "..."}  or  DELETE ?model=...
            saved-only model -> removed from routing; GEMINI_MODELS model -> back to its env limits
     Auth: Authorization: Bearer <PASSWORD> (or the dashboard's browser login)."""
@@ -3739,11 +3839,20 @@ def model_config_api():
             tmo = _cfg_int(_tv, TIMEOUT_MIN, TIMEOUT_MAX)
             if tmo is None:
                 return jsonify({"error": f"timeout must be a whole number of seconds between {TIMEOUT_MIN} and {TIMEOUT_MAX} (empty = default timeout)"}), 400
-    created = _cfg_save(name, rpm, rpd, tpm, tmo)
+    rea = _KEEP                                  # optional: the model's OWN thinking level. null / "" = dashboard default. omitted = unchanged
+    if "reasoning" in body:
+        _rv = body.get("reasoning")
+        if _rv is None or str(_rv).strip().lower() in ("", "default", "null"):
+            rea = None
+        else:
+            rea = _clean_effort(_rv)
+            if rea is None:
+                return jsonify({"error": "reasoning must be one of: " + ", ".join(REASONING_LEVELS) + " (empty = default)"}), 400
+    created = _cfg_save(name, rpm, rpd, tpm, tmo, rea)
     _tpm_eff = next((_m_tpm(m) for m in MODELS if _bk(m["name"]) == bk), TPM_DEFAULT)
     _tmo_eff = _model_read_timeout(name)
     print(f"[MODEL CFG] {name} {'added' if created else 'updated'}: rpm={rpm} rpd={rpd} tpm={_tpm_eff} timeout={int(_tmo_eff) if _tmo_eff else 'default'} (saved)")
-    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "tpm": _tpm_eff, "timeout": (int(_tmo_eff) if _tmo_eff else None),
+    return jsonify({"model": name, "rpm": rpm, "rpd": rpd, "tpm": _tpm_eff, "timeout": (int(_tmo_eff) if _tmo_eff else None), "reasoning": _model_reasoning(name),
                     "created": created, "models": _cfg_view()})
 
 
@@ -4437,6 +4546,8 @@ details.cardx .cbody{padding:12px 15px}
 </div>
 <div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;" title="How long Google may stay silent for THIS model before the request is cut and the next key/model is tried. Empty = use the default timeout.">&#9201; Timeout of this model (seconds) <span id="mdl-to-hint" style="color:#6b7280;"></span></div>
 <input id="mdl-timeout" type="number" min="5" max="1800" placeholder="empty = default" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;">
+<div style="color:#9ca3af;font-size:.85em;margin-bottom:4px;" title="Gemini thinking level for this model (reasoning_effort). Lower = the first words come sooner. Only used when the client does not send its own level.">&#129504; Thinking level of this model</div>
+<select id="mdl-reasoning" style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #4b5563;background:#111827;color:#fff;margin-bottom:8px;"><option value="">Use the default (dashboard)</option><option value="minimal">minimal (fastest)</option><option value="low">low</option><option value="medium">medium</option><option value="high">high (slowest)</option></select>
 <div style='display:flex;gap:8px;align-items:center;margin-bottom:6px;'>
 <button class='btn-s' id='mdl-test-btn' onclick='mdlTest()' style='background:#2d1b69;border-color:#4c1d95;padding:6px 12px;'>🧪 Test this model</button>
 <span style='color:#6b7280;font-size:.78em;'>checks that it works and shows its type (text / image / audio ...) - before you save</span>
@@ -4972,6 +5083,17 @@ async function rtoSet(secs){
     const n=document.getElementById('log-note');if(n)n.textContent='Default timeout: '+d.timeout_secs+' s - saved (models with their own timeout keep it)';
   }catch(e){alert('Failed: '+e.message);}
 }
+async function rreaSet(level){
+  const opts={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({reasoning_default:level||''})};
+  try{
+    let r=await fetch('/router/routing_mode',opts);
+    if(r.status===404){r=await fetch('routing_mode',opts);}
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){alert(d.error||('HTTP '+r.status));await fetchData(true);return;}
+    lastSig='';await fetchData(true);
+    const n=document.getElementById('log-note');if(n)n.textContent='Default thinking level: '+(d.reasoning||'model decides')+' - saved (a level sent by the client or set on a model wins)';
+  }catch(e){alert('Failed: '+e.message);}
+}
 async function rhdSet(mins){
   const m=parseFloat(mins);
   if(!(m>0)){alert('Enter minutes, e.g. 4');await fetchData(true);return;}
@@ -5092,7 +5214,7 @@ function pickModel(){
   note.textContent='RPM/RPD suggested ('+m.limits_from+') - Google does not publish them through the API, please check your quota and edit if different.'+tok;
 }
 function fmtTok(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1)+'M':(n>=1e3?Math.round(n/1e3)+'k':String(n));}
-function openModelForm(name,rpm,rpd,saved,inEnv,tpm,tmo){
+function openModelForm(name,rpm,rpd,saved,inEnv,tpm,tmo,rea){
   mdlEditing=!!name;mdlSavedFlag=!!saved;mdlInEnv=!!inEnv;
   document.getElementById('mdl-title').textContent=name?'✏️ Edit limits':'➕ Add model';
   const n=document.getElementById('mdl-name');
@@ -5101,6 +5223,7 @@ function openModelForm(name,rpm,rpd,saved,inEnv,tpm,tmo){
   document.getElementById('mdl-rpd').value=rpd||'';
   document.getElementById('mdl-tpm').value=tpm||250000;
   document.getElementById('mdl-timeout').value=(tmo&&Number(tmo)>0)?tmo:'';
+  document.getElementById('mdl-reasoning').value=rea||'';
   document.getElementById('mdl-to-hint').textContent='(empty = default '+(window._defTimeout||120)+' s)';
   document.getElementById('mdl-err').textContent='';
   const del=document.getElementById('mdl-del');
@@ -5130,15 +5253,16 @@ async function saveModelCfg(){
   const rpd=document.getElementById('mdl-rpd').value.trim();
   const tpm=document.getElementById('mdl-tpm').value.trim();
   const tmoRaw=document.getElementById('mdl-timeout').value.trim();
+  const reaRaw=document.getElementById('mdl-reasoning').value;
   const errEl=document.getElementById('mdl-err');
   if(!name){errEl.textContent='Enter the model name';return;}
   if(!rpm||!rpd){errEl.textContent='Enter both RPM and RPD';return;}
   if(tmoRaw&&!(parseInt(tmoRaw,10)>=5&&parseInt(tmoRaw,10)<=1800)){errEl.textContent='Timeout must be 5 - 1800 seconds (or empty for the default)';return;}
-  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd,tpm:tpm||250000,timeout:tmoRaw?parseInt(tmoRaw,10):null});
+  const d=await modelCfgCall({action:'set',model:name,rpm:rpm,rpd:rpd,tpm:tpm||250000,timeout:tmoRaw?parseInt(tmoRaw,10):null,reasoning:reaRaw||null});
   if(d){
     closeModelForm();
     const noteEl=document.getElementById('log-note');
-    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+', TPM '+fmtTok(d.tpm)+', timeout '+(d.timeout?d.timeout+' s':'default')+') - saved';
+    if(noteEl)noteEl.textContent=(d.created?'✅ Added ':'✅ Updated ')+d.model+' (RPM '+d.rpm+', RPD '+d.rpd+', TPM '+fmtTok(d.tpm)+', timeout '+(d.timeout?d.timeout+' s':'default')+', thinking '+(d.reasoning||'default')+') - saved';
   }
 }
 async function deleteModelCfg(){
@@ -5427,6 +5551,7 @@ function updateUI(data){
   const toEnv=parseInt((data.routing_mode||{}).timeout_env_default,10)||120;
   const toDef=!((data.routing_mode||{}).timeout_custom);
   window._defTimeout=toSecs;
+  const reaDef=(data.routing_mode||{}).reasoning||'';
   let penHtml='';
   const penData=data.penalized_keys||{};
   const penEntries=Object.entries(penData);
@@ -5474,7 +5599,7 @@ function updateUI(data){
     const em = esc(mn);
     const cfgInfo = (data.model_cfg || {})[mn] || {saved: false, in_env: false};
     const lastPos = o.lp;
-    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-tpm="${model.tpm||250000}" data-to="${model.timeout||''}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.tpm,this.dataset.to)" title="Change RPM / RPD / TPM / timeout of ${em}">✏️ Limits</button>`;
+    const editBtn = `<button class="btn-s" style="background:#1e3a5f;border-color:#3b82f6;" data-m="${em}" data-rpm="${model.rpm}" data-rpd="${model.rpd}" data-tpm="${model.tpm||250000}" data-to="${model.timeout||''}" data-re="${model.reasoning||''}" data-s="${cfgInfo.saved?1:0}" data-e="${cfgInfo.in_env?1:0}" onclick="event.stopPropagation();openModelForm(this.dataset.m,this.dataset.rpm,this.dataset.rpd,this.dataset.s==='1',this.dataset.e==='1',this.dataset.tpm,this.dataset.to,this.dataset.re)" title="Change RPM / RPD / TPM / timeout / thinking level of ${em}">✏️ Limits</button>`;
     const testBtn = `<button class="btn-s" style="background:#2d1b69;border-color:#4c1d95;" data-m="${em}" onclick="event.stopPropagation();mtOpen([this.dataset.m],false)" title="Test ${em} - then choose: one key / all keys / select keys">🧪 Test</button>`;
     const lastBtn = lastPos >= 0
       ? `<button class="btn-s" style="background:#78350f;border-color:#fbbf24;color:#fde68a;" data-m="${em}" onclick="event.stopPropagation();lastToggle(this.dataset.m)" title="Make ${em} a normal model again">⬆ Normal</button>`
@@ -5485,7 +5610,8 @@ function updateUI(data){
     const releaseModelBtn = penCount > 0
       ? `<button class="btn-s" style="background:#b91c1c;border-color:#f87171;color:#fff;font-weight:bold;" data-m="${em}" onclick="event.stopPropagation();releaseDaily('',this.dataset.m)" title="Release all ${penCount} locked key(s) for ${em}">🔓 Release (${penCount})</button>`
       : '';
-    const tags = (model.timeout ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="this model has its own timeout (default is ${toSecs} s)">⏱ ${model.timeout}s</span>` : '')
+    const tags = (model.reasoning ? ` <span style="color:#7dd3fc;font-size:.75em;font-weight:bold;" title="this model has its own thinking level (default: ${reaDef||'model decides'})">&#129504; ${model.reasoning}</span>` : '')
+      + (model.timeout ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="this model has its own timeout (default is ${toSecs} s)">⏱ ${model.timeout}s</span>` : '')
       + (cfgInfo.saved ? ' <span style="color:#a78bfa;font-size:.72em;" title="saved in the database - survives restarts">💾 saved</span>' : '')
       + (lastPos >= 0 ? ` <span style="color:#fbbf24;font-size:.75em;font-weight:bold;" title="used only after every other model (order #${lastPos+1})">⬇ last #${lastPos+1}</span>` : '')
       + (blockedLeft > 0 ? ` <span style="color:#f87171;font-weight:bold;font-size:.75em;">⛔ blocked ${fmtLeft(blockedLeft)}</span>` : '');
@@ -5582,6 +5708,13 @@ function updateUI(data){
             <input type="number" min="5" max="1800" step="1" value="${toSecs}" style="width:60px;background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;" onchange="rtoSet(this.value)">
             <span style="color:#9ca3af;font-size:.8em;">s</span>
             <button class="btn-s" style="border:0;border-radius:0;" ${toDef?'disabled':''} onclick="rtoSet('default')" title="back to the default (${toEnv} s)">↺ ${toEnv}</button>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${reaDef?'#fbbf24':'#4b5563'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Default Gemini thinking level (reasoning_effort) for every gemini model. Lower = the first words come sooner (thinking models are silent while they think). Only used when the client sends no level of its own; a model's own level (✏️ Limits) wins over this. Saved - stays after a restart.">
+            <span style="color:#fbbf24;font-weight:bold;">&#129504; Thinking</span>
+            <select style="background:#111827;color:#e5e7eb;border:1px solid #4b5563;border-radius:4px;padding:3px 4px;margin-right:6px;" onchange="rreaSet(this.value)">
+              <option value="" ${reaDef===''?'selected':''}>model decides</option>
+              ${['minimal','low','medium','high'].map(x=>`<option value="${x}" ${reaDef===x?'selected':''}>${x}</option>`).join('')}
+            </select>
           </span>
           <span style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${cxMode!=='off'?'#38bdf8':'#4b5563'};border-radius:6px;overflow:hidden;padding-left:6px;" title="Compress context: when a request is bigger than the limit, OLD tool outputs are shortened (Trim) or summarised by a cheap model of your pool (AI). System messages, the first user message, the newest messages and all tool calls stay untouched.">
             <span style="color:#7dd3fc;font-weight:bold;">🗜 Compress</span>
